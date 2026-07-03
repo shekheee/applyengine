@@ -1,0 +1,33 @@
+# Backend deploy for ApplyEngine (Render).
+# Frontend deploys separately to Vercel at applyengine.ajayshekhawat.uk.
+# Mirrors the personal-portfolio (RAG Agent) setup.
+services:
+  - type: web
+    name: applyengine-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: LLM_PROVIDER
+        value: openai
+      - key: OPENAI_CHAT_MODEL
+        value: gpt-4o-mini
+      - key: OPENAI_EMBED_MODEL
+        value: text-embedding-3-small
+      - key: CORS_ORIGINS
+        value: https://applyengine.ajayshekhawat.uk
+      # NOTE: free tier has no persistent disk, so SQLite is ephemeral (resets on
+      # redeploy/sleep). For durability, add a Render Postgres and set DATABASE_URL to it.
+      - key: DATABASE_URL
+        value: sqlite:///./applyengine.db
+      # Secrets — set in the Render dashboard (sync: false keeps them out of git).
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false

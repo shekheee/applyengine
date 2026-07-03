@@ -1,0 +1,32 @@
+{
+  "provider": "mock",
+  "cases": [
+    {
+      "id": "ds_churn",
+      "n_keywords": 11,
+      "keyword_coverage_before": 0.364,
+      "keyword_coverage_after": 1.0,
+      "coverage_lift": 0.636,
+      "fit_score": 33.7,
+      "parse_ok": true
+    },
+    {
+      "id": "ai_llm",
+      "n_keywords": 11,
+      "keyword_coverage_before": 0.545,
+      "keyword_coverage_after": 1.0,
+      "coverage_lift": 0.455,
+      "fit_score": 47.1,
+      "parse_ok": true
+    },
+    {
+      "id": "analyst_stretch",
+      "n_keywords": 9,
+      "keyword_coverage_before": 0.222,
+      "keyword_coverage_after": 1.0,
+      "coverage_lift": 0.778,
+      "fit_score": 18.7,
+      "parse_ok": true
+    }
+  ]
+}
