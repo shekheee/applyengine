@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import type { ChatMessage, Memory } from "@/lib/types";
 import { Badge, Button, Card } from "@/components/ui";
+import { ResumeUpload } from "@/components/resume-upload";
 
 const MEMORY_TONE: Record<string, "default" | "green" | "amber" | "red" | "primary"> = {
   skill: "primary",
@@ -205,6 +206,8 @@ export default function CoachPage() {
 
         {/* Memory sidebar */}
         <div className="space-y-4">
+          <ResumeUpload compact />
+
           <Card>
             <div className="flex items-center justify-between">
               <h2 className="font-semibold">What I&apos;ve learned</h2>
