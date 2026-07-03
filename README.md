@@ -1,13 +1,18 @@
 # ⚡ ApplyEngine
 
 An **AI copilot for your job hunt**, built for Data Science / AI Engineer roles.
-Paste your resume once, then drop in any job description to get:
+Sign in, paste your resume once, then drop in any job description to get:
 
 - a **fit score** (semantic similarity + ATS keyword coverage),
 - an honest **gap analysis**,
 - a **tailored resume + cover letter** (exportable to `.docx`),
 - **interview prep** questions with STAR outlines,
-- and a **Kanban tracker** for the whole pipeline.
+- a **Kanban tracker** for the whole pipeline,
+- and an **AI career coach** you can talk to — it *remembers* what you tell it
+  (a per-user memory store) and folds it into a stronger resume on demand.
+
+Every account is private: profiles, jobs, applications, chat, and memory are all
+scoped to the signed-in user, and sign-ups can be gated behind an invite code.
 
 It's provider-agnostic (OpenAI / Anthropic / fully-offline mock) and ships with an
 **evaluation harness** that measures whether tailoring actually improves keyword coverage.
@@ -140,12 +145,13 @@ applyengine/
 ├── backend/
 │   └── app/
 │       ├── llm/            # provider-agnostic LLM adapters (openai/anthropic/mock)
-│       ├── routers/        # profiles, jobs, applications, generate
-│       ├── services/       # parsing, matching, generation, doc export
-│       ├── prompts.py      # versioned prompts
-│       ├── models.py       # SQLModel tables
+│       ├── routers/        # auth, profiles, jobs, applications, generate, chat
+│       ├── services/       # parsing, matching, generation, doc export, coach
+│       ├── auth.py         # JWT + PBKDF2 password hashing
+│       ├── prompts.py      # versioned prompts (incl. coach + memory extraction)
+│       ├── models.py       # SQLModel tables (User, Profile, Job, Application, ChatMessage, Memory)
 │       └── main.py
-├── frontend/               # Next.js app (pipeline, intake, detail)
+├── frontend/               # Next.js app (login, pipeline, intake, detail, coach)
 ├── evals/                  # eval harness + notebook
 └── docker-compose.yml
 ```
@@ -154,8 +160,15 @@ applyengine/
 
 ## API surface
 
+All endpoints below (except auth) require a `Bearer` token from login/register.
+
 | Method | Path | Purpose |
 |---|---|---|
+| POST | `/api/auth/register` / `/api/auth/login` | Create account / sign in → JWT |
+| GET | `/api/auth/me` | Current user |
+| POST | `/api/chat/messages` | Talk to the coach (learns durable facts) |
+| GET | `/api/chat/messages` / `/api/chat/memories` | Conversation history / learned memory |
+| POST | `/api/chat/apply-to-resume` | Rebuild the profile from learned memory |
 | POST | `/api/profiles` / `/api/profiles/upload` | Create profile from text / file |
 | POST | `/api/jobs` | Parse a job description |
 | POST | `/api/applications` | Create application + compute fit |
@@ -173,9 +186,20 @@ applyengine/
 
 ---
 
+## Auth & the coach
+
+- **Auth:** JWT bearer tokens; passwords hashed with PBKDF2 (stdlib, no native build).
+  Set `JWT_SECRET` and (optionally) `SIGNUP_CODE` to gate registrations.
+- **Coach:** each chat turn is answered by the LLM *and* mined for durable facts
+  (skills, achievements, goals, preferences) stored per-user. "Update my resume"
+  rebuilds your profile from those facts, which then feeds the tailoring pipeline.
+- **Persistence:** use a real `DATABASE_URL` (Postgres) in production so accounts and
+  memory survive redeploys — SQLite on ephemeral hosts resets on every deploy.
+
 ## Roadmap
 
 - [ ] RAG over your project history so cover letters cite real work
 - [ ] Optional Playwright autofill (human submits)
 - [ ] Response-rate analytics by fit-score bucket
-- [ ] Auth + multi-user
+- [x] Auth + multi-user
+- [x] Conversational coach with long-term memory
