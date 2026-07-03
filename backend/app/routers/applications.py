@@ -5,8 +5,9 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlmodel import Session, select
 
+from app.auth import get_current_user
 from app.db import get_session
-from app.models import Application, ApplicationStatus, Job, Profile
+from app.models import Application, ApplicationStatus, Job, Profile, User
 from app.schemas import ApplicationCreate, NotesUpdate, StatusUpdate
 from app.services.doc_export import text_to_docx
 from app.services.matching import compute_fit, gap_analysis
@@ -15,21 +16,35 @@ from app.services.serialize import job_to_text, profile_to_text
 router = APIRouter(prefix="/api/applications", tags=["applications"])
 
 
-def _latest_profile(session: Session) -> Profile | None:
-    return session.exec(select(Profile).order_by(Profile.id.desc())).first()
+def _latest_profile(user: User, session: Session) -> Profile | None:
+    return session.exec(
+        select(Profile).where(Profile.user_id == user.id).order_by(Profile.id.desc())
+    ).first()
+
+
+def _owned_application(app_id: int, user: User, session: Session) -> Application:
+    a = session.get(Application, app_id)
+    if not a or a.user_id != user.id:
+        raise HTTPException(404, "Application not found")
+    return a
 
 
 @router.post("", response_model=Application)
-def create_application(body: ApplicationCreate, session: Session = Depends(get_session)):
+def create_application(
+    body: ApplicationCreate,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
     job = session.get(Job, body.job_id)
-    if not job:
+    if not job or job.user_id != user.id:
         raise HTTPException(404, "Job not found")
 
-    profile = (
-        session.get(Profile, body.profile_id)
-        if body.profile_id
-        else _latest_profile(session)
-    )
+    if body.profile_id:
+        profile = session.get(Profile, body.profile_id)
+        if profile and profile.user_id != user.id:
+            profile = None
+    else:
+        profile = _latest_profile(user, session)
     if not profile:
         raise HTTPException(400, "No profile available; create one first")
 
@@ -39,6 +54,7 @@ def create_application(body: ApplicationCreate, session: Session = Depends(get_s
     analysis = gap_analysis(profile_text, job_text, fit)
 
     app_row = Application(
+        user_id=user.id,
         job_id=job.id,
         profile_id=profile.id,
         status=ApplicationStatus.saved,
@@ -55,25 +71,34 @@ def create_application(body: ApplicationCreate, session: Session = Depends(get_s
 
 
 @router.get("", response_model=list[Application])
-def list_applications(session: Session = Depends(get_session)):
-    return session.exec(select(Application).order_by(Application.updated_at.desc())).all()
+def list_applications(
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    return session.exec(
+        select(Application)
+        .where(Application.user_id == user.id)
+        .order_by(Application.updated_at.desc())
+    ).all()
 
 
 @router.get("/{app_id}", response_model=Application)
-def get_application(app_id: int, session: Session = Depends(get_session)):
-    a = session.get(Application, app_id)
-    if not a:
-        raise HTTPException(404, "Application not found")
-    return a
+def get_application(
+    app_id: int,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    return _owned_application(app_id, user, session)
 
 
 @router.patch("/{app_id}/status", response_model=Application)
 def update_status(
-    app_id: int, body: StatusUpdate, session: Session = Depends(get_session)
+    app_id: int,
+    body: StatusUpdate,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
 ):
-    a = session.get(Application, app_id)
-    if not a:
-        raise HTTPException(404, "Application not found")
+    a = _owned_application(app_id, user, session)
     a.status = body.status
     if body.status == ApplicationStatus.applied and a.applied_at is None:
         a.applied_at = datetime.now(timezone.utc)
@@ -85,10 +110,13 @@ def update_status(
 
 
 @router.patch("/{app_id}/notes", response_model=Application)
-def update_notes(app_id: int, body: NotesUpdate, session: Session = Depends(get_session)):
-    a = session.get(Application, app_id)
-    if not a:
-        raise HTTPException(404, "Application not found")
+def update_notes(
+    app_id: int,
+    body: NotesUpdate,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    a = _owned_application(app_id, user, session)
     a.notes = body.notes
     a.updated_at = datetime.now(timezone.utc)
     session.add(a)
@@ -98,10 +126,13 @@ def update_notes(app_id: int, body: NotesUpdate, session: Session = Depends(get_
 
 
 @router.get("/{app_id}/export/{doc}")
-def export_document(app_id: int, doc: str, session: Session = Depends(get_session)):
-    a = session.get(Application, app_id)
-    if not a:
-        raise HTTPException(404, "Application not found")
+def export_document(
+    app_id: int,
+    doc: str,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    a = _owned_application(app_id, user, session)
     if doc == "resume":
         content, title, fname = a.tailored_resume, "Resume", "tailored_resume.docx"
     elif doc == "cover_letter":

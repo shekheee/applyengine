@@ -5,8 +5,9 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
+from app.auth import get_current_user
 from app.db import get_session
-from app.models import Application, Job, Profile
+from app.models import Application, Job, Profile, User
 from app.schemas import GenerateRequest
 from app.services.generation import cover_letter, interview_prep, tailor_resume
 from app.services.serialize import job_to_text, profile_to_text
@@ -15,9 +16,13 @@ router = APIRouter(prefix="/api/generate", tags=["generate"])
 
 
 @router.post("", response_model=Application)
-def generate(body: GenerateRequest, session: Session = Depends(get_session)):
+def generate(
+    body: GenerateRequest,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
     app_row = session.get(Application, body.application_id)
-    if not app_row:
+    if not app_row or app_row.user_id != user.id:
         raise HTTPException(404, "Application not found")
     job = session.get(Job, app_row.job_id)
     profile = session.get(Profile, app_row.profile_id)

@@ -9,7 +9,7 @@ from app.config import get_settings
 from app.db import init_db
 from app.llm import get_provider
 from app.prompts import PROMPTS_VERSION
-from app.routers import applications, generate, jobs, profiles
+from app.routers import applications, auth, chat, generate, jobs, profiles
 
 
 @asynccontextmanager
@@ -29,10 +29,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(profiles.router)
 app.include_router(jobs.router)
 app.include_router(applications.router)
 app.include_router(generate.router)
+app.include_router(chat.router)
 
 
 @app.get("/api/health")

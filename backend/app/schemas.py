@@ -5,6 +5,33 @@ from pydantic import BaseModel
 from app.models import ApplicationStatus
 
 
+class RegisterIn(BaseModel):
+    email: str
+    password: str
+    name: str = ""
+    signup_code: str = ""
+
+
+class LoginIn(BaseModel):
+    email: str
+    password: str
+
+
+class TokenOut(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class UserOut(BaseModel):
+    id: int
+    email: str
+    name: str
+
+
+class ChatIn(BaseModel):
+    message: str
+
+
 class ResumeTextIn(BaseModel):
     raw_text: str
 

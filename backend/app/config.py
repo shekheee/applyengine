@@ -24,6 +24,13 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./applyengine.db"
     cors_origins: str = "http://localhost:3000"
 
+    # Auth
+    jwt_secret: str = "dev-insecure-change-me"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 60 * 24 * 14  # 14 days
+    # If set, registration requires this code (protects the public deployment / API bill).
+    signup_code: str = ""
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

@@ -22,12 +22,18 @@ services:
         value: text-embedding-3-small
       - key: CORS_ORIGINS
         value: https://applyengine.ajayshekhawat.uk
-      # NOTE: free tier has no persistent disk, so SQLite is ephemeral (resets on
-      # redeploy/sleep). For durability, add a Render Postgres and set DATABASE_URL to it.
+      # Persistent Postgres so accounts + coach memory survive redeploys/sleep.
+      # Set to the managed Postgres connection string in the Render dashboard.
       - key: DATABASE_URL
-        value: sqlite:///./applyengine.db
+        sync: false
       # Secrets — set in the Render dashboard (sync: false keeps them out of git).
       - key: OPENAI_API_KEY
         sync: false
       - key: ANTHROPIC_API_KEY
+        sync: false
+      # Long random string used to sign login tokens (JWT).
+      - key: JWT_SECRET
+        sync: false
+      # If set, new sign-ups must provide this code (protects the API bill).
+      - key: SIGNUP_CODE
         sync: false

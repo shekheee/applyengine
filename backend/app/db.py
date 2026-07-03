@@ -6,8 +6,21 @@ from app.config import get_settings
 
 settings = get_settings()
 
-connect_args = {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
-engine = create_engine(settings.database_url, echo=False, connect_args=connect_args)
+# Managed Postgres providers often hand out "postgres://" URLs, but SQLAlchemy
+# expects the "postgresql://" scheme.
+database_url = settings.database_url
+if database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
+
+is_sqlite = database_url.startswith("sqlite")
+connect_args = {"check_same_thread": False} if is_sqlite else {}
+engine = create_engine(
+    database_url,
+    echo=False,
+    connect_args=connect_args,
+    # Recycle connections so a slept free-tier Postgres doesn't hand back a dead one.
+    pool_pre_ping=not is_sqlite,
+)
 
 
 def init_db() -> None:

@@ -1,5 +1,25 @@
 export type Status = "saved" | "applied" | "interview" | "offer" | "rejected";
 
+export interface User {
+  id: number;
+  email: string;
+  name: string;
+}
+
+export interface ChatMessage {
+  id: number;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+}
+
+export interface Memory {
+  id: number;
+  kind: string;
+  content: string;
+  created_at: string;
+}
+
 export interface Profile {
   id: number;
   name: string;

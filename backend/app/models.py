@@ -18,10 +18,21 @@ class ApplicationStatus(str, Enum):
     rejected = "rejected"
 
 
+class User(SQLModel, table=True):
+    """An authenticated account. All other data is scoped to a user."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    email: str = Field(index=True, unique=True)
+    name: str = ""
+    hashed_password: str = ""
+    created_at: datetime = Field(default_factory=_now)
+
+
 class Profile(SQLModel, table=True):
     """The candidate's master profile, parsed from their resume."""
 
     id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
     name: str = ""
     email: str = ""
     phone: str = ""
@@ -40,6 +51,7 @@ class Job(SQLModel, table=True):
     """A job posting, parsed into structured fields."""
 
     id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
     title: str = ""
     company: str = ""
     location: str = ""
@@ -56,6 +68,7 @@ class Application(SQLModel, table=True):
     """Links a profile to a job, holding generated materials and pipeline state."""
 
     id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
     job_id: int = Field(foreign_key="job.id", index=True)
     profile_id: int = Field(foreign_key="profile.id", index=True)
     status: ApplicationStatus = Field(default=ApplicationStatus.saved, index=True)
@@ -74,3 +87,23 @@ class Application(SQLModel, table=True):
     applied_at: datetime | None = None
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)
+
+
+class ChatMessage(SQLModel, table=True):
+    """A single turn in the career-coach conversation."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    role: str = "user"  # "user" | "assistant"
+    content: str = Field(default="", sa_column=Column(Text))
+    created_at: datetime = Field(default_factory=_now)
+
+
+class Memory(SQLModel, table=True):
+    """A durable fact the coach has learned about the user."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    kind: str = "fact"  # e.g. skill | experience | preference | goal | achievement | fact
+    content: str = Field(default="", sa_column=Column(Text))
+    created_at: datetime = Field(default_factory=_now)
