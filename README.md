@@ -193,7 +193,7 @@ All endpoints below (except auth) require a `Bearer` token from login/register.
 - **Coach:** each chat turn is answered by the LLM *and* mined for durable facts
   (skills, achievements, goals, preferences) stored per-user. "Update my resume"
   rebuilds your profile from those facts, which then feeds the tailoring pipeline.
-- **Persistence:** use a real `DATABASE_URL` (Postgres) in production so accounts and
+- **Persistence:** production uses **Neon Postgres** (`DATABASE_URL`) so accounts and
   memory survive redeploys — SQLite on ephemeral hosts resets on every deploy.
 
 ## Roadmap

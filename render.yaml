@@ -22,8 +22,8 @@ services:
         value: text-embedding-3-small
       - key: CORS_ORIGINS
         value: https://applyengine.ajayshekhawat.uk
-      # Persistent Postgres so accounts + coach memory survive redeploys/sleep.
-      # Set to the managed Postgres connection string in the Render dashboard.
+      # Persistent Postgres (Neon) so accounts + coach memory survive redeploys/sleep.
+      # Set to the Neon connection string in the Render dashboard.
       - key: DATABASE_URL
         sync: false
       # Secrets — set in the Render dashboard (sync: false keeps them out of git).
