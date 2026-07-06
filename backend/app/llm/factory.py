@@ -42,7 +42,7 @@ def _coach_providers_for_chain(s) -> list:
     builders = {
         "openai": lambda: _build_openai(s) if s.openai_api_key else None,
         "anthropic": lambda: _build_anthropic(s, coach=True) if s.anthropic_api_key else None,
-        "gemini": _build_gemini,
+        "gemini": lambda: _build_gemini(s),
     }
     providers = []
     for name in s.coach_provider_chain_list:
