@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from functools import lru_cache
 
 from app.config import get_settings
@@ -11,6 +12,8 @@ from app.llm.coach_models import (
     provider_for_model,
     validate_coach_model,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _build_openai(s, *, model: str | None = None):
@@ -91,6 +94,35 @@ def build_coach_provider(selected_model: str | None = None) -> CoachFallbackChai
             "No coach providers configured — set API keys and COACH_PROVIDER_CHAIN"
         )
     return CoachFallbackChain(providers)
+
+
+def resolved_memory_model_id() -> str | None:
+    """Primary model for memory extraction (validated against configured providers)."""
+    s = get_settings()
+    allowed = {m.id for m in available_coach_models(s)}
+    if not allowed:
+        return None
+    preferred = (s.memory_model or "").strip()
+    if preferred and preferred in allowed:
+        return preferred
+    if preferred and preferred not in allowed:
+        logger.warning(
+            "MEMORY_MODEL '%s' is not available — falling back", preferred
+        )
+    for mid in (s.anthropic_coach_model, s.openai_chat_model, s.gemini_coach_model):
+        if mid in allowed:
+            return mid
+    return next(iter(allowed), None)
+
+
+def build_memory_provider() -> CoachFallbackChain:
+    """Fallback chain for memory extraction — primary model from MEMORY_MODEL env."""
+    return build_coach_provider(resolved_memory_model_id())
+
+
+@lru_cache
+def get_memory_provider() -> CoachFallbackChain:
+    return build_memory_provider()
 
 
 def list_coach_models() -> list[dict]:

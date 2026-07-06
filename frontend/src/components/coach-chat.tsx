@@ -110,6 +110,7 @@ export function CoachChat() {
   const [streamText, setStreamText] = useState("");
   const [error, setError] = useState("");
   const [applyState, setApplyState] = useState<"idle" | "working" | "done">("idle");
+  const [pdfState, setPdfState] = useState<"idle" | "working" | "done">("idle");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [models, setModels] = useState<CoachModel[]>([]);
   const [selectedModel, setSelectedModel] = useState("");
@@ -288,6 +289,27 @@ export function CoachChat() {
     }
   }
 
+  async function downloadPdf() {
+    setPdfState("working");
+    setError("");
+    try {
+      const { blob, filename } = await api.downloadResumePdf();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setPdfState("done");
+      setTimeout(() => setPdfState("idle"), 4000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't generate PDF resume.");
+      setPdfState("idle");
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex h-[70vh] items-center justify-center text-[var(--muted)]">
@@ -353,6 +375,17 @@ export function CoachChat() {
             : applyState === "done"
               ? "✓ Resume updated"
               : "Update my resume"}
+        </Button>
+        <Button
+          onClick={downloadPdf}
+          disabled={pdfState === "working"}
+          className="mt-2 w-full"
+        >
+          {pdfState === "working"
+            ? "Generating PDF…"
+            : pdfState === "done"
+              ? "✓ PDF downloaded"
+              : "Download PDF resume"}
         </Button>
       </div>
     </div>

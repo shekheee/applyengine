@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     # Coach fallback order: comma-separated provider names
     coach_provider_chain: str = "openai,anthropic,gemini"
 
+    # Memory extraction — uses coach fallback chain with this model first
+    memory_model: str = "claude-opus-4-8"
+
     # App
     database_url: str = "sqlite:///./applyengine.db"
     cors_origins: str = "http://localhost:3000"

@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import logging
+
 from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
 from app import prompts
-from app.llm import build_coach_provider, get_provider
+from app.llm import build_coach_provider, build_memory_provider, get_provider
 from app.models import Application, ChatMessage, Job, Memory, Profile
 from app.services.attachments import ProcessedAttachment, build_user_content
+
+logger = logging.getLogger(__name__)
 
 HISTORY_LIMIT = 40
 
@@ -138,13 +142,25 @@ def extract_memories(
     existing: list[Memory],
 ) -> list[dict[str, str]]:
     """Ask the LLM for new durable facts stated by the user this turn."""
-    provider = get_provider()
     exchange = f"User: {user_message}\nCoach: {assistant_reply}"
     existing_text = _memory_text(existing)
-    data = provider.chat_json(
-        prompts.MEMORY_EXTRACT_SYSTEM,
-        prompts.memory_extract_user(exchange, existing_text),
-    )
+    try:
+        chain = build_memory_provider()
+        chain.reset()
+        data = chain.chat_json(
+            prompts.MEMORY_EXTRACT_SYSTEM,
+            prompts.memory_extract_user(exchange, existing_text),
+        )
+        if chain.last_served:
+            logger.info(
+                "Memory extraction served by %s/%s",
+                chain.last_served,
+                chain.last_model,
+            )
+    except Exception as exc:
+        logger.warning("Memory extraction failed (non-fatal): %s", exc)
+        return []
+
     raw = data.get("memories", []) if isinstance(data, dict) else []
     allowed = {"skill", "experience", "achievement", "preference", "goal", "fact"}
     seen = {m.content.strip().lower() for m in existing}

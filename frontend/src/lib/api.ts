@@ -192,6 +192,29 @@ export const api = {
   applyToResume: () =>
     req<Profile>("/api/chat/apply-to-resume", { method: "POST" }),
 
+  downloadResumePdf: async (): Promise<{ blob: Blob; filename: string }> => {
+    const res = await fetch(`${BASE}/api/resume/pdf`, {
+      headers: { ...authHeaders() },
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      if (res.status === 401) setToken(null);
+      let detail = "";
+      try {
+        const data = await res.json();
+        detail = data?.detail ?? JSON.stringify(data);
+      } catch {
+        detail = await res.text().catch(() => "");
+      }
+      throw new ApiError(res.status, detail || `Request failed (${res.status})`);
+    }
+    const disposition = res.headers.get("Content-Disposition") || "";
+    const match = disposition.match(/filename="([^"]+)"/);
+    const filename = match?.[1] || "resume.pdf";
+    const blob = await res.blob();
+    return { blob, filename };
+  },
+
   createProfile: (raw_text: string) =>
     req<Profile>("/api/profiles", {
       method: "POST",

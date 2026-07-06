@@ -4,6 +4,8 @@ import logging
 from collections.abc import AsyncIterator, Iterator
 from typing import Any, Protocol
 
+from app.llm.base import _safe_json
+
 logger = logging.getLogger(__name__)
 
 
@@ -61,6 +63,15 @@ class CoachFallbackChain:
 
     def chain_summary(self) -> list[dict[str, str]]:
         return [{"provider": p.name, "model": p.chat_model} for p in self._providers]
+
+    def chat_json(self, system: str, user: str) -> dict:
+        """Structured JSON completion with provider fallback."""
+        messages = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ]
+        raw = self.chat_messages(messages, json_mode=True)
+        return _safe_json(raw)
 
     def chat_messages(
         self, messages: list[dict[str, Any]], json_mode: bool = False

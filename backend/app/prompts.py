@@ -4,7 +4,7 @@ Keeping prompts here (rather than inline in services) makes them easy to
 review, diff, and A/B test — and signals production-grade prompt hygiene.
 """
 
-PROMPTS_VERSION = "2026-07-06.1"
+PROMPTS_VERSION = "2026-07-06.2"
 
 RESUME_PARSE_SYSTEM = """You are an expert technical recruiter and resume parser.
 Extract structured data from the candidate's resume. Return JSON with keys:
@@ -98,6 +98,22 @@ Rules:
 Return ONLY the resume as plain text."""
 
 
+RESUME_PDF_SYSTEM = """You are an expert resume writer for Data Science / AI Engineer roles.
+Given a candidate profile and optional learned facts, produce structured resume content
+as JSON with keys:
+name, email, phone, location, links (list of urls),
+summary (2-4 sentence professional summary),
+skills (list of concise keywords, deduplicated),
+experience (list of {company, title, dates, highlights: [str]}),
+projects (list of {name, description, tech: [str]}),
+education (list of {school, degree, dates}).
+Rules:
+- Never fabricate employers, degrees, or metrics not supported by the input.
+- Use strong action verbs and quantified impact where the source supports it.
+- Keep bullets concise (one line each). ATS-friendly plain language.
+Return ONLY valid JSON."""
+
+
 def coach_system_with_context(
     profile_text: str, memory_text: str, applications_text: str
 ) -> str:
@@ -122,6 +138,13 @@ def memory_extract_user(exchange: str, existing_memory: str) -> str:
     return (
         f"EXISTING MEMORY:\n{existing_memory or '(none)'}\n\n---\n\n"
         f"LATEST EXCHANGE:\n{exchange}"
+    )
+
+
+def resume_pdf_user(profile_text: str, memory_text: str) -> str:
+    return (
+        f"CANDIDATE PROFILE:\n{profile_text or '(none yet)'}\n\n---\n\n"
+        f"ADDITIONAL FACTS:\n{memory_text or '(none)'}"
     )
 
 
