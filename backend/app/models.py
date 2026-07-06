@@ -44,6 +44,8 @@ class Profile(SQLModel, table=True):
     experience: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON))
     projects: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON))
     education: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON))
+    is_base: bool = Field(default=True, index=True)
+    source_filename: str = ""
     created_at: datetime = Field(default_factory=_now)
 
 

@@ -29,6 +29,7 @@ def init_db() -> None:
 
     SQLModel.metadata.create_all(engine)
     _migrate_chat_attachments()
+    _migrate_profile_base()
 
 
 def _migrate_chat_attachments() -> None:
@@ -42,6 +43,27 @@ def _migrate_chat_attachments() -> None:
             text(
                 "ALTER TABLE chatmessage ADD COLUMN IF NOT EXISTS attachments JSON "
                 "DEFAULT '[]'::json"
+            )
+        )
+
+
+def _migrate_profile_base() -> None:
+    """Add is_base + source_filename columns for canonical resume tracking."""
+    if is_sqlite:
+        return
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "ALTER TABLE profile ADD COLUMN IF NOT EXISTS is_base BOOLEAN "
+                "DEFAULT TRUE"
+            )
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE profile ADD COLUMN IF NOT EXISTS source_filename "
+                "TEXT DEFAULT ''"
             )
         )
 

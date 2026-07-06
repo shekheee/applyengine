@@ -1,9 +1,36 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import type { Profile } from "@/lib/types";
 import { Badge, Button, Card } from "@/components/ui";
+
+const MAX_BYTES = 5 * 1024 * 1024;
+const ACCEPT = ".pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+function validateFile(file: File): string | null {
+  const name = file.name.toLowerCase();
+  const okExt = [".pdf", ".docx", ".txt", ".md"].some((ext) => name.endsWith(ext));
+  if (!okExt) {
+    return "Unsupported file type. Upload a PDF, DOCX, or TXT resume.";
+  }
+  if (file.size > MAX_BYTES) {
+    return "File too large (max 5 MB).";
+  }
+  if (file.size === 0) {
+    return "File is empty.";
+  }
+  return null;
+}
+
+function profileSummary(p: Profile) {
+  const roles = p.experience?.length ?? 0;
+  const skills = p.skills?.length ?? 0;
+  const parts = [];
+  if (roles) parts.push(`${roles} role${roles === 1 ? "" : "s"}`);
+  if (skills) parts.push(`${skills} skill${skills === 1 ? "" : "s"}`);
+  return parts.join(" · ");
+}
 
 export function ResumeUpload({
   onLoaded,
@@ -17,76 +44,115 @@ export function ResumeUpload({
   const [pasting, setPasting] = useState(false);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState("");
+  const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loaded, setLoaded] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const refresh = useCallback(async () => {
+    try {
+      const p = await api.baseProfile();
+      setProfile(p);
+      onLoaded?.(p);
+    } catch {
+      setProfile(null);
+    }
+  }, [onLoaded]);
+
   useEffect(() => {
-    api
-      .latestProfile()
-      .then((p) => {
-        setProfile(p);
-        onLoaded?.(p);
-      })
-      .catch(() => setProfile(null))
-      .finally(() => setLoaded(true));
-    // Report the existing profile once on mount; callers pass a stable setter.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    refresh().finally(() => setLoaded(true));
+  }, [refresh]);
 
   function done(p: Profile) {
     setProfile(p);
     setEditing(false);
     setPasting(false);
     setText("");
+    setSuccess("Base resume set — coach and exports will build on this.");
+    setTimeout(() => setSuccess(""), 5000);
     onLoaded?.(p);
   }
 
   async function upload(file: File) {
     setError("");
+    setSuccess("");
+    const validation = validateFile(file);
+    if (validation) {
+      setError(validation);
+      return;
+    }
     setBusy(true);
+    setProgress(`Uploading ${file.name}…`);
     try {
       done(await api.uploadProfile(file));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't parse that file.");
     } finally {
       setBusy(false);
+      setProgress("");
       if (fileRef.current) fileRef.current.value = "";
     }
   }
 
   async function savePasted() {
     setError("");
+    setSuccess("");
     if (!text.trim()) return setError("Paste your resume text first.");
     setBusy(true);
+    setProgress("Parsing resume…");
     try {
       done(await api.createProfile(text));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't save that resume.");
     } finally {
       setBusy(false);
+      setProgress("");
     }
+  }
+
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) upload(file);
   }
 
   const uploader = (
     <div className="space-y-3">
-      <button
-        onClick={() => fileRef.current?.click()}
-        disabled={busy}
-        className="flex w-full flex-col items-center justify-center gap-1 rounded-lg border border-dashed px-4 py-6 text-center transition-colors hover:border-[var(--primary)] disabled:opacity-50"
-        style={{ borderColor: "var(--border)" }}
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={onDrop}
+        onClick={() => !busy && fileRef.current?.click()}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") fileRef.current?.click();
+        }}
+        className={`flex w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed px-4 py-6 text-center transition-colors disabled:opacity-50 ${
+          dragOver ? "border-[var(--primary)] bg-[var(--primary)]/5" : ""
+        }`}
+        style={{ borderColor: dragOver ? undefined : "var(--border)" }}
       >
-        <span className="text-2xl">📄</span>
+        <span className="text-2xl">{busy ? "⏳" : "📄"}</span>
         <span className="text-sm font-medium text-[var(--text)]">
-          {busy ? "Reading…" : "Upload your resume"}
+          {busy ? progress || "Processing…" : "Upload your base resume"}
         </span>
-        <span className="text-xs text-[var(--muted)]">PDF, DOCX, or TXT</span>
-      </button>
+        <span className="text-xs text-[var(--muted)]">
+          Drag & drop or click · PDF, DOCX, or TXT · max 5 MB
+        </span>
+      </div>
       <input
         ref={fileRef}
         type="file"
-        accept=".pdf,.docx,.txt"
+        accept={ACCEPT}
         className="hidden"
+        disabled={busy}
         onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])}
       />
 
@@ -102,7 +168,7 @@ export function ResumeUpload({
           />
           <div className="flex items-center gap-2">
             <Button onClick={savePasted} disabled={busy} size="sm">
-              Save resume
+              Set as base resume
             </Button>
             <Button variant="ghost" size="sm" onClick={() => setPasting(false)}>
               Cancel
@@ -111,6 +177,7 @@ export function ResumeUpload({
         </div>
       ) : (
         <button
+          type="button"
           onClick={() => setPasting(true)}
           className="text-xs text-[var(--muted)] underline-offset-2 hover:text-[var(--text)] hover:underline"
         >
@@ -118,30 +185,55 @@ export function ResumeUpload({
         </button>
       )}
 
-      {error && <p className="text-sm text-red-300">{error}</p>}
+      {error && (
+        <p className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+          {error}
+        </p>
+      )}
+      {success && (
+        <p className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+          {success}
+        </p>
+      )}
     </div>
   );
 
   const body = () => {
     if (!loaded) return <p className="text-sm text-[var(--muted)]">Loading…</p>;
     if (profile && !editing) {
+      const meta = profileSummary(profile);
       return (
         <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Badge tone="green">Resume loaded</Badge>
-            <span className="text-sm text-[var(--muted)]">
-              {profile.name || "your profile"}
-            </span>
+          <div className="rounded-lg border bg-[var(--panel-2)] p-3" style={{ borderColor: "var(--border)" }}>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge tone="green">Base resume set</Badge>
+              {profile.source_filename && (
+                <span className="text-xs text-[var(--muted)]">{profile.source_filename}</span>
+              )}
+            </div>
+            <p className="mt-2 text-sm font-medium text-[var(--text)]">
+              {profile.name || "Your profile"}
+            </p>
+            {profile.email && (
+              <p className="text-xs text-[var(--muted)]">{profile.email}</p>
+            )}
+            {meta && <p className="mt-1 text-xs text-[var(--muted)]">{meta}</p>}
+            <p className="mt-2 text-xs text-[var(--muted)]">
+              Coach, PDF export, and tailoring build on this resume. Memories are layered on top.
+            </p>
           </div>
           {profile.skills.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
-              {profile.skills.slice(0, compact ? 8 : 14).map((s) => (
+              {profile.skills.slice(0, compact ? 8 : 12).map((s) => (
                 <Badge key={s}>{s}</Badge>
               ))}
+              {profile.skills.length > (compact ? 8 : 12) && (
+                <Badge tone="primary">+{profile.skills.length - (compact ? 8 : 12)}</Badge>
+              )}
             </div>
           )}
-          <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
-            Replace resume
+          <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+            Replace base resume
           </Button>
         </div>
       );
@@ -152,10 +244,10 @@ export function ResumeUpload({
   return (
     <Card>
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="font-semibold">Your resume</h2>
+        <h2 className="font-semibold">Base resume</h2>
       </div>
       <p className="mb-3 text-xs text-[var(--muted)]">
-        Upload it once so the coach and tailoring know your real background.
+        Provide your real resume once — everything else builds on it.
       </p>
       {body()}
     </Card>

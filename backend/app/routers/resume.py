@@ -7,15 +7,14 @@ from sqlmodel import Session, select
 from app.auth import get_current_user
 from app.db import get_session
 from app.models import Memory, Profile, User
+from app.services.profiles import get_base_profile
 from app.services.resume_pdf import build_resume_pdf
 
 router = APIRouter(prefix="/api/resume", tags=["resume"])
 
 
 def _latest_profile(user: User, session: Session) -> Profile | None:
-    return session.exec(
-        select(Profile).where(Profile.user_id == user.id).order_by(Profile.id.desc())
-    ).first()
+    return get_base_profile(user, session)
 
 
 def _user_memories(user: User, session: Session) -> list[Memory]:

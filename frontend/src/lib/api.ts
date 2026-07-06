@@ -231,12 +231,20 @@ export const api = {
     });
     if (!res.ok) {
       if (res.status === 401) setToken(null);
-      throw new ApiError(res.status, await res.text());
+      let detail = "";
+      try {
+        const data = await res.json();
+        detail = typeof data?.detail === "string" ? data.detail : JSON.stringify(data);
+      } catch {
+        detail = await res.text().catch(() => "");
+      }
+      throw new ApiError(res.status, detail || `Upload failed (${res.status})`);
     }
     return res.json();
   },
 
   latestProfile: () => req<Profile>("/api/profiles/latest"),
+  baseProfile: () => req<Profile>("/api/profiles/base"),
   listProfiles: () => req<Profile[]>("/api/profiles"),
 
   createJob: (raw_text: string, url = "") =>

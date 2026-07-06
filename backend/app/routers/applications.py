@@ -11,15 +11,14 @@ from app.models import Application, ApplicationStatus, Job, Profile, User
 from app.schemas import ApplicationCreate, NotesUpdate, StatusUpdate
 from app.services.doc_export import text_to_docx
 from app.services.matching import compute_fit, gap_analysis
+from app.services.profiles import get_base_profile
 from app.services.serialize import job_to_text, profile_to_text
 
 router = APIRouter(prefix="/api/applications", tags=["applications"])
 
 
 def _latest_profile(user: User, session: Session) -> Profile | None:
-    return session.exec(
-        select(Profile).where(Profile.user_id == user.id).order_by(Profile.id.desc())
-    ).first()
+    return get_base_profile(user, session)
 
 
 def _owned_application(app_id: int, user: User, session: Session) -> Application:

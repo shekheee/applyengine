@@ -17,14 +17,13 @@ from app.schemas import ChatIn, CoachModelsOut, CoachModelOut
 from app.services import coach
 from app.services.attachments import MAX_ATTACHMENTS, process_attachment
 from app.services.parsing import parse_resume
+from app.services.profiles import get_base_profile
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 
 def _latest_profile(user: User, session: Session) -> Profile | None:
-    return session.exec(
-        select(Profile).where(Profile.user_id == user.id).order_by(Profile.id.desc())
-    ).first()
+    return get_base_profile(user, session)
 
 
 def _user_memories(user: User, session: Session) -> list[Memory]:
@@ -299,6 +298,8 @@ def apply_to_resume(
         experience=parsed.get("experience", []),
         projects=parsed.get("projects", []),
         education=parsed.get("education", []),
+        is_base=False,
+        source_filename="coach-update",
     )
     session.add(new_profile)
     session.commit()

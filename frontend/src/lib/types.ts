@@ -42,6 +42,9 @@ export interface Profile {
   experience: Record<string, unknown>[];
   projects: Record<string, unknown>[];
   education: Record<string, unknown>[];
+  is_base?: boolean;
+  source_filename?: string;
+  created_at?: string;
 }
 
 export interface Job {
