@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import json
 from collections.abc import AsyncIterator
+from types import SimpleNamespace
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select
 
 from app.auth import get_current_user
-from app.db import get_session
+from app.db import engine, get_session
 from app.models import Application, ChatMessage, Job, Memory, Profile, User
 from app.schemas import ChatIn
 from app.services import coach
@@ -164,15 +165,26 @@ async def send_message_stream(
     session.add(user_msg)
     session.commit()
     session.refresh(user_msg)
+    user_msg_json = user_msg.model_dump(mode="json")
+
+    # Snapshot ORM rows — the Depends session closes before the stream finishes.
+    history_snap = [
+        SimpleNamespace(role=m.role, content=m.content) for m in history
+    ]
+    memory_snap = [
+        SimpleNamespace(kind=m.kind, content=m.content) for m in memories
+    ]
+    user_id = user.id
+    coach_text = text or "Please review the attached file(s)."
 
     async def event_stream() -> AsyncIterator[str]:
         accumulated = ""
         try:
             async for token in coach.coach_reply_stream_async(
-                text or "Please review the attached file(s).",
+                coach_text,
                 profile,
-                memories,
-                history,
+                memory_snap,
+                history_snap,
                 processed or None,
                 apps,
                 jobs,
@@ -181,28 +193,39 @@ async def send_message_stream(
                 yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
 
             reply = accumulated.strip() or coach.coach_reply(
-                text, profile, memories, history, processed or None, apps, jobs
+                coach_text,
+                profile,
+                memory_snap,
+                history_snap,
+                processed or None,
+                apps,
+                jobs,
             )
 
-            assistant_msg = ChatMessage(
-                user_id=user.id, role="assistant", content=reply
-            )
-            session.add(assistant_msg)
-
-            new_memories = coach.extract_memories(
-                text or "(attachment)", reply, memories
-            )
-            for item in new_memories:
-                session.add(
-                    Memory(user_id=user.id, kind=item["kind"], content=item["content"])
+            with Session(engine) as db:
+                assistant_msg = ChatMessage(
+                    user_id=user_id, role="assistant", content=reply
                 )
+                db.add(assistant_msg)
 
-            session.commit()
-            session.refresh(assistant_msg)
+                new_memories = coach.extract_memories(
+                    text or "(attachment)", reply, memory_snap
+                )
+                for item in new_memories:
+                    db.add(
+                        Memory(
+                            user_id=user_id,
+                            kind=item["kind"],
+                            content=item["content"],
+                        )
+                    )
 
-            yield f"data: {json.dumps({'type': 'done', 'user_message': user_msg.model_dump(mode='json'), 'assistant_message': assistant_msg.model_dump(mode='json')})}\n\n"
+                db.commit()
+                db.refresh(assistant_msg)
+                assistant_json = assistant_msg.model_dump(mode="json")
+
+            yield f"data: {json.dumps({'type': 'done', 'user_message': user_msg_json, 'assistant_message': assistant_json})}\n\n"
         except Exception as e:
-            session.rollback()
             yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
 
     return StreamingResponse(
