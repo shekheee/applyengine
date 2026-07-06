@@ -4,8 +4,7 @@ from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
 from app import prompts
-from app.llm import get_provider
-from app.llm.openai_provider import OpenAIProvider
+from app.llm import get_coach_provider, get_provider
 from app.models import Application, ChatMessage, Job, Memory, Profile
 from app.services.attachments import ProcessedAttachment, build_user_content
 
@@ -65,20 +64,17 @@ def coach_reply(
     applications: list[Application] | None = None,
     jobs: dict[int, Job] | None = None,
 ) -> str:
-    provider = get_provider()
+    provider = get_coach_provider()
+    provider._last_served = None
     messages = build_coach_messages(
         message, profile, memories, history, attachments, applications, jobs
     )
-    if isinstance(provider, OpenAIProvider):
+    try:
         out = provider.chat_messages(messages).strip()
-    else:
-        # Non-OpenAI providers: flatten to legacy system+user call.
-        out = provider.chat(
-            messages[0]["content"],
-            str(messages[-1]["content"]),
-        ).strip()
-    if out:
-        return out
+        if out:
+            return out
+    except Exception:
+        pass
 
     return (
         "Got it — tell me more about that. What was the impact, and can you put a "
@@ -96,16 +92,12 @@ def coach_reply_stream(
     applications: list[Application] | None = None,
     jobs: dict[int, Job] | None = None,
 ) -> Iterator[str]:
-    provider = get_provider()
+    provider = get_coach_provider()
+    provider._last_served = None
     messages = build_coach_messages(
         message, profile, memories, history, attachments, applications, jobs
     )
-    if isinstance(provider, OpenAIProvider):
-        yield from provider.chat_stream(messages)
-    else:
-        yield coach_reply(
-            message, profile, memories, history, attachments, applications, jobs
-        )
+    yield from provider.chat_stream(messages)
 
 
 async def coach_reply_stream_async(
@@ -117,17 +109,20 @@ async def coach_reply_stream_async(
     applications: list[Application] | None = None,
     jobs: dict[int, Job] | None = None,
 ) -> AsyncIterator[str]:
-    provider = get_provider()
+    provider = get_coach_provider()
+    provider._last_served = None
     messages = build_coach_messages(
         message, profile, memories, history, attachments, applications, jobs
     )
-    if isinstance(provider, OpenAIProvider):
-        async for token in provider.chat_stream_async(messages):
-            yield token
-    else:
-        yield coach_reply(
-            message, profile, memories, history, attachments, applications, jobs
-        )
+    async for token in provider.chat_stream_async(messages):
+        yield token
+
+
+def coach_last_provider() -> str | None:
+    try:
+        return get_coach_provider().last_served
+    except RuntimeError:
+        return None
 
 
 def extract_memories(

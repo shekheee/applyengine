@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.db import init_db
-from app.llm import get_provider
+from app.llm import get_coach_provider, get_provider
 from app.prompts import PROMPTS_VERSION
 from app.routers import applications, auth, chat, generate, jobs, profiles
 
@@ -43,9 +43,20 @@ def health():
     chat_model = getattr(provider, "chat_model", None) or getattr(
         provider, "_chat_model", None
     )
+    coach_chain = None
+    try:
+        chain = get_coach_provider()
+        coach_chain = {
+            "providers": chain.chain_summary(),
+            "last_served": chain.last_served,
+        }
+    except RuntimeError:
+        coach_chain = {"providers": [], "last_served": None}
+
     return {
         "status": "ok",
         "llm_provider": provider.name,
         "chat_model": chat_model,
+        "coach_chain": coach_chain,
         "prompts_version": PROMPTS_VERSION,
     }

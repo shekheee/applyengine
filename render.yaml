@@ -18,6 +18,12 @@ services:
         value: openai
       - key: OPENAI_CHAT_MODEL
         value: gpt-5.5
+      - key: ANTHROPIC_COACH_MODEL
+        value: claude-opus-4-8
+      - key: GEMINI_COACH_MODEL
+        value: gemini-3.1-pro-preview
+      - key: COACH_PROVIDER_CHAIN
+        value: openai,anthropic,gemini
       - key: OPENAI_EMBED_MODEL
         value: text-embedding-3-small
       - key: CORS_ORIGINS

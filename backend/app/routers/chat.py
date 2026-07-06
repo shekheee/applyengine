@@ -224,7 +224,7 @@ async def send_message_stream(
                 db.refresh(assistant_msg)
                 assistant_json = assistant_msg.model_dump(mode="json")
 
-            yield f"data: {json.dumps({'type': 'done', 'user_message': user_msg_json, 'assistant_message': assistant_json})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'user_message': user_msg_json, 'assistant_message': assistant_json, 'provider_served': coach.coach_last_provider()})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
 
