@@ -54,21 +54,29 @@ def _profile_to_doc(profile: Profile) -> dict[str, Any]:
 
 
 def _merge_memories(doc: dict[str, Any], memories: list[Memory]) -> dict[str, Any]:
+    """Layer coach-learned facts onto the existing profile without replacing it."""
     if not memories:
         return doc
     skill_mem = [m.content for m in memories if m.kind == "skill"]
-    other = [m.content for m in memories if m.kind != "skill"]
-    skills = list(dict.fromkeys([*(doc.get("skills") or []), *skill_mem]))
-    doc["skills"] = skills
-    if other and not doc.get("summary"):
-        doc["summary"] = " ".join(other[:3])
-    elif other:
-        highlights = doc.setdefault("experience", [])
-        if highlights and isinstance(highlights[0], dict):
-            bullets = highlights[0].setdefault("highlights", [])
-            for fact in other[:3]:
-                if fact not in bullets:
-                    bullets.append(fact)
+    if skill_mem:
+        skills = list(dict.fromkeys([*(doc.get("skills") or []), *skill_mem]))
+        doc["skills"] = skills
+
+    extra_facts = [m.content for m in memories if m.kind != "skill"]
+    if not extra_facts:
+        return doc
+
+    experience = doc.get("experience") or []
+    if experience and isinstance(experience[0], dict):
+        bullets = experience[0].setdefault("highlights", [])
+        existing = {str(b).strip().lower() for b in bullets}
+        for fact in extra_facts[:5]:
+            if fact.strip().lower() not in existing:
+                bullets.append(fact)
+                existing.add(fact.strip().lower())
+    elif not doc.get("summary"):
+        # No experience block yet — append facts only if summary is empty.
+        doc["summary"] = " ".join(extra_facts[:2])
     return doc
 
 
@@ -95,52 +103,25 @@ def _polish_with_llm(profile: Profile | None, memories: list[Memory]) -> dict[st
 def prepare_resume_document(
     profile: Profile | None, memories: list[Memory]
 ) -> dict[str, Any]:
-    """Build structured resume data from profile + memories, polishing with LLM if thin."""
+    """Build structured resume data — profile is canonical; memories are layered on top."""
     if not _profile_has_content(profile) and not memories:
         raise ValueError(
             "No resume data yet — upload a resume or chat with the coach first."
         )
 
-    doc = _profile_to_doc(profile) if profile else {
-        "name": "Candidate",
-        "email": "",
-        "phone": "",
-        "location": "",
-        "links": [],
-        "summary": "",
-        "skills": [],
-        "experience": [],
-        "projects": [],
-        "education": [],
-    }
-    doc = _merge_memories(doc, memories)
+    if profile and _profile_has_content(profile):
+        doc = _profile_to_doc(profile)
+        doc = _merge_memories(doc, memories)
+        return doc
 
-    thin = (
-        not doc.get("summary")
-        and not doc.get("experience")
-        and not doc.get("skills")
-    )
-    if thin or (profile and profile.raw_text and len(profile.raw_text) > len(profile_to_text(profile)) + 200):
-        try:
-            doc = _polish_with_llm(profile, memories)
-        except Exception as exc:
-            logger.warning("Resume LLM polish failed, using profile data: %s", exc)
-            if profile and profile.raw_text.strip():
-                doc["summary"] = doc.get("summary") or profile.raw_text[:600].strip()
-
-    if not any(
-        [
-            doc.get("summary"),
-            doc.get("skills"),
-            doc.get("experience"),
-            doc.get("projects"),
-            doc.get("education"),
-        ]
-    ):
+    # No profile on file — fall back to LLM structuring from memories only.
+    try:
+        return _polish_with_llm(profile, memories)
+    except Exception as exc:
+        logger.warning("Resume LLM structuring failed: %s", exc)
         raise ValueError(
-            "Not enough resume content to generate a PDF — add more profile details."
-        )
-    return doc
+            "Not enough resume content to generate a PDF — upload your resume first."
+        ) from exc
 
 
 def _safe_filename(name: str) -> str:
