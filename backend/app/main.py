@@ -39,8 +39,13 @@ app.include_router(chat.router)
 
 @app.get("/api/health")
 def health():
+    provider = get_provider()
+    chat_model = getattr(provider, "chat_model", None) or getattr(
+        provider, "_chat_model", None
+    )
     return {
         "status": "ok",
-        "llm_provider": get_provider().name,
+        "llm_provider": provider.name,
+        "chat_model": chat_model,
         "prompts_version": PROMPTS_VERSION,
     }

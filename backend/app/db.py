@@ -28,6 +28,22 @@ def init_db() -> None:
     from app import models  # noqa: F401
 
     SQLModel.metadata.create_all(engine)
+    _migrate_chat_attachments()
+
+
+def _migrate_chat_attachments() -> None:
+    """Add attachments JSON column to existing chatmessage tables (Postgres)."""
+    if is_sqlite:
+        return
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "ALTER TABLE chatmessage ADD COLUMN IF NOT EXISTS attachments JSON "
+                "DEFAULT '[]'::json"
+            )
+        )
 
 
 def get_session() -> Generator[Session, None, None]:

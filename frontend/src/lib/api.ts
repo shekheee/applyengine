@@ -63,7 +63,10 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   base: BASE,
 
-  health: () => req<{ status: string; llm_provider: string }>("/api/health"),
+  health: () =>
+    req<{ status: string; llm_provider: string; chat_model?: string }>(
+      "/api/health"
+    ),
 
   // ---- Auth ----
   register: (body: {
@@ -90,6 +93,77 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ message }),
     }),
+  sendMessageStream: async (
+    message: string,
+    files: File[],
+    onToken: (token: string) => void,
+    signal?: AbortSignal
+  ): Promise<{ user_message: ChatMessage; assistant_message: ChatMessage }> => {
+    const form = new FormData();
+    form.append("message", message);
+    for (const f of files) form.append("files", f);
+
+    const res = await fetch(`${BASE}/api/chat/messages/stream`, {
+      method: "POST",
+      headers: { ...authHeaders() },
+      body: form,
+      signal,
+    });
+    if (!res.ok) {
+      if (res.status === 401) setToken(null);
+      let detail = "";
+      try {
+        const data = await res.json();
+        detail = data?.detail ?? JSON.stringify(data);
+      } catch {
+        detail = await res.text().catch(() => "");
+      }
+      throw new ApiError(res.status, detail || `Request failed (${res.status})`);
+    }
+    if (!res.body) throw new ApiError(500, "No response stream");
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let result: { user_message: ChatMessage; assistant_message: ChatMessage } | null =
+      null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const payload = line.slice(6).trim();
+        if (!payload) continue;
+        try {
+          const evt = JSON.parse(payload) as {
+            type: string;
+            content?: string;
+            detail?: string;
+            user_message?: ChatMessage;
+            assistant_message?: ChatMessage;
+          };
+          if (evt.type === "token" && evt.content) onToken(evt.content);
+          if (evt.type === "done" && evt.user_message && evt.assistant_message) {
+            result = {
+              user_message: evt.user_message,
+              assistant_message: evt.assistant_message,
+            };
+          }
+          if (evt.type === "error") {
+            throw new ApiError(500, evt.detail || "Stream failed");
+          }
+        } catch (e) {
+          if (e instanceof ApiError) throw e;
+        }
+      }
+    }
+    if (!result) throw new ApiError(500, "Stream ended without completion");
+    return result;
+  },
   listMemories: () => req<Memory[]>("/api/chat/memories"),
   deleteMemory: (id: number) =>
     req<{ ok: boolean }>(`/api/chat/memories/${id}`, { method: "DELETE" }),

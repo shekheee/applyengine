@@ -13,7 +13,7 @@ class Settings(BaseSettings):
 
     # OpenAI
     openai_api_key: str | None = None
-    openai_chat_model: str = "gpt-4o-mini"
+    openai_chat_model: str = "gpt-5.5"
     openai_embed_model: str = "text-embedding-3-small"
 
     # Anthropic

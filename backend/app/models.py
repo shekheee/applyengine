@@ -96,6 +96,9 @@ class ChatMessage(SQLModel, table=True):
     user_id: int = Field(foreign_key="user.id", index=True)
     role: str = "user"  # "user" | "assistant"
     content: str = Field(default="", sa_column=Column(Text))
+    attachments: list[dict[str, str]] = Field(
+        default_factory=list, sa_column=Column(JSON)
+    )
     created_at: datetime = Field(default_factory=_now)
 
 

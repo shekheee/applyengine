@@ -6,10 +6,17 @@ export interface User {
   name: string;
 }
 
+export interface ChatAttachment {
+  name: string;
+  kind: "image" | "document";
+  mime?: string;
+}
+
 export interface ChatMessage {
   id: number;
   role: "user" | "assistant";
   content: string;
+  attachments?: ChatAttachment[];
   created_at: string;
 }
 
@@ -82,3 +89,8 @@ export const STATUS_LABELS: Record<Status, string> = {
   offer: "Offer",
   rejected: "Rejected",
 };
+
+export interface PendingAttachment {
+  file: File;
+  preview?: string;
+}

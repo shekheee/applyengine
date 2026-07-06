@@ -1,0 +1,535 @@
+"use client";
+
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
+import { api } from "@/lib/api";
+import type {
+  ChatAttachment,
+  ChatMessage,
+  Memory,
+  PendingAttachment,
+} from "@/lib/types";
+import { Badge, Button } from "@/components/ui";
+import { ChatMarkdown } from "@/components/chat-markdown";
+import { ResumeUpload } from "@/components/resume-upload";
+
+const STARTERS = [
+  "Help me sharpen my resume summary.",
+  "I led a project recently — help me turn it into a bullet.",
+  "What roles should I be targeting?",
+  "What's missing from my resume for senior ML roles?",
+];
+
+const ACCEPT =
+  "image/png,image/jpeg,image/gif,image/webp,.pdf,.txt,.md,.docx,application/pdf";
+
+function AttachmentChips({ attachments }: { attachments: ChatAttachment[] }) {
+  if (!attachments.length) return null;
+  return (
+    <div className="mb-2 flex flex-wrap gap-1.5">
+      {attachments.map((a) => (
+        <span
+          key={a.name}
+          className="inline-flex items-center gap-1 rounded-md border bg-[var(--panel)] px-2 py-0.5 text-xs text-[var(--muted)]"
+          style={{ borderColor: "var(--border)" }}
+        >
+          {a.kind === "image" ? "🖼" : "📄"} {a.name}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function MessageBubble({
+  message,
+  streaming,
+}: {
+  message: ChatMessage;
+  streaming?: boolean;
+}) {
+  const isUser = message.role === "user";
+  return (
+    <div className={`flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
+      {!isUser && (
+        <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)] text-sm text-white">
+          ⚡
+        </div>
+      )}
+      <div
+        className={`max-w-[85%] min-w-0 ${isUser ? "text-right" : "text-left"}`}
+      >
+        {!isUser && (
+          <p className="mb-1 text-xs font-medium text-[var(--muted)]">Coach</p>
+        )}
+        <div
+          className={`inline-block rounded-2xl px-4 py-3 text-left text-sm ${
+            isUser
+              ? "bg-[var(--primary)] text-white"
+              : "border bg-[var(--panel-2)] text-[var(--text)]"
+          }`}
+          style={!isUser ? { borderColor: "var(--border)" } : undefined}
+        >
+          {isUser && message.attachments && (
+            <AttachmentChips attachments={message.attachments} />
+          )}
+          {isUser ? (
+            <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+          ) : (
+            <div className="prose-chat">
+              <ChatMarkdown content={message.content} />
+              {streaming && (
+                <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-[var(--primary-2)]" />
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function CoachChat() {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [memories, setMemories] = useState<Memory[]>([]);
+  const [input, setInput] = useState("");
+  const [pendingFiles, setPendingFiles] = useState<PendingAttachment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [streaming, setStreaming] = useState(false);
+  const [streamText, setStreamText] = useState("");
+  const [error, setError] = useState("");
+  const [applyState, setApplyState] = useState<"idle" | "working" | "done">("idle");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const scrollToBottom = useCallback(() => {
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, []);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [m, mem] = await Promise.all([
+          api.listMessages(),
+          api.listMemories(),
+        ]);
+        setMessages(m);
+        setMemories(mem);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to load coach.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, streamText, streaming, scrollToBottom]);
+
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = "auto";
+    ta.style.height = `${Math.min(ta.scrollHeight, 200)}px`;
+  }, [input]);
+
+  function addFiles(fileList: FileList | null) {
+    if (!fileList) return;
+    const next: PendingAttachment[] = [];
+    for (const file of Array.from(fileList)) {
+      const preview = file.type.startsWith("image/")
+        ? URL.createObjectURL(file)
+        : undefined;
+      next.push({ file, preview });
+    }
+    setPendingFiles((prev) => [...prev, ...next].slice(0, 5));
+  }
+
+  function removePending(idx: number) {
+    setPendingFiles((prev) => {
+      const item = prev[idx];
+      if (item?.preview) URL.revokeObjectURL(item.preview);
+      return prev.filter((_, i) => i !== idx);
+    });
+  }
+
+  function stopStreaming() {
+    abortRef.current?.abort();
+  }
+
+  async function send(textOverride?: string) {
+    const content = (textOverride ?? input).trim();
+    if ((!content && pendingFiles.length === 0) || streaming) return;
+
+    setError("");
+    const files = pendingFiles.map((p) => p.file);
+    const attMeta: ChatAttachment[] = files.map((f) => ({
+      name: f.name,
+      kind: f.type.startsWith("image/") ? "image" : "document",
+      mime: f.type || undefined,
+    }));
+
+    const optimistic: ChatMessage = {
+      id: Date.now(),
+      role: "user",
+      content: content || "(attachment)",
+      attachments: attMeta,
+      created_at: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, optimistic]);
+    setInput("");
+    pendingFiles.forEach((p) => {
+      if (p.preview) URL.revokeObjectURL(p.preview);
+    });
+    setPendingFiles([]);
+    setStreaming(true);
+    setStreamText("");
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    try {
+      const result = await api.sendMessageStream(
+        content,
+        files,
+        (token) => setStreamText((prev) => prev + token),
+        controller.signal
+      );
+      setMessages((prev) => [
+        ...prev.filter((m) => m.id !== optimistic.id),
+        result.user_message,
+        result.assistant_message,
+      ]);
+      setMemories(await api.listMemories());
+    } catch (e) {
+      if ((e as Error).name === "AbortError") {
+        if (streamText.trim()) {
+          setMessages((prev) => [
+            ...prev.filter((m) => m.id !== optimistic.id),
+            optimistic,
+            {
+              id: Date.now() + 1,
+              role: "assistant",
+              content: streamText.trim(),
+              created_at: new Date().toISOString(),
+            },
+          ]);
+        } else {
+          setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
+          setInput(content);
+        }
+      } else {
+        setError(e instanceof Error ? e.message : "Failed to send message.");
+        setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
+        setInput(content);
+      }
+    } finally {
+      setStreaming(false);
+      setStreamText("");
+      abortRef.current = null;
+    }
+  }
+
+  function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      send();
+    }
+  }
+
+  async function removeMemory(id: number) {
+    await api.deleteMemory(id);
+    setMemories((prev) => prev.filter((m) => m.id !== id));
+  }
+
+  async function updateResume() {
+    setApplyState("working");
+    setError("");
+    try {
+      await api.applyToResume();
+      setApplyState("done");
+      setTimeout(() => setApplyState("idle"), 4000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't update resume.");
+      setApplyState("idle");
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-[70vh] items-center justify-center text-[var(--muted)]">
+        Loading coach…
+      </div>
+    );
+  }
+
+  const sidebar = (
+    <div className="space-y-4">
+      <ResumeUpload compact />
+      <div
+        className="rounded-xl border bg-[var(--panel)] p-4"
+        style={{ borderColor: "var(--border)" }}
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold">What I&apos;ve learned</h2>
+          <Badge tone="primary">{memories.length}</Badge>
+        </div>
+        <p className="mt-1 text-xs text-[var(--muted)]">
+          Facts the coach remembers about you.
+        </p>
+        <div className="mt-3 max-h-48 space-y-2 overflow-y-auto">
+          {memories.length === 0 && (
+            <p className="text-sm text-[var(--muted)]">Nothing yet — start chatting.</p>
+          )}
+          {memories.map((m) => (
+            <div
+              key={m.id}
+              className="group flex items-start justify-between gap-2 rounded-lg border p-2"
+              style={{ borderColor: "var(--border)" }}
+            >
+              <div className="min-w-0">
+                <Badge tone="primary">{m.kind}</Badge>
+                <p className="mt-1 text-xs text-[var(--text)]">{m.content}</p>
+              </div>
+              <button
+                onClick={() => removeMemory(m.id)}
+                className="shrink-0 text-[var(--muted)] opacity-0 hover:text-red-300 group-hover:opacity-100"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div
+        className="rounded-xl border bg-[var(--panel)] p-4"
+        style={{ borderColor: "var(--border)" }}
+      >
+        <h2 className="font-semibold">Update my resume</h2>
+        <p className="mt-1 text-xs text-[var(--muted)]">
+          Fold learned facts into your profile.
+        </p>
+        <Button
+          onClick={updateResume}
+          disabled={applyState === "working"}
+          className="mt-3 w-full"
+          variant="outline"
+        >
+          {applyState === "working"
+            ? "Updating…"
+            : applyState === "done"
+              ? "✓ Resume updated"
+              : "Update my resume"}
+        </Button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex h-[calc(100vh-8rem)] flex-col lg:flex-row lg:gap-4">
+      {/* Main chat column — ChatGPT-style */}
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="mb-3 flex items-center justify-between lg:hidden">
+          <h1 className="text-lg font-semibold">Career coach</h1>
+          <Button variant="outline" size="sm" onClick={() => setSidebarOpen(!sidebarOpen)}>
+            {sidebarOpen ? "Hide panel" : "Memory"}
+          </Button>
+        </div>
+        {sidebarOpen && <div className="mb-4 lg:hidden">{sidebar}</div>}
+
+        <div
+          ref={scrollRef}
+          className="min-h-0 flex-1 overflow-y-auto rounded-xl border bg-[var(--panel)] px-4 py-6 sm:px-6"
+          style={{ borderColor: "var(--border)" }}
+        >
+          <div className="mx-auto max-w-3xl space-y-6">
+            {messages.length === 0 && !streaming && (
+              <div className="flex flex-col items-center py-12 text-center">
+                <div className="mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-[var(--primary)] text-3xl text-white shadow-lg shadow-violet-500/20">
+                  ⚡
+                </div>
+                <h2 className="text-xl font-semibold">How can I help with your career?</h2>
+                <p className="mt-2 max-w-md text-sm text-[var(--muted)]">
+                  Ask about resume bullets, interview prep, or attach a PDF or screenshot
+                  for feedback.
+                </p>
+                <div className="mt-6 flex flex-wrap justify-center gap-2">
+                  {STARTERS.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => send(s)}
+                      disabled={streaming}
+                      className="rounded-full border px-3 py-1.5 text-xs text-[var(--muted)] transition-colors hover:border-[var(--primary)] hover:text-[var(--text)]"
+                      style={{ borderColor: "var(--border)" }}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {messages.map((m) => (
+              <MessageBubble key={m.id} message={m} />
+            ))}
+
+            {streaming && streamText && (
+              <MessageBubble
+                message={{
+                  id: -1,
+                  role: "assistant",
+                  content: streamText,
+                  created_at: new Date().toISOString(),
+                }}
+                streaming
+              />
+            )}
+
+            {streaming && !streamText && (
+              <div className="flex gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)] text-sm text-white">
+                  ⚡
+                </div>
+                <div
+                  className="rounded-2xl border bg-[var(--panel-2)] px-4 py-3"
+                  style={{ borderColor: "var(--border)" }}
+                >
+                  <span className="inline-flex gap-1">
+                    <Dot /> <Dot delay="150ms" /> <Dot delay="300ms" />
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {error && (
+          <p className="mt-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+            {error}
+          </p>
+        )}
+
+        {/* Composer */}
+        <div className="mt-3 shrink-0">
+          <div
+            className="mx-auto max-w-3xl rounded-2xl border bg-[var(--panel-2)] shadow-lg shadow-black/20"
+            style={{ borderColor: "var(--border)" }}
+          >
+            {pendingFiles.length > 0 && (
+              <div className="flex flex-wrap gap-2 border-b px-3 py-2" style={{ borderColor: "var(--border)" }}>
+                {pendingFiles.map((p, i) => (
+                  <div
+                    key={`${p.file.name}-${i}`}
+                    className="relative flex items-center gap-2 rounded-lg border bg-[var(--panel)] px-2 py-1 text-xs"
+                    style={{ borderColor: "var(--border)" }}
+                  >
+                    {p.preview ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={p.preview}
+                        alt={p.file.name}
+                        className="h-8 w-8 rounded object-cover"
+                      />
+                    ) : (
+                      <span>📄</span>
+                    )}
+                    <span className="max-w-[120px] truncate text-[var(--muted)]">
+                      {p.file.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removePending(i)}
+                      className="text-[var(--muted)] hover:text-red-300"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex items-end gap-2 p-2">
+              <input
+                ref={fileRef}
+                type="file"
+                accept={ACCEPT}
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  addFiles(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={streaming}
+                className="mb-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--muted)] transition-colors hover:bg-[var(--panel)] hover:text-[var(--text)] disabled:opacity-40"
+                title="Attach file"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+                </svg>
+              </button>
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={onKeyDown}
+                rows={1}
+                placeholder="Message your coach…"
+                disabled={streaming}
+                className="max-h-[200px] min-h-[44px] flex-1 resize-none bg-transparent px-1 py-2.5 text-sm text-[var(--text)] outline-none placeholder:text-[var(--muted)]"
+              />
+              {streaming ? (
+                <Button variant="outline" size="sm" onClick={stopStreaming} className="mb-0.5 shrink-0">
+                  Stop
+                </Button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => send()}
+                  disabled={!input.trim() && pendingFiles.length === 0}
+                  className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)] text-white transition-opacity hover:bg-[var(--primary-2)] disabled:opacity-40"
+                  title="Send"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M3.4 20.4l17.45-7.48a1 1 0 000-1.84L3.4 3.6a1 1 0 00-1.52 1.05l2.7 8.35-2.7 8.35A1 1 0 003.4 20.4z" />
+                  </svg>
+                </button>
+              )}
+            </div>
+            <p className="px-3 pb-2 text-center text-[10px] text-[var(--muted)]">
+              Enter to send · Shift+Enter for newline · Images & PDFs up to 5 MB
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop sidebar */}
+      <div className="hidden w-72 shrink-0 lg:block">{sidebar}</div>
+    </div>
+  );
+}
+
+function Dot({ delay = "0ms" }: { delay?: string }) {
+  return (
+    <span
+      className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--muted)]"
+      style={{ animationDelay: delay }}
+    />
+  );
+}
