@@ -18,6 +18,8 @@ export interface ChatMessage {
   content: string;
   attachments?: ChatAttachment[];
   created_at: string;
+  model_served?: string;
+  provider_served?: string;
 }
 
 export interface Memory {
@@ -93,4 +95,17 @@ export const STATUS_LABELS: Record<Status, string> = {
 export interface PendingAttachment {
   file: File;
   preview?: string;
+}
+
+export interface CoachModel {
+  id: string;
+  label: string;
+  provider: string;
+  provider_label: string;
+  is_default: boolean;
+}
+
+export interface ChatMessageMeta {
+  model_served?: string;
+  provider_served?: string;
 }

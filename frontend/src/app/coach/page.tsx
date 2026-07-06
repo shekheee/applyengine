@@ -8,7 +8,7 @@ export default function CoachPage() {
       <div className="hidden lg:block">
         <h1 className="text-2xl font-semibold">Career coach</h1>
         <p className="text-sm text-[var(--muted)]">
-          Your AI career copilot — powered by GPT-5.5
+          Your AI career copilot — pick a model below
         </p>
       </div>
       <CoachChat />

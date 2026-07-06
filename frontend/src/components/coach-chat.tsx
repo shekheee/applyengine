@@ -11,11 +11,13 @@ import { api } from "@/lib/api";
 import type {
   ChatAttachment,
   ChatMessage,
+  CoachModel,
   Memory,
   PendingAttachment,
 } from "@/lib/types";
 import { Badge, Button } from "@/components/ui";
 import { ChatMarkdown } from "@/components/chat-markdown";
+import { ModelSelector, getStoredModelId, storeModelId } from "@/components/model-selector";
 import { ResumeUpload } from "@/components/resume-upload";
 
 const STARTERS = [
@@ -64,7 +66,12 @@ function MessageBubble({
         className={`max-w-[85%] min-w-0 ${isUser ? "text-right" : "text-left"}`}
       >
         {!isUser && (
-          <p className="mb-1 text-xs font-medium text-[var(--muted)]">Coach</p>
+          <p className="mb-1 text-xs font-medium text-[var(--muted)]">
+            Coach
+            {message.model_served && (
+              <span className="ml-1.5 font-normal opacity-70">· {message.model_served}</span>
+            )}
+          </p>
         )}
         <div
           className={`inline-block rounded-2xl px-4 py-3 text-left text-sm ${
@@ -104,6 +111,8 @@ export function CoachChat() {
   const [error, setError] = useState("");
   const [applyState, setApplyState] = useState<"idle" | "working" | "done">("idle");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [models, setModels] = useState<CoachModel[]>([]);
+  const [selectedModel, setSelectedModel] = useState("");
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -120,12 +129,21 @@ export function CoachChat() {
   useEffect(() => {
     async function load() {
       try {
-        const [m, mem] = await Promise.all([
+        const [m, mem, modelData] = await Promise.all([
           api.listMessages(),
           api.listMemories(),
+          api.listCoachModels(),
         ]);
         setMessages(m);
         setMemories(mem);
+        setModels(modelData.models);
+        const stored = getStoredModelId();
+        const valid =
+          stored && modelData.models.some((x) => x.id === stored)
+            ? stored
+            : modelData.default_model;
+        setSelectedModel(valid);
+        if (valid) storeModelId(valid);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load coach.");
       } finally {
@@ -207,7 +225,8 @@ export function CoachChat() {
         content,
         files,
         (token) => setStreamText((prev) => prev + token),
-        controller.signal
+        controller.signal,
+        selectedModel || undefined
       );
       setMessages((prev) => [
         ...prev.filter((m) => m.id !== optimistic.id),
@@ -425,6 +444,14 @@ export function CoachChat() {
 
         {/* Composer */}
         <div className="mt-3 shrink-0">
+          <div className="mx-auto mb-2 flex max-w-3xl items-center justify-between gap-2 px-1">
+            <ModelSelector
+              models={models}
+              selectedId={selectedModel}
+              onChange={setSelectedModel}
+              disabled={streaming || models.length === 0}
+            />
+          </div>
           <div
             className="mx-auto max-w-3xl rounded-2xl border bg-[var(--panel-2)] shadow-lg shadow-black/20"
             style={{ borderColor: "var(--border)" }}

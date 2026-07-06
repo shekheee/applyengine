@@ -32,9 +32,12 @@ class CoachFallbackChain:
             raise ValueError("CoachFallbackChain requires at least one provider")
         self._providers = providers
         self._last_served: str | None = None
+        self._last_model: str | None = None
 
     @property
     def chat_model(self) -> str:
+        if self._last_model:
+            return self._last_model
         for p in self._providers:
             if p.name == (self._last_served or ""):
                 return p.chat_model
@@ -43,6 +46,18 @@ class CoachFallbackChain:
     @property
     def last_served(self) -> str | None:
         return self._last_served
+
+    @property
+    def last_model(self) -> str | None:
+        return self._last_model
+
+    def reset(self) -> None:
+        self._last_served = None
+        self._last_model = None
+
+    def _mark_served(self, provider: CoachCapable) -> None:
+        self._last_served = provider.name
+        self._last_model = provider.chat_model
 
     def chain_summary(self) -> list[dict[str, str]]:
         return [{"provider": p.name, "model": p.chat_model} for p in self._providers]
@@ -56,7 +71,7 @@ class CoachFallbackChain:
             try:
                 out = provider.chat_messages(messages, json_mode=json_mode).strip()
                 if out:
-                    self._last_served = provider.name
+                    self._mark_served(provider)
                     logger.info("Coach reply served by %s", label)
                     return out
                 logger.warning("Coach empty response from %s — trying next", label)
@@ -76,7 +91,7 @@ class CoachFallbackChain:
                 for token in provider.chat_stream(messages):
                     got = True
                     if not self._last_served:
-                        self._last_served = provider.name
+                        self._mark_served(provider)
                         logger.info("Coach stream started on %s", label)
                     yield token
                 if got:
@@ -86,7 +101,7 @@ class CoachFallbackChain:
                 if self._last_served == provider.name:
                     raise
                 last_err = exc
-                self._last_served = None
+                self.reset()
                 logger.warning("Coach stream failed on %s: %s — trying next", label, exc)
         if last_err:
             raise last_err
@@ -103,7 +118,7 @@ class CoachFallbackChain:
                 async for token in provider.chat_stream_async(messages):
                     got = True
                     if not self._last_served:
-                        self._last_served = provider.name
+                        self._mark_served(provider)
                         logger.info("Coach stream started on %s", label)
                     yield token
                 if got:
@@ -113,7 +128,7 @@ class CoachFallbackChain:
                 if self._last_served == provider.name:
                     raise
                 last_err = exc
-                self._last_served = None
+                self.reset()
                 logger.warning("Coach stream failed on %s: %s — trying next", label, exc)
         if last_err:
             raise last_err

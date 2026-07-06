@@ -30,6 +30,20 @@ class UserOut(BaseModel):
 
 class ChatIn(BaseModel):
     message: str
+    model: str | None = None
+
+
+class CoachModelOut(BaseModel):
+    id: str
+    label: str
+    provider: str
+    provider_label: str
+    is_default: bool
+
+
+class CoachModelsOut(BaseModel):
+    models: list[CoachModelOut]
+    default_model: str
 
 
 class ResumeTextIn(BaseModel):

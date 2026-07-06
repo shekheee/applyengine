@@ -11,7 +11,9 @@ from sqlmodel import Session, select
 from app.auth import get_current_user
 from app.db import engine, get_session
 from app.models import Application, ChatMessage, Job, Memory, Profile, User
-from app.schemas import ChatIn
+from app.llm.coach_models import validate_coach_model
+from app.llm.factory import list_coach_models, default_model_id
+from app.schemas import ChatIn, CoachModelsOut, CoachModelOut
 from app.services import coach
 from app.services.attachments import MAX_ATTACHMENTS, process_attachment
 from app.services.parsing import parse_resume
@@ -53,6 +55,22 @@ def _jobs_for_apps(session: Session, apps: list[Application]) -> dict[int, Job]:
         return {}
     jobs = session.exec(select(Job).where(Job.id.in_(job_ids))).all()
     return {j.id: j for j in jobs if j.id is not None}
+
+
+def _resolve_model(model: str | None) -> str | None:
+    try:
+        return validate_coach_model(model)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+
+@router.get("/models", response_model=CoachModelsOut)
+def get_models():
+    models = list_coach_models()
+    return CoachModelsOut(
+        models=[CoachModelOut(**m) for m in models],
+        default_model=default_model_id(),
+    )
 
 
 @router.get("/messages", response_model=list[ChatMessage])
@@ -113,6 +131,8 @@ def send_message(
     if not text:
         raise HTTPException(400, "Message is empty")
 
+    model_id = _resolve_model(body.model)
+
     history = _user_messages(user, session)
     profile = _latest_profile(user, session)
     memories = _user_memories(user, session)
@@ -122,7 +142,9 @@ def send_message(
     user_msg = ChatMessage(user_id=user.id, role="user", content=text)
     session.add(user_msg)
 
-    reply = coach.coach_reply(text, profile, memories, history, None, apps, jobs)
+    reply, _, _ = coach.coach_reply(
+        text, profile, memories, history, None, apps, jobs, model_id=model_id
+    )
     assistant_msg = ChatMessage(user_id=user.id, role="assistant", content=reply)
     session.add(assistant_msg)
 
@@ -140,6 +162,7 @@ def send_message(
 @router.post("/messages/stream")
 async def send_message_stream(
     message: str = Form(""),
+    model: str = Form(""),
     files: list[UploadFile] = File(default=[]),
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
@@ -147,6 +170,8 @@ async def send_message_stream(
     text = message.strip()
     if not text and not files:
         raise HTTPException(400, "Message or attachment is required")
+
+    model_id = _resolve_model(model.strip() or None)
 
     processed, att_meta = _process_uploads(files)
 
@@ -179,6 +204,7 @@ async def send_message_stream(
 
     async def event_stream() -> AsyncIterator[str]:
         accumulated = ""
+        served: dict = {}
         try:
             async for token in coach.coach_reply_stream_async(
                 coach_text,
@@ -188,19 +214,26 @@ async def send_message_stream(
                 processed or None,
                 apps,
                 jobs,
+                model_id=model_id,
+                served=served,
             ):
                 accumulated += token
                 yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
 
-            reply = accumulated.strip() or coach.coach_reply(
-                coach_text,
-                profile,
-                memory_snap,
-                history_snap,
-                processed or None,
-                apps,
-                jobs,
-            )
+            reply = accumulated.strip()
+            if not reply:
+                reply, prov, mod = coach.coach_reply(
+                    coach_text,
+                    profile,
+                    memory_snap,
+                    history_snap,
+                    processed or None,
+                    apps,
+                    jobs,
+                    model_id=model_id,
+                )
+                served["provider"] = prov
+                served["model"] = mod
 
             with Session(engine) as db:
                 assistant_msg = ChatMessage(
@@ -224,7 +257,7 @@ async def send_message_stream(
                 db.refresh(assistant_msg)
                 assistant_json = assistant_msg.model_dump(mode="json")
 
-            yield f"data: {json.dumps({'type': 'done', 'user_message': user_msg_json, 'assistant_message': assistant_json, 'provider_served': coach.coach_last_provider()})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'user_message': user_msg_json, 'assistant_message': assistant_json, 'provider_served': served.get('provider'), 'model_served': served.get('model')})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
 

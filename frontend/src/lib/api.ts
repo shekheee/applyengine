@@ -1,6 +1,7 @@
 import type {
   Application,
   ChatMessage,
+  CoachModel,
   Job,
   Memory,
   Profile,
@@ -87,20 +88,29 @@ export const api = {
   me: () => req<User>("/api/auth/me"),
 
   // ---- Coach chat ----
+  listCoachModels: () =>
+    req<{ models: CoachModel[]; default_model: string }>("/api/chat/models"),
   listMessages: () => req<ChatMessage[]>("/api/chat/messages"),
-  sendMessage: (message: string) =>
+  sendMessage: (message: string, model?: string) =>
     req<ChatMessage>("/api/chat/messages", {
       method: "POST",
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, model: model || undefined }),
     }),
   sendMessageStream: async (
     message: string,
     files: File[],
     onToken: (token: string) => void,
-    signal?: AbortSignal
-  ): Promise<{ user_message: ChatMessage; assistant_message: ChatMessage }> => {
+    signal?: AbortSignal,
+    model?: string
+  ): Promise<{
+    user_message: ChatMessage;
+    assistant_message: ChatMessage;
+    provider_served?: string;
+    model_served?: string;
+  }> => {
     const form = new FormData();
     form.append("message", message);
+    if (model) form.append("model", model);
     for (const f of files) form.append("files", f);
 
     const res = await fetch(`${BASE}/api/chat/messages/stream`, {
@@ -125,8 +135,12 @@ export const api = {
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
-    let result: { user_message: ChatMessage; assistant_message: ChatMessage } | null =
-      null;
+    let result: {
+      user_message: ChatMessage;
+      assistant_message: ChatMessage;
+      provider_served?: string;
+      model_served?: string;
+    } | null = null;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -145,12 +159,20 @@ export const api = {
             detail?: string;
             user_message?: ChatMessage;
             assistant_message?: ChatMessage;
+            provider_served?: string;
+            model_served?: string;
           };
           if (evt.type === "token" && evt.content) onToken(evt.content);
           if (evt.type === "done" && evt.user_message && evt.assistant_message) {
             result = {
               user_message: evt.user_message,
-              assistant_message: evt.assistant_message,
+              assistant_message: {
+                ...evt.assistant_message,
+                provider_served: evt.provider_served,
+                model_served: evt.model_served,
+              },
+              provider_served: evt.provider_served,
+              model_served: evt.model_served,
             };
           }
           if (evt.type === "error") {

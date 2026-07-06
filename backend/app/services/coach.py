@@ -4,7 +4,7 @@ from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
 from app import prompts
-from app.llm import get_coach_provider, get_provider
+from app.llm import build_coach_provider, get_provider
 from app.models import Application, ChatMessage, Job, Memory, Profile
 from app.services.attachments import ProcessedAttachment, build_user_content
 
@@ -63,23 +63,26 @@ def coach_reply(
     attachments: list[ProcessedAttachment] | None = None,
     applications: list[Application] | None = None,
     jobs: dict[int, Job] | None = None,
-) -> str:
-    provider = get_coach_provider()
-    provider._last_served = None
+    model_id: str | None = None,
+) -> tuple[str, str | None, str | None]:
+    chain = build_coach_provider(model_id)
+    chain.reset()
     messages = build_coach_messages(
         message, profile, memories, history, attachments, applications, jobs
     )
     try:
-        out = provider.chat_messages(messages).strip()
+        out = chain.chat_messages(messages).strip()
         if out:
-            return out
+            return out, chain.last_served, chain.last_model
     except Exception:
         pass
 
     return (
         "Got it — tell me more about that. What was the impact, and can you put a "
         "number on it (time saved, accuracy, revenue, scale)? I'll help you turn it "
-        "into a strong resume bullet."
+        "into a strong resume bullet.",
+        chain.last_served,
+        chain.last_model,
     )
 
 
@@ -91,13 +94,19 @@ def coach_reply_stream(
     attachments: list[ProcessedAttachment] | None = None,
     applications: list[Application] | None = None,
     jobs: dict[int, Job] | None = None,
+    model_id: str | None = None,
+    served: dict | None = None,
 ) -> Iterator[str]:
-    provider = get_coach_provider()
-    provider._last_served = None
+    chain = build_coach_provider(model_id)
+    chain.reset()
     messages = build_coach_messages(
         message, profile, memories, history, attachments, applications, jobs
     )
-    yield from provider.chat_stream(messages)
+    for token in chain.chat_stream(messages):
+        yield token
+    if served is not None:
+        served["provider"] = chain.last_served
+        served["model"] = chain.last_model
 
 
 async def coach_reply_stream_async(
@@ -108,21 +117,19 @@ async def coach_reply_stream_async(
     attachments: list[ProcessedAttachment] | None = None,
     applications: list[Application] | None = None,
     jobs: dict[int, Job] | None = None,
+    model_id: str | None = None,
+    served: dict | None = None,
 ) -> AsyncIterator[str]:
-    provider = get_coach_provider()
-    provider._last_served = None
+    chain = build_coach_provider(model_id)
+    chain.reset()
     messages = build_coach_messages(
         message, profile, memories, history, attachments, applications, jobs
     )
-    async for token in provider.chat_stream_async(messages):
+    async for token in chain.chat_stream_async(messages):
         yield token
-
-
-def coach_last_provider() -> str | None:
-    try:
-        return get_coach_provider().last_served
-    except RuntimeError:
-        return None
+    if served is not None:
+        served["provider"] = chain.last_served
+        served["model"] = chain.last_model
 
 
 def extract_memories(
