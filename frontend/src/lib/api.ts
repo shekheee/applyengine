@@ -9,7 +9,22 @@ import type {
   User,
 } from "./types";
 
-const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const PROD_API = "https://applyengine-api.onrender.com";
+
+function resolveApiBase(): string {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host === "applyengine.ajayshekhawat.uk" || host.endsWith(".vercel.app")) {
+      return PROD_API;
+    }
+  }
+  return "http://localhost:8000";
+}
+
+const BASE = resolveApiBase();
 const TOKEN_KEY = "applyengine_token";
 
 export function getToken(): string | null {

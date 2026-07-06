@@ -29,7 +29,7 @@ services:
       - key: OPENAI_EMBED_MODEL
         value: text-embedding-3-small
       - key: CORS_ORIGINS
-        value: https://applyengine.ajayshekhawat.uk
+        value: https://applyengine.ajayshekhawat.uk,https://applyengine.vercel.app,http://localhost:3000
       # Persistent Postgres (Neon) so accounts + coach memory survive redeploys/sleep.
       # Set to the Neon connection string in the Render dashboard.
       - key: DATABASE_URL

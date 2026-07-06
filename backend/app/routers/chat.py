@@ -56,6 +56,42 @@ def _jobs_for_apps(session: Session, apps: list[Application]) -> dict[int, Job]:
     return {j.id: j for j in jobs if j.id is not None}
 
 
+def _snapshot_profile(profile: Profile | None):
+    if profile is None:
+        return None
+    return SimpleNamespace(
+        name=profile.name,
+        email=profile.email,
+        phone=profile.phone,
+        location=profile.location,
+        summary=profile.summary,
+        raw_text=profile.raw_text,
+        links=list(profile.links or []),
+        skills=list(profile.skills or []),
+        experience=list(profile.experience or []),
+        projects=list(profile.projects or []),
+        education=list(profile.education or []),
+    )
+
+
+def _snapshot_apps_jobs(
+    apps: list[Application], jobs: dict[int, Job]
+) -> tuple[list, dict]:
+    apps_snap = [
+        SimpleNamespace(
+            job_id=a.job_id,
+            status=SimpleNamespace(value=a.status.value),
+            fit_score=a.fit_score,
+        )
+        for a in apps
+    ]
+    jobs_snap = {
+        jid: SimpleNamespace(title=j.title, company=j.company)
+        for jid, j in jobs.items()
+    }
+    return apps_snap, jobs_snap
+
+
 def _resolve_model(model: str | None) -> str | None:
     try:
         return validate_coach_model(model)
@@ -198,6 +234,8 @@ async def send_message_stream(
     memory_snap = [
         SimpleNamespace(kind=m.kind, content=m.content) for m in memories
     ]
+    profile_snap = _snapshot_profile(profile)
+    apps_snap, jobs_snap = _snapshot_apps_jobs(apps, jobs)
     user_id = user.id
     coach_text = text or "Please review the attached file(s)."
 
@@ -207,12 +245,12 @@ async def send_message_stream(
         try:
             async for token in coach.coach_reply_stream_async(
                 coach_text,
-                profile,
+                profile_snap,
                 memory_snap,
                 history_snap,
                 processed or None,
-                apps,
-                jobs,
+                apps_snap,
+                jobs_snap,
                 model_id=model_id,
                 served=served,
             ):
@@ -223,12 +261,12 @@ async def send_message_stream(
             if not reply:
                 reply, prov, mod = coach.coach_reply(
                     coach_text,
-                    profile,
+                    profile_snap,
                     memory_snap,
                     history_snap,
                     processed or None,
-                    apps,
-                    jobs,
+                    apps_snap,
+                    jobs_snap,
                     model_id=model_id,
                 )
                 served["provider"] = prov
