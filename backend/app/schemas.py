@@ -71,3 +71,54 @@ class NotesUpdate(BaseModel):
 class GenerateRequest(BaseModel):
     application_id: int
     what: list[str] = ["resume", "cover_letter", "interview_prep"]
+
+
+class InterviewSessionCreate(BaseModel):
+    focus: str = "mixed"
+    difficulty: str = "mid"
+    job_id: int | None = None
+    model: str | None = None
+
+
+class InterviewAnswerIn(BaseModel):
+    answer: str
+    question_index: int | None = None
+    model: str | None = None
+
+
+class InterviewFollowupIn(BaseModel):
+    message: str
+    question_index: int | None = None
+    model: str | None = None
+
+
+class InterviewCompleteIn(BaseModel):
+    model: str | None = None
+
+
+class InterviewTurnOut(BaseModel):
+    id: int
+    session_id: int
+    question_index: int
+    role: str
+    content: str
+    scores: dict = {}
+    created_at: str = ""
+
+    model_config = {"from_attributes": True}
+
+
+class InterviewSessionOut(BaseModel):
+    id: int
+    job_id: int | None = None
+    focus: str
+    difficulty: str
+    status: str
+    questions: list[dict] = []
+    current_index: int = 0
+    summary: dict = {}
+    recurring_weaknesses: list[str] = []
+    model_id: str = ""
+    created_at: str = ""
+    updated_at: str = ""
+    turns: list[InterviewTurnOut] = []

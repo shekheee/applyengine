@@ -40,6 +40,7 @@ function NavBar() {
           <nav className="flex items-center gap-1 text-sm">
             {navLink("/", "Pipeline")}
             {navLink("/coach", "Coach")}
+            {navLink("/interview", "Interview")}
             <Link
               href="/new"
               className="rounded-lg bg-[var(--primary)] px-3 py-1.5 font-medium text-white hover:bg-[var(--primary-2)]"

@@ -112,3 +112,64 @@ export interface ChatMessageMeta {
   model_served?: string;
   provider_served?: string;
 }
+
+export interface InterviewQuestion {
+  id?: number;
+  text: string;
+  category: string;
+  tip?: string;
+}
+
+export interface InterviewTurn {
+  id: number;
+  session_id: number;
+  question_index: number;
+  role: "candidate" | "feedback" | "followup" | "followup_reply";
+  content: string;
+  scores: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface InterviewSessionSummary {
+  overall_score?: number | string;
+  strengths?: string[];
+  priority_improvements?: string[];
+  recurring_weaknesses?: string[];
+  skill_pointers?: string[];
+  next_steps?: string[];
+  per_question?: Array<{
+    question?: string;
+    score?: number | string;
+    key_feedback?: string;
+  }>;
+}
+
+export interface InterviewSession {
+  id: number;
+  job_id: number | null;
+  focus: string;
+  difficulty: string;
+  status: "active" | "completed" | string;
+  questions: InterviewQuestion[];
+  current_index: number;
+  summary: InterviewSessionSummary;
+  recurring_weaknesses: string[];
+  model_id: string;
+  created_at: string;
+  updated_at: string;
+  turns: InterviewTurn[];
+}
+
+export const INTERVIEW_FOCUS = [
+  { id: "mixed", label: "Mixed", desc: "Behavioral + technical + resume" },
+  { id: "behavioral", label: "Behavioral", desc: "STAR stories & soft skills" },
+  { id: "technical_ml", label: "ML / AI Technical", desc: "Models, metrics, ML concepts" },
+  { id: "system_design", label: "System Design", desc: "Pipelines, scale, production ML" },
+  { id: "resume_deep", label: "Resume Deep-Dive", desc: "Your projects & experience" },
+] as const;
+
+export const INTERVIEW_DIFFICULTY = [
+  { id: "junior", label: "Junior" },
+  { id: "mid", label: "Mid-level" },
+  { id: "senior", label: "Senior" },
+] as const;

@@ -112,3 +112,33 @@ class Memory(SQLModel, table=True):
     kind: str = "fact"  # e.g. skill | experience | preference | goal | achievement | fact
     content: str = Field(default="", sa_column=Column(Text))
     created_at: datetime = Field(default_factory=_now)
+
+
+class InterviewSession(SQLModel, table=True):
+    """An interview practice session tailored to the user's resume and optional job."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    job_id: int | None = Field(default=None, foreign_key="job.id", index=True)
+    focus: str = "mixed"  # behavioral | technical_ml | system_design | resume_deep | mixed
+    difficulty: str = "mid"  # junior | mid | senior
+    status: str = "active"  # active | completed
+    questions: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON))
+    current_index: int = 0
+    summary: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    recurring_weaknesses: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    model_id: str = ""
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
+
+
+class InterviewTurn(SQLModel, table=True):
+    """A single turn within an interview practice session."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    session_id: int = Field(foreign_key="interviewsession.id", index=True)
+    question_index: int = 0
+    role: str = "candidate"  # candidate | feedback | followup
+    content: str = Field(default="", sa_column=Column(Text))
+    scores: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=_now)

@@ -2,6 +2,8 @@ import type {
   Application,
   ChatMessage,
   CoachModel,
+  InterviewSession,
+  InterviewTurn,
   Job,
   Memory,
   Profile,
@@ -294,4 +296,194 @@ export const api = {
     }),
   exportUrl: (id: number, doc: "resume" | "cover_letter") =>
     `${BASE}/api/applications/${id}/export/${doc}`,
+
+  // ---- Interview Practice ----
+  listInterviewSessions: () =>
+    req<InterviewSession[]>("/api/interview/sessions"),
+
+  getInterviewSession: (id: number) =>
+    req<InterviewSession>(`/api/interview/sessions/${id}`),
+
+  createInterviewSession: (body: {
+    focus?: string;
+    difficulty?: string;
+    job_id?: number | null;
+    model?: string;
+  }) =>
+    req<InterviewSession>("/api/interview/sessions", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  submitInterviewAnswer: (
+    sessionId: number,
+    answer: string,
+    opts?: { question_index?: number; model?: string }
+  ) =>
+    req<InterviewTurn>(`/api/interview/sessions/${sessionId}/answer`, {
+      method: "POST",
+      body: JSON.stringify({
+        answer,
+        question_index: opts?.question_index,
+        model: opts?.model,
+      }),
+    }),
+
+  submitInterviewAnswerStream: async (
+    sessionId: number,
+    answer: string,
+    onToken: (token: string) => void,
+    opts?: { question_index?: number; model?: string; signal?: AbortSignal }
+  ): Promise<{ feedback: Record<string, unknown>; turn: InterviewTurn }> => {
+    const res = await fetch(
+      `${BASE}/api/interview/sessions/${sessionId}/answer/stream`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders(),
+        },
+        body: JSON.stringify({
+          answer,
+          question_index: opts?.question_index,
+          model: opts?.model,
+        }),
+        signal: opts?.signal,
+      }
+    );
+    if (!res.ok) {
+      if (res.status === 401) setToken(null);
+      let detail = "";
+      try {
+        const data = await res.json();
+        detail = data?.detail ?? JSON.stringify(data);
+      } catch {
+        detail = await res.text().catch(() => "");
+      }
+      throw new ApiError(res.status, detail || `Request failed (${res.status})`);
+    }
+    if (!res.body) throw new ApiError(500, "No response stream");
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let result: { feedback: Record<string, unknown>; turn: InterviewTurn } | null =
+      null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const payload = line.slice(6).trim();
+        if (!payload) continue;
+        try {
+          const evt = JSON.parse(payload) as {
+            type: string;
+            content?: string;
+            detail?: string;
+            feedback?: Record<string, unknown>;
+            turn?: InterviewTurn;
+          };
+          if (evt.type === "token" && evt.content) onToken(evt.content);
+          if (evt.type === "done" && evt.feedback && evt.turn) {
+            result = { feedback: evt.feedback, turn: evt.turn };
+          }
+          if (evt.type === "error") {
+            throw new ApiError(500, evt.detail || "Stream failed");
+          }
+        } catch (e) {
+          if (e instanceof ApiError) throw e;
+        }
+      }
+    }
+    if (!result) throw new ApiError(500, "Stream ended without completion");
+    return result;
+  },
+
+  interviewFollowupStream: async (
+    sessionId: number,
+    message: string,
+    onToken: (token: string) => void,
+    opts?: { question_index?: number; model?: string; signal?: AbortSignal }
+  ): Promise<string> => {
+    const res = await fetch(
+      `${BASE}/api/interview/sessions/${sessionId}/followup/stream`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders(),
+        },
+        body: JSON.stringify({
+          message,
+          question_index: opts?.question_index,
+          model: opts?.model,
+        }),
+        signal: opts?.signal,
+      }
+    );
+    if (!res.ok) {
+      if (res.status === 401) setToken(null);
+      let detail = "";
+      try {
+        const data = await res.json();
+        detail = data?.detail ?? JSON.stringify(data);
+      } catch {
+        detail = await res.text().catch(() => "");
+      }
+      throw new ApiError(res.status, detail || `Request failed (${res.status})`);
+    }
+    if (!res.body) throw new ApiError(500, "No response stream");
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let content = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const payload = line.slice(6).trim();
+        if (!payload) continue;
+        try {
+          const evt = JSON.parse(payload) as {
+            type: string;
+            content?: string;
+            detail?: string;
+          };
+          if (evt.type === "token" && evt.content) {
+            onToken(evt.content);
+            content += evt.content;
+          }
+          if (evt.type === "done" && evt.content) content = evt.content;
+          if (evt.type === "error") {
+            throw new ApiError(500, evt.detail || "Stream failed");
+          }
+        } catch (e) {
+          if (e instanceof ApiError) throw e;
+        }
+      }
+    }
+    return content;
+  },
+
+  nextInterviewQuestion: (sessionId: number) =>
+    req<InterviewSession>(`/api/interview/sessions/${sessionId}/next`, {
+      method: "POST",
+    }),
+
+  completeInterviewSession: (sessionId: number, model?: string) =>
+    req<InterviewSession>(`/api/interview/sessions/${sessionId}/complete`, {
+      method: "POST",
+      body: JSON.stringify({ model: model || undefined }),
+    }),
 };

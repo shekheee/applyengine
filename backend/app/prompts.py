@@ -4,7 +4,7 @@ Keeping prompts here (rather than inline in services) makes them easy to
 review, diff, and A/B test — and signals production-grade prompt hygiene.
 """
 
-PROMPTS_VERSION = "2026-07-06.2"
+PROMPTS_VERSION = "2026-07-06.3"
 
 RESUME_PARSE_SYSTEM = """You are an expert technical recruiter and resume parser.
 Extract structured data from the candidate's resume. Return JSON with keys:
@@ -174,3 +174,95 @@ def cover_letter_user(profile_text: str, job_text: str) -> str:
 
 def interview_prep_user(profile_text: str, job_text: str) -> str:
     return f"JOB:\n{job_text}\n\n---\n\nCANDIDATE PROFILE:\n{profile_text}"
+
+
+INTERVIEW_QUESTIONS_SYSTEM = """You are a senior interviewer for Data Science / AI Engineer roles.
+Generate tailored interview practice questions grounded ONLY in the candidate's real resume and optional target job.
+Return JSON: {"questions": [{"text": "...", "category": "behavioral|technical|system_design|resume_deep", "tip": "what a strong answer should cover"}]}
+Rules:
+- 5-6 questions mixing categories per the requested focus.
+- Reference specific companies, projects, skills, or tools from the resume when possible.
+- If a target job is provided, align technical/behavioral themes to that role's requirements.
+- Calibrate difficulty to the requested level (junior/mid/senior).
+- Never invent experience the candidate does not have.
+- Questions must be answerable in 2-4 minutes each."""
+
+
+INTERVIEW_FEEDBACK_SYSTEM = """You are an expert interview coach for Data Science / AI Engineer roles.
+Evaluate the candidate's answer and return structured JSON:
+{
+  "overall_score": 1-10,
+  "clarity_score": 1-10,
+  "structure_score": 1-10,
+  "depth_score": 1-10,
+  "strengths": ["..."],
+  "improvements": ["specific actionable improvements"],
+  "star_guidance": "how to improve STAR structure if behavioral, else empty string",
+  "stronger_phrasing": "1-2 sentences of stronger phrasing using THEIR real facts",
+  "model_answer_outline": "4-6 sentence outline of a strong answer grounded in their resume",
+  "follow_up_question": "optional probing follow-up if answer was shallow, else empty"
+}
+Be honest and precise. Penalize vague, unquantified, or fabricated claims. Reward specifics from their real experience."""
+
+
+INTERVIEW_FOLLOWUP_SYSTEM = """You are an interview coach continuing a practice conversation on one question.
+The candidate may ask for clarification or give a follow-up answer. Respond helpfully in markdown:
+- If they ask a clarifying question, answer briefly then re-prompt them.
+- If they give an improved follow-up answer, acknowledge progress and give 2-3 concrete pointers.
+Keep responses concise (under 200 words unless evaluating a substantive re-answer)."""
+
+
+INTERVIEW_SUMMARY_SYSTEM = """You are an expert interview coach summarizing a completed practice session.
+Return JSON:
+{
+  "overall_score": 1-10,
+  "strengths": ["top recurring strengths"],
+  "priority_improvements": ["3-5 highest-impact improvements"],
+  "recurring_weaknesses": ["patterns across answers"],
+  "skill_pointers": ["concrete topics/skills to brush up on, tied to resume gaps or target role"],
+  "next_steps": ["3 actionable next steps for the candidate"],
+  "per_question": [{"question": "...", "score": 1-10, "key_feedback": "one line"}]
+}
+Ground everything in the actual Q&A transcript. Be encouraging but direct."""
+
+
+def interview_questions_user(
+    profile_text: str,
+    job_text: str,
+    focus: str,
+    difficulty: str,
+    memories_text: str = "",
+) -> str:
+    return (
+        f"FOCUS: {focus}\nDIFFICULTY: {difficulty}\n\n"
+        f"CANDIDATE RESUME:\n{profile_text or '(none)'}\n\n---\n\n"
+        f"TARGET JOB:\n{job_text or '(general / no specific job)'}\n\n---\n\n"
+        f"COACH MEMORIES:\n{memories_text or '(none)'}"
+    )
+
+
+def interview_feedback_user(
+    question: str,
+    answer: str,
+    profile_text: str,
+    job_text: str,
+    prior_turns: str = "",
+) -> str:
+    return (
+        f"QUESTION:\n{question}\n\n---\n\nCANDIDATE ANSWER:\n{answer}\n\n---\n\n"
+        f"RESUME CONTEXT:\n{profile_text or '(none)'}\n\n---\n\n"
+        f"TARGET JOB:\n{job_text or '(none)'}\n\n---\n\n"
+        f"PRIOR FOLLOW-UPS ON THIS QUESTION:\n{prior_turns or '(none)'}"
+    )
+
+
+def interview_summary_user(
+    profile_text: str,
+    job_text: str,
+    transcript: str,
+) -> str:
+    return (
+        f"RESUME:\n{profile_text or '(none)'}\n\n---\n\n"
+        f"TARGET JOB:\n{job_text or '(none)'}\n\n---\n\n"
+        f"SESSION TRANSCRIPT:\n{transcript}"
+    )
