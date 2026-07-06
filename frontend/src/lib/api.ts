@@ -2,12 +2,14 @@ import type {
   Application,
   ChatMessage,
   CoachModel,
+  InterviewProgress,
   InterviewSession,
   InterviewTurn,
   Job,
   Memory,
   Profile,
   Status,
+  TranscribeResult,
   User,
 } from "./types";
 
@@ -486,4 +488,33 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ model: model || undefined }),
     }),
+
+  getInterviewProgress: () => req<InterviewProgress>("/api/interview/progress"),
+
+  transcribeInterviewAudio: async (
+    blob: Blob,
+    mime: string,
+    durationSeconds: number
+  ): Promise<TranscribeResult> => {
+    const form = new FormData();
+    form.append("file", blob, `recording.${mime.includes("mp4") ? "m4a" : "webm"}`);
+    form.append("duration", String(durationSeconds));
+    const res = await fetch(`${BASE}/api/interview/transcribe`, {
+      method: "POST",
+      headers: { ...authHeaders() },
+      body: form,
+    });
+    if (!res.ok) {
+      if (res.status === 401) setToken(null);
+      let detail = "";
+      try {
+        const data = await res.json();
+        detail = data?.detail ?? JSON.stringify(data);
+      } catch {
+        detail = await res.text().catch(() => "");
+      }
+      throw new ApiError(res.status, detail || `Transcription failed (${res.status})`);
+    }
+    return res.json() as Promise<TranscribeResult>;
+  },
 };

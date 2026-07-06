@@ -11,6 +11,8 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import type {
   CoachModel,
+  DeliveryMetrics,
+  InterviewProgress,
   InterviewSession,
   InterviewTurn,
   Job,
@@ -22,7 +24,9 @@ import {
 } from "@/lib/types";
 import { Badge, Button, Card, cn } from "@/components/ui";
 import { ChatMarkdown } from "@/components/chat-markdown";
+import { InterviewProgressPanel } from "@/components/interview-progress";
 import { ModelSelector, getStoredModelId, storeModelId } from "@/components/model-selector";
+import { useVoiceRecorder } from "@/hooks/use-voice-recorder";
 
 function summaryMarkdown(summary: InterviewSession["summary"]): string {
   const lines = [
@@ -85,6 +89,7 @@ export function InterviewPractice() {
   const [models, setModels] = useState<CoachModel[]>([]);
   const [selectedModel, setSelectedModel] = useState("");
   const [pastSessions, setPastSessions] = useState<InterviewSession[]>([]);
+  const [progress, setProgress] = useState<InterviewProgress | null>(null);
 
   const [focus, setFocus] = useState("mixed");
   const [difficulty, setDifficulty] = useState("mid");
@@ -95,7 +100,10 @@ export function InterviewPractice() {
   const [followup, setFollowup] = useState("");
   const [streamText, setStreamText] = useState("");
   const [liveFeedback, setLiveFeedback] = useState("");
+  const [deliveryMetrics, setDeliveryMetrics] = useState<DeliveryMetrics | null>(null);
+  const [transcribing, setTranscribing] = useState(false);
 
+  const voice = useVoiceRecorder();
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -109,16 +117,18 @@ export function InterviewPractice() {
   useEffect(() => {
     async function load() {
       try {
-        const [base, jobList, modelData, sessions] = await Promise.all([
+        const [base, jobList, modelData, sessions, prog] = await Promise.all([
           api.baseProfile().catch(() => null),
           api.listJobs(),
           api.listCoachModels(),
           api.listInterviewSessions().catch(() => []),
+          api.getInterviewProgress().catch(() => null),
         ]);
         setProfile(base);
         setJobs(jobList);
         setModels(modelData.models);
         setPastSessions(sessions);
+        setProgress(prog);
         const stored = getStoredModelId();
         const valid =
           stored && modelData.models.some((x) => x.id === stored)
@@ -157,6 +167,7 @@ export function InterviewPractice() {
       setAnswer("");
       setFollowup("");
       setLiveFeedback("");
+      setDeliveryMetrics(null);
       setPhase("practice");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not start session.");
@@ -191,6 +202,7 @@ export function InterviewPractice() {
       const updated = await api.getInterviewSession(session.id);
       setSession(updated);
       setAnswer("");
+      setDeliveryMetrics(null);
       setLiveFeedback(turn.content);
       setStreamText("");
     } catch (e) {
@@ -245,6 +257,7 @@ export function InterviewPractice() {
       setSession(updated);
       setAnswer("");
       setFollowup("");
+      setDeliveryMetrics(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not advance.");
     } finally {
@@ -265,6 +278,8 @@ export function InterviewPractice() {
       setPhase("summary");
       const sessions = await api.listInterviewSessions();
       setPastSessions(sessions);
+      const prog = await api.getInterviewProgress().catch(() => null);
+      setProgress(prog);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not complete session.");
     } finally {
@@ -279,7 +294,37 @@ export function InterviewPractice() {
     setFollowup("");
     setLiveFeedback("");
     setStreamText("");
+    setDeliveryMetrics(null);
     setError("");
+  }
+
+  async function handleMicClick() {
+    if (voice.state === "recording") {
+      setTranscribing(true);
+      voice.setError(null);
+      try {
+        const recorded = await voice.finishRecording();
+        if (!recorded || recorded.blob.size < 100) {
+          voice.setError("Recording too short. Try again.");
+          return;
+        }
+        const result = await api.transcribeInterviewAudio(
+          recorded.blob,
+          recorded.mime,
+          recorded.duration
+        );
+        setAnswer(result.text);
+        setDeliveryMetrics(result.delivery);
+      } catch (e) {
+        voice.setError(e instanceof Error ? e.message : "Transcription failed.");
+      } finally {
+        setTranscribing(false);
+      }
+      return;
+    }
+    if (voice.state === "processing" || transcribing) return;
+    setDeliveryMetrics(null);
+    await voice.startRecording();
   }
 
   function onAnswerKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
@@ -341,6 +386,10 @@ export function InterviewPractice() {
           {error}
         </div>
       )}
+
+      {(phase === "setup" || progress?.completed_sessions) ? (
+        <InterviewProgressPanel progress={progress} />
+      ) : null}
 
       {phase === "setup" && (
         <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
@@ -540,13 +589,77 @@ export function InterviewPractice() {
 
             {!answered && !streaming && (
               <Card className="space-y-3">
-                <label className="block text-sm font-medium">Your answer</label>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="block text-sm font-medium">Your answer</label>
+                  {voice.isSupported && (
+                    <div className="flex items-center gap-2">
+                      {voice.state === "recording" && (
+                        <>
+                          <span className="text-xs text-red-400">
+                            ● {voice.seconds}s
+                          </span>
+                          <div
+                            className="h-2 w-16 overflow-hidden rounded-full bg-[var(--panel)]"
+                            style={{ borderColor: "var(--border)" }}
+                          >
+                            <div
+                              className="h-full rounded-full bg-[var(--primary)] transition-all"
+                              style={{ width: `${Math.round(voice.level * 100)}%` }}
+                            />
+                          </div>
+                        </>
+                      )}
+                      <Button
+                        variant={voice.state === "recording" ? "primary" : "outline"}
+                        size="sm"
+                        onClick={handleMicClick}
+                        disabled={transcribing || voice.state === "processing"}
+                      >
+                        {transcribing || voice.state === "processing"
+                          ? "Transcribing…"
+                          : voice.state === "recording"
+                            ? "Stop & transcribe"
+                            : "🎤 Record answer"}
+                      </Button>
+                      {voice.state === "recording" && (
+                        <Button variant="ghost" size="sm" onClick={() => void voice.cancelRecording()}>
+                          Cancel
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {(voice.error || transcribing) && voice.error && (
+                  <p className="text-xs text-amber-300">{voice.error}</p>
+                )}
+                {deliveryMetrics && (
+                  <div
+                    className="rounded-lg border px-3 py-2 text-xs text-[var(--muted)]"
+                    style={{ borderColor: "var(--border)" }}
+                  >
+                    <p className="mb-1 font-medium text-[var(--text)]">Delivery signals</p>
+                    <p>
+                      {deliveryMetrics.words_per_minute} wpm · {deliveryMetrics.word_count} words ·{" "}
+                      {deliveryMetrics.filler_count} fillers ({deliveryMetrics.filler_rate_per_100}/100)
+                      {deliveryMetrics.pause_count > 0 &&
+                        ` · ${deliveryMetrics.pause_count} pause(s)`}
+                    </p>
+                    {deliveryMetrics.observations.map((o) => (
+                      <p key={o} className="mt-1 italic">
+                        {o}
+                      </p>
+                    ))}
+                    <p className="mt-1.5 text-[10px]">
+                      Edit the transcript below before submitting.
+                    </p>
+                  </div>
+                )}
                 <textarea
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
                   onKeyDown={onAnswerKeyDown}
                   rows={6}
-                  placeholder="Answer as you would in a real interview. Use STAR for behavioral questions."
+                  placeholder="Type or record your answer. Use STAR for behavioral questions."
                   className="w-full resize-none rounded-lg border bg-[var(--panel-2)] px-3 py-2 text-sm leading-relaxed outline-none focus:border-[var(--primary)]"
                   style={{ borderColor: "var(--border)" }}
                 />
@@ -554,7 +667,7 @@ export function InterviewPractice() {
                   <p className="text-xs text-[var(--muted)]">⌘/Ctrl + Enter to submit</p>
                   <Button
                     onClick={submitAnswer}
-                    disabled={!answer.trim() || streaming}
+                    disabled={!answer.trim() || streaming || voice.state === "recording"}
                   >
                     Get feedback
                   </Button>

@@ -30,6 +30,7 @@ def init_db() -> None:
     SQLModel.metadata.create_all(engine)
     _migrate_chat_attachments()
     _migrate_profile_base()
+    _migrate_interview_overall_score()
 
 
 def _migrate_chat_attachments() -> None:
@@ -64,6 +65,33 @@ def _migrate_profile_base() -> None:
             text(
                 "ALTER TABLE profile ADD COLUMN IF NOT EXISTS source_filename "
                 "TEXT DEFAULT ''"
+            )
+        )
+
+
+def _migrate_interview_overall_score() -> None:
+    """Add overall_score column for cross-session progress queries."""
+    if is_sqlite:
+        return
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "ALTER TABLE interviewsession ADD COLUMN IF NOT EXISTS overall_score "
+                "DOUBLE PRECISION"
+            )
+        )
+        # Backfill from summary JSON where possible
+        conn.execute(
+            text(
+                """
+                UPDATE interviewsession
+                SET overall_score = (summary->>'overall_score')::double precision
+                WHERE overall_score IS NULL
+                  AND summary IS NOT NULL
+                  AND summary->>'overall_score' ~ '^[0-9]+(\\.[0-9]+)?$'
+                """
             )
         )
 

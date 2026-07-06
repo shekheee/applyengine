@@ -5,7 +5,7 @@ from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select
 
@@ -17,9 +17,11 @@ from app.schemas import (
     InterviewAnswerIn,
     InterviewCompleteIn,
     InterviewFollowupIn,
+    InterviewProgressOut,
     InterviewSessionCreate,
     InterviewSessionOut,
     InterviewTurnOut,
+    TranscribeOut,
 )
 from app.services.interview_practice import (
     evaluate_answer,
@@ -29,6 +31,8 @@ from app.services.interview_practice import (
     stream_followup_async,
     summary_to_markdown,
 )
+from app.services.interview_progress import build_interview_progress
+from app.services.speech import transcribe_audio
 from app.services.profiles import get_base_profile
 from app.services.serialize import profile_to_text
 
@@ -87,11 +91,45 @@ def _session_out(s: InterviewSession, turns: list[InterviewTurn] | None = None) 
         current_index=s.current_index,
         summary=s.summary or {},
         recurring_weaknesses=s.recurring_weaknesses or [],
+        overall_score=s.overall_score,
         model_id=s.model_id,
         created_at=s.created_at.isoformat() if s.created_at else "",
         updated_at=s.updated_at.isoformat() if s.updated_at else "",
         turns=[_turn_out(t) for t in (turns or [])],
     )
+
+
+@router.get("/progress", response_model=InterviewProgressOut)
+def get_progress(
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    sessions = db.exec(
+        select(InterviewSession)
+        .where(InterviewSession.user_id == user.id)
+        .order_by(InterviewSession.id.asc())
+    ).all()
+    return build_interview_progress(sessions)
+
+
+@router.post("/transcribe", response_model=TranscribeOut)
+async def transcribe_answer(
+    file: UploadFile = File(...),
+    duration: float | None = Form(default=None),
+    user: User = Depends(get_current_user),
+):
+    _ = user  # auth gate
+    mime = file.content_type or "audio/webm"
+    if not mime.startswith("audio/"):
+        raise HTTPException(400, "Upload must be an audio file.")
+    try:
+        audio_bytes = await file.read()
+        result = transcribe_audio(audio_bytes, mime, duration_hint=duration)
+        return TranscribeOut(**result)
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+    except Exception as e:
+        raise HTTPException(500, "Transcription failed. Try again or type your answer.") from e
 
 
 @router.post("/sessions", response_model=InterviewSessionOut)
@@ -439,6 +477,11 @@ def complete_session(
     summary = generate_summary(s, turns, profile, job, model_id=model_id)
     s.summary = summary
     s.recurring_weaknesses = summary.get("recurring_weaknesses") or []
+    raw_score = summary.get("overall_score")
+    try:
+        s.overall_score = float(raw_score) if raw_score is not None else None
+    except (TypeError, ValueError):
+        s.overall_score = None
     s.status = "completed"
     s.updated_at = datetime.now(timezone.utc)
     db.add(s)

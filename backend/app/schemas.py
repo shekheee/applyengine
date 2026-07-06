@@ -118,7 +118,59 @@ class InterviewSessionOut(BaseModel):
     current_index: int = 0
     summary: dict = {}
     recurring_weaknesses: list[str] = []
+    overall_score: float | None = None
     model_id: str = ""
     created_at: str = ""
     updated_at: str = ""
     turns: list[InterviewTurnOut] = []
+
+
+class DeliveryMetricsOut(BaseModel):
+    words_per_minute: int = 0
+    word_count: int = 0
+    filler_count: int = 0
+    filler_rate_per_100: int = 0
+    filler_breakdown: dict[str, int] = {}
+    pause_count: int = 0
+    longest_pause_ms: int = 0
+    pauses: list[dict] = []
+    duration_seconds: float = 0
+    observations: list[str] = []
+
+
+class TranscribeOut(BaseModel):
+    text: str
+    duration_seconds: float = 0
+    delivery: DeliveryMetricsOut
+    model: str = "whisper-1"
+
+
+class ProgressScorePoint(BaseModel):
+    session_id: int
+    date: str
+    score: float
+    focus: str
+    difficulty: str = ""
+
+
+class ProgressTheme(BaseModel):
+    text: str
+    count: int
+
+
+class InterviewProgressOut(BaseModel):
+    total_sessions: int = 0
+    completed_sessions: int = 0
+    scored_sessions: int = 0
+    average_score: float | None = None
+    best_score: float | None = None
+    worst_score: float | None = None
+    score_over_time: list[ProgressScorePoint] = []
+    focus_averages: dict[str, float] = {}
+    best_focus_area: str | None = None
+    weakest_focus_area: str | None = None
+    recurring_themes: list[ProgressTheme] = []
+    skill_pointers: list[ProgressTheme] = []
+    top_strengths: list[ProgressTheme] = []
+    activity_streak_days: int = 0
+    trend: str = "stable"

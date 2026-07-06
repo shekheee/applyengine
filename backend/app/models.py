@@ -127,6 +127,7 @@ class InterviewSession(SQLModel, table=True):
     current_index: int = 0
     summary: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     recurring_weaknesses: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    overall_score: float | None = None
     model_id: str = ""
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)

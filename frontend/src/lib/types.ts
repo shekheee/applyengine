@@ -154,6 +154,7 @@ export interface InterviewSession {
   current_index: number;
   summary: InterviewSessionSummary;
   recurring_weaknesses: string[];
+  overall_score?: number | null;
   model_id: string;
   created_at: string;
   updated_at: string;
@@ -173,3 +174,52 @@ export const INTERVIEW_DIFFICULTY = [
   { id: "mid", label: "Mid-level" },
   { id: "senior", label: "Senior" },
 ] as const;
+
+export interface DeliveryMetrics {
+  words_per_minute: number;
+  word_count: number;
+  filler_count: number;
+  filler_rate_per_100: number;
+  filler_breakdown: Record<string, number>;
+  pause_count: number;
+  longest_pause_ms: number;
+  pauses: Array<{ duration_ms: number; after_word?: string; type?: string }>;
+  duration_seconds: number;
+  observations: string[];
+}
+
+export interface TranscribeResult {
+  text: string;
+  duration_seconds: number;
+  delivery: DeliveryMetrics;
+  model: string;
+}
+
+export interface ProgressTheme {
+  text: string;
+  count: number;
+}
+
+export interface InterviewProgress {
+  total_sessions: number;
+  completed_sessions: number;
+  scored_sessions: number;
+  average_score: number | null;
+  best_score: number | null;
+  worst_score: number | null;
+  score_over_time: Array<{
+    session_id: number;
+    date: string;
+    score: number;
+    focus: string;
+    difficulty: string;
+  }>;
+  focus_averages: Record<string, number>;
+  best_focus_area: string | null;
+  weakest_focus_area: string | null;
+  recurring_themes: ProgressTheme[];
+  skill_pointers: ProgressTheme[];
+  top_strengths: ProgressTheme[];
+  activity_streak_days: number;
+  trend: "stable" | "improving" | "declining";
+}
