@@ -16,7 +16,7 @@ function NavBar() {
     return (
       <Link
         href={href}
-        className={`rounded-lg px-3 py-1.5 ${
+        className={`shrink-0 rounded-lg px-2 py-1.5 sm:px-3 ${
           active
             ? "bg-[var(--panel-2)] text-[var(--text)]"
             : "text-[var(--muted)] hover:bg-[var(--panel-2)] hover:text-[var(--text)]"
@@ -28,32 +28,36 @@ function NavBar() {
   };
 
   return (
-    <header className="sticky top-0 z-10 border-b bg-[var(--bg)]/80 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
-        <Link href="/" className="flex items-center gap-2 font-semibold">
+    <header className="sticky top-0 z-10 overflow-x-hidden border-b bg-[var(--bg)]/80 backdrop-blur">
+      <div className="mx-auto flex min-w-0 max-w-6xl items-center justify-between gap-2 px-4 py-3 sm:px-6">
+        <Link href="/" className="flex shrink-0 items-center gap-2 font-semibold">
           <span className="grid h-7 w-7 place-items-center rounded-md bg-[var(--primary)] text-white">
             ⚡
           </span>
-          ApplyEngine
+          <span className="hidden sm:inline">ApplyEngine</span>
         </Link>
         {user && (
-          <nav className="flex items-center gap-1 text-sm">
+          <nav className="flex min-w-0 items-center gap-0.5 overflow-x-auto text-xs sm:gap-1 sm:text-sm">
             {navLink("/", "Pipeline")}
             {navLink("/coach", "Coach")}
             {navLink("/interview", "Interview")}
             <Link
               href="/new"
-              className="rounded-lg bg-[var(--primary)] px-3 py-1.5 font-medium text-white hover:bg-[var(--primary-2)]"
+              className="shrink-0 rounded-lg bg-[var(--primary)] px-2 py-1.5 font-medium text-white hover:bg-[var(--primary-2)] sm:px-3"
             >
-              + New application
+              <span className="sm:hidden">+</span>
+              <span className="hidden sm:inline">+ New application</span>
             </Link>
-            <div className="ml-2 flex items-center gap-2 border-l pl-3" style={{ borderColor: "var(--border)" }}>
+            <div
+              className="ml-1 flex shrink-0 items-center gap-1 border-l pl-2 sm:ml-2 sm:gap-2 sm:pl-3"
+              style={{ borderColor: "var(--border)" }}
+            >
               <span className="hidden text-[var(--muted)] sm:inline">
                 {user.name || user.email}
               </span>
               <button
                 onClick={logout}
-                className="rounded-lg px-3 py-1.5 text-[var(--muted)] hover:bg-[var(--panel-2)] hover:text-[var(--text)]"
+                className="shrink-0 rounded-lg px-2 py-1.5 text-[var(--muted)] hover:bg-[var(--panel-2)] hover:text-[var(--text)] sm:px-3"
               >
                 Log out
               </button>
@@ -90,12 +94,21 @@ function Gate({ children }: { children: ReactNode }) {
 }
 
 export function Shell({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const isCoach = pathname === "/coach";
+
   return (
     <AuthProvider>
-      <NavBar />
-      <main className="mx-auto max-w-6xl px-6 py-8">
-        <Gate>{children}</Gate>
-      </main>
+      <div className="min-h-screen overflow-x-hidden">
+        <NavBar />
+        <main
+          className={`mx-auto max-w-6xl min-w-0 px-4 sm:px-6 ${
+            isCoach ? "py-3 sm:py-4" : "py-8"
+          }`}
+        >
+          <Gate>{children}</Gate>
+        </main>
+      </div>
     </AuthProvider>
   );
 }
