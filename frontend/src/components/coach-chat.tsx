@@ -79,14 +79,14 @@ function MessageBubble({
     : "color-mix(in srgb, var(--panel-2) 88%, transparent)";
 
   return (
-    <div className={`flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
+    <div className={`flex w-full min-w-0 gap-3 overflow-hidden ${isUser ? "flex-row-reverse" : ""}`}>
       {!isUser && (
         <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)] text-sm text-white">
           ⚡
         </div>
       )}
       <div
-        className={`max-w-[85%] min-w-0 ${isUser ? "text-right" : "text-left"}`}
+        className={`max-w-[85%] min-w-0 flex-1 ${isUser ? "text-right" : "text-left"}`}
       >
         {!isUser && (
           <p className="mb-1 text-xs font-medium text-[var(--muted)]">
@@ -96,13 +96,13 @@ function MessageBubble({
             )}
           </p>
         )}
-        <div className={`relative ${isUser ? "group" : ""}`}>
+        <div className={`relative min-w-0 ${isUser ? "group" : ""}`}>
           {isUser && canEdit && !editing && !streaming && (
             <button
               type="button"
               onClick={onStartEdit}
               title="Edit message"
-              className="absolute -left-8 top-2 rounded-md p-1 text-[var(--muted)] opacity-0 transition-opacity hover:bg-[var(--panel-2)] hover:text-[var(--text)] group-hover:opacity-100 sm:-left-9"
+              className="absolute right-1 top-1 z-10 rounded-md p-1 text-white/70 opacity-0 transition-opacity hover:bg-white/10 hover:text-white group-hover:opacity-100"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
@@ -110,7 +110,7 @@ function MessageBubble({
             </button>
           )}
           <div
-            className={`inline-block rounded-2xl px-4 py-3 text-left text-sm ${
+            className={`block max-w-full overflow-hidden rounded-2xl px-4 py-3 text-left text-sm [overflow-wrap:anywhere] [word-break:break-word] ${
               isUser
                 ? "bg-[var(--primary)] text-white"
                 : "border bg-[var(--panel-2)] text-[var(--text)]"
@@ -158,7 +158,9 @@ function MessageBubble({
                 disabled={streaming}
                 variant="user"
               >
-                <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                <p className="whitespace-pre-wrap break-words leading-relaxed [overflow-wrap:anywhere]">
+                  {message.content}
+                </p>
               </CollapsibleContent>
             ) : (
               <CollapsibleContent
@@ -537,23 +539,23 @@ export function CoachChat() {
   );
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] flex-col lg:flex-row lg:gap-4">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden lg:flex-row lg:gap-3">
       {/* Main chat column — ChatGPT-style */}
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div className="mb-3 flex items-center justify-between lg:hidden">
-          <h1 className="text-lg font-semibold">Career coach</h1>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="mb-2 flex shrink-0 items-center justify-between lg:hidden">
+          <h1 className="text-base font-semibold">Career coach</h1>
           <Button variant="outline" size="sm" onClick={() => setSidebarOpen(!sidebarOpen)}>
             {sidebarOpen ? "Hide panel" : "Memory"}
           </Button>
         </div>
-        {sidebarOpen && <div className="mb-4 lg:hidden">{sidebar}</div>}
+        {sidebarOpen && <div className="mb-2 shrink-0 lg:hidden">{sidebar}</div>}
 
         <div
           ref={scrollRef}
-          className="min-h-0 flex-1 overflow-y-auto rounded-xl border bg-[var(--panel)] px-4 py-6 sm:px-6"
+          className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto rounded-xl border bg-[var(--panel)] px-3 py-4 sm:px-5"
           style={{ borderColor: "var(--border)" }}
         >
-          <div className="mx-auto max-w-3xl space-y-6">
+          <div className="mx-auto w-full min-w-0 max-w-3xl space-y-5">
             {messages.length === 0 && !streaming && (
               <div className="flex flex-col items-center py-12 text-center">
                 <div className="mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-[var(--primary)] text-3xl text-white shadow-lg shadow-violet-500/20">
@@ -632,25 +634,31 @@ export function CoachChat() {
         </div>
 
         {error && (
-          <p className="mt-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+          <p className="mt-2 shrink-0 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
             {error}
           </p>
         )}
 
-        {/* Composer */}
-        <div className="mt-3 shrink-0">
-          <div className="mx-auto mb-2 flex max-w-3xl items-center justify-between gap-2 px-1">
-            <ModelSelector
-              models={models}
-              selectedId={selectedModel}
-              onChange={setSelectedModel}
-              disabled={streaming || models.length === 0}
-            />
-          </div>
+        {/* Composer — pinned to bottom */}
+        <div className="mt-2 shrink-0">
           <div
-            className="mx-auto max-w-3xl rounded-2xl border bg-[var(--panel-2)] shadow-lg shadow-black/20"
+            className="mx-auto w-full min-w-0 max-w-3xl rounded-2xl border bg-[var(--panel-2)] shadow-lg shadow-black/20"
             style={{ borderColor: "var(--border)" }}
           >
+            <div
+              className="flex items-center justify-between gap-2 border-b px-2.5 py-1.5"
+              style={{ borderColor: "var(--border)" }}
+            >
+              <ModelSelector
+                models={models}
+                selectedId={selectedModel}
+                onChange={setSelectedModel}
+                disabled={streaming || models.length === 0}
+              />
+              <span className="hidden text-[10px] text-[var(--muted)] sm:inline">
+                Enter to send · Shift+Enter newline
+              </span>
+            </div>
             {pendingFiles.length > 0 && (
               <div className="flex flex-wrap gap-2 border-b px-3 py-2" style={{ borderColor: "var(--border)" }}>
                 {pendingFiles.map((p, i) => (
@@ -734,15 +742,15 @@ export function CoachChat() {
                 </button>
               )}
             </div>
-            <p className="px-3 pb-2 text-center text-[10px] text-[var(--muted)]">
-              Enter to send · Shift+Enter for newline · Images & PDFs up to 5 MB
+            <p className="px-3 pb-2 text-center text-[10px] text-[var(--muted)] sm:hidden">
+              Enter to send · Shift+Enter newline
             </p>
           </div>
         </div>
       </div>
 
       {/* Desktop sidebar */}
-      <div className="hidden w-72 shrink-0 lg:block">{sidebar}</div>
+      <div className="hidden w-64 shrink-0 overflow-y-auto lg:block">{sidebar}</div>
     </div>
   );
 }

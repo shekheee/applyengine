@@ -36,6 +36,7 @@ body {
 }
 
 body {
+  overflow-x: hidden;
   background-image: radial-gradient(
       900px 500px at 80% -10%,
       rgba(124, 92, 255, 0.12),
@@ -52,4 +53,34 @@ body {
 ::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 8px;
+}
+
+/* Coach markdown — contain overflow inside bubbles */
+.prose-chat {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.prose-chat pre {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.prose-chat :where(pre code) {
+  display: block;
+  max-width: 100%;
+  white-space: pre;
+}
+
+.prose-chat :where(a) {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.prose-chat :where(table) {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
 }

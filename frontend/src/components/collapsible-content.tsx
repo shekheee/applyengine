@@ -56,7 +56,7 @@ export function CollapsibleContent({
   const showCollapsed = collapsible && !expanded;
 
   return (
-    <div className={className}>
+    <div className={`min-w-0 max-w-full overflow-hidden ${className}`}>
       <div className="relative">
         <div
           id={id}
