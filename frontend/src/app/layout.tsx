@@ -9,7 +9,7 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 export const metadata: Metadata = {
   title: "ApplyEngine — AI job-application copilot",
   description:
-    "Tailor resumes and cover letters, score your fit, and track applications for Data Science / AI Engineer roles.",
+    "Tailor resumes and cover letters, practice interviews, and track applications — adapted to your profession.",
 };
 
 export default function RootLayout({

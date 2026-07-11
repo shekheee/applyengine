@@ -23,8 +23,8 @@ import { ResumeUpload } from "@/components/resume-upload";
 const STARTERS = [
   "Help me sharpen my resume summary.",
   "I led a project recently — help me turn it into a bullet.",
-  "What roles should I be targeting?",
-  "What's missing from my resume for senior ML roles?",
+  "What roles should I be targeting based on my background?",
+  "What's missing from my resume for the roles I'm pursuing?",
 ];
 
 const ACCEPT =

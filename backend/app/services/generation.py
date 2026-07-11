@@ -13,11 +13,10 @@ def tailor_resume(profile_text: str, job_text: str, keywords: list[str]) -> str:
     if out.strip():
         return out.strip()
 
-    # Offline template: keep the real resume, prepend a keyword-optimized header.
     kw = ", ".join(keywords[:12])
     header = (
         "PROFESSIONAL SUMMARY\n"
-        f"Data Scientist / AI Engineer with hands-on experience across {kw}.\n\n"
+        f"Experienced professional with strengths across {kw}.\n\n"
         "CORE SKILLS\n"
         f"{kw}\n\n"
         "----------------------------------------\n"
@@ -37,13 +36,11 @@ def cover_letter(profile_text: str, job_text: str, company: str, title: str) -> 
     title = title or "this role"
     return (
         f"Dear Hiring Team at {company},\n\n"
-        f"I'm excited to apply for {title}. My background in data science and AI "
-        "engineering maps directly to what you're building, and I'd bring immediate, "
-        "measurable impact.\n\n"
-        "Across my work I've shipped models and data products end to end — from "
-        "framing the problem and engineering features to deploying and monitoring "
-        "in production. I care about rigor (clean experiments, honest evals) and "
-        "about outcomes that move real metrics.\n\n"
+        f"I'm excited to apply for {title}. My background aligns closely with what "
+        "you're looking for, and I'd bring immediate, measurable impact.\n\n"
+        "Across my career I've delivered results end to end — from framing the "
+        "challenge and engaging stakeholders to executing and measuring outcomes. "
+        "I care about rigor and about results that matter to the business.\n\n"
         f"I'd love to discuss how I can help {company} reach its goals. Thank you "
         "for your consideration.\n\nSincerely,\n"
     )
@@ -59,18 +56,16 @@ def interview_prep(profile_text: str, job_text: str) -> str:
 
     return (
         "## Likely interview questions\n\n"
-        "1. Walk me through an ML project you owned end to end.\n"
-        "2. How do you validate a model beyond a single accuracy number?\n"
-        "3. Explain the bias-variance tradeoff and how you diagnose each.\n"
-        "4. How would you design an A/B test for a new model, and what could bias it?\n"
-        "5. Describe a data pipeline you built and where it could fail.\n"
-        "6. How do you monitor a model in production for drift?\n"
-        "7. Tell me about a time you disagreed with a stakeholder on metrics.\n\n"
+        "1. Tell me about yourself and why you're a strong fit for this role.\n"
+        "2. Walk me through a significant project or initiative you led.\n"
+        "3. Describe a challenging stakeholder situation and how you handled it.\n"
+        "4. How do you approach a complex problem in your field?\n"
+        "5. Tell me about a time you had to influence without authority.\n"
+        "6. What methods or frameworks do you rely on most in your work?\n"
+        "7. Tell me about a setback and what you learned.\n\n"
         "## STAR outlines (fill with your real examples)\n\n"
-        "- **End-to-end project:** Situation → the problem & stakes; Task → your goal & "
-        "metric; Action → data, modeling, deployment choices; Result → quantified impact.\n"
-        "- **Stakeholder disagreement:** frame the tradeoff, the data you brought, the "
-        "resolution, and what shipped.\n"
-        "- **Production incident / drift:** how you detected it, root-caused it, and "
-        "the guardrail you added.\n"
+        "- **Key achievement:** Situation → stakes; Task → your goal; Action → what you did; "
+        "Result → quantified impact.\n"
+        "- **Stakeholder challenge:** frame the conflict, your approach, resolution, outcome.\n"
+        "- **Complex scenario:** how you structured discovery, plan, risks, and success metrics.\n"
     )

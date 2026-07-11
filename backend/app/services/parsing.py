@@ -12,7 +12,7 @@ URL_RE = re.compile(r"(https?://[^\s)]+|(?:www\.|linkedin\.com|github\.com)[^\s)
 
 
 def extract_keywords(text: str, limit: int = 40) -> list[str]:
-    """Heuristic keyword extraction using the curated DS/AI vocabulary."""
+    """Heuristic keyword extraction using curated professional vocabulary."""
     low = f" {text.lower()} "
     found: list[str] = []
     seen: set[str] = set()

@@ -2,10 +2,10 @@
 
 import type { InterviewProgress } from "@/lib/types";
 import { Badge, Card } from "@/components/ui";
-import { INTERVIEW_FOCUS } from "@/lib/types";
+import { INTERVIEW_FOCUS, interviewFocusLabel } from "@/lib/types";
 
 function focusLabel(id: string): string {
-  return INTERVIEW_FOCUS.find((f) => f.id === id)?.label ?? id;
+  return interviewFocusLabel(id);
 }
 
 function ScoreChart({ points }: { points: InterviewProgress["score_over_time"] }) {

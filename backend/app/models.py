@@ -120,7 +120,7 @@ class InterviewSession(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     job_id: int | None = Field(default=None, foreign_key="job.id", index=True)
-    focus: str = "mixed"  # behavioral | technical_ml | system_design | resume_deep | mixed
+    focus: str = "mixed"  # behavioral | role_technical | case_study | leadership_stakeholder | resume_deep_dive | mixed
     difficulty: str = "mid"  # junior | mid | senior
     status: str = "active"  # active | completed
     questions: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON))

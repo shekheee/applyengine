@@ -162,12 +162,23 @@ export interface InterviewSession {
 }
 
 export const INTERVIEW_FOCUS = [
-  { id: "mixed", label: "Mixed", desc: "Behavioral + technical + resume" },
-  { id: "behavioral", label: "Behavioral", desc: "STAR stories & soft skills" },
-  { id: "technical_ml", label: "ML / AI Technical", desc: "Models, metrics, ML concepts" },
-  { id: "system_design", label: "System Design", desc: "Pipelines, scale, production ML" },
-  { id: "resume_deep", label: "Resume Deep-Dive", desc: "Your projects & experience" },
+  { id: "mixed", label: "Mixed", desc: "Balanced practice across question types" },
+  { id: "behavioral", label: "Behavioral", desc: "STAR stories & situational judgment" },
+  { id: "role_technical", label: "Role-specific depth", desc: "Methods & skills for your field" },
+  { id: "case_study", label: "Case / scenario", desc: "Structured problem-solving scenarios" },
+  { id: "leadership_stakeholder", label: "Leadership & stakeholders", desc: "Influence, alignment, sponsorship" },
+  { id: "resume_deep_dive", label: "Resume deep-dive", desc: "Your projects & experience" },
 ] as const;
+
+const LEGACY_FOCUS_LABELS: Record<string, string> = {
+  technical_ml: "Role-specific depth",
+  system_design: "Case / scenario",
+  resume_deep: "Resume deep-dive",
+};
+
+export function interviewFocusLabel(id: string): string {
+  return INTERVIEW_FOCUS.find((f) => f.id === id)?.label ?? LEGACY_FOCUS_LABELS[id] ?? id;
+}
 
 export const INTERVIEW_DIFFICULTY = [
   { id: "junior", label: "Junior" },

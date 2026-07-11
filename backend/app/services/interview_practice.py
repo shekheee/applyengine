@@ -8,17 +8,16 @@ from typing import Any
 from app import prompts
 from app.llm.factory import build_coach_provider
 from app.models import InterviewSession, InterviewTurn, Job, Memory, Profile
+from app.services.profession import (
+    FOCUS_LABELS,
+    focus_guide,
+    focus_label,
+    normalize_focus,
+    profession_context,
+)
 from app.services.serialize import job_to_text, profile_to_text
 
 logger = logging.getLogger(__name__)
-
-FOCUS_LABELS = {
-    "behavioral": "Behavioral (STAR)",
-    "technical_ml": "ML / AI Technical",
-    "system_design": "ML System Design",
-    "resume_deep": "Resume Deep-Dive",
-    "mixed": "Mixed (behavioral + technical + resume)",
-}
 
 
 def _memories_text(memories: list[Memory]) -> str:
@@ -40,6 +39,8 @@ def generate_questions(
     difficulty: str,
     model_id: str | None = None,
 ) -> list[dict[str, Any]]:
+    focus = normalize_focus(focus)
+    prof_ctx = profession_context(profile, job)
     chain = _chain(model_id)
     data = chain.chat_json(
         prompts.INTERVIEW_QUESTIONS_SYSTEM,
@@ -49,6 +50,8 @@ def generate_questions(
             focus,
             difficulty,
             _memories_text(memories),
+            profession_text=prof_ctx,
+            focus_guide_text=focus_guide(focus),
         ),
     )
     raw = data.get("questions", []) if isinstance(data, dict) else []
@@ -75,35 +78,76 @@ def generate_questions(
 def _fallback_questions(
     profile: Profile | None, job: Job | None, focus: str
 ) -> list[dict[str, Any]]:
-    name = profile.name if profile else "you"
-    company = job.company if job else "your target company"
-    return [
+    focus = normalize_focus(focus)
+    company = job.company if job else "the target organization"
+    role = job.title if job else "this role"
+    recent = ""
+    if profile and profile.experience:
+        exp = profile.experience[0]
+        if isinstance(exp, dict):
+            title = exp.get("title") or ""
+            org = exp.get("company") or ""
+            if title or org:
+                recent = f" ({title} at {org})".strip()
+
+    all_q = [
         {
-            "text": f"Tell me about yourself and why you're a strong fit for a Data Science / AI role at {company}.",
+            "text": f"Tell me about yourself and why you're a strong fit for {role} at {company}.",
             "category": "behavioral",
             "tip": "2-min pitch: current focus, 2-3 highlights, why this role.",
         },
         {
-            "text": f"Walk me through a project on {name}'s resume where you delivered measurable ML impact.",
-            "category": "resume_deep",
-            "tip": "STAR + metrics + your specific contribution.",
+            "text": (
+                f"Walk me through a significant achievement from your experience{recent} — "
+                "what was your role and what measurable impact did you deliver?"
+            ),
+            "category": "resume_deep_dive",
+            "tip": "STAR structure + your specific contribution + outcomes.",
         },
         {
-            "text": "How would you design a production ML pipeline with monitoring and retraining?",
-            "category": "system_design",
-            "tip": "Data → train → serve → monitor → drift → retrain.",
+            "text": (
+                "Describe a challenging situation involving stakeholders or cross-functional "
+                "partners. How did you align them and what was the result?"
+            ),
+            "category": "leadership_stakeholder",
+            "tip": "Name stakeholders, your approach, resistance handled, outcome.",
         },
         {
-            "text": "Explain how you would evaluate a model beyond accuracy for an imbalanced problem.",
-            "category": "technical_ml",
-            "tip": "Precision/recall, PR-AUC, business cost, calibration.",
+            "text": (
+                f"Given a complex scenario relevant to {role}, how would you structure your "
+                "approach from discovery through delivery?"
+            ),
+            "category": "case_study",
+            "tip": "Frame the problem, stakeholders, plan, risks, and success metrics.",
         },
         {
-            "text": "Describe a time you disagreed with a stakeholder about a model or metric. What happened?",
+            "text": (
+                "What are the core methods, frameworks, or technical skills you rely on most "
+                "in your work, and how have you applied them recently?"
+            ),
+            "category": "role_technical",
+            "tip": "Use field-appropriate methods from your resume with a concrete example.",
+        },
+        {
+            "text": "Tell me about a time something did not go as planned. What did you learn?",
             "category": "behavioral",
-            "tip": "STAR with data-driven resolution.",
+            "tip": "Honest STAR with reflection and what you'd do differently.",
         },
     ]
+
+    by_focus: dict[str, list[str]] = {
+        "behavioral": ["behavioral"],
+        "resume_deep_dive": ["resume_deep_dive", "behavioral"],
+        "leadership_stakeholder": ["leadership_stakeholder", "behavioral"],
+        "case_study": ["case_study", "leadership_stakeholder"],
+        "role_technical": ["role_technical", "resume_deep_dive"],
+        "mixed": ["behavioral", "resume_deep_dive", "leadership_stakeholder", "case_study", "role_technical"],
+    }
+    allowed = set(by_focus.get(focus, ["behavioral", "resume_deep_dive"]))
+    if focus == "mixed":
+        return all_q[:6]
+    picked = [q for q in all_q if q["category"] in allowed]
+    return picked[:5] if picked else all_q[:5]
 
 
 def evaluate_answer(
@@ -122,6 +166,7 @@ def evaluate_answer(
         for t in prior_turns
         if t.question_index == question_index and t.role == "followup"
     )
+    prof_ctx = profession_context(profile, job)
     data = chain.chat_json(
         prompts.INTERVIEW_FEEDBACK_SYSTEM,
         prompts.interview_feedback_user(
@@ -130,6 +175,7 @@ def evaluate_answer(
             profile_to_text(profile) if profile else "",
             job_to_text(job) if job else "",
             prior,
+            profession_text=prof_ctx,
         ),
     )
     if not isinstance(data, dict):
@@ -177,7 +223,8 @@ def stream_followup(
             "role": "system",
             "content": (
                 prompts.INTERVIEW_FOLLOWUP_SYSTEM
-                + f"\n\nCurrent interview question:\n{question}\n\n"
+                + f"\n\nProfession context:\n{profession_context(profile, None)}\n\n"
+                f"Current interview question:\n{question}\n\n"
                 f"Candidate resume:\n{profile_to_text(profile) if profile else '(none)'}"
             ),
         }
@@ -201,7 +248,8 @@ async def stream_followup_async(
             "role": "system",
             "content": (
                 prompts.INTERVIEW_FOLLOWUP_SYSTEM
-                + f"\n\nCurrent interview question:\n{question}\n\n"
+                + f"\n\nProfession context:\n{profession_context(profile, None)}\n\n"
+                f"Current interview question:\n{question}\n\n"
                 f"Candidate resume:\n{profile_to_text(profile) if profile else '(none)'}"
             ),
         }
@@ -235,12 +283,14 @@ def generate_summary(
     model_id: str | None = None,
 ) -> dict[str, Any]:
     chain = _chain(model_id)
+    prof_ctx = profession_context(profile, job)
     data = chain.chat_json(
         prompts.INTERVIEW_SUMMARY_SYSTEM,
         prompts.interview_summary_user(
             profile_to_text(profile) if profile else "",
             job_to_text(job) if job else "",
             build_transcript(session, turns),
+            profession_text=prof_ctx,
         ),
     )
     if not isinstance(data, dict):

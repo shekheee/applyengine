@@ -8,6 +8,7 @@ from typing import Any
 from app import prompts
 from app.llm import build_coach_provider, build_memory_provider, get_provider
 from app.models import Application, ChatMessage, Job, Memory, Profile
+from app.services.profession import profession_context
 from app.services.attachments import ProcessedAttachment, build_user_content
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,18 @@ def _applications_text(applications: list[Application], jobs: dict[int, Job]) ->
     return "\n".join(lines)
 
 
+def _target_job(
+    applications: list[Application] | None, jobs: dict[int, Job] | None
+) -> Job | None:
+    if not applications or not jobs:
+        return None
+    for app in reversed(applications):
+        job = jobs.get(app.job_id)
+        if job:
+            return job
+    return None
+
+
 def build_coach_messages(
     message: str,
     profile: Profile | None,
@@ -46,8 +59,11 @@ def build_coach_messages(
     profile_text = _profile_text(profile)
     memory_text = _memory_text(memories)
     apps_text = _applications_text(applications or [], jobs or {})
+    profession_text = profession_context(profile, _target_job(applications, jobs))
 
-    system = prompts.coach_system_with_context(profile_text, memory_text, apps_text)
+    system = prompts.coach_system_with_context(
+        profile_text, memory_text, apps_text, profession_text
+    )
     messages: list[dict[str, Any]] = [{"role": "system", "content": system}]
 
     for msg in history[-HISTORY_LIMIT:]:

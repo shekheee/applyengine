@@ -359,7 +359,7 @@ def _build_story(doc: dict[str, Any], styles: dict[str, ParagraphStyle]) -> list
             if tech:
                 story.append(
                     Paragraph(
-                        _escape("Tech: " + ", ".join(str(t) for t in tech[:6])),
+                        _escape("Tools & methods: " + ", ".join(str(t) for t in tech[:6])),
                         styles["meta"],
                     )
                 )

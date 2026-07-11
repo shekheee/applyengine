@@ -1,10 +1,23 @@
-"""Curated Data Science / AI Engineering keyword vocabulary.
+"""Curated professional keyword vocabulary for offline heuristic extraction.
 
-Used by the offline heuristic keyword extractor. Multi-word phrases are
-matched first so e.g. "machine learning" wins over separate tokens.
+Includes data science/AI plus change management, leadership, and general business terms.
+Multi-word phrases are matched first.
 """
 
 SKILLS: list[str] = [
+    # Change management / transformation
+    "change management", "organizational change", "transformation", "adkar", "prosci",
+    "stakeholder engagement", "stakeholder management", "sponsorship", "change readiness",
+    "communications plan", "training and enablement", "enablement", "org design",
+    "organizational design", "culture change", "operating model", "business transformation",
+    "program management", "portfolio management", "governance", "change impact analysis",
+    "resistance management", "executive coaching", "workshop facilitation", "facilitation",
+    # Leadership / general professional
+    "leadership", "cross-functional", "influence", "executive stakeholder", "strategy",
+    "project management", "pmp", "prince2", "lean", "six sigma", "process improvement",
+    "business analysis", "requirements gathering", "stakeholder alignment", "negotiation",
+    "presentation skills", "public speaking", "coaching", "mentoring", "team leadership",
+    "budget management", "vendor management", "risk management", "compliance",
     # Languages
     "python", "r", "sql", "scala", "java", "c++", "julia", "bash", "go", "rust",
     # ML / DL
@@ -37,7 +50,7 @@ SKILLS: list[str] = [
     # BI / viz
     "tableau", "power bi", "looker", "dashboards", "streamlit",
     # Practices
-    "git", "agile", "unit testing", "data visualization", "storytelling",
+    "git", "agile", "scrum", "kanban", "unit testing", "data visualization", "storytelling",
     "stakeholder management",
 ]
 
@@ -53,4 +66,6 @@ ALIASES = {
     "natural language processing": "nlp",
     "retrieval augmented generation": "rag",
     "large language models": "llm",
+    "organizational change": "change management",
+    "training and enablement": "enablement",
 }

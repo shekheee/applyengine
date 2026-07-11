@@ -45,7 +45,7 @@ export default function LoginPage() {
           {mode === "login" ? "Welcome back" : "Create your account"}
         </h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Your AI career copilot for Data Science / AI Engineer roles.
+          Your AI career copilot — tailored to your resume and target roles.
         </p>
       </div>
 
