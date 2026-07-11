@@ -205,6 +205,100 @@ export const api = {
     if (!result) throw new ApiError(500, "Stream ended without completion");
     return result;
   },
+
+  editMessageStream: async (
+    messageId: number,
+    message: string,
+    onToken: (token: string) => void,
+    signal?: AbortSignal,
+    model?: string
+  ): Promise<{
+    user_message: ChatMessage;
+    assistant_message: ChatMessage;
+    removed_message_ids: number[];
+    provider_served?: string;
+    model_served?: string;
+  }> => {
+    const res = await fetch(`${BASE}/api/chat/messages/${messageId}/edit/stream`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
+      body: JSON.stringify({ message, model: model || undefined }),
+      signal,
+    });
+    if (!res.ok) {
+      if (res.status === 401) setToken(null);
+      let detail = "";
+      try {
+        const data = await res.json();
+        detail = data?.detail ?? JSON.stringify(data);
+      } catch {
+        detail = await res.text().catch(() => "");
+      }
+      throw new ApiError(res.status, detail || `Request failed (${res.status})`);
+    }
+    if (!res.body) throw new ApiError(500, "No response stream");
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let result: {
+      user_message: ChatMessage;
+      assistant_message: ChatMessage;
+      removed_message_ids: number[];
+      provider_served?: string;
+      model_served?: string;
+    } | null = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const payload = line.slice(6).trim();
+        if (!payload) continue;
+        try {
+          const evt = JSON.parse(payload) as {
+            type: string;
+            content?: string;
+            detail?: string;
+            user_message?: ChatMessage;
+            assistant_message?: ChatMessage;
+            removed_message_ids?: number[];
+            provider_served?: string;
+            model_served?: string;
+          };
+          if (evt.type === "token" && evt.content) onToken(evt.content);
+          if (evt.type === "done" && evt.user_message && evt.assistant_message) {
+            result = {
+              user_message: evt.user_message,
+              assistant_message: {
+                ...evt.assistant_message,
+                model_served: evt.model_served,
+                provider_served: evt.provider_served,
+              },
+              removed_message_ids: evt.removed_message_ids ?? [],
+              provider_served: evt.provider_served,
+              model_served: evt.model_served,
+            };
+          }
+          if (evt.type === "error") {
+            throw new ApiError(500, evt.detail || "Stream failed");
+          }
+        } catch (e) {
+          if (e instanceof ApiError) throw e;
+        }
+      }
+    }
+    if (!result) throw new ApiError(500, "Stream ended without completion");
+    return result;
+  },
+
   listMemories: () => req<Memory[]>("/api/chat/memories"),
   deleteMemory: (id: number) =>
     req<{ ok: boolean }>(`/api/chat/memories/${id}`, { method: "DELETE" }),

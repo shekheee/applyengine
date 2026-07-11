@@ -13,7 +13,7 @@ from app.db import engine, get_session
 from app.models import Application, ChatMessage, Job, Memory, Profile, User
 from app.llm.coach_models import validate_coach_model
 from app.llm.factory import list_coach_models, default_model_id
-from app.schemas import ChatIn, CoachModelsOut, CoachModelOut
+from app.schemas import ChatEditIn, ChatIn, CoachModelsOut, CoachModelOut
 from app.services import coach
 from app.services.attachments import MAX_ATTACHMENTS, process_attachment
 from app.services.parsing import parse_resume
@@ -97,6 +97,40 @@ def _resolve_model(model: str | None) -> str | None:
         return validate_coach_model(model)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
+
+
+def _owned_user_message(
+    message_id: int, user: User, session: Session
+) -> ChatMessage:
+    msg = session.get(ChatMessage, message_id)
+    if not msg or msg.user_id != user.id:
+        raise HTTPException(404, "Message not found")
+    if msg.role != "user":
+        raise HTTPException(400, "Only user messages can be edited")
+    return msg
+
+
+def _delete_messages_after(
+    session: Session, user_id: int, after_id: int
+) -> list[int]:
+    """Remove all turns strictly after the edited user message."""
+    stale = session.exec(
+        select(ChatMessage)
+        .where(ChatMessage.user_id == user_id, ChatMessage.id > after_id)
+        .order_by(ChatMessage.id.asc())
+    ).all()
+    removed_ids = [m.id for m in stale if m.id is not None]
+    for m in stale:
+        session.delete(m)
+    return removed_ids
+
+
+def _history_before(session: Session, user_id: int, before_id: int) -> list[ChatMessage]:
+    return session.exec(
+        select(ChatMessage)
+        .where(ChatMessage.user_id == user_id, ChatMessage.id < before_id)
+        .order_by(ChatMessage.id.asc())
+    ).all()
 
 
 @router.get("/models", response_model=CoachModelsOut)
@@ -295,6 +329,115 @@ async def send_message_stream(
                 assistant_json = assistant_msg.model_dump(mode="json")
 
             yield f"data: {json.dumps({'type': 'done', 'user_message': user_msg_json, 'assistant_message': assistant_json, 'provider_served': served.get('provider'), 'model_served': served.get('model')})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@router.post("/messages/{message_id}/edit/stream")
+async def edit_message_stream(
+    message_id: int,
+    body: ChatEditIn,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Edit a user message, discard later turns, and regenerate the assistant reply."""
+    text = body.message.strip()
+    if not text:
+        raise HTTPException(400, "Message is empty")
+
+    model_id = _resolve_model(body.model)
+    user_msg = _owned_user_message(message_id, user, session)
+
+    user_msg.content = text
+    session.add(user_msg)
+    removed_ids = _delete_messages_after(session, user.id, message_id)
+    session.commit()
+    session.refresh(user_msg)
+
+    history = _history_before(session, user.id, message_id)
+    profile = _latest_profile(user, session)
+    memories = _user_memories(user, session)
+    apps = _user_applications(user, session)
+    jobs = _jobs_for_apps(session, apps)
+
+    user_msg_json = user_msg.model_dump(mode="json")
+    history_snap = [
+        SimpleNamespace(role=m.role, content=m.content) for m in history
+    ]
+    memory_snap = [
+        SimpleNamespace(kind=m.kind, content=m.content) for m in memories
+    ]
+    profile_snap = _snapshot_profile(profile)
+    apps_snap, jobs_snap = _snapshot_apps_jobs(apps, jobs)
+    user_id = user.id
+
+    async def event_stream() -> AsyncIterator[str]:
+        accumulated = ""
+        served: dict = {}
+        try:
+            async for token in coach.coach_reply_stream_async(
+                text,
+                profile_snap,
+                memory_snap,
+                history_snap,
+                None,
+                apps_snap,
+                jobs_snap,
+                model_id=model_id,
+                served=served,
+            ):
+                accumulated += token
+                yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+
+            reply = accumulated.strip()
+            if not reply:
+                reply, prov, mod = coach.coach_reply(
+                    text,
+                    profile_snap,
+                    memory_snap,
+                    history_snap,
+                    None,
+                    apps_snap,
+                    jobs_snap,
+                    model_id=model_id,
+                )
+                served["provider"] = prov
+                served["model"] = mod
+
+            with Session(engine) as db:
+                assistant_msg = ChatMessage(
+                    user_id=user_id, role="assistant", content=reply
+                )
+                db.add(assistant_msg)
+
+                new_memories = coach.extract_memories(text, reply, memory_snap)
+                for item in new_memories:
+                    db.add(
+                        Memory(
+                            user_id=user_id,
+                            kind=item["kind"],
+                            content=item["content"],
+                        )
+                    )
+
+                db.commit()
+                db.refresh(assistant_msg)
+                assistant_json = assistant_msg.model_dump(mode="json")
+                if served.get("model"):
+                    assistant_json["model_served"] = served.get("model")
+                if served.get("provider"):
+                    assistant_json["provider_served"] = served.get("provider")
+
+            yield f"data: {json.dumps({'type': 'done', 'user_message': user_msg_json, 'assistant_message': assistant_json, 'removed_message_ids': removed_ids, 'provider_served': served.get('provider'), 'model_served': served.get('model')})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
 

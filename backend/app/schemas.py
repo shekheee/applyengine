@@ -33,6 +33,11 @@ class ChatIn(BaseModel):
     model: str | None = None
 
 
+class ChatEditIn(BaseModel):
+    message: str
+    model: str | None = None
+
+
 class CoachModelOut(BaseModel):
     id: str
     label: str

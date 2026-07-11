@@ -17,6 +17,7 @@ import type {
 } from "@/lib/types";
 import { Badge, Button } from "@/components/ui";
 import { ChatMarkdown } from "@/components/chat-markdown";
+import { CollapsibleContent } from "@/components/collapsible-content";
 import { ModelSelector, getStoredModelId, storeModelId } from "@/components/model-selector";
 import { ResumeUpload } from "@/components/resume-upload";
 
@@ -50,11 +51,33 @@ function AttachmentChips({ attachments }: { attachments: ChatAttachment[] }) {
 function MessageBubble({
   message,
   streaming,
+  defaultExpanded,
+  editing,
+  editDraft,
+  onEditDraftChange,
+  onStartEdit,
+  onCancelEdit,
+  onSaveEdit,
+  canEdit,
+  savingEdit,
 }: {
   message: ChatMessage;
   streaming?: boolean;
+  defaultExpanded?: boolean;
+  editing?: boolean;
+  editDraft?: string;
+  onEditDraftChange?: (v: string) => void;
+  onStartEdit?: () => void;
+  onCancelEdit?: () => void;
+  onSaveEdit?: () => void;
+  canEdit?: boolean;
+  savingEdit?: boolean;
 }) {
   const isUser = message.role === "user";
+  const collapseFade = isUser
+    ? "color-mix(in srgb, var(--primary) 88%, transparent)"
+    : "color-mix(in srgb, var(--panel-2) 88%, transparent)";
+
   return (
     <div className={`flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
       {!isUser && (
@@ -73,27 +96,84 @@ function MessageBubble({
             )}
           </p>
         )}
-        <div
-          className={`inline-block rounded-2xl px-4 py-3 text-left text-sm ${
-            isUser
-              ? "bg-[var(--primary)] text-white"
-              : "border bg-[var(--panel-2)] text-[var(--text)]"
-          }`}
-          style={!isUser ? { borderColor: "var(--border)" } : undefined}
-        >
-          {isUser && message.attachments && (
-            <AttachmentChips attachments={message.attachments} />
+        <div className={`relative ${isUser ? "group" : ""}`}>
+          {isUser && canEdit && !editing && !streaming && (
+            <button
+              type="button"
+              onClick={onStartEdit}
+              title="Edit message"
+              className="absolute -left-8 top-2 rounded-md p-1 text-[var(--muted)] opacity-0 transition-opacity hover:bg-[var(--panel-2)] hover:text-[var(--text)] group-hover:opacity-100 sm:-left-9"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
+              </svg>
+            </button>
           )}
-          {isUser ? (
-            <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
-          ) : (
-            <div className="prose-chat">
-              <ChatMarkdown content={message.content} />
-              {streaming && (
-                <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-[var(--primary-2)]" />
-              )}
-            </div>
-          )}
+          <div
+            className={`inline-block rounded-2xl px-4 py-3 text-left text-sm ${
+              isUser
+                ? "bg-[var(--primary)] text-white"
+                : "border bg-[var(--panel-2)] text-[var(--text)]"
+            }`}
+            style={
+              !isUser
+                ? { borderColor: "var(--border)", ["--collapse-fade" as string]: collapseFade }
+                : { ["--collapse-fade" as string]: collapseFade }
+            }
+          >
+            {isUser && message.attachments && (
+              <AttachmentChips attachments={message.attachments} />
+            )}
+            {isUser && editing ? (
+              <div className="space-y-2 text-left">
+                <textarea
+                  value={editDraft ?? message.content}
+                  onChange={(e) => onEditDraftChange?.(e.target.value)}
+                  rows={4}
+                  className="w-full min-w-[220px] resize-y rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white outline-none placeholder:text-white/60 focus:border-white/40"
+                  disabled={savingEdit}
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={onCancelEdit}
+                    disabled={savingEdit}
+                    className="rounded-lg px-2.5 py-1 text-xs text-white/80 hover:bg-white/10"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onSaveEdit}
+                    disabled={savingEdit || !(editDraft ?? message.content).trim()}
+                    className="rounded-lg bg-white/20 px-2.5 py-1 text-xs font-medium text-white hover:bg-white/30 disabled:opacity-50"
+                  >
+                    {savingEdit ? "Saving…" : "Save & regenerate"}
+                  </button>
+                </div>
+              </div>
+            ) : isUser ? (
+              <CollapsibleContent
+                defaultExpanded={defaultExpanded}
+                disabled={streaming}
+                variant="user"
+              >
+                <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+              </CollapsibleContent>
+            ) : (
+              <CollapsibleContent
+                defaultExpanded={defaultExpanded}
+                disabled={streaming}
+              >
+                <div className="prose-chat">
+                  <ChatMarkdown content={message.content} />
+                  {streaming && (
+                    <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-[var(--primary-2)]" />
+                  )}
+                </div>
+              </CollapsibleContent>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -114,6 +194,9 @@ export function CoachChat() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [models, setModels] = useState<CoachModel[]>([]);
   const [selectedModel, setSelectedModel] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editDraft, setEditDraft] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -187,6 +270,68 @@ export function CoachChat() {
 
   function stopStreaming() {
     abortRef.current?.abort();
+  }
+
+  function cancelEdit() {
+    if (savingEdit) return;
+    setEditingId(null);
+    setEditDraft("");
+  }
+
+  function startEdit(message: ChatMessage) {
+    if (streaming || savingEdit || message.role !== "user") return;
+    setEditingId(message.id);
+    setEditDraft(message.content);
+  }
+
+  async function saveEdit() {
+    if (editingId == null || streaming || savingEdit) return;
+    const text = editDraft.trim();
+    if (!text) return;
+
+    const editIndex = messages.findIndex((m) => m.id === editingId);
+    if (editIndex < 0) return;
+
+    setError("");
+    setSavingEdit(true);
+    setStreaming(true);
+    setStreamText("");
+    setEditingId(null);
+
+    const kept = messages.slice(0, editIndex + 1).map((m) =>
+      m.id === editingId ? { ...m, content: text } : m
+    );
+    setMessages(kept);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    try {
+      const result = await api.editMessageStream(
+        editingId,
+        text,
+        (token) => setStreamText((prev) => prev + token),
+        controller.signal,
+        selectedModel || undefined
+      );
+      setMessages((prev) => {
+        const idx = prev.findIndex((m) => m.id === result.user_message.id);
+        const before = idx >= 0 ? prev.slice(0, idx) : prev;
+        return [...before, result.user_message, result.assistant_message];
+      });
+      setMemories(await api.listMemories());
+    } catch (e) {
+      if ((e as Error).name !== "AbortError") {
+        setError(e instanceof Error ? e.message : "Failed to regenerate.");
+        setMessages(await api.listMessages());
+      }
+    } finally {
+      setSavingEdit(false);
+      setStreaming(false);
+      setStreamText("");
+      setEditDraft("");
+      abortRef.current = null;
+    }
   }
 
   async function send(textOverride?: string) {
@@ -424,7 +569,7 @@ export function CoachChat() {
                     <button
                       key={s}
                       onClick={() => send(s)}
-                      disabled={streaming}
+                      disabled={streaming || savingEdit}
                       className="rounded-full border px-3 py-1.5 text-xs text-[var(--muted)] transition-colors hover:border-[var(--primary)] hover:text-[var(--text)]"
                       style={{ borderColor: "var(--border)" }}
                     >
@@ -435,9 +580,25 @@ export function CoachChat() {
               </div>
             )}
 
-            {messages.map((m) => (
-              <MessageBubble key={m.id} message={m} />
-            ))}
+            {messages.map((m, idx) => {
+              const isInLatestPair =
+                idx >= messages.length - 2 || messages.length <= 2;
+              return (
+                <MessageBubble
+                  key={m.id}
+                  message={m}
+                  defaultExpanded={isInLatestPair}
+                  editing={editingId === m.id}
+                  editDraft={editDraft}
+                  onEditDraftChange={setEditDraft}
+                  onStartEdit={() => startEdit(m)}
+                  onCancelEdit={cancelEdit}
+                  onSaveEdit={saveEdit}
+                  canEdit={m.role === "user" && m.id > 0}
+                  savingEdit={savingEdit}
+                />
+              );
+            })}
 
             {streaming && streamText && (
               <MessageBubble
@@ -448,6 +609,7 @@ export function CoachChat() {
                   created_at: new Date().toISOString(),
                 }}
                 streaming
+                defaultExpanded
               />
             )}
 
@@ -536,7 +698,7 @@ export function CoachChat() {
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                disabled={streaming}
+                disabled={streaming || savingEdit}
                 className="mb-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--muted)] transition-colors hover:bg-[var(--panel)] hover:text-[var(--text)] disabled:opacity-40"
                 title="Attach file"
               >
@@ -551,7 +713,7 @@ export function CoachChat() {
                 onKeyDown={onKeyDown}
                 rows={1}
                 placeholder="Message your coach…"
-                disabled={streaming}
+                disabled={streaming || savingEdit}
                 className="max-h-[200px] min-h-[44px] flex-1 resize-none bg-transparent px-1 py-2.5 text-sm text-[var(--text)] outline-none placeholder:text-[var(--muted)]"
               />
               {streaming ? (
