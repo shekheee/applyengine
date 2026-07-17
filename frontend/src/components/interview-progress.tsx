@@ -2,7 +2,7 @@
 
 import type { InterviewProgress } from "@/lib/types";
 import { Badge, Card } from "@/components/ui";
-import { INTERVIEW_FOCUS, interviewFocusLabel } from "@/lib/types";
+import { INTERVIEW_FOCUS, curriculumTopicLabel, interviewFocusLabel } from "@/lib/types";
 
 function focusLabel(id: string): string {
   return interviewFocusLabel(id);
@@ -113,6 +113,32 @@ export function InterviewProgressPanel({ progress }: { progress: InterviewProgre
           {progress.weakest_focus_area && (
             <p className="mt-2 text-xs text-[var(--muted)]">
               Weakest area: {focusLabel(progress.weakest_focus_area)} — prioritize practice here.
+            </p>
+          )}
+        </div>
+      )}
+
+      {progress.topic_averages && Object.keys(progress.topic_averages).length > 0 && (
+        <div>
+          <p className="mb-2 text-sm font-medium">AI/ML curriculum topics</p>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(progress.topic_averages).map(([tid, avg]) => (
+              <span
+                key={tid}
+                className="rounded-lg border px-2.5 py-1 text-xs"
+                style={{ borderColor: "var(--border)" }}
+              >
+                {progress.topic_labels?.[tid] ?? curriculumTopicLabel(tid)}:{" "}
+                <strong>{avg}/10</strong>
+              </span>
+            ))}
+          </div>
+          {progress.weakest_topic_area && (
+            <p className="mt-2 text-xs text-[var(--muted)]">
+              Weakest topic:{" "}
+              {progress.topic_labels?.[progress.weakest_topic_area] ??
+                curriculumTopicLabel(progress.weakest_topic_area)}{" "}
+              — drill here next.
             </p>
           )}
         </div>

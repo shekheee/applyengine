@@ -137,10 +137,12 @@ export interface InterviewSessionSummary {
   recurring_weaknesses?: string[];
   skill_pointers?: string[];
   next_steps?: string[];
+  topic_scores?: Record<string, number | string>;
   per_question?: Array<{
     question?: string;
     score?: number | string;
     key_feedback?: string;
+    topic?: string;
   }>;
 }
 
@@ -149,6 +151,7 @@ export interface InterviewSession {
   job_id: number | null;
   focus: string;
   difficulty: string;
+  curriculum_topic?: string;
   status: "active" | "completed" | string;
   questions: InterviewQuestion[];
   current_index: number;
@@ -224,13 +227,53 @@ export interface InterviewProgress {
     score: number;
     focus: string;
     difficulty: string;
+    curriculum_topic?: string;
   }>;
   focus_averages: Record<string, number>;
   best_focus_area: string | null;
   weakest_focus_area: string | null;
+  topic_averages?: Record<string, number>;
+  best_topic_area?: string | null;
+  weakest_topic_area?: string | null;
+  topic_labels?: Record<string, string>;
   recurring_themes: ProgressTheme[];
   skill_pointers: ProgressTheme[];
   top_strengths: ProgressTheme[];
   activity_streak_days: number;
   trend: "stable" | "improving" | "declining";
+}
+
+export interface CurriculumTopic {
+  id: string;
+  order: number;
+  title: string;
+  tagline: string;
+  subtopics: string[];
+  senior_signals: string[];
+  weak_answer_patterns: string[];
+  strong_answer_patterns: string[];
+}
+
+export interface InterviewCurriculum {
+  track_id: string;
+  track_title: string;
+  track_description: string;
+  topics: CurriculumTopic[];
+  ml_profile_detected: boolean;
+}
+
+const CURRICULUM_TOPIC_LABELS: Record<string, string> = {
+  all: "All AI/ML topics",
+  ml_classics: "ML classics",
+  llm_fundamentals: "LLM fundamentals",
+  rag: "RAG",
+  agent_fundamentals: "Agent fundamentals",
+  orchestration_protocols: "Orchestration & protocols",
+  eval_failure_modes: "Evaluation & failure modes",
+  system_design_agentic: "System design (agentic/LLM)",
+  cost_latency: "Cost & latency tradeoffs",
+};
+
+export function curriculumTopicLabel(id: string): string {
+  return CURRICULUM_TOPIC_LABELS[id] ?? id.replace(/_/g, " ");
 }

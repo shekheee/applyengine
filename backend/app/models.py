@@ -122,6 +122,7 @@ class InterviewSession(SQLModel, table=True):
     job_id: int | None = Field(default=None, foreign_key="job.id", index=True)
     focus: str = "mixed"  # behavioral | role_technical | case_study | leadership_stakeholder | resume_deep_dive | mixed
     difficulty: str = "mid"  # junior | mid | senior
+    curriculum_topic: str = ""  # "" | all | ml_classics | llm_fundamentals | ... (AI/ML track)
     status: str = "active"  # active | completed
     questions: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON))
     current_index: int = 0

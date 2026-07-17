@@ -4,7 +4,8 @@ from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
-from app.models import InterviewSession
+from app.models import InterviewSession, InterviewTurn
+from app.services.ml_interview_curriculum import TOPIC_BY_ID, topic_label
 
 
 def _parse_score(value: Any) -> float | None:
@@ -23,7 +24,8 @@ def _session_score(session: InterviewSession) -> float | None:
     return _parse_score(summary.get("overall_score"))
 
 
-def build_interview_progress(sessions: list[InterviewSession]) -> dict[str, Any]:
+def build_interview_progress(sessions: list[InterviewSession], turns_by_session: dict[int, list[InterviewTurn]] | None = None) -> dict[str, Any]:
+    turns_by_session = turns_by_session or {}
     completed = [s for s in sessions if s.status == "completed"]
     scored: list[tuple[InterviewSession, float]] = []
     for s in completed:
@@ -47,6 +49,7 @@ def build_interview_progress(sessions: list[InterviewSession]) -> dict[str, Any]
                 "score": sc,
                 "focus": s.focus,
                 "difficulty": s.difficulty,
+                "curriculum_topic": getattr(s, "curriculum_topic", "") or "",
             }
         )
 
@@ -60,6 +63,39 @@ def build_interview_progress(sessions: list[InterviewSession]) -> dict[str, Any]
     }
     best_focus = max(focus_averages, key=focus_averages.get) if focus_averages else None
     worst_focus = min(focus_averages, key=focus_averages.get) if focus_averages else None
+
+    # Per AI/ML curriculum topic averages (from question categories + summary topic_scores)
+    topic_buckets: dict[str, list[float]] = {}
+    for s in completed:
+        summary = s.summary or {}
+        topic_scores = summary.get("topic_scores") or {}
+        if isinstance(topic_scores, dict):
+            for tid, sc in topic_scores.items():
+                parsed = _parse_score(sc)
+                if parsed is not None and tid in TOPIC_BY_ID:
+                    topic_buckets.setdefault(str(tid), []).append(parsed)
+        # Also aggregate from per-question feedback scores in turns
+        turns = turns_by_session.get(s.id or 0, [])
+        questions = s.questions or []
+        for t in turns:
+            if t.role != "feedback" or not t.scores:
+                continue
+            q_idx = t.question_index
+            cat = ""
+            if 0 <= q_idx < len(questions):
+                cat = str(questions[q_idx].get("category", ""))
+            if cat in TOPIC_BY_ID:
+                sc = _parse_score(t.scores.get("overall_score"))
+                if sc is not None:
+                    topic_buckets.setdefault(cat, []).append(sc)
+
+    topic_averages = {
+        tid: round(sum(vals) / len(vals), 1)
+        for tid, vals in topic_buckets.items()
+        if vals
+    }
+    best_topic = max(topic_averages, key=topic_averages.get) if topic_averages else None
+    worst_topic = min(topic_averages, key=topic_averages.get) if topic_averages else None
 
     # Recurring themes from weaknesses + priority improvements
     theme_counter: Counter[str] = Counter()
@@ -136,6 +172,10 @@ def build_interview_progress(sessions: list[InterviewSession]) -> dict[str, Any]
         "focus_averages": focus_averages,
         "best_focus_area": best_focus,
         "weakest_focus_area": worst_focus,
+        "topic_averages": topic_averages,
+        "best_topic_area": best_topic,
+        "weakest_topic_area": worst_topic,
+        "topic_labels": {tid: topic_label(tid) for tid in topic_averages},
         "recurring_themes": recurring_themes,
         "skill_pointers": skill_pointers,
         "top_strengths": top_strengths,

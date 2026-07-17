@@ -12,6 +12,7 @@ import { api } from "@/lib/api";
 import type {
   CoachModel,
   DeliveryMetrics,
+  InterviewCurriculum,
   InterviewProgress,
   InterviewSession,
   InterviewTurn,
@@ -21,9 +22,11 @@ import type {
 import {
   INTERVIEW_DIFFICULTY,
   INTERVIEW_FOCUS,
+  curriculumTopicLabel,
 } from "@/lib/types";
 import { Badge, Button, Card, cn } from "@/components/ui";
 import { ChatMarkdown } from "@/components/chat-markdown";
+import { InterviewCurriculumPanel } from "@/components/interview-curriculum";
 import { InterviewProgressPanel } from "@/components/interview-progress";
 import { ModelSelector, getStoredModelId, storeModelId } from "@/components/model-selector";
 import { useVoiceRecorder } from "@/hooks/use-voice-recorder";
@@ -61,9 +64,17 @@ function summaryMarkdown(summary: InterviewSession["summary"]): string {
   if (summary.per_question?.length) {
     lines.push("### Question scores");
     summary.per_question.forEach((pq) => {
+      const topicNote = pq.topic ? ` · ${curriculumTopicLabel(pq.topic)}` : "";
       lines.push(
-        `- **${pq.score ?? "—"}/10** — ${(pq.question ?? "").slice(0, 80)}… _${pq.key_feedback ?? ""}_`
+        `- **${pq.score ?? "—"}/10**${topicNote} — ${(pq.question ?? "").slice(0, 80)}… _${pq.key_feedback ?? ""}_`
       );
+    });
+  }
+  if (summary.topic_scores && Object.keys(summary.topic_scores).length > 0) {
+    lines.push("");
+    lines.push("### AI/ML topic scores");
+    Object.entries(summary.topic_scores).forEach(([tid, sc]) => {
+      lines.push(`- **${curriculumTopicLabel(tid)}:** ${sc}/10`);
     });
   }
   return lines.join("\n").trim();
@@ -94,6 +105,10 @@ export function InterviewPractice() {
   const [focus, setFocus] = useState("mixed");
   const [difficulty, setDifficulty] = useState("mid");
   const [jobId, setJobId] = useState<number | "">("");
+  const [curriculumTopic, setCurriculumTopic] = useState("");
+  const [curriculum, setCurriculum] = useState<InterviewCurriculum | null>(null);
+  const [showStudyGuide, setShowStudyGuide] = useState(false);
+  const [showMlTrack, setShowMlTrack] = useState(false);
 
   const [session, setSession] = useState<InterviewSession | null>(null);
   const [answer, setAnswer] = useState("");
@@ -117,18 +132,23 @@ export function InterviewPractice() {
   useEffect(() => {
     async function load() {
       try {
-        const [base, jobList, modelData, sessions, prog] = await Promise.all([
+        const [base, jobList, modelData, sessions, prog, curr] = await Promise.all([
           api.baseProfile().catch(() => null),
           api.listJobs(),
           api.listCoachModels(),
           api.listInterviewSessions().catch(() => []),
           api.getInterviewProgress().catch(() => null),
+          api.getInterviewCurriculum().catch(() => null),
         ]);
         setProfile(base);
         setJobs(jobList);
         setModels(modelData.models);
         setPastSessions(sessions);
         setProgress(prog);
+        setCurriculum(curr);
+        if (curr?.ml_profile_detected) {
+          setShowMlTrack(true);
+        }
         const stored = getStoredModelId();
         const valid =
           stored && modelData.models.some((x) => x.id === stored)
@@ -162,6 +182,7 @@ export function InterviewPractice() {
         difficulty,
         job_id: jobId === "" ? null : jobId,
         model: selectedModel || undefined,
+        curriculum_topic: curriculumTopic || undefined,
       });
       setSession(s);
       setAnswer("");
@@ -437,6 +458,42 @@ export function InterviewPractice() {
               </div>
             </div>
 
+            {curriculum && (
+              <div className="rounded-xl border p-4" style={{ borderColor: "var(--border)" }}>
+                {!showMlTrack && !curriculum.ml_profile_detected ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowMlTrack(true)}
+                    className="text-sm text-[var(--primary-2)] hover:underline"
+                  >
+                    + AI/ML Engineering prep track (optional)
+                  </button>
+                ) : (
+                  <>
+                    {!curriculum.ml_profile_detected && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowMlTrack(false);
+                          setCurriculumTopic("");
+                        }}
+                        className="mb-2 text-xs text-[var(--muted)] hover:text-[var(--text)]"
+                      >
+                        Hide AI/ML track
+                      </button>
+                    )}
+                    <InterviewCurriculumPanel
+                      curriculum={curriculum}
+                      selectedTopic={curriculumTopic}
+                      onSelectTopic={setCurriculumTopic}
+                      showStudyGuide={showStudyGuide}
+                      onToggleStudyGuide={() => setShowStudyGuide((v) => !v)}
+                    />
+                  </>
+                )}
+              </div>
+            )}
+
             <div>
               <label className="mb-2 block text-sm font-medium">
                 Target role (optional)
@@ -520,7 +577,14 @@ export function InterviewPractice() {
               <Badge tone="primary">
                 Q{session.current_index + 1} / {totalQ}
               </Badge>
-              <Badge>{currentQ.category}</Badge>
+              <Badge>
+                {session.curriculum_topic
+                  ? curriculumTopicLabel(currentQ.category)
+                  : currentQ.category}
+              </Badge>
+              {session.curriculum_topic && (
+                <Badge tone="green">{curriculumTopicLabel(session.curriculum_topic)} track</Badge>
+              )}
               <Badge tone="default">{session.difficulty}</Badge>
               {session.job_id && (
                 <Badge tone="amber">

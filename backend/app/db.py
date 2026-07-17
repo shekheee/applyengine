@@ -31,6 +31,7 @@ def init_db() -> None:
     _migrate_chat_attachments()
     _migrate_profile_base()
     _migrate_interview_overall_score()
+    _migrate_interview_curriculum_topic()
 
 
 def _migrate_chat_attachments() -> None:
@@ -94,6 +95,30 @@ def _migrate_interview_overall_score() -> None:
                 """
             )
         )
+
+
+def _migrate_interview_curriculum_topic() -> None:
+    """Add curriculum_topic column for AI/ML engineering prep track."""
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        if is_sqlite:
+            try:
+                conn.execute(
+                    text(
+                        "ALTER TABLE interviewsession ADD COLUMN curriculum_topic "
+                        "TEXT DEFAULT ''"
+                    )
+                )
+            except Exception:
+                pass  # column already exists
+        else:
+            conn.execute(
+                text(
+                    "ALTER TABLE interviewsession ADD COLUMN IF NOT EXISTS curriculum_topic "
+                    "TEXT DEFAULT ''"
+                )
+            )
 
 
 def get_session() -> Generator[Session, None, None]:

@@ -8,6 +8,12 @@ from typing import Any
 from app import prompts
 from app.llm.factory import build_coach_provider
 from app.models import InterviewSession, InterviewTurn, Job, Memory, Profile
+from app.services.ml_interview_curriculum import (
+    curriculum_prompt_block,
+    fallback_curriculum_questions,
+    feedback_rubric_block,
+    normalize_curriculum_topic,
+)
 from app.services.profession import (
     FOCUS_LABELS,
     focus_guide,
@@ -38,9 +44,12 @@ def generate_questions(
     focus: str,
     difficulty: str,
     model_id: str | None = None,
+    curriculum_topic: str = "",
 ) -> list[dict[str, Any]]:
     focus = normalize_focus(focus)
+    curriculum_topic = normalize_curriculum_topic(curriculum_topic)
     prof_ctx = profession_context(profile, job)
+    curriculum_text = curriculum_prompt_block(curriculum_topic) if curriculum_topic else ""
     chain = _chain(model_id)
     data = chain.chat_json(
         prompts.INTERVIEW_QUESTIONS_SYSTEM,
@@ -52,23 +61,35 @@ def generate_questions(
             _memories_text(memories),
             profession_text=prof_ctx,
             focus_guide_text=focus_guide(focus),
+            curriculum_text=curriculum_text,
         ),
     )
     raw = data.get("questions", []) if isinstance(data, dict) else []
     questions: list[dict[str, Any]] = []
     for i, q in enumerate(raw[:6]):
         if isinstance(q, str):
-            questions.append({"text": q, "category": focus, "tip": ""})
+            cat = curriculum_topic if curriculum_topic and curriculum_topic != "all" else focus
+            questions.append({"text": q, "category": cat, "tip": ""})
         elif isinstance(q, dict) and q.get("text"):
+            cat = str(q.get("category", focus))
+            if curriculum_topic and curriculum_topic != "all":
+                cat = str(q.get("category", curriculum_topic))
             questions.append(
                 {
                     "text": str(q["text"]).strip(),
-                    "category": str(q.get("category", focus)),
+                    "category": cat,
                     "tip": str(q.get("tip", "")),
                 }
             )
     if not questions:
-        questions = _fallback_questions(profile, job, focus)
+        if curriculum_topic:
+            questions = fallback_curriculum_questions(
+                curriculum_topic,
+                profile,
+                job.title if job else "",
+            )
+        else:
+            questions = _fallback_questions(profile, job, focus)
     for i, q in enumerate(questions):
         q.setdefault("id", i)
     logger.info("Interview questions served by %s/%s", chain.last_served, chain.last_model)
@@ -159,6 +180,8 @@ def evaluate_answer(
     question_index: int,
     *,
     model_id: str | None = None,
+    curriculum_topic: str = "",
+    question_category: str = "",
 ) -> dict[str, Any]:
     chain = _chain(model_id)
     prior = "\n".join(
@@ -167,6 +190,10 @@ def evaluate_answer(
         if t.question_index == question_index and t.role == "followup"
     )
     prof_ctx = profession_context(profile, job)
+    curriculum_topic = normalize_curriculum_topic(curriculum_topic)
+    rubric = ""
+    if curriculum_topic:
+        rubric = feedback_rubric_block(curriculum_topic, question_category or curriculum_topic)
     data = chain.chat_json(
         prompts.INTERVIEW_FEEDBACK_SYSTEM,
         prompts.interview_feedback_user(
@@ -176,6 +203,7 @@ def evaluate_answer(
             job_to_text(job) if job else "",
             prior,
             profession_text=prof_ctx,
+            curriculum_rubric=rubric,
         ),
     )
     if not isinstance(data, dict):
@@ -284,6 +312,8 @@ def generate_summary(
 ) -> dict[str, Any]:
     chain = _chain(model_id)
     prof_ctx = profession_context(profile, job)
+    curriculum_topic = normalize_curriculum_topic(getattr(session, "curriculum_topic", "") or "")
+    curriculum_text = curriculum_prompt_block(curriculum_topic) if curriculum_topic else ""
     data = chain.chat_json(
         prompts.INTERVIEW_SUMMARY_SYSTEM,
         prompts.interview_summary_user(
@@ -291,6 +321,7 @@ def generate_summary(
             job_to_text(job) if job else "",
             build_transcript(session, turns),
             profession_text=prof_ctx,
+            curriculum_text=curriculum_text,
         ),
     )
     if not isinstance(data, dict):

@@ -2,6 +2,7 @@ import type {
   Application,
   ChatMessage,
   CoachModel,
+  InterviewCurriculum,
   InterviewProgress,
   InterviewSession,
   InterviewTurn,
@@ -394,6 +395,8 @@ export const api = {
     `${BASE}/api/applications/${id}/export/${doc}`,
 
   // ---- Interview Practice ----
+  getInterviewCurriculum: () => req<InterviewCurriculum>("/api/interview/curriculum"),
+
   listInterviewSessions: () =>
     req<InterviewSession[]>("/api/interview/sessions"),
 
@@ -405,6 +408,7 @@ export const api = {
     difficulty?: string;
     job_id?: number | null;
     model?: string;
+    curriculum_topic?: string;
   }) =>
     req<InterviewSession>("/api/interview/sessions", {
       method: "POST",

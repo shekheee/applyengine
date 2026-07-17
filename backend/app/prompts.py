@@ -165,9 +165,11 @@ Return JSON:
   "recurring_weaknesses": ["patterns across answers"],
   "skill_pointers": ["concrete topics/skills to brush up on, tied to resume gaps or target role"],
   "next_steps": ["3 actionable next steps for the candidate"],
-  "per_question": [{{"question": "...", "score": 1-10, "key_feedback": "one line"}}]
+  "per_question": [{{"question": "...", "score": 1-10, "key_feedback": "one line", "topic": "optional curriculum topic id"}}],
+  "topic_scores": {{"ml_classics": 1-10, "...": 1-10}}
 }}
-Ground everything in the actual Q&A transcript. Use field-appropriate skill pointers."""
+Ground everything in the actual Q&A transcript. Use field-appropriate skill pointers.
+If an AI/ML curriculum was active, include topic_scores keyed by topic id for each area practiced."""
 
 
 def coach_system_with_context(
@@ -245,7 +247,11 @@ def interview_questions_user(
     memories_text: str = "",
     profession_text: str = "",
     focus_guide_text: str = "",
+    curriculum_text: str = "",
 ) -> str:
+    curriculum_block = ""
+    if curriculum_text.strip():
+        curriculum_block = f"\n\n---\n\n{curriculum_text.strip()}"
     return (
         f"FOCUS: {focus}\n"
         f"FOCUS GUIDANCE: {focus_guide_text or focus}\n"
@@ -254,6 +260,7 @@ def interview_questions_user(
         f"CANDIDATE RESUME:\n{profile_text or '(none)'}\n\n---\n\n"
         f"TARGET JOB:\n{job_text or '(general / no specific job)'}\n\n---\n\n"
         f"COACH MEMORIES:\n{memories_text or '(none)'}"
+        f"{curriculum_block}"
     )
 
 
@@ -264,13 +271,18 @@ def interview_feedback_user(
     job_text: str,
     prior_turns: str = "",
     profession_text: str = "",
+    curriculum_rubric: str = "",
 ) -> str:
+    rubric_block = ""
+    if curriculum_rubric.strip():
+        rubric_block = f"\n\n---\n\nCURRICULUM RUBRIC:\n{curriculum_rubric.strip()}"
     return (
         f"QUESTION:\n{question}\n\n---\n\nCANDIDATE ANSWER:\n{answer}\n\n---\n\n"
         f"PROFESSION CONTEXT:\n{profession_text or '(infer from resume)'}\n\n---\n\n"
         f"RESUME CONTEXT:\n{profile_text or '(none)'}\n\n---\n\n"
         f"TARGET JOB:\n{job_text or '(none)'}\n\n---\n\n"
         f"PRIOR FOLLOW-UPS ON THIS QUESTION:\n{prior_turns or '(none)'}"
+        f"{rubric_block}"
     )
 
 
@@ -279,10 +291,15 @@ def interview_summary_user(
     job_text: str,
     transcript: str,
     profession_text: str = "",
+    curriculum_text: str = "",
 ) -> str:
+    curriculum_block = ""
+    if curriculum_text.strip():
+        curriculum_block = f"\n\n---\n\n{curriculum_text.strip()}"
     return (
         f"PROFESSION CONTEXT:\n{profession_text or '(infer from resume)'}\n\n---\n\n"
         f"RESUME:\n{profile_text or '(none)'}\n\n---\n\n"
         f"TARGET JOB:\n{job_text or '(none)'}\n\n---\n\n"
         f"SESSION TRANSCRIPT:\n{transcript}"
+        f"{curriculum_block}"
     )

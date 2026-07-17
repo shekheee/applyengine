@@ -83,6 +83,7 @@ class InterviewSessionCreate(BaseModel):
     difficulty: str = "mid"
     job_id: int | None = None
     model: str | None = None
+    curriculum_topic: str = ""  # AI/ML track: "" | all | ml_classics | ...
 
 
 class InterviewAnswerIn(BaseModel):
@@ -118,6 +119,7 @@ class InterviewSessionOut(BaseModel):
     job_id: int | None = None
     focus: str
     difficulty: str
+    curriculum_topic: str = ""
     status: str
     questions: list[dict] = []
     current_index: int = 0
@@ -156,6 +158,7 @@ class ProgressScorePoint(BaseModel):
     score: float
     focus: str
     difficulty: str = ""
+    curriculum_topic: str = ""
 
 
 class ProgressTheme(BaseModel):
@@ -174,8 +177,31 @@ class InterviewProgressOut(BaseModel):
     focus_averages: dict[str, float] = {}
     best_focus_area: str | None = None
     weakest_focus_area: str | None = None
+    topic_averages: dict[str, float] = {}
+    best_topic_area: str | None = None
+    weakest_topic_area: str | None = None
+    topic_labels: dict[str, str] = {}
     recurring_themes: list[ProgressTheme] = []
     skill_pointers: list[ProgressTheme] = []
     top_strengths: list[ProgressTheme] = []
     activity_streak_days: int = 0
     trend: str = "stable"
+
+
+class CurriculumTopicOut(BaseModel):
+    id: str
+    order: int
+    title: str
+    tagline: str
+    subtopics: list[str]
+    senior_signals: list[str]
+    weak_answer_patterns: list[str]
+    strong_answer_patterns: list[str]
+
+
+class InterviewCurriculumOut(BaseModel):
+    track_id: str
+    track_title: str
+    track_description: str
+    topics: list[CurriculumTopicOut]
+    ml_profile_detected: bool = False

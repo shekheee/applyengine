@@ -16,6 +16,7 @@ from app.models import InterviewSession, InterviewTurn, Job, Memory, Profile, Us
 from app.schemas import (
     InterviewAnswerIn,
     InterviewCompleteIn,
+    InterviewCurriculumOut,
     InterviewFollowupIn,
     InterviewProgressOut,
     InterviewSessionCreate,
@@ -32,6 +33,11 @@ from app.services.interview_practice import (
     summary_to_markdown,
 )
 from app.services.interview_progress import build_interview_progress
+from app.services.ml_interview_curriculum import (
+    curriculum_for_api,
+    is_ml_relevant_profile,
+    normalize_curriculum_topic,
+)
 from app.services.speech import transcribe_audio
 from app.services.profiles import get_base_profile
 from app.services.serialize import profile_to_text
@@ -86,6 +92,7 @@ def _session_out(s: InterviewSession, turns: list[InterviewTurn] | None = None) 
         job_id=s.job_id,
         focus=s.focus,
         difficulty=s.difficulty,
+        curriculum_topic=getattr(s, "curriculum_topic", "") or "",
         status=s.status,
         questions=s.questions or [],
         current_index=s.current_index,
@@ -99,6 +106,17 @@ def _session_out(s: InterviewSession, turns: list[InterviewTurn] | None = None) 
     )
 
 
+@router.get("/curriculum", response_model=InterviewCurriculumOut)
+def get_curriculum(
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    profile = get_base_profile(user, db)
+    data = curriculum_for_api()
+    data["ml_profile_detected"] = is_ml_relevant_profile(profile)
+    return data
+
+
 @router.get("/progress", response_model=InterviewProgressOut)
 def get_progress(
     db: Session = Depends(get_session),
@@ -109,7 +127,15 @@ def get_progress(
         .where(InterviewSession.user_id == user.id)
         .order_by(InterviewSession.id.asc())
     ).all()
-    return build_interview_progress(sessions)
+    session_ids = [s.id for s in sessions if s.id]
+    turns_by_session: dict[int, list[InterviewTurn]] = {}
+    if session_ids:
+        all_turns = db.exec(
+            select(InterviewTurn).where(InterviewTurn.session_id.in_(session_ids))
+        ).all()
+        for t in all_turns:
+            turns_by_session.setdefault(t.session_id, []).append(t)
+    return build_interview_progress(sessions, turns_by_session)
 
 
 @router.post("/transcribe", response_model=TranscribeOut)
@@ -153,6 +179,8 @@ def create_session(
         select(Memory).where(Memory.user_id == user.id).order_by(Memory.id.asc())
     ).all()
 
+    curriculum_topic = normalize_curriculum_topic(body.curriculum_topic)
+
     questions = generate_questions(
         profile,
         job,
@@ -160,6 +188,7 @@ def create_session(
         focus=body.focus,
         difficulty=body.difficulty,
         model_id=model_id,
+        curriculum_topic=curriculum_topic,
     )
 
     session = InterviewSession(
@@ -167,6 +196,7 @@ def create_session(
         job_id=body.job_id,
         focus=body.focus,
         difficulty=body.difficulty,
+        curriculum_topic=curriculum_topic,
         questions=questions,
         current_index=0,
         model_id=model_id or "",
@@ -251,6 +281,8 @@ def submit_answer(
         prior,
         idx,
         model_id=model_id,
+        curriculum_topic=getattr(s, "curriculum_topic", "") or "",
+        question_category=str(questions[idx].get("category", "")),
     )
     md = feedback_to_markdown(fb)
     turn = InterviewTurn(
@@ -311,6 +343,8 @@ async def submit_answer_stream(
                 prior,
                 idx,
                 model_id=model_id,
+                curriculum_topic=getattr(s, "curriculum_topic", "") or "",
+                question_category=str(questions[idx].get("category", "")),
             )
             md = feedback_to_markdown(fb)
             # Simulate streaming by chunking markdown for UX
