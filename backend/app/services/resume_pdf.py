@@ -419,9 +419,15 @@ def render_resume_pdf(doc: dict[str, Any]) -> bytes:
     return last_bytes
 
 
-def build_resume_pdf(profile: Profile | None, memories: list[Memory]) -> tuple[bytes, str]:
-    """Return (pdf_bytes, suggested_filename)."""
-    doc = prepare_resume_document(profile, memories)
+def build_resume_pdf(
+    profile: Profile | None,
+    memories: list[Memory],
+    job=None,
+) -> tuple[bytes, str]:
+    """Return (pdf_bytes, suggested_filename) using Claude-designed content."""
+    from app.services.resume_designed import prepare_designed_resume_document
+
+    doc = prepare_designed_resume_document(profile, memories, job)
     pdf_bytes = render_resume_pdf(doc)
     fname = f"{_safe_filename(str(doc.get('name', 'resume')))}_resume.pdf"
     return pdf_bytes, fname

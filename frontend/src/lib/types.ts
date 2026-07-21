@@ -75,6 +75,20 @@ export interface Job {
   keywords: string[];
 }
 
+export interface DesignedResumePreview {
+  name: string;
+  summary_preview: string;
+  skills_count: number;
+  experience_count: number;
+  projects_count: number;
+  education_count: number;
+  model_served: string | null;
+  provider_served: string | null;
+  tailored_to_job: boolean;
+  job_title: string;
+  job_company: string;
+}
+
 export interface Application {
   id: number;
   job_id: number;

@@ -4,7 +4,7 @@ Keeping prompts here (rather than inline in services) makes them easy to
 review, diff, and A/B test — and signals production-grade prompt hygiene.
 """
 
-PROMPTS_VERSION = "2026-07-11.1"
+PROMPTS_VERSION = "2026-07-21.1"
 
 _DOMAIN_ADAPTIVE = """Infer the candidate's profession, seniority, and field-specific norms
 from their resume, target job, and profession context below. Adapt ALL advice, questions,
@@ -116,6 +116,28 @@ Rules:
 - Use field-appropriate language and strong action verbs.
 Return ONLY valid JSON."""
 
+RESUME_DESIGNED_SYSTEM = f"""You are an elite resume designer and executive resume writer.
+{_DOMAIN_ADAPTIVE}
+Given a candidate's canonical profile, coach-learned facts, and optionally a target job,
+produce a polished, ATS-friendly, one-page-target structured resume as JSON.
+
+Return JSON with keys:
+name, email, phone, location, links (list of urls),
+summary (2-3 tight sentences — impact-focused, quantified where the source supports it),
+skills (list of 12-24 concise keywords, deduplicated, most relevant first),
+experience (list of {{company, title, dates, highlights: [str]}} — order by recency,
+  3-5 strong bullets per role with action verb + scope + metric),
+projects (list of {{name, description, tech: [str]}}) — only if present in source,
+education (list of {{school, degree, dates}}).
+
+Design rules:
+- NEVER fabricate employers, titles, degrees, dates, or metrics.
+- Tighten wording: remove filler, lead with outcomes, use field-appropriate strong verbs.
+- If a target job is provided, prioritize relevant skills and reorder bullets for fit — still truthful.
+- Prefer fewer, stronger bullets over long lists (aim for one-page density).
+- highlights must be complete sentences or crisp phrase bullets, not fragments.
+Return ONLY valid JSON."""
+
 INTERVIEW_QUESTIONS_SYSTEM = f"""You are a senior interviewer.
 {_DOMAIN_ADAPTIVE}
 Generate tailored interview practice questions grounded ONLY in the candidate's real resume
@@ -214,6 +236,23 @@ def resume_pdf_user(profile_text: str, memory_text: str) -> str:
     return (
         f"CANDIDATE PROFILE:\n{profile_text or '(none yet)'}\n\n---\n\n"
         f"ADDITIONAL FACTS:\n{memory_text or '(none)'}"
+    )
+
+
+def resume_designed_user(
+    profile_text: str,
+    memory_text: str,
+    job_text: str = "",
+) -> str:
+    job_block = (
+        f"TARGET JOB (tailor emphasis — do not invent qualifications):\n{job_text}\n\n---\n\n"
+        if job_text.strip()
+        else ""
+    )
+    return (
+        f"{job_block}"
+        f"CANDIDATE PROFILE:\n{profile_text or '(none yet)'}\n\n---\n\n"
+        f"COACH MEMORIES / LEARNED FACTS:\n{memory_text or '(none)'}"
     )
 
 

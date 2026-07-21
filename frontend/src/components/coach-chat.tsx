@@ -13,6 +13,7 @@ import type {
   ChatMessage,
   CoachModel,
   Conversation,
+  DesignedResumePreview,
   Job,
   Memory,
   PendingAttachment,
@@ -216,6 +217,10 @@ export function CoachChat() {
   const [error, setError] = useState("");
   const [applyState, setApplyState] = useState<"idle" | "working" | "done">("idle");
   const [pdfState, setPdfState] = useState<"idle" | "working" | "done">("idle");
+  const [docxState, setDocxState] = useState<"idle" | "working" | "done">("idle");
+  const [designState, setDesignState] = useState<"idle" | "working" | "done">("idle");
+  const [resumeJobId, setResumeJobId] = useState<number | "">("");
+  const [designPreview, setDesignPreview] = useState<DesignedResumePreview | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [models, setModels] = useState<CoachModel[]>([]);
   const [selectedModel, setSelectedModel] = useState("");
@@ -572,7 +577,8 @@ export function CoachChat() {
     setPdfState("working");
     setError("");
     try {
-      const { blob, filename } = await api.downloadResumePdf();
+      const jobId = resumeJobId === "" ? undefined : resumeJobId;
+      const { blob, filename } = await api.downloadResumePdf(jobId);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -586,6 +592,43 @@ export function CoachChat() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't generate PDF resume.");
       setPdfState("idle");
+    }
+  }
+
+  async function generateDesignedResume() {
+    setDesignState("working");
+    setError("");
+    try {
+      const jobId = resumeJobId === "" ? undefined : resumeJobId;
+      const preview = await api.generateDesignedResume(jobId);
+      setDesignPreview(preview);
+      setDesignState("done");
+      setTimeout(() => setDesignState("idle"), 6000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't generate designed resume.");
+      setDesignState("idle");
+    }
+  }
+
+  async function downloadDocx() {
+    setDocxState("working");
+    setError("");
+    try {
+      const jobId = resumeJobId === "" ? undefined : resumeJobId;
+      const { blob, filename } = await api.downloadResumeDocx(jobId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setDocxState("done");
+      setTimeout(() => setDocxState("idle"), 4000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't generate Word resume.");
+      setDocxState("idle");
     }
   }
 
@@ -639,6 +682,86 @@ export function CoachChat() {
         className="rounded-xl border bg-[var(--panel)] p-4"
         style={{ borderColor: "var(--border)" }}
       >
+        <h2 className="font-semibold">Designed resume</h2>
+        <p className="mt-1 text-xs text-[var(--muted)]">
+          Claude designs a polished, ATS-friendly resume from your profile and coach memories.
+        </p>
+        {jobs.length > 0 && (
+          <label className="mt-3 block text-xs text-[var(--muted)]">
+            Tailor to saved job (optional)
+            <select
+              value={resumeJobId}
+              onChange={(e) => {
+                const v = e.target.value;
+                setResumeJobId(v === "" ? "" : Number(v));
+                setDesignPreview(null);
+              }}
+              className="mt-1 w-full rounded-lg border bg-[var(--panel-2)] px-2 py-1.5 text-sm text-[var(--text)]"
+              style={{ borderColor: "var(--border)" }}
+            >
+              <option value="">General resume</option>
+              {jobs.map((j) => (
+                <option key={j.id} value={j.id}>
+                  {j.title} @ {j.company}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <Button
+          onClick={generateDesignedResume}
+          disabled={designState === "working" || pdfState === "working" || docxState === "working"}
+          className="mt-3 w-full"
+        >
+          {designState === "working"
+            ? "Designing with Claude…"
+            : designState === "done"
+              ? "✓ Designed resume ready"
+              : "Generate designed resume"}
+        </Button>
+        {designPreview && (
+          <p className="mt-2 text-xs text-[var(--muted)]">
+            {designPreview.name}: {designPreview.experience_count} roles,{" "}
+            {designPreview.skills_count} skills
+            {designPreview.tailored_to_job && designPreview.job_title
+              ? ` · tailored to ${designPreview.job_title}`
+              : ""}
+            {designPreview.model_served ? ` · ${designPreview.model_served}` : ""}
+          </p>
+        )}
+        <Button
+          onClick={downloadPdf}
+          disabled={pdfState === "working" || designState === "working"}
+          className="mt-2 w-full"
+          variant="outline"
+        >
+          {pdfState === "working"
+            ? "Generating PDF…"
+            : pdfState === "done"
+              ? "✓ PDF downloaded"
+              : "Download PDF resume"}
+        </Button>
+        <Button
+          onClick={downloadDocx}
+          disabled={docxState === "working" || designState === "working"}
+          className="mt-2 w-full"
+          variant="outline"
+        >
+          {docxState === "working"
+            ? "Generating Word doc…"
+            : docxState === "done"
+              ? "✓ .docx downloaded"
+              : "Download for Google Docs (.docx)"}
+        </Button>
+        <p className="mt-2 text-[10px] leading-snug text-[var(--muted)]">
+          Open in Google Docs: upload the .docx to Drive, then right-click → Open with → Google Docs
+          (or File → Open → Upload in docs.google.com).
+        </p>
+      </div>
+      <div
+        className="rounded-xl border bg-[var(--panel)] p-4"
+        style={{ borderColor: "var(--border)" }}
+      >
         <h2 className="font-semibold">Update my resume</h2>
         <p className="mt-1 text-xs text-[var(--muted)]">
           Fold learned facts into your profile.
@@ -654,17 +777,6 @@ export function CoachChat() {
             : applyState === "done"
               ? "✓ Resume updated"
               : "Update my resume"}
-        </Button>
-        <Button
-          onClick={downloadPdf}
-          disabled={pdfState === "working"}
-          className="mt-2 w-full"
-        >
-          {pdfState === "working"
-            ? "Generating PDF…"
-            : pdfState === "done"
-              ? "✓ PDF downloaded"
-              : "Download PDF resume"}
         </Button>
       </div>
     </div>

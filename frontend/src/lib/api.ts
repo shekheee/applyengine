@@ -3,6 +3,7 @@ import type {
   ChatMessage,
   CoachModel,
   Conversation,
+  DesignedResumePreview,
   InterviewCurriculum,
   InterviewProgress,
   InterviewSession,
@@ -340,8 +341,9 @@ export const api = {
   applyToResume: () =>
     req<Profile>("/api/chat/apply-to-resume", { method: "POST" }),
 
-  downloadResumePdf: async (): Promise<{ blob: Blob; filename: string }> => {
-    const res = await fetch(`${BASE}/api/resume/pdf`, {
+  downloadResumePdf: async (jobId?: number): Promise<{ blob: Blob; filename: string }> => {
+    const qs = jobId ? `?job_id=${jobId}` : "";
+    const res = await fetch(`${BASE}/api/resume/pdf${qs}`, {
       headers: { ...authHeaders() },
       cache: "no-store",
     });
@@ -359,6 +361,35 @@ export const api = {
     const disposition = res.headers.get("Content-Disposition") || "";
     const match = disposition.match(/filename="([^"]+)"/);
     const filename = match?.[1] || "resume.pdf";
+    const blob = await res.blob();
+    return { blob, filename };
+  },
+
+  generateDesignedResume: (jobId?: number) => {
+    const qs = jobId ? `?job_id=${jobId}` : "";
+    return req<DesignedResumePreview>(`/api/resume/design${qs}`, { method: "POST" });
+  },
+
+  downloadResumeDocx: async (jobId?: number): Promise<{ blob: Blob; filename: string }> => {
+    const qs = jobId ? `?job_id=${jobId}` : "";
+    const res = await fetch(`${BASE}/api/resume/docx${qs}`, {
+      headers: { ...authHeaders() },
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      if (res.status === 401) setToken(null);
+      let detail = "";
+      try {
+        const data = await res.json();
+        detail = data?.detail ?? JSON.stringify(data);
+      } catch {
+        detail = await res.text().catch(() => "");
+      }
+      throw new ApiError(res.status, detail || `Request failed (${res.status})`);
+    }
+    const disposition = res.headers.get("Content-Disposition") || "";
+    const match = disposition.match(/filename="([^"]+)"/);
+    const filename = match?.[1] || "resume.docx";
     const blob = await res.blob();
     return { blob, filename };
   },
