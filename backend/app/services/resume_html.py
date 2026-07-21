@@ -104,24 +104,13 @@ def design_resume_html_fitted(
     memories: list[Memory],
     job: Job | None = None,
 ) -> tuple[str, str | None, str | None, int]:
-    """Generate HTML resume and condense until PDF fits one page."""
-    from app.services.resume_html_pdf import html_to_pdf_one_page
+    """Generate HTML resume and apply light CSS condensation for one-page preview."""
+    from app.services.resume_html_fit import condense_html
 
     html_doc, provider, model = design_resume_html(profile, memories, job)
-    pdf, _, fitted_html, level = html_to_pdf_one_page(html_doc)
-
-    if pdf_page_count(pdf) > 1 and _MAX_LLM_REFIT_ATTEMPTS > 0:
-        try:
-            refit_html, refit_provider, refit_model = _refit_html_with_llm(
-                fitted_html, pdf_page_count(pdf)
-            )
-            pdf2, _, fitted2, level2 = html_to_pdf_one_page(refit_html)
-            if pdf_page_count(pdf2) <= pdf_page_count(pdf):
-                return fitted2, refit_provider or provider, refit_model or model, level2
-        except Exception as exc:
-            logger.warning("LLM HTML refit failed (using condensed version): %s", exc)
-
-    return fitted_html, provider, model, level
+    # PDF fit runs on export — avoid failing design when xhtml2pdf chokes on rich CSS.
+    fitted_html = condense_html(html_doc, 1)
+    return fitted_html, provider, model, 1
 
 
 def pdf_page_count(pdf_bytes: bytes) -> int:

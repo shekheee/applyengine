@@ -192,13 +192,25 @@ def download_resume_pdf(
             else:
                 pdf_bytes, filename = build_resume_pdf(profile, memories, job)
         elif version and version.html_content.strip():
-            pdf_bytes, _engine, fitted_html, _level = html_to_pdf_one_page(
-                version.html_content
-            )
-            if fitted_html != version.html_content:
-                version.html_content = fitted_html
-                session.add(version)
-                session.commit()
+            try:
+                pdf_bytes, _engine, fitted_html, _level = html_to_pdf_one_page(
+                    version.html_content
+                )
+                if fitted_html != version.html_content:
+                    version.html_content = fitted_html
+                    session.add(version)
+                    session.commit()
+            except RuntimeError as pdf_exc:
+                logger.warning("HTML PDF failed, falling back to ATS PDF: %s", pdf_exc)
+                pdf_bytes, filename = build_resume_pdf(profile, memories, job)
+                return Response(
+                    content=pdf_bytes,
+                    media_type="application/pdf",
+                    headers={
+                        "Content-Disposition": f'attachment; filename="{filename}"',
+                        "Cache-Control": "no-store",
+                    },
+                )
             name = profile.name if profile else "resume"
             filename = f"{_safe_filename(name)}_resume.pdf"
         elif version_id is None:

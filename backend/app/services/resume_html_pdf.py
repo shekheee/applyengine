@@ -2,19 +2,33 @@ from __future__ import annotations
 
 import io
 import logging
+import re
 
 from app.services.resume_html_fit import condense_html, pdf_page_count
 
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_html_for_pdf(html: str) -> str:
+    """Strip CSS/layout features that often break xhtml2pdf."""
+    out = html
+    out = re.sub(r"display\s*:\s*flex[^;]*;", "display: block;", out, flags=re.I)
+    out = re.sub(r"flex-wrap\s*:[^;]+;", "", out, flags=re.I)
+    out = re.sub(r"gap\s*:[^;]+;", "", out, flags=re.I)
+    out = re.sub(r"grid-template[^;]+;", "", out, flags=re.I)
+    out = re.sub(r"--[a-z0-9-]+\s*:[^;]+;", "", out, flags=re.I)
+    out = re.sub(r"print-color-adjust\s*:[^;]+;", "", out, flags=re.I)
+    return out
+
+
 def html_to_pdf_bytes(html: str) -> tuple[bytes, str]:
     """Convert HTML to PDF. Returns (pdf_bytes, engine_name)."""
+    sanitized = _sanitize_html_for_pdf(html)
     try:
         from xhtml2pdf import pisa
 
         buf = io.BytesIO()
-        status = pisa.CreatePDF(html, dest=buf, encoding="utf-8")
+        status = pisa.CreatePDF(sanitized, dest=buf, encoding="utf-8")
         if status.err:
             raise RuntimeError(f"xhtml2pdf reported {status.err} errors")
         pdf = buf.getvalue()
