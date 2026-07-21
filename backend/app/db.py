@@ -32,6 +32,7 @@ def init_db() -> None:
     _migrate_profile_base()
     _migrate_interview_overall_score()
     _migrate_interview_curriculum_topic()
+    _migrate_conversations()
 
 
 def _migrate_chat_attachments() -> None:
@@ -119,6 +120,107 @@ def _migrate_interview_curriculum_topic() -> None:
                     "TEXT DEFAULT ''"
                 )
             )
+
+
+def _migrate_conversations() -> None:
+    """Add Conversation table, scope messages, migrate legacy single-thread data."""
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        if is_sqlite:
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS conversation (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        title TEXT DEFAULT 'New conversation',
+                        job_id INTEGER,
+                        jd_text TEXT DEFAULT '',
+                        created_at TEXT,
+                        updated_at TEXT,
+                        FOREIGN KEY(user_id) REFERENCES user(id),
+                        FOREIGN KEY(job_id) REFERENCES job(id)
+                    )
+                    """
+                )
+            )
+            try:
+                conn.execute(
+                    text(
+                        "ALTER TABLE chatmessage ADD COLUMN conversation_id INTEGER"
+                    )
+                )
+            except Exception:
+                pass
+        else:
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS conversation (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER NOT NULL REFERENCES "user"(id),
+                        title TEXT DEFAULT 'New conversation',
+                        job_id INTEGER REFERENCES job(id),
+                        jd_text TEXT DEFAULT '',
+                        created_at TIMESTAMPTZ,
+                        updated_at TIMESTAMPTZ
+                    )
+                    """
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE chatmessage ADD COLUMN IF NOT EXISTS conversation_id "
+                    "INTEGER REFERENCES conversation(id)"
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_chatmessage_conversation_id "
+                    "ON chatmessage (conversation_id)"
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_conversation_user_id "
+                    "ON conversation (user_id)"
+                )
+            )
+
+    # Backfill: one "General" conversation per user with orphan messages
+    from sqlmodel import Session, select
+
+    from app.models import ChatMessage, Conversation, User
+
+    with Session(engine) as session:
+        users = session.exec(select(User)).all()
+        for user in users:
+            if user.id is None:
+                continue
+            orphan = session.exec(
+                select(ChatMessage).where(
+                    ChatMessage.user_id == user.id,
+                    ChatMessage.conversation_id.is_(None),  # type: ignore[union-attr]
+                )
+            ).all()
+            if not orphan:
+                continue
+            general = session.exec(
+                select(Conversation).where(
+                    Conversation.user_id == user.id,
+                    Conversation.title == "General",
+                )
+            ).first()
+            if not general:
+                general = Conversation(user_id=user.id, title="General")
+                session.add(general)
+                session.commit()
+                session.refresh(general)
+            for msg in orphan:
+                msg.conversation_id = general.id
+                session.add(msg)
+            session.commit()
 
 
 def get_session() -> Generator[Session, None, None]:

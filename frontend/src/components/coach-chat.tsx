@@ -12,11 +12,20 @@ import type {
   ChatAttachment,
   ChatMessage,
   CoachModel,
+  Conversation,
+  Job,
   Memory,
   PendingAttachment,
 } from "@/lib/types";
 import { Badge, Button } from "@/components/ui";
 import { ChatMarkdown } from "@/components/chat-markdown";
+import {
+  ConversationList,
+  NewConversationDialog,
+  conversationSubtitle,
+  getStoredConversationId,
+  storeConversationId,
+} from "@/components/coach-conversations";
 import { CollapsibleContent } from "@/components/collapsible-content";
 import { ModelSelector, getStoredModelId, storeModelId } from "@/components/model-selector";
 import { ResumeUpload } from "@/components/resume-upload";
@@ -26,6 +35,13 @@ const STARTERS = [
   "I led a project recently — help me turn it into a bullet.",
   "What roles should I be targeting based on my background?",
   "What's missing from my resume for the roles I'm pursuing?",
+];
+
+const JD_STARTERS = [
+  "Prep me for an interview for this role.",
+  "What are the likely interview questions for this JD?",
+  "How does my resume align with this job?",
+  "What gaps should I address before applying?",
 ];
 
 const ACCEPT =
@@ -183,6 +199,13 @@ function MessageBubble({
 }
 
 export function CoachChat() {
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
+  const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
+  const [showNewConv, setShowNewConv] = useState(false);
+  const [convBusy, setConvBusy] = useState(false);
+  const [convListOpen, setConvListOpen] = useState(false);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [memories, setMemories] = useState<Memory[]>([]);
   const [input, setInput] = useState("");
@@ -212,15 +235,40 @@ export function CoachChat() {
     });
   }, []);
 
+  const loadMessages = useCallback(async (conversationId: number) => {
+    const m = await api.listMessages(conversationId);
+    setMessages(m);
+  }, []);
+
+  const selectConversation = useCallback(
+    async (id: number, convs?: Conversation[]) => {
+      setActiveConversationId(id);
+      storeConversationId(id);
+      const list = convs ?? conversations;
+      setActiveConversation(list.find((c) => c.id === id) ?? null);
+      setEditingId(null);
+      setEditDraft("");
+      setInput("");
+      try {
+        await loadMessages(id);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to load messages.");
+      }
+    },
+    [conversations, loadMessages]
+  );
+
   useEffect(() => {
     async function load() {
       try {
-        const [m, mem, modelData] = await Promise.all([
-          api.listMessages(),
+        const [convs, mem, modelData, jobList] = await Promise.all([
+          api.listConversations(),
           api.listMemories(),
           api.listCoachModels(),
+          api.listJobs().catch(() => []),
         ]);
-        setMessages(m);
+        setConversations(convs);
+        setJobs(jobList);
         setMemories(mem);
         setModels(modelData.models);
         const stored = getStoredModelId();
@@ -230,6 +278,19 @@ export function CoachChat() {
             : modelData.default_model;
         setSelectedModel(valid);
         if (valid) storeModelId(valid);
+
+        const storedConv = getStoredConversationId();
+        const active =
+          storedConv && convs.some((c) => c.id === storedConv)
+            ? storedConv
+            : convs[0]?.id ?? null;
+        if (active != null) {
+          setActiveConversationId(active);
+          storeConversationId(active);
+          setActiveConversation(convs.find((c) => c.id === active) ?? null);
+          const m = await api.listMessages(active);
+          setMessages(m);
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load coach.");
       } finally {
@@ -322,6 +383,13 @@ export function CoachChat() {
         return [...before, result.user_message, result.assistant_message];
       });
       setMemories(await api.listMemories());
+      const convs = await api.listConversations();
+      setConversations(convs);
+      if (activeConversationId) {
+        setActiveConversation(
+          convs.find((c) => c.id === activeConversationId) ?? null
+        );
+      }
     } catch (e) {
       if ((e as Error).name !== "AbortError") {
         setError(e instanceof Error ? e.message : "Failed to regenerate.");
@@ -336,9 +404,65 @@ export function CoachChat() {
     }
   }
 
+  async function createConversation(opts: {
+    title?: string;
+    job_id?: number;
+    jd_text?: string;
+  }) {
+    setConvBusy(true);
+    setError("");
+    try {
+      const conv = await api.createConversation(opts);
+      const next = [conv, ...conversations];
+      setConversations(next);
+      setShowNewConv(false);
+      await selectConversation(conv.id, next);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not create conversation.");
+    } finally {
+      setConvBusy(false);
+    }
+  }
+
+  async function renameConversation(id: number, title: string) {
+    try {
+      const updated = await api.renameConversation(id, title);
+      setConversations((prev) =>
+        prev.map((c) => (c.id === id ? updated : c))
+      );
+      if (activeConversationId === id) setActiveConversation(updated);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Rename failed.");
+    }
+  }
+
+  async function deleteConversation(id: number) {
+    if (!confirm("Delete this conversation and all its messages?")) return;
+    try {
+      await api.deleteConversation(id);
+      const next = conversations.filter((c) => c.id !== id);
+      setConversations(next);
+      if (activeConversationId === id) {
+        const fallback = next[0]?.id ?? null;
+        if (fallback != null) await selectConversation(fallback, next);
+        else {
+          setActiveConversationId(null);
+          setActiveConversation(null);
+          setMessages([]);
+        }
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Delete failed.");
+    }
+  }
+
   async function send(textOverride?: string) {
     const content = (textOverride ?? input).trim();
     if ((!content && pendingFiles.length === 0) || streaming) return;
+    if (activeConversationId == null) {
+      setError("Select or create a conversation first.");
+      return;
+    }
 
     setError("");
     const files = pendingFiles.map((p) => p.file);
@@ -374,7 +498,8 @@ export function CoachChat() {
         files,
         (token) => setStreamText((prev) => prev + token),
         controller.signal,
-        selectedModel || undefined
+        selectedModel || undefined,
+        activeConversationId
       );
       setMessages((prev) => [
         ...prev.filter((m) => m.id !== optimistic.id),
@@ -382,6 +507,13 @@ export function CoachChat() {
         result.assistant_message,
       ]);
       setMemories(await api.listMemories());
+      const convs = await api.listConversations();
+      setConversations(convs);
+      if (activeConversationId) {
+        setActiveConversation(
+          convs.find((c) => c.id === activeConversationId) ?? null
+        );
+      }
     } catch (e) {
       if ((e as Error).name === "AbortError") {
         if (streamText.trim()) {
@@ -539,12 +671,52 @@ export function CoachChat() {
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden lg:flex-row lg:gap-3">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden lg:flex-row lg:gap-2">
+      {/* Conversations sidebar */}
+      <div
+        className={`shrink-0 border-r pr-2 lg:block lg:w-52 ${
+          convListOpen ? "block" : "hidden"
+        }`}
+        style={{ borderColor: "var(--border)" }}
+      >
+        <ConversationList
+          conversations={conversations}
+          activeId={activeConversationId}
+          onSelect={(id) => {
+            void selectConversation(id);
+            setConvListOpen(false);
+          }}
+          onNew={() => setShowNewConv(true)}
+          onRename={renameConversation}
+          onDelete={deleteConversation}
+          compact
+        />
+      </div>
+
       {/* Main chat column — ChatGPT-style */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="mb-2 flex shrink-0 items-center justify-between lg:hidden">
-          <h1 className="text-base font-semibold">Career coach</h1>
-          <Button variant="outline" size="sm" onClick={() => setSidebarOpen(!sidebarOpen)}>
+        <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="lg:hidden"
+              onClick={() => setConvListOpen(!convListOpen)}
+            >
+              {convListOpen ? "Hide" : "Chats"}
+            </Button>
+            <div className="min-w-0">
+              <h1 className="truncate text-base font-semibold">
+                {activeConversation?.title ?? "Career coach"}
+              </h1>
+              {activeConversation && (
+                <p className="truncate text-[10px] text-[var(--muted)]">
+                  {conversationSubtitle(activeConversation)}
+                </p>
+              )}
+            </div>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden">
             {sidebarOpen ? "Hide panel" : "Memory"}
           </Button>
         </div>
@@ -567,7 +739,7 @@ export function CoachChat() {
                   for feedback.
                 </p>
                 <div className="mt-6 flex flex-wrap justify-center gap-2">
-                  {STARTERS.map((s) => (
+                  {(activeConversation?.has_jd ? JD_STARTERS : STARTERS).map((s) => (
                     <button
                       key={s}
                       onClick={() => send(s)}
@@ -749,8 +921,16 @@ export function CoachChat() {
         </div>
       </div>
 
-      {/* Desktop sidebar */}
+      {/* Desktop tools sidebar */}
       <div className="hidden w-64 shrink-0 overflow-y-auto lg:block">{sidebar}</div>
+
+      <NewConversationDialog
+        open={showNewConv}
+        onClose={() => setShowNewConv(false)}
+        onCreate={createConversation}
+        jobs={jobs}
+        busy={convBusy}
+      />
     </div>
   );
 }

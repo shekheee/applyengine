@@ -91,11 +91,26 @@ class Application(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=_now)
 
 
+class Conversation(SQLModel, table=True):
+    """A scoped Coach thread — optionally anchored to a job description."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    title: str = "New conversation"
+    job_id: int | None = Field(default=None, foreign_key="job.id", index=True)
+    jd_text: str = Field(default="", sa_column=Column(Text))
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
+
+
 class ChatMessage(SQLModel, table=True):
     """A single turn in the career-coach conversation."""
 
     id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)
+    conversation_id: int | None = Field(
+        default=None, foreign_key="conversation.id", index=True
+    )
     role: str = "user"  # "user" | "assistant"
     content: str = Field(default="", sa_column=Column(Text))
     attachments: list[dict[str, str]] = Field(

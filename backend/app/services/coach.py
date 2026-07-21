@@ -55,14 +55,21 @@ def build_coach_messages(
     attachments: list[ProcessedAttachment] | None = None,
     applications: list[Application] | None = None,
     jobs: dict[int, Job] | None = None,
+    conversation_jd_text: str = "",
+    conversation_job: Job | None = None,
 ) -> list[dict[str, Any]]:
     profile_text = _profile_text(profile)
     memory_text = _memory_text(memories)
     apps_text = _applications_text(applications or [], jobs or {})
-    profession_text = profession_context(profile, _target_job(applications, jobs))
+    target = conversation_job or _target_job(applications, jobs)
+    profession_text = profession_context(profile, target)
 
     system = prompts.coach_system_with_context(
-        profile_text, memory_text, apps_text, profession_text
+        profile_text,
+        memory_text,
+        apps_text,
+        profession_text,
+        conversation_jd_text=conversation_jd_text,
     )
     messages: list[dict[str, Any]] = [{"role": "system", "content": system}]
 
@@ -84,11 +91,21 @@ def coach_reply(
     applications: list[Application] | None = None,
     jobs: dict[int, Job] | None = None,
     model_id: str | None = None,
+    conversation_jd_text: str = "",
+    conversation_job: Job | None = None,
 ) -> tuple[str, str | None, str | None]:
     chain = build_coach_provider(model_id)
     chain.reset()
     messages = build_coach_messages(
-        message, profile, memories, history, attachments, applications, jobs
+        message,
+        profile,
+        memories,
+        history,
+        attachments,
+        applications,
+        jobs,
+        conversation_jd_text=conversation_jd_text,
+        conversation_job=conversation_job,
     )
     try:
         out = chain.chat_messages(messages).strip()
@@ -116,11 +133,21 @@ def coach_reply_stream(
     jobs: dict[int, Job] | None = None,
     model_id: str | None = None,
     served: dict | None = None,
+    conversation_jd_text: str = "",
+    conversation_job: Job | None = None,
 ) -> Iterator[str]:
     chain = build_coach_provider(model_id)
     chain.reset()
     messages = build_coach_messages(
-        message, profile, memories, history, attachments, applications, jobs
+        message,
+        profile,
+        memories,
+        history,
+        attachments,
+        applications,
+        jobs,
+        conversation_jd_text=conversation_jd_text,
+        conversation_job=conversation_job,
     )
     for token in chain.chat_stream(messages):
         yield token
@@ -139,11 +166,21 @@ async def coach_reply_stream_async(
     jobs: dict[int, Job] | None = None,
     model_id: str | None = None,
     served: dict | None = None,
+    conversation_jd_text: str = "",
+    conversation_job: Job | None = None,
 ) -> AsyncIterator[str]:
     chain = build_coach_provider(model_id)
     chain.reset()
     messages = build_coach_messages(
-        message, profile, memories, history, attachments, applications, jobs
+        message,
+        profile,
+        memories,
+        history,
+        attachments,
+        applications,
+        jobs,
+        conversation_jd_text=conversation_jd_text,
+        conversation_job=conversation_job,
     )
     async for token in chain.chat_stream_async(messages):
         yield token

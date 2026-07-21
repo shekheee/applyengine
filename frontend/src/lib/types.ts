@@ -17,9 +17,24 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   attachments?: ChatAttachment[];
+  conversation_id?: number | null;
   created_at: string;
   model_served?: string;
   provider_served?: string;
+}
+
+export interface Conversation {
+  id: number;
+  title: string;
+  job_id: number | null;
+  job_title: string;
+  job_company: string;
+  has_jd: boolean;
+  jd_preview: string;
+  message_preview: string;
+  message_count: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Memory {

@@ -177,8 +177,14 @@ def coach_system_with_context(
     memory_text: str,
     applications_text: str,
     profession_text: str = "",
+    conversation_jd_text: str = "",
 ) -> str:
     parts = [COACH_SYSTEM]
+    if conversation_jd_text.strip():
+        parts.append(
+            "THIS CONVERSATION'S TARGET JOB / INTERVIEW (tailor all advice to this role):\n"
+            + conversation_jd_text.strip()
+        )
     if profession_text.strip():
         parts.append(f"PROFESSION CONTEXT (infer field from this):\n{profession_text}")
     if memory_text.strip():

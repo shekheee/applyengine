@@ -2,6 +2,7 @@ import type {
   Application,
   ChatMessage,
   CoachModel,
+  Conversation,
   InterviewCurriculum,
   InterviewProgress,
   InterviewSession,
@@ -110,7 +111,34 @@ export const api = {
   // ---- Coach chat ----
   listCoachModels: () =>
     req<{ models: CoachModel[]; default_model: string }>("/api/chat/models"),
-  listMessages: () => req<ChatMessage[]>("/api/chat/messages"),
+
+  listConversations: () => req<Conversation[]>("/api/chat/conversations"),
+
+  createConversation: (body: {
+    title?: string;
+    job_id?: number | null;
+    jd_text?: string;
+  }) =>
+    req<Conversation>("/api/chat/conversations", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  renameConversation: (id: number, title: string) =>
+    req<Conversation>(`/api/chat/conversations/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ title }),
+    }),
+
+  deleteConversation: (id: number) =>
+    req<{ ok: boolean }>(`/api/chat/conversations/${id}`, { method: "DELETE" }),
+
+  listMessages: (conversationId?: number) =>
+    req<ChatMessage[]>(
+      conversationId != null
+        ? `/api/chat/conversations/${conversationId}/messages`
+        : "/api/chat/messages"
+    ),
   sendMessage: (message: string, model?: string) =>
     req<ChatMessage>("/api/chat/messages", {
       method: "POST",
@@ -121,16 +149,19 @@ export const api = {
     files: File[],
     onToken: (token: string) => void,
     signal?: AbortSignal,
-    model?: string
+    model?: string,
+    conversationId?: number
   ): Promise<{
     user_message: ChatMessage;
     assistant_message: ChatMessage;
     provider_served?: string;
     model_served?: string;
+    conversation_id?: number;
   }> => {
     const form = new FormData();
     form.append("message", message);
     if (model) form.append("model", model);
+    if (conversationId != null) form.append("conversation_id", String(conversationId));
     for (const f of files) form.append("files", f);
 
     const res = await fetch(`${BASE}/api/chat/messages/stream`, {
@@ -160,6 +191,7 @@ export const api = {
       assistant_message: ChatMessage;
       provider_served?: string;
       model_served?: string;
+      conversation_id?: number;
     } | null = null;
 
     while (true) {
@@ -181,6 +213,7 @@ export const api = {
             assistant_message?: ChatMessage;
             provider_served?: string;
             model_served?: string;
+            conversation_id?: number;
           };
           if (evt.type === "token" && evt.content) onToken(evt.content);
           if (evt.type === "done" && evt.user_message && evt.assistant_message) {
@@ -193,6 +226,7 @@ export const api = {
               },
               provider_served: evt.provider_served,
               model_served: evt.model_served,
+              conversation_id: evt.conversation_id,
             };
           }
           if (evt.type === "error") {

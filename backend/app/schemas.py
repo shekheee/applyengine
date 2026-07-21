@@ -31,11 +31,49 @@ class UserOut(BaseModel):
 class ChatIn(BaseModel):
     message: str
     model: str | None = None
+    conversation_id: int | None = None
 
 
 class ChatEditIn(BaseModel):
     message: str
     model: str | None = None
+
+
+class ConversationCreate(BaseModel):
+    title: str = ""
+    job_id: int | None = None
+    jd_text: str = ""
+
+
+class ConversationRenameIn(BaseModel):
+    title: str
+
+
+class ConversationOut(BaseModel):
+    id: int
+    title: str
+    job_id: int | None = None
+    job_title: str = ""
+    job_company: str = ""
+    has_jd: bool = False
+    jd_preview: str = ""
+    message_preview: str = ""
+    message_count: int = 0
+    created_at: str = ""
+    updated_at: str = ""
+
+
+class ChatMessageOut(BaseModel):
+    id: int
+    role: str
+    content: str
+    attachments: list[dict] = []
+    conversation_id: int | None = None
+    created_at: str = ""
+    model_served: str | None = None
+    provider_served: str | None = None
+
+    model_config = {"from_attributes": True}
 
 
 class CoachModelOut(BaseModel):
