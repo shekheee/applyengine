@@ -43,13 +43,18 @@ class AnthropicProvider(LLMProvider):
             [{"role": "system", "content": system}, {"role": "user", "content": user}]
         )
 
-    def chat_messages(self, messages: list[dict[str, Any]], json_mode: bool = False) -> str:
+    def chat_messages(
+        self,
+        messages: list[dict[str, Any]],
+        json_mode: bool = False,
+        max_tokens: int = 4096,
+    ) -> str:
         system, api_messages = to_anthropic(messages)
         if json_mode:
             system = f"{system}\n\nRespond with a single valid JSON object and nothing else."
         resp = self._client.messages.create(
             model=self._chat_model,
-            max_tokens=4096,
+            max_tokens=max_tokens,
             system=system,
             messages=api_messages,
         )

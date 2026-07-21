@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from sqlmodel import Session, select
@@ -27,6 +29,24 @@ from app.services.resume_versions import (
 )
 
 router = APIRouter(prefix="/api/resume", tags=["resume"])
+logger = logging.getLogger(__name__)
+
+
+def _design_error_detail(exc: Exception) -> str:
+    if isinstance(exc, ValueError):
+        return str(exc)
+    if isinstance(exc, HTTPException):
+        return str(exc.detail)
+    msg = str(exc).strip()
+    if "All coach providers" in msg:
+        return (
+            "AI providers unavailable — verify API keys are set on the server and try again."
+        )
+    if "Could not render PDF" in msg:
+        return "Designed HTML was created but PDF rendering failed — try downloading again."
+    if msg:
+        return f"Resume design failed: {msg}"
+    return "Failed to generate designed resume — try again in a moment."
 
 
 def _latest_profile(user: User, session: Session) -> Profile | None:
@@ -131,7 +151,7 @@ def generate_designed_resume(
         )
         return ResumeDesignOut(
             version_id=version.id or 0,
-            html_content=html_doc,
+            html_content="",  # client loads preview via GET /versions/{id}
             name=profile.name if profile else "",
             model_served=model,
             provider_served=provider,
@@ -142,9 +162,12 @@ def generate_designed_resume(
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.exception("Designed resume generation failed")
         raise HTTPException(
-            status_code=500, detail="Failed to generate designed resume."
+            status_code=500, detail=_design_error_detail(e)
         ) from e
 
 

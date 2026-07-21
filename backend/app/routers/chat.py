@@ -232,6 +232,42 @@ def create_conversation(
     return ConversationOut(**build_conversation_out(conv, session, []))
 
 
+@router.post(
+    "/conversations/for-application/{application_id}",
+    response_model=ConversationOut,
+)
+def get_or_create_application_conversation(
+    application_id: int,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Return an existing JD-anchored Coach thread for this application, or create one."""
+    app_row = session.get(Application, application_id)
+    if not app_row or app_row.user_id != user.id:
+        raise HTTPException(404, "Application not found")
+    job = session.get(Job, app_row.job_id)
+    if not job or job.user_id != user.id:
+        raise HTTPException(404, "Job not found for this application")
+
+    existing = session.exec(
+        select(Conversation)
+        .where(
+            Conversation.user_id == user.id,
+            Conversation.job_id == job.id,
+        )
+        .order_by(Conversation.updated_at.desc())
+    ).first()
+    if existing:
+        return ConversationOut(**build_conversation_out(existing, session))
+
+    conv = Conversation(user_id=user.id, job_id=job.id, title="New conversation")
+    conv.title = suggest_title(conv, job)
+    session.add(conv)
+    session.commit()
+    session.refresh(conv)
+    return ConversationOut(**build_conversation_out(conv, session, []))
+
+
 @router.get("/conversations/{conversation_id}", response_model=ConversationOut)
 def get_conversation(
     conversation_id: int,

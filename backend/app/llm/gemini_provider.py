@@ -54,11 +54,16 @@ class GeminiProvider(LLMProvider):
         )
 
     def chat_messages(
-        self, messages: list[dict[str, Any]], json_mode: bool = False
+        self,
+        messages: list[dict[str, Any]],
+        json_mode: bool = False,
+        max_tokens: int = 4096,
     ) -> str:
         body = self._payload(messages)
+        gen_cfg: dict[str, Any] = {"maxOutputTokens": max_tokens}
         if json_mode:
-            body["generationConfig"] = {"responseMimeType": "application/json"}
+            gen_cfg["responseMimeType"] = "application/json"
+        body["generationConfig"] = gen_cfg
         url = f"{_GEMINI_BASE}/models/{self._chat_model}:generateContent"
         resp = self._client.post(url, params={"key": self._api_key}, json=body)
         resp.raise_for_status()

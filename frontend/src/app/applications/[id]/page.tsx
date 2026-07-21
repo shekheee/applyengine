@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import {
   STATUSES,
@@ -17,11 +17,13 @@ type Tab = "resume" | "cover_letter" | "interview_prep";
 export default function ApplicationDetailPage() {
   const params = useParams<{ id: string }>();
   const id = Number(params.id);
+  const router = useRouter();
 
   const [app, setApp] = useState<Application | null>(null);
   const [job, setJob] = useState<Job | null>(null);
   const [tab, setTab] = useState<Tab>("resume");
   const [genBusy, setGenBusy] = useState(false);
+  const [chatBusy, setChatBusy] = useState(false);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
 
@@ -63,6 +65,20 @@ export default function ApplicationDetailPage() {
     setApp(await api.setNotes(app.id, notes));
   }
 
+  async function openRoleChat() {
+    if (!app) return;
+    setChatBusy(true);
+    setError("");
+    try {
+      const conv = await api.getOrCreateApplicationConversation(app.id);
+      router.push(`/coach?conversation_id=${conv.id}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't open role chat.");
+    } finally {
+      setChatBusy(false);
+    }
+  }
+
   if (error)
     return <Card className="border-red-500/40"><p className="text-red-300">{error}</p></Card>;
   if (!app || !job) return <p className="text-[var(--muted)]">Loading…</p>;
@@ -88,7 +104,11 @@ export default function ApplicationDetailPage() {
             {job.seniority && job.seniority !== "unknown" && `· ${job.seniority}`}
           </p>
         </div>
-        <select
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={openRoleChat} disabled={chatBusy} variant="outline" size="sm">
+            {chatBusy ? "Opening…" : "💬 Chat about this role"}
+          </Button>
+          <select
           value={app.status}
           onChange={(e) => changeStatus(e.target.value as Status)}
           className="rounded-lg border bg-[var(--panel-2)] px-3 py-2 text-sm outline-none"
@@ -99,7 +119,8 @@ export default function ApplicationDetailPage() {
               {STATUS_LABELS[s]}
             </option>
           ))}
-        </select>
+          </select>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

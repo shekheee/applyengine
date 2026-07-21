@@ -40,6 +40,7 @@ function NavBar() {
           <nav className="flex min-w-0 items-center gap-0.5 overflow-x-auto text-xs sm:gap-1 sm:text-sm">
             {navLink("/", "Pipeline")}
             {navLink("/coach", "Coach")}
+            {navLink("/resume", "Resume")}
             {navLink("/interview", "Interview")}
             <Link
               href="/new"

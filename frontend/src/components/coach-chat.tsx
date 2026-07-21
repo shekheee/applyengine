@@ -16,7 +16,6 @@ import type {
   Job,
   Memory,
   PendingAttachment,
-  ResumeVersion,
 } from "@/lib/types";
 import { Badge, Button } from "@/components/ui";
 import { ChatMarkdown } from "@/components/chat-markdown";
@@ -29,7 +28,7 @@ import {
 } from "@/components/coach-conversations";
 import { CollapsibleContent } from "@/components/collapsible-content";
 import { ModelSelector, getStoredModelId, storeModelId } from "@/components/model-selector";
-import { ResumeUpload } from "@/components/resume-upload";
+import { ResumeCoachLink } from "@/components/resume-workspace";
 
 const STARTERS = [
   "Help me sharpen my resume summary.",
@@ -199,7 +198,11 @@ function MessageBubble({
   );
 }
 
-export function CoachChat() {
+export function CoachChat({
+  initialConversationId,
+}: {
+  initialConversationId?: number;
+} = {}) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
@@ -216,14 +219,6 @@ export function CoachChat() {
   const [streamText, setStreamText] = useState("");
   const [error, setError] = useState("");
   const [applyState, setApplyState] = useState<"idle" | "working" | "done">("idle");
-  const [pdfState, setPdfState] = useState<"idle" | "working" | "done">("idle");
-  const [docxState, setDocxState] = useState<"idle" | "working" | "done">("idle");
-  const [designState, setDesignState] = useState<"idle" | "working" | "done">("idle");
-  const [resumeJobId, setResumeJobId] = useState<number | "">("");
-  const [resumeVersions, setResumeVersions] = useState<ResumeVersion[]>([]);
-  const [selectedVersionId, setSelectedVersionId] = useState<number | "">("");
-  const [previewHtml, setPreviewHtml] = useState<string>("");
-  const [previewLoading, setPreviewLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [models, setModels] = useState<CoachModel[]>([]);
   const [selectedModel, setSelectedModel] = useState("");
@@ -235,46 +230,6 @@ export function CoachChat() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
-
-  const loadResumeVersions = useCallback(async (preferId?: number) => {
-    try {
-      const versions = await api.listResumeVersions();
-      setResumeVersions(versions);
-      const pick =
-        preferId ??
-        versions.find((v) => v.kind === "designed")?.id ??
-        versions.find((v) => v.kind === "base")?.id ??
-        versions[0]?.id;
-      if (pick != null) {
-        setSelectedVersionId(pick);
-      }
-      return versions;
-    } catch {
-      setResumeVersions([]);
-      return [];
-    }
-  }, []);
-
-  const loadVersionPreview = useCallback(async (versionId: number) => {
-    setPreviewLoading(true);
-    try {
-      const version = await api.getResumeVersion(versionId);
-      setPreviewHtml(version.html_content || "");
-    } catch (e) {
-      setPreviewHtml("");
-      setError(e instanceof Error ? e.message : "Couldn't load resume preview.");
-    } finally {
-      setPreviewLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (selectedVersionId === "") {
-      setPreviewHtml("");
-      return;
-    }
-    void loadVersionPreview(Number(selectedVersionId));
-  }, [selectedVersionId, loadVersionPreview]);
 
   const scrollToBottom = useCallback(() => {
     scrollRef.current?.scrollTo({
@@ -309,25 +264,16 @@ export function CoachChat() {
   useEffect(() => {
     async function load() {
       try {
-        const [convs, mem, modelData, jobList, versions] = await Promise.all([
+        const [convs, mem, modelData, jobList] = await Promise.all([
           api.listConversations(),
           api.listMemories(),
           api.listCoachModels(),
           api.listJobs().catch(() => []),
-          api.listResumeVersions().catch(() => []),
         ]);
         setConversations(convs);
         setJobs(jobList);
         setMemories(mem);
         setModels(modelData.models);
-        setResumeVersions(versions);
-        const defaultVersion =
-          versions.find((v: ResumeVersion) => v.kind === "designed")?.id ??
-          versions.find((v: ResumeVersion) => v.kind === "base")?.id ??
-          versions[0]?.id;
-        if (defaultVersion != null) {
-          setSelectedVersionId(defaultVersion);
-        }
         const stored = getStoredModelId();
         const valid =
           stored && modelData.models.some((x) => x.id === stored)
@@ -336,11 +282,17 @@ export function CoachChat() {
         setSelectedModel(valid);
         if (valid) storeModelId(valid);
 
+        const urlConv =
+          initialConversationId &&
+          convs.some((c) => c.id === initialConversationId)
+            ? initialConversationId
+            : null;
         const storedConv = getStoredConversationId();
         const active =
-          storedConv && convs.some((c) => c.id === storedConv)
+          urlConv ??
+          (storedConv && convs.some((c) => c.id === storedConv)
             ? storedConv
-            : convs[0]?.id ?? null;
+            : convs[0]?.id ?? null);
         if (active != null) {
           setActiveConversationId(active);
           storeConversationId(active);
@@ -355,7 +307,7 @@ export function CoachChat() {
       }
     }
     load();
-  }, []);
+  }, [initialConversationId]);
 
   useEffect(() => {
     scrollToBottom();
@@ -625,75 +577,6 @@ export function CoachChat() {
     }
   }
 
-  async function downloadPdf() {
-    setPdfState("working");
-    setError("");
-    try {
-      const jobId = resumeJobId === "" ? undefined : resumeJobId;
-      const versionId = selectedVersionId === "" ? undefined : Number(selectedVersionId);
-      const selected = resumeVersions.find((v) => v.id === versionId);
-      const mode = selected?.kind === "base" ? "designed" : "designed";
-      const { blob, filename } = await api.downloadResumePdf({
-        jobId,
-        versionId,
-        mode,
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      setPdfState("done");
-      setTimeout(() => setPdfState("idle"), 4000);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't generate PDF resume.");
-      setPdfState("idle");
-    }
-  }
-
-  async function generateDesignedResume() {
-    setDesignState("working");
-    setError("");
-    try {
-      const jobId = resumeJobId === "" ? undefined : resumeJobId;
-      const result = await api.generateDesignedResume(jobId);
-      setPreviewHtml(result.html_content);
-      await loadResumeVersions(result.version_id);
-      setSelectedVersionId(result.version_id);
-      setDesignState("done");
-      setTimeout(() => setDesignState("idle"), 6000);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't generate designed resume.");
-      setDesignState("idle");
-    }
-  }
-
-  async function downloadDocx() {
-    setDocxState("working");
-    setError("");
-    try {
-      const jobId = resumeJobId === "" ? undefined : resumeJobId;
-      const versionId = selectedVersionId === "" ? undefined : Number(selectedVersionId);
-      const { blob, filename } = await api.downloadResumeDocx({ jobId, versionId });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      setDocxState("done");
-      setTimeout(() => setDocxState("idle"), 4000);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't generate Word resume.");
-      setDocxState("idle");
-    }
-  }
-
   if (loading) {
     return (
       <div className="flex h-[70vh] items-center justify-center text-[var(--muted)]">
@@ -704,7 +587,7 @@ export function CoachChat() {
 
   const sidebar = (
     <div className="space-y-4">
-      <ResumeUpload compact onLoaded={() => void loadResumeVersions()} />
+      <ResumeCoachLink />
       <div
         className="rounded-xl border bg-[var(--panel)] p-4"
         style={{ borderColor: "var(--border)" }}
@@ -739,115 +622,6 @@ export function CoachChat() {
             </div>
           ))}
         </div>
-      </div>
-      <div
-        className="rounded-xl border bg-[var(--panel)] p-4"
-        style={{ borderColor: "var(--border)" }}
-      >
-        <h2 className="font-semibold">Resume versions</h2>
-        <p className="mt-1 text-xs text-[var(--muted)]">
-          Claude designs a single-page Artifacts-style HTML resume. Your base upload stays saved — pick any
-          version to preview and export.
-        </p>
-        {resumeVersions.length > 0 ? (
-          <label className="mt-3 block text-xs text-[var(--muted)]">
-            Active version
-            <select
-              value={selectedVersionId}
-              onChange={(e) => {
-                const v = e.target.value;
-                setSelectedVersionId(v === "" ? "" : Number(v));
-              }}
-              className="mt-1 w-full rounded-lg border bg-[var(--panel-2)] px-2 py-1.5 text-sm text-[var(--text)]"
-              style={{ borderColor: "var(--border)" }}
-            >
-              {resumeVersions.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.kind === "base" ? "📄 " : "✨ "}
-                  {v.title}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : (
-          <p className="mt-3 text-xs text-[var(--muted)]">
-            Upload a base resume above, then generate a designed version.
-          </p>
-        )}
-        {jobs.length > 0 && (
-          <label className="mt-3 block text-xs text-[var(--muted)]">
-            Tailor new design to job (optional)
-            <select
-              value={resumeJobId}
-              onChange={(e) => {
-                const v = e.target.value;
-                setResumeJobId(v === "" ? "" : Number(v));
-              }}
-              className="mt-1 w-full rounded-lg border bg-[var(--panel-2)] px-2 py-1.5 text-sm text-[var(--text)]"
-              style={{ borderColor: "var(--border)" }}
-            >
-              <option value="">General resume</option>
-              {jobs.map((j) => (
-                <option key={j.id} value={j.id}>
-                  {j.title} @ {j.company}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        <Button
-          onClick={generateDesignedResume}
-          disabled={designState === "working" || pdfState === "working" || docxState === "working"}
-          className="mt-3 w-full"
-        >
-          {designState === "working"
-            ? "Designing with Claude…"
-            : designState === "done"
-              ? "✓ New design saved"
-              : "Generate designed resume"}
-        </Button>
-        {(previewLoading || previewHtml) && (
-          <div className="mt-3 overflow-hidden rounded-lg border bg-white" style={{ borderColor: "var(--border)" }}>
-            <div className="border-b px-2 py-1 text-[10px] text-[var(--muted)]" style={{ borderColor: "var(--border)" }}>
-              {previewLoading ? "Loading preview…" : "Live preview"}
-            </div>
-            {!previewLoading && previewHtml && (
-              <iframe
-                title="Resume preview"
-                srcDoc={previewHtml}
-                sandbox="allow-same-origin"
-                className="h-64 w-full border-0 bg-white"
-              />
-            )}
-          </div>
-        )}
-        <Button
-          onClick={downloadPdf}
-          disabled={pdfState === "working" || designState === "working" || selectedVersionId === ""}
-          className="mt-2 w-full"
-          variant="outline"
-        >
-          {pdfState === "working"
-            ? "Generating PDF…"
-            : pdfState === "done"
-              ? "✓ PDF downloaded"
-              : "Download PDF"}
-        </Button>
-        <Button
-          onClick={downloadDocx}
-          disabled={docxState === "working" || designState === "working" || selectedVersionId === ""}
-          className="mt-2 w-full"
-          variant="outline"
-        >
-          {docxState === "working"
-            ? "Generating Word doc…"
-            : docxState === "done"
-              ? "✓ .docx downloaded"
-              : "Download for Google Docs (.docx)"}
-        </Button>
-        <p className="mt-2 text-[10px] leading-snug text-[var(--muted)]">
-          PDF is rendered from the HTML preview. Open .docx in Google Docs via Drive upload.
-        </p>
       </div>
       <div
         className="rounded-xl border bg-[var(--panel)] p-4"

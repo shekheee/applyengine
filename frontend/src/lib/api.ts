@@ -74,7 +74,13 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
     let detail = "";
     try {
       const data = await res.json();
-      detail = data?.detail ?? JSON.stringify(data);
+      const raw = data?.detail ?? data;
+      detail =
+        typeof raw === "string"
+          ? raw
+          : Array.isArray(raw)
+            ? raw.map((x: { msg?: string }) => x.msg || JSON.stringify(x)).join("; ")
+            : JSON.stringify(raw);
     } catch {
       detail = await res.text().catch(() => "");
     }
@@ -125,6 +131,11 @@ export const api = {
     req<Conversation>("/api/chat/conversations", {
       method: "POST",
       body: JSON.stringify(body),
+    }),
+
+  getOrCreateApplicationConversation: (applicationId: number) =>
+    req<Conversation>(`/api/chat/conversations/for-application/${applicationId}`, {
+      method: "POST",
     }),
 
   renameConversation: (id: number, title: string) =>
@@ -379,9 +390,22 @@ export const api = {
 
   getResumeVersion: (id: number) => req<ResumeVersion>(`/api/resume/versions/${id}`),
 
-  generateDesignedResume: (jobId?: number) => {
+  generateDesignedResume: async (jobId?: number) => {
     const qs = jobId ? `?job_id=${jobId}` : "";
-    return req<ResumeDesignResult>(`/api/resume/design${qs}`, { method: "POST" });
+    const result = await req<ResumeDesignResult>(`/api/resume/design${qs}`, {
+      method: "POST",
+    });
+    if (!result.html_content && result.version_id) {
+      try {
+        const version = await req<ResumeVersion>(
+          `/api/resume/versions/${result.version_id}`
+        );
+        result.html_content = version.html_content || "";
+      } catch {
+        /* preview loaded separately */
+      }
+    }
+    return result;
   },
 
   downloadResumeDocx: async (opts?: {

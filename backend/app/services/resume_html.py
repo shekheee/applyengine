@@ -13,7 +13,8 @@ from app.services.serialize import job_to_text, profile_to_text
 logger = logging.getLogger(__name__)
 
 DESIGN_MODEL_ID = "claude-opus-4-8"
-_MAX_LLM_REFIT_ATTEMPTS = 1
+RESUME_HTML_MAX_TOKENS = 8192
+_MAX_LLM_REFIT_ATTEMPTS = 0  # CSS fit only — keeps /design under Render timeout
 
 
 def _memory_text(memories: list[Memory]) -> str:
@@ -34,8 +35,14 @@ def extract_html_document(raw: str) -> str:
         if match:
             return match.group(1).strip()
     if text.lower().startswith("<!doctype") or text.lower().startswith("<html"):
+        if "</html>" not in text.lower():
+            if "</body>" not in text.lower():
+                text = text + "\n</body>"
+            text = text + "\n</html>"
         return text
-    raise ValueError("Model did not return a complete HTML document")
+    raise ValueError(
+        "Model did not return a complete HTML document — try again or use a shorter base resume."
+    )
 
 
 def design_resume_html(
@@ -64,7 +71,8 @@ def design_resume_html(
                     profile_text, memory_text, job_text
                 ),
             },
-        ]
+        ],
+        max_tokens=RESUME_HTML_MAX_TOKENS,
     )
     document = extract_html_document(out)
     if chain.last_served:

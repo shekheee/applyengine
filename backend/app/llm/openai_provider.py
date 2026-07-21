@@ -46,15 +46,19 @@ class OpenAIProvider(LLMProvider):
         return self.chat_messages(messages, json_mode=json_mode)
 
     def chat_messages(
-        self, messages: list[dict[str, Any]], json_mode: bool = False
+        self,
+        messages: list[dict[str, Any]],
+        json_mode: bool = False,
+        max_tokens: int = 4096,
     ) -> str:
         kwargs = _completion_kwargs(
             self._chat_model,
             messages=messages,
-            max_completion_tokens=4096 if _is_gpt5_family(self._chat_model) else None,
         )
-        if kwargs.get("max_completion_tokens") is None:
-            kwargs.pop("max_completion_tokens", None)
+        if _is_gpt5_family(self._chat_model):
+            kwargs["max_completion_tokens"] = max_tokens
+        else:
+            kwargs["max_tokens"] = max_tokens
         if json_mode:
             kwargs["response_format"] = {"type": "json_object"}
         resp = self._client.chat.completions.create(**kwargs)

@@ -74,13 +74,18 @@ class CoachFallbackChain:
         return _safe_json(raw)
 
     def chat_messages(
-        self, messages: list[dict[str, Any]], json_mode: bool = False
+        self,
+        messages: list[dict[str, Any]],
+        json_mode: bool = False,
+        max_tokens: int = 4096,
     ) -> str:
         last_err: Exception | None = None
         for provider in self._providers:
             label = f"{provider.name}/{provider.chat_model}"
             try:
-                out = provider.chat_messages(messages, json_mode=json_mode).strip()
+                out = provider.chat_messages(
+                    messages, json_mode=json_mode, max_tokens=max_tokens
+                ).strip()
                 if out:
                     self._mark_served(provider)
                     logger.info("Coach reply served by %s", label)
