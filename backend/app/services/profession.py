@@ -61,22 +61,26 @@ def profession_context(profile: Profile | None, job: Job | None = None) -> str:
     """Resume/job signals for the LLM to infer field — no hardcoded profession."""
     parts: list[str] = []
     if profile:
-        if profile.summary:
-            parts.append(f"Professional summary: {profile.summary[:500]}")
-        skills = profile.skills or []
+        summary = getattr(profile, "summary", "") or ""
+        if summary:
+            parts.append(f"Professional summary: {summary[:500]}")
+        skills = getattr(profile, "skills", None) or []
         if skills:
             parts.append(f"Key skills: {', '.join(str(s) for s in skills[:24])}")
-        for exp in (profile.experience or [])[:2]:
+        for exp in (getattr(profile, "experience", None) or [])[:2]:
             if isinstance(exp, dict):
                 title = exp.get("title") or ""
                 company = exp.get("company") or ""
                 if title or company:
                     parts.append(f"Experience: {title} at {company}".strip())
     if job:
-        parts.append(f"Target role: {job.title or 'Role'} at {job.company or 'Company'}")
-        if job.summary:
-            parts.append(f"Job summary: {job.summary[:400]}")
-        reqs = job.requirements or []
+        title = getattr(job, "title", "") or "Role"
+        company = getattr(job, "company", "") or "Company"
+        parts.append(f"Target role: {title} at {company}")
+        job_summary = getattr(job, "summary", "") or ""
+        if job_summary:
+            parts.append(f"Job summary: {job_summary[:400]}")
+        reqs = getattr(job, "requirements", None) or []
         if reqs:
             parts.append(f"Key requirements: {'; '.join(str(r) for r in reqs[:6])}")
     if not parts:

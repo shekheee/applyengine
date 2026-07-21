@@ -317,11 +317,11 @@ def is_ml_relevant_profile(profile: Profile | None) -> bool:
         return False
     blob = " ".join(
         [
-            profile.summary or "",
-            " ".join(str(s) for s in (profile.skills or [])),
+            getattr(profile, "summary", "") or "",
+            " ".join(str(s) for s in (getattr(profile, "skills", None) or [])),
             " ".join(
                 f"{e.get('title', '')} {e.get('company', '')}"
-                for e in (profile.experience or [])
+                for e in (getattr(profile, "experience", None) or [])
                 if isinstance(e, dict)
             ),
         ]

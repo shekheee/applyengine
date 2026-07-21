@@ -112,10 +112,7 @@ def _snapshot_apps_jobs(
         )
         for a in apps
     ]
-    jobs_snap = {
-        jid: SimpleNamespace(title=j.title, company=j.company)
-        for jid, j in jobs.items()
-    }
+    jobs_snap = {jid: _snapshot_job(j) for jid, j in jobs.items()}
     return apps_snap, jobs_snap
 
 
