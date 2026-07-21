@@ -4,6 +4,8 @@ import type {
   CoachModel,
   Conversation,
   DesignedResumePreview,
+  ResumeDesignResult,
+  ResumeVersion,
   InterviewCurriculum,
   InterviewProgress,
   InterviewSession,
@@ -341,8 +343,16 @@ export const api = {
   applyToResume: () =>
     req<Profile>("/api/chat/apply-to-resume", { method: "POST" }),
 
-  downloadResumePdf: async (jobId?: number): Promise<{ blob: Blob; filename: string }> => {
-    const qs = jobId ? `?job_id=${jobId}` : "";
+  downloadResumePdf: async (opts?: {
+    jobId?: number;
+    versionId?: number;
+    mode?: "designed" | "ats";
+  }): Promise<{ blob: Blob; filename: string }> => {
+    const params = new URLSearchParams();
+    if (opts?.jobId) params.set("job_id", String(opts.jobId));
+    if (opts?.versionId) params.set("version_id", String(opts.versionId));
+    if (opts?.mode) params.set("mode", opts.mode);
+    const qs = params.toString() ? `?${params.toString()}` : "";
     const res = await fetch(`${BASE}/api/resume/pdf${qs}`, {
       headers: { ...authHeaders() },
       cache: "no-store",
@@ -365,13 +375,23 @@ export const api = {
     return { blob, filename };
   },
 
+  listResumeVersions: () => req<ResumeVersion[]>("/api/resume/versions"),
+
+  getResumeVersion: (id: number) => req<ResumeVersion>(`/api/resume/versions/${id}`),
+
   generateDesignedResume: (jobId?: number) => {
     const qs = jobId ? `?job_id=${jobId}` : "";
-    return req<DesignedResumePreview>(`/api/resume/design${qs}`, { method: "POST" });
+    return req<ResumeDesignResult>(`/api/resume/design${qs}`, { method: "POST" });
   },
 
-  downloadResumeDocx: async (jobId?: number): Promise<{ blob: Blob; filename: string }> => {
-    const qs = jobId ? `?job_id=${jobId}` : "";
+  downloadResumeDocx: async (opts?: {
+    jobId?: number;
+    versionId?: number;
+  }): Promise<{ blob: Blob; filename: string }> => {
+    const params = new URLSearchParams();
+    if (opts?.jobId) params.set("job_id", String(opts.jobId));
+    if (opts?.versionId) params.set("version_id", String(opts.versionId));
+    const qs = params.toString() ? `?${params.toString()}` : "";
     const res = await fetch(`${BASE}/api/resume/docx${qs}`, {
       headers: { ...authHeaders() },
       cache: "no-store",

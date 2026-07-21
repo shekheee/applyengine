@@ -13,10 +13,10 @@ import type {
   ChatMessage,
   CoachModel,
   Conversation,
-  DesignedResumePreview,
   Job,
   Memory,
   PendingAttachment,
+  ResumeVersion,
 } from "@/lib/types";
 import { Badge, Button } from "@/components/ui";
 import { ChatMarkdown } from "@/components/chat-markdown";
@@ -220,7 +220,10 @@ export function CoachChat() {
   const [docxState, setDocxState] = useState<"idle" | "working" | "done">("idle");
   const [designState, setDesignState] = useState<"idle" | "working" | "done">("idle");
   const [resumeJobId, setResumeJobId] = useState<number | "">("");
-  const [designPreview, setDesignPreview] = useState<DesignedResumePreview | null>(null);
+  const [resumeVersions, setResumeVersions] = useState<ResumeVersion[]>([]);
+  const [selectedVersionId, setSelectedVersionId] = useState<number | "">("");
+  const [previewHtml, setPreviewHtml] = useState<string>("");
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [models, setModels] = useState<CoachModel[]>([]);
   const [selectedModel, setSelectedModel] = useState("");
@@ -232,6 +235,46 @@ export function CoachChat() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  const loadResumeVersions = useCallback(async (preferId?: number) => {
+    try {
+      const versions = await api.listResumeVersions();
+      setResumeVersions(versions);
+      const pick =
+        preferId ??
+        versions.find((v) => v.kind === "designed")?.id ??
+        versions.find((v) => v.kind === "base")?.id ??
+        versions[0]?.id;
+      if (pick != null) {
+        setSelectedVersionId(pick);
+      }
+      return versions;
+    } catch {
+      setResumeVersions([]);
+      return [];
+    }
+  }, []);
+
+  const loadVersionPreview = useCallback(async (versionId: number) => {
+    setPreviewLoading(true);
+    try {
+      const version = await api.getResumeVersion(versionId);
+      setPreviewHtml(version.html_content || "");
+    } catch (e) {
+      setPreviewHtml("");
+      setError(e instanceof Error ? e.message : "Couldn't load resume preview.");
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedVersionId === "") {
+      setPreviewHtml("");
+      return;
+    }
+    void loadVersionPreview(Number(selectedVersionId));
+  }, [selectedVersionId, loadVersionPreview]);
 
   const scrollToBottom = useCallback(() => {
     scrollRef.current?.scrollTo({
@@ -266,16 +309,25 @@ export function CoachChat() {
   useEffect(() => {
     async function load() {
       try {
-        const [convs, mem, modelData, jobList] = await Promise.all([
+        const [convs, mem, modelData, jobList, versions] = await Promise.all([
           api.listConversations(),
           api.listMemories(),
           api.listCoachModels(),
           api.listJobs().catch(() => []),
+          api.listResumeVersions().catch(() => []),
         ]);
         setConversations(convs);
         setJobs(jobList);
         setMemories(mem);
         setModels(modelData.models);
+        setResumeVersions(versions);
+        const defaultVersion =
+          versions.find((v: ResumeVersion) => v.kind === "designed")?.id ??
+          versions.find((v: ResumeVersion) => v.kind === "base")?.id ??
+          versions[0]?.id;
+        if (defaultVersion != null) {
+          setSelectedVersionId(defaultVersion);
+        }
         const stored = getStoredModelId();
         const valid =
           stored && modelData.models.some((x) => x.id === stored)
@@ -578,7 +630,14 @@ export function CoachChat() {
     setError("");
     try {
       const jobId = resumeJobId === "" ? undefined : resumeJobId;
-      const { blob, filename } = await api.downloadResumePdf(jobId);
+      const versionId = selectedVersionId === "" ? undefined : Number(selectedVersionId);
+      const selected = resumeVersions.find((v) => v.id === versionId);
+      const mode = selected?.kind === "base" ? "designed" : "designed";
+      const { blob, filename } = await api.downloadResumePdf({
+        jobId,
+        versionId,
+        mode,
+      });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -600,8 +659,10 @@ export function CoachChat() {
     setError("");
     try {
       const jobId = resumeJobId === "" ? undefined : resumeJobId;
-      const preview = await api.generateDesignedResume(jobId);
-      setDesignPreview(preview);
+      const result = await api.generateDesignedResume(jobId);
+      setPreviewHtml(result.html_content);
+      await loadResumeVersions(result.version_id);
+      setSelectedVersionId(result.version_id);
       setDesignState("done");
       setTimeout(() => setDesignState("idle"), 6000);
     } catch (e) {
@@ -615,7 +676,8 @@ export function CoachChat() {
     setError("");
     try {
       const jobId = resumeJobId === "" ? undefined : resumeJobId;
-      const { blob, filename } = await api.downloadResumeDocx(jobId);
+      const versionId = selectedVersionId === "" ? undefined : Number(selectedVersionId);
+      const { blob, filename } = await api.downloadResumeDocx({ jobId, versionId });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -642,7 +704,7 @@ export function CoachChat() {
 
   const sidebar = (
     <div className="space-y-4">
-      <ResumeUpload compact />
+      <ResumeUpload compact onLoaded={() => void loadResumeVersions()} />
       <div
         className="rounded-xl border bg-[var(--panel)] p-4"
         style={{ borderColor: "var(--border)" }}
@@ -682,19 +744,44 @@ export function CoachChat() {
         className="rounded-xl border bg-[var(--panel)] p-4"
         style={{ borderColor: "var(--border)" }}
       >
-        <h2 className="font-semibold">Designed resume</h2>
+        <h2 className="font-semibold">Resume versions</h2>
         <p className="mt-1 text-xs text-[var(--muted)]">
-          Claude designs a polished, ATS-friendly resume from your profile and coach memories.
+          Claude designs an Artifacts-style HTML resume. Your base upload stays saved — pick any
+          version to preview and export.
         </p>
+        {resumeVersions.length > 0 ? (
+          <label className="mt-3 block text-xs text-[var(--muted)]">
+            Active version
+            <select
+              value={selectedVersionId}
+              onChange={(e) => {
+                const v = e.target.value;
+                setSelectedVersionId(v === "" ? "" : Number(v));
+              }}
+              className="mt-1 w-full rounded-lg border bg-[var(--panel-2)] px-2 py-1.5 text-sm text-[var(--text)]"
+              style={{ borderColor: "var(--border)" }}
+            >
+              {resumeVersions.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.kind === "base" ? "📄 " : "✨ "}
+                  {v.title}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <p className="mt-3 text-xs text-[var(--muted)]">
+            Upload a base resume above, then generate a designed version.
+          </p>
+        )}
         {jobs.length > 0 && (
           <label className="mt-3 block text-xs text-[var(--muted)]">
-            Tailor to saved job (optional)
+            Tailor new design to job (optional)
             <select
               value={resumeJobId}
               onChange={(e) => {
                 const v = e.target.value;
                 setResumeJobId(v === "" ? "" : Number(v));
-                setDesignPreview(null);
               }}
               className="mt-1 w-full rounded-lg border bg-[var(--panel-2)] px-2 py-1.5 text-sm text-[var(--text)]"
               style={{ borderColor: "var(--border)" }}
@@ -716,22 +803,27 @@ export function CoachChat() {
           {designState === "working"
             ? "Designing with Claude…"
             : designState === "done"
-              ? "✓ Designed resume ready"
+              ? "✓ New design saved"
               : "Generate designed resume"}
         </Button>
-        {designPreview && (
-          <p className="mt-2 text-xs text-[var(--muted)]">
-            {designPreview.name}: {designPreview.experience_count} roles,{" "}
-            {designPreview.skills_count} skills
-            {designPreview.tailored_to_job && designPreview.job_title
-              ? ` · tailored to ${designPreview.job_title}`
-              : ""}
-            {designPreview.model_served ? ` · ${designPreview.model_served}` : ""}
-          </p>
+        {(previewLoading || previewHtml) && (
+          <div className="mt-3 overflow-hidden rounded-lg border bg-white" style={{ borderColor: "var(--border)" }}>
+            <div className="border-b px-2 py-1 text-[10px] text-[var(--muted)]" style={{ borderColor: "var(--border)" }}>
+              {previewLoading ? "Loading preview…" : "Live preview"}
+            </div>
+            {!previewLoading && previewHtml && (
+              <iframe
+                title="Resume preview"
+                srcDoc={previewHtml}
+                sandbox="allow-same-origin"
+                className="h-64 w-full border-0 bg-white"
+              />
+            )}
+          </div>
         )}
         <Button
           onClick={downloadPdf}
-          disabled={pdfState === "working" || designState === "working"}
+          disabled={pdfState === "working" || designState === "working" || selectedVersionId === ""}
           className="mt-2 w-full"
           variant="outline"
         >
@@ -739,11 +831,11 @@ export function CoachChat() {
             ? "Generating PDF…"
             : pdfState === "done"
               ? "✓ PDF downloaded"
-              : "Download PDF resume"}
+              : "Download PDF"}
         </Button>
         <Button
           onClick={downloadDocx}
-          disabled={docxState === "working" || designState === "working"}
+          disabled={docxState === "working" || designState === "working" || selectedVersionId === ""}
           className="mt-2 w-full"
           variant="outline"
         >
@@ -754,8 +846,7 @@ export function CoachChat() {
               : "Download for Google Docs (.docx)"}
         </Button>
         <p className="mt-2 text-[10px] leading-snug text-[var(--muted)]">
-          Open in Google Docs: upload the .docx to Drive, then right-click → Open with → Google Docs
-          (or File → Open → Upload in docs.google.com).
+          PDF is rendered from the HTML preview. Open .docx in Google Docs via Drive upload.
         </p>
       </div>
       <div

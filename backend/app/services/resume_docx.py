@@ -145,6 +145,12 @@ def render_resume_docx(doc: dict[str, Any]) -> bytes:
     return buf.getvalue()
 
 
+def build_resume_docx_from_doc(doc: dict[str, Any]) -> tuple[bytes, str]:
+    docx_bytes = render_resume_docx(doc)
+    fname = f"{_safe_filename(str(doc.get('name', 'resume')))}_resume.docx"
+    return docx_bytes, fname
+
+
 def build_resume_docx(
     profile: Profile | None,
     memories: list[Memory],

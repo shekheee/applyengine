@@ -33,6 +33,63 @@ def init_db() -> None:
     _migrate_interview_overall_score()
     _migrate_interview_curriculum_topic()
     _migrate_conversations()
+    _migrate_resume_versions()
+
+
+def _migrate_resume_versions() -> None:
+    """Create resumeversion table for saved base/designed resume outputs."""
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        if is_sqlite:
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS resumeversion (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        kind TEXT DEFAULT 'designed',
+                        title TEXT DEFAULT '',
+                        profile_id INTEGER,
+                        job_id INTEGER,
+                        html_content TEXT DEFAULT '',
+                        structured_json JSON DEFAULT '{}',
+                        model_served TEXT DEFAULT '',
+                        provider_served TEXT DEFAULT '',
+                        created_at TEXT,
+                        FOREIGN KEY(user_id) REFERENCES user(id),
+                        FOREIGN KEY(profile_id) REFERENCES profile(id),
+                        FOREIGN KEY(job_id) REFERENCES job(id)
+                    )
+                    """
+                )
+            )
+        else:
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS resumeversion (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER NOT NULL REFERENCES "user"(id),
+                        kind TEXT DEFAULT 'designed',
+                        title TEXT DEFAULT '',
+                        profile_id INTEGER REFERENCES profile(id),
+                        job_id INTEGER REFERENCES job(id),
+                        html_content TEXT DEFAULT '',
+                        structured_json JSON DEFAULT '{}'::json,
+                        model_served TEXT DEFAULT '',
+                        provider_served TEXT DEFAULT '',
+                        created_at TIMESTAMPTZ
+                    )
+                    """
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_resumeversion_user_id "
+                    "ON resumeversion (user_id)"
+                )
+            )
 
 
 def _migrate_chat_attachments() -> None:

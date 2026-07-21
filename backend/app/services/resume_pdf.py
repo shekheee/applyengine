@@ -419,6 +419,21 @@ def render_resume_pdf(doc: dict[str, Any]) -> bytes:
     return last_bytes
 
 
+def build_resume_pdf_from_profile(
+    profile: Profile | None,
+    memories: list[Memory],
+) -> tuple[bytes, str]:
+    """ATS PDF from base profile without Claude redesign."""
+    from app.services.resume_pdf import _merge_memories, _profile_to_doc
+
+    if not profile:
+        raise ValueError("No base profile to export.")
+    doc = _merge_memories(_profile_to_doc(profile), memories)
+    pdf_bytes = render_resume_pdf(doc)
+    fname = f"{_safe_filename(str(doc.get('name', 'resume')))}_resume.pdf"
+    return pdf_bytes, fname
+
+
 def build_resume_pdf(
     profile: Profile | None,
     memories: list[Memory],

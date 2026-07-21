@@ -86,6 +86,9 @@ def _create_base_profile(
     session.add(profile)
     session.commit()
     session.refresh(profile)
+    from app.services.resume_versions import ensure_base_version
+
+    ensure_base_version(user, profile, session)
     return profile
 
 

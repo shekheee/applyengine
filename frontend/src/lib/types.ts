@@ -75,6 +75,33 @@ export interface Job {
   keywords: string[];
 }
 
+export interface ResumeVersion {
+  id: number;
+  kind: "base" | "designed" | string;
+  title: string;
+  profile_id: number | null;
+  job_id: number | null;
+  model_served: string | null;
+  provider_served: string | null;
+  has_html: boolean;
+  has_structured: boolean;
+  created_at: string;
+  html_content?: string;
+}
+
+export interface ResumeDesignResult {
+  version_id: number;
+  html_content: string;
+  name: string;
+  title: string;
+  model_served: string | null;
+  provider_served: string | null;
+  tailored_to_job: boolean;
+  job_title: string;
+  job_company: string;
+}
+
+/** @deprecated Use ResumeDesignResult */
 export interface DesignedResumePreview {
   name: string;
   summary_preview: string;

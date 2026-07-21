@@ -243,3 +243,29 @@ class InterviewCurriculumOut(BaseModel):
     track_description: str
     topics: list[CurriculumTopicOut]
     ml_profile_detected: bool = False
+
+
+class ResumeVersionOut(BaseModel):
+    id: int
+    kind: str
+    title: str
+    profile_id: int | None = None
+    job_id: int | None = None
+    model_served: str | None = None
+    provider_served: str | None = None
+    has_html: bool = False
+    has_structured: bool = False
+    created_at: str = ""
+    html_content: str | None = None
+
+
+class ResumeDesignOut(BaseModel):
+    version_id: int
+    html_content: str
+    name: str = ""
+    title: str = ""
+    model_served: str | None = None
+    provider_served: str | None = None
+    tailored_to_job: bool = False
+    job_title: str = ""
+    job_company: str = ""

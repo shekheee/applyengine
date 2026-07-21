@@ -149,6 +149,27 @@ class InterviewSession(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=_now)
 
 
+class ResumeVersionKind(str, Enum):
+    base = "base"
+    designed = "designed"
+
+
+class ResumeVersion(SQLModel, table=True):
+    """Saved resume output — base upload snapshot or AI-designed HTML."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    kind: str = Field(default=ResumeVersionKind.designed.value, index=True)
+    title: str = ""
+    profile_id: int | None = Field(default=None, foreign_key="profile.id", index=True)
+    job_id: int | None = Field(default=None, foreign_key="job.id", index=True)
+    html_content: str = Field(default="", sa_column=Column(Text))
+    structured_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    model_served: str = ""
+    provider_served: str = ""
+    created_at: datetime = Field(default_factory=_now)
+
+
 class InterviewTurn(SQLModel, table=True):
     """A single turn within an interview practice session."""
 
