@@ -746,7 +746,7 @@ export function CoachChat() {
       >
         <h2 className="font-semibold">Resume versions</h2>
         <p className="mt-1 text-xs text-[var(--muted)]">
-          Claude designs an Artifacts-style HTML resume. Your base upload stays saved — pick any
+          Claude designs a single-page Artifacts-style HTML resume. Your base upload stays saved — pick any
           version to preview and export.
         </p>
         {resumeVersions.length > 0 ? (

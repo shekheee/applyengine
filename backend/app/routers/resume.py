@@ -11,8 +11,8 @@ from app.schemas import ResumeDesignOut, ResumeVersionOut
 from app.services.profiles import get_base_profile
 from app.services.resume_designed import design_resume_with_claude
 from app.services.resume_docx import build_resume_docx_from_doc, render_resume_docx
-from app.services.resume_html import design_resume_html
-from app.services.resume_html_pdf import html_to_pdf_bytes
+from app.services.resume_html import design_resume_html_fitted
+from app.services.resume_html_pdf import html_to_pdf_one_page
 from app.services.resume_pdf import (
     _safe_filename,
     build_resume_pdf,
@@ -117,7 +117,9 @@ def generate_designed_resume(
     memories = _user_memories(user, session)
     job = _optional_job(user, session, job_id)
     try:
-        html_doc, provider, model = design_resume_html(profile, memories, job)
+        html_doc, provider, model, _fit_level = design_resume_html_fitted(
+            profile, memories, job
+        )
         version = create_designed_version(
             user,
             session,
@@ -167,7 +169,13 @@ def download_resume_pdf(
             else:
                 pdf_bytes, filename = build_resume_pdf(profile, memories, job)
         elif version and version.html_content.strip():
-            pdf_bytes, _engine = html_to_pdf_bytes(version.html_content)
+            pdf_bytes, _engine, fitted_html, _level = html_to_pdf_one_page(
+                version.html_content
+            )
+            if fitted_html != version.html_content:
+                version.html_content = fitted_html
+                session.add(version)
+                session.commit()
             name = profile.name if profile else "resume"
             filename = f"{_safe_filename(name)}_resume.pdf"
         elif version_id is None:

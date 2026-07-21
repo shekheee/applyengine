@@ -13,6 +13,7 @@ from app.services.serialize import job_to_text, profile_to_text
 logger = logging.getLogger(__name__)
 
 DESIGN_MODEL_ID = "claude-opus-4-8"
+_MAX_LLM_REFIT_ATTEMPTS = 1
 
 
 def _memory_text(memories: list[Memory]) -> str:
@@ -75,6 +76,50 @@ def design_resume_html(
             len(document),
         )
     return document, chain.last_served, chain.last_model
+
+
+def _refit_html_with_llm(html: str, page_count: int) -> tuple[str, str | None, str | None]:
+    """Ask the designer model to rewrite HTML that overflowed to multiple pages."""
+    chain = build_coach_provider(DESIGN_MODEL_ID)
+    chain.reset()
+    out = chain.chat_messages(
+        [
+            {"role": "system", "content": prompts.RESUME_HTML_SYSTEM},
+            {"role": "user", "content": prompts.resume_html_fit_user(html, page_count)},
+        ]
+    )
+    return extract_html_document(out), chain.last_served, chain.last_model
+
+
+def design_resume_html_fitted(
+    profile: Profile | None,
+    memories: list[Memory],
+    job: Job | None = None,
+) -> tuple[str, str | None, str | None, int]:
+    """Generate HTML resume and condense until PDF fits one page."""
+    from app.services.resume_html_pdf import html_to_pdf_one_page
+
+    html_doc, provider, model = design_resume_html(profile, memories, job)
+    pdf, _, fitted_html, level = html_to_pdf_one_page(html_doc)
+
+    if pdf_page_count(pdf) > 1 and _MAX_LLM_REFIT_ATTEMPTS > 0:
+        try:
+            refit_html, refit_provider, refit_model = _refit_html_with_llm(
+                fitted_html, pdf_page_count(pdf)
+            )
+            pdf2, _, fitted2, level2 = html_to_pdf_one_page(refit_html)
+            if pdf_page_count(pdf2) <= pdf_page_count(pdf):
+                return fitted2, refit_provider or provider, refit_model or model, level2
+        except Exception as exc:
+            logger.warning("LLM HTML refit failed (using condensed version): %s", exc)
+
+    return fitted_html, provider, model, level
+
+
+def pdf_page_count(pdf_bytes: bytes) -> int:
+    from app.services.resume_html_fit import pdf_page_count as _count
+
+    return _count(pdf_bytes)
 
 
 def profile_to_base_html(profile: Profile) -> str:
@@ -146,15 +191,15 @@ def profile_to_base_html(profile: Profile) -> str:
 <meta charset="utf-8"/>
 <title>{name} — Resume</title>
 <style>
-  @page {{ size: letter; margin: 0.5in; }}
-  body {{ font-family: Georgia, 'Times New Roman', serif; font-size: 10.5pt; color: #1a1a2e; line-height: 1.4; max-width: 7.5in; margin: 0 auto; }}
-  h1 {{ font-size: 22pt; margin: 0 0 4px; color: #1a1a2e; }}
-  .contact {{ color: #4b5563; font-size: 9pt; margin-bottom: 14px; }}
-  h2 {{ font-size: 11pt; text-transform: uppercase; letter-spacing: 0.05em; color: #4338ca; border-bottom: 1px solid #4338ca; margin: 14px 0 6px; padding-bottom: 2px; }}
-  h3 {{ font-size: 10.5pt; margin: 8px 0 2px; }}
-  .dates {{ font-weight: normal; color: #4b5563; font-size: 9pt; }}
-  ul {{ margin: 2px 0 6px 18px; padding: 0; }}
-  li {{ margin-bottom: 2px; }}
+  @page {{ size: letter; margin: 0.4in 0.45in; }}
+  body {{ font-family: Georgia, 'Times New Roman', serif; font-size: 9.5pt; color: #1a1a2e; line-height: 1.28; max-width: 7.5in; margin: 0 auto; }}
+  h1 {{ font-size: 17pt; margin: 0 0 2px; color: #1a1a2e; }}
+  .contact {{ color: #4b5563; font-size: 8.5pt; margin-bottom: 8px; }}
+  h2 {{ font-size: 10pt; text-transform: uppercase; letter-spacing: 0.05em; color: #4338ca; border-bottom: 1px solid #4338ca; margin: 8px 0 4px; padding-bottom: 1px; }}
+  h3 {{ font-size: 9.5pt; margin: 5px 0 1px; }}
+  .dates {{ font-weight: normal; color: #4b5563; font-size: 8pt; }}
+  ul {{ margin: 1px 0 4px 16px; padding: 0; }}
+  li {{ margin-bottom: 1px; font-size: 9pt; }}
   @media print {{ body {{ max-width: none; }} }}
 </style>
 </head>

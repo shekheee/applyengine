@@ -4,7 +4,7 @@ Keeping prompts here (rather than inline in services) makes them easy to
 review, diff, and A/B test — and signals production-grade prompt hygiene.
 """
 
-PROMPTS_VERSION = "2026-07-21.2"
+PROMPTS_VERSION = "2026-07-21.3"
 
 _DOMAIN_ADAPTIVE = """Infer the candidate's profession, seniority, and field-specific norms
 from their resume, target job, and profession context below. Adapt ALL advice, questions,
@@ -143,19 +143,35 @@ RESUME_HTML_SYSTEM = f"""You are an elite resume designer producing Claude Artif
 Given a candidate's canonical profile, coach-learned facts, and optionally a target job,
 return ONE complete, self-contained HTML document (inline CSS only — no external stylesheets or scripts).
 
+CRITICAL — EXACTLY ONE PAGE on US Letter (8.5×11in):
+- The resume MUST fit on a single printed page. This is non-negotiable.
+- Use compact but readable typography: body 9–10pt, name ~16–18pt, section headers ~10pt.
+- @page {{ size: letter; margin: 0.4in 0.45in; }} — keep margins tight.
+- Summary: max 2 sentences (~35 words). Skills: one line or compact chips, max ~16 items.
+- Experience: include at most 3–4 recent roles; max 3 strong bullets per role (prioritize impact).
+- Omit projects/education sections if space is tight — never shrink text below readable size to cram content.
+- If source material is long, drop oldest/least relevant roles or bullets — NEVER fabricate content.
+- Use efficient layout: single column or simple two-column header; avoid excessive whitespace.
+
 Requirements:
 - Start with <!DOCTYPE html> and include <html>, <head>, <body>.
-- All CSS in a single <style> block in <head>. Use a professional modern layout:
-  strong typography hierarchy, subtle accent color, clear sections (header/contact, summary,
-  skills, experience, projects if present, education if present).
-- Include @page {{ size: letter; margin: 0.5in; }} and @media print rules so the page prints cleanly.
-- Use semantic HTML (header, section, h1-h3, ul/li). Prefer simple layout (blocks, max-width)
-  that renders well in browsers AND basic PDF engines.
+- All CSS in a single <style> block in <head>. Professional modern layout with subtle accent color.
+- Sections: header/contact, summary, skills, experience, projects (only if room), education (only if room).
+- Include @media print rules. Use semantic HTML (header, section, h1-h3, ul/li).
 - NEVER fabricate employers, titles, degrees, dates, or metrics not supported by the input.
-- Tighten wording: impact-focused bullets with action verbs and metrics where the source supports them.
 - If a target job is provided, emphasize relevant skills and reorder bullets — still truthful.
-- Aim for one-page density when printed on US Letter.
 - Do NOT wrap output in markdown code fences. Return ONLY the raw HTML document."""
+
+
+def resume_html_fit_user(original_html: str, page_count: int) -> str:
+    return (
+        f"The HTML resume below rendered to {page_count} PDF pages. "
+        "Rewrite it to fit EXACTLY ONE US Letter page.\n"
+        "Rules: tighter margins/typography, max 3 roles × 3 bullets, shorter summary, "
+        "drop lowest-priority sections/content — NEVER add or invent facts.\n"
+        "Return ONLY the complete revised HTML document.\n\n"
+        f"---\n{original_html}"
+    )
 
 INTERVIEW_QUESTIONS_SYSTEM = f"""You are a senior interviewer.
 {_DOMAIN_ADAPTIVE}
