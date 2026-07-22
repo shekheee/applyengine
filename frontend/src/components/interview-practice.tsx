@@ -7,7 +7,6 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
-import Link from "next/link";
 import { api } from "@/lib/api";
 import type {
   CoachModel,
@@ -24,61 +23,29 @@ import {
   INTERVIEW_FOCUS,
   curriculumTopicLabel,
 } from "@/lib/types";
-import { Badge, Button, Card, cn } from "@/components/ui";
-import { ChatMarkdown } from "@/components/chat-markdown";
+import { Button, Card, cn } from "@/components/ui";
 import { InterviewCurriculumPanel } from "@/components/interview-curriculum";
 import { InterviewProgressPanel } from "@/components/interview-progress";
 import { ModelSelector, getStoredModelId, storeModelId } from "@/components/model-selector";
 import { useVoiceRecorder } from "@/hooks/use-voice-recorder";
-
-function summaryMarkdown(summary: InterviewSession["summary"]): string {
-  const lines = [
-    `## Session complete · **${summary.overall_score ?? "—"}/10**`,
-    "",
-  ];
-  if (summary.strengths?.length) {
-    lines.push("### Top strengths");
-    summary.strengths.forEach((s) => lines.push(`- ${s}`));
-    lines.push("");
-  }
-  if (summary.priority_improvements?.length) {
-    lines.push("### Priority improvements");
-    summary.priority_improvements.forEach((s) => lines.push(`- ${s}`));
-    lines.push("");
-  }
-  if (summary.recurring_weaknesses?.length) {
-    lines.push("### Recurring patterns");
-    summary.recurring_weaknesses.forEach((s) => lines.push(`- ${s}`));
-    lines.push("");
-  }
-  if (summary.skill_pointers?.length) {
-    lines.push("### Skill enhancement pointers");
-    summary.skill_pointers.forEach((s) => lines.push(`- ${s}`));
-    lines.push("");
-  }
-  if (summary.next_steps?.length) {
-    lines.push("### Next steps");
-    summary.next_steps.forEach((s) => lines.push(`- ${s}`));
-    lines.push("");
-  }
-  if (summary.per_question?.length) {
-    lines.push("### Question scores");
-    summary.per_question.forEach((pq) => {
-      const topicNote = pq.topic ? ` · ${curriculumTopicLabel(pq.topic)}` : "";
-      lines.push(
-        `- **${pq.score ?? "—"}/10**${topicNote} — ${(pq.question ?? "").slice(0, 80)}… _${pq.key_feedback ?? ""}_`
-      );
-    });
-  }
-  if (summary.topic_scores && Object.keys(summary.topic_scores).length > 0) {
-    lines.push("");
-    lines.push("### AI/ML topic scores");
-    Object.entries(summary.topic_scores).forEach(([tid, sc]) => {
-      lines.push(`- **${curriculumTopicLabel(tid)}:** ${sc}/10`);
-    });
-  }
-  return lines.join("\n").trim();
-}
+import { PhaseStepper } from "@/components/interview/phase-stepper";
+import { OptionGrid, SegmentControl } from "@/components/interview/option-grid";
+import { QuestionCard, SessionMetaBadges } from "@/components/interview/question-card";
+import { ConversationThread } from "@/components/interview/conversation-thread";
+import { AnswerComposer, FollowupComposer } from "@/components/interview/answer-composer";
+import { SessionRail } from "@/components/interview/session-rail";
+import { SummaryView } from "@/components/interview/summary-view";
+import {
+  AlertBanner,
+  InterviewLoadingState,
+  ProfileRequiredBanner,
+} from "@/components/interview/alert-banner";
+import {
+  ContextSidebar,
+  JobContextNote,
+  JobSelector,
+} from "@/components/interview/context-sidebar";
+import { IconArrowRight } from "@/components/interview/icons";
 
 function turnsForQuestion(turns: InterviewTurn[], idx: number): InterviewTurn[] {
   return turns.filter((t) => t.question_index === idx);
@@ -328,6 +295,11 @@ export function InterviewPractice({
     setError("");
   }
 
+  function openSession(s: InterviewSession) {
+    setSession(s);
+    setPhase(s.status === "completed" ? "summary" : "practice");
+  }
+
   async function handleMicClick() {
     if (voice.state === "recording") {
       setTranscribing(true);
@@ -365,7 +337,7 @@ export function InterviewPractice({
   }
 
   if (loading) {
-    return <p className="text-[var(--muted)]">Loading interview practice…</p>;
+    return <InterviewLoadingState embedded={embedded} />;
   }
 
   const currentQ = session?.questions[session.current_index];
@@ -377,18 +349,32 @@ export function InterviewPractice({
   const isLast =
     session != null && session.current_index >= (session.questions.length - 1);
 
+  const categoryLabel = session?.curriculum_topic
+    ? curriculumTopicLabel(currentQ?.category ?? "")
+    : (currentQ?.category ?? "");
+
   return (
-    <div className={embedded ? "space-y-4" : "space-y-6"}>
+    <div
+      className={cn(
+        "min-w-0",
+        embedded ? "space-y-4" : "page-enter mx-auto max-w-6xl space-y-8 px-0 sm:px-1"
+      )}
+    >
       {!embedded && (
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold">Interview Practice</h1>
-            <p className="text-sm text-[var(--muted)]">
-              Tailored questions from your resume
-              {jobId !== "" ? " and target role" : ""} with actionable feedback.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
+        <header className="space-y-6">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--primary-2)]">
+                Interview prep
+              </p>
+              <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
+                Interview Practice
+              </h1>
+              <p className="mt-2 max-w-xl text-sm leading-relaxed text-[var(--muted)]">
+                Tailored questions from your resume
+                {jobId !== "" ? " and target role" : ""} with actionable feedback from your AI coach.
+              </p>
+            </div>
             {models.length > 0 && (
               <ModelSelector
                 models={models}
@@ -398,13 +384,14 @@ export function InterviewPractice({
               />
             )}
           </div>
-        </div>
+          <PhaseStepper phase={phase} />
+        </header>
       )}
 
       {embedded && phase === "setup" && (
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold">Prepare for interview</h2>
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold tracking-tight">Prepare for interview</h2>
             <p className="mt-1 text-sm text-[var(--muted)]">
               Questions and feedback scoped to{" "}
               {jobLabel ? (
@@ -425,87 +412,60 @@ export function InterviewPractice({
               />
             )}
             <Button href="/interview" variant="outline" size="sm">
-              Full practice →
+              Full practice
+              <IconArrowRight className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
       )}
 
-      {!profile && (
-        <Card className="border-amber-500/30 bg-amber-500/5">
-          <p className="text-sm">
-            Upload your <strong>base resume</strong> on the{" "}
-            <Link href="/resume" className="text-[var(--primary-2)] underline">
-              Resume
-            </Link>{" "}
-            page before starting. Questions and feedback are grounded in your real profile.
-          </p>
-        </Card>
+      {embedded && phase !== "setup" && (
+        <PhaseStepper phase={phase} compact />
       )}
 
-      {error && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-          {error}
-        </div>
-      )}
+      {!profile && <ProfileRequiredBanner />}
+
+      {error && <AlertBanner tone="error">{error}</AlertBanner>}
 
       {(phase === "setup" || progress?.completed_sessions) && !embedded ? (
         <InterviewProgressPanel progress={progress} />
       ) : null}
 
       {phase === "setup" && (
-        <div className={embedded ? "space-y-4" : "grid gap-6 lg:grid-cols-[1fr_280px]"}>
-          <Card className="space-y-5">
-            <div>
-              <p className="mb-2 text-sm font-medium">Focus area</p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {INTERVIEW_FOCUS.map((f) => (
-                  <button
-                    key={f.id}
-                    type="button"
-                    onClick={() => setFocus(f.id)}
-                    className={cn(
-                      "rounded-lg border px-3 py-2.5 text-left transition-colors",
-                      focus === f.id
-                        ? "border-[var(--primary)] bg-[var(--primary)]/10"
-                        : "border-[var(--border)] hover:bg-[var(--panel-2)]"
-                    )}
-                  >
-                    <span className="block text-sm font-medium">{f.label}</span>
-                    <span className="block text-xs text-[var(--muted)]">{f.desc}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+        <div className={embedded ? "space-y-4" : "grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]"}>
+          <Card
+            className="space-y-8 border-[var(--border)] p-6 sm:p-8"
+            gradient
+          >
+            <OptionGrid
+              label="Focus area"
+              hint="Choose the type of questions you want to practice"
+              options={INTERVIEW_FOCUS.map((f) => ({
+                id: f.id,
+                label: f.label,
+                desc: f.desc,
+              }))}
+              value={focus}
+              onChange={setFocus}
+            />
 
-            <div>
-              <p className="mb-2 text-sm font-medium">Difficulty</p>
-              <div className="flex flex-wrap gap-2">
-                {INTERVIEW_DIFFICULTY.map((d) => (
-                  <button
-                    key={d.id}
-                    type="button"
-                    onClick={() => setDifficulty(d.id)}
-                    className={cn(
-                      "rounded-lg border px-4 py-2 text-sm font-medium transition-colors",
-                      difficulty === d.id
-                        ? "border-[var(--primary)] bg-[var(--primary)]/10"
-                        : "border-[var(--border)] hover:bg-[var(--panel-2)]"
-                    )}
-                  >
-                    {d.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <SegmentControl
+              label="Difficulty"
+              options={INTERVIEW_DIFFICULTY.map((d) => ({ id: d.id, label: d.label }))}
+              value={difficulty}
+              onChange={setDifficulty}
+            />
 
             {curriculum && (
-              <div className="rounded-xl border p-4" style={{ borderColor: "var(--border)" }}>
+              <div
+                className="rounded-[var(--radius-xl)] border bg-[var(--panel-2)]/40 p-5"
+                style={{ borderColor: "var(--border)" }}
+              >
                 {!showMlTrack && !curriculum.ml_profile_detected ? (
                   <button
                     type="button"
                     onClick={() => setShowMlTrack(true)}
-                    className="text-sm text-[var(--primary-2)] hover:underline"
+                    className="text-sm font-medium text-[var(--primary-2)] transition-colors hover:text-[var(--primary)] motion-reduce:transition-none"
                   >
                     + AI/ML Engineering prep track (optional)
                   </button>
@@ -518,7 +478,7 @@ export function InterviewPractice({
                           setShowMlTrack(false);
                           setCurriculumTopic("");
                         }}
-                        className="mb-2 text-xs text-[var(--muted)] hover:text-[var(--text)]"
+                        className="mb-3 text-xs text-[var(--muted)] hover:text-[var(--text)]"
                       >
                         Hide AI/ML track
                       </button>
@@ -536,353 +496,109 @@ export function InterviewPractice({
             )}
 
             {initialJobId == null ? (
-              <div>
-                <label className="mb-2 block text-sm font-medium">
-                  Target role (optional)
-                </label>
-                <select
-                  value={jobId}
-                  onChange={(e) =>
-                    setJobId(e.target.value ? Number(e.target.value) : "")
-                  }
-                  className="w-full rounded-lg border bg-[var(--panel-2)] px-3 py-2 text-sm"
-                  style={{ borderColor: "var(--border)" }}
-                >
-                  <option value="">General (resume only)</option>
-                  {jobs.map((j) => (
-                    <option key={j.id} value={j.id}>
-                      {j.title} @ {j.company}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <JobSelector jobs={jobs} jobId={jobId} onChange={setJobId} />
             ) : (
-              <p className="rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs text-amber-100">
-                Session will use this application&apos;s job description for tailored questions.
-              </p>
+              <JobContextNote />
             )}
 
-            <Button
-              onClick={startSession}
-              disabled={!profile || busy}
-              className="w-full sm:w-auto"
-            >
-              {busy
-                ? "Generating questions…"
-                : embedded
-                  ? "▶ Prepare for interview"
-                  : "Start practice session"}
-            </Button>
+            <div className="border-t border-[var(--border)] pt-6">
+              <Button
+                onClick={startSession}
+                disabled={!profile || busy}
+                variant="gradient"
+                size="lg"
+                className="w-full sm:w-auto"
+              >
+                {busy
+                  ? "Generating questions…"
+                  : embedded
+                    ? "Prepare for interview"
+                    : "Start practice session"}
+              </Button>
+            </div>
           </Card>
 
           {!embedded && (
-          <div className="space-y-4">
-            {profile && (
-              <Card>
-                <p className="mb-1 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
-                  Base resume
-                </p>
-                <p className="text-sm font-medium">{profile.name || "Your profile"}</p>
-                <p className="mt-1 line-clamp-3 text-xs text-[var(--muted)]">
-                  {profile.summary || profile.raw_text?.slice(0, 160)}
-                </p>
-              </Card>
-            )}
-            {pastSessions.length > 0 && (
-              <Card>
-                <p className="mb-3 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
-                  Recent sessions
-                </p>
-                <ul className="space-y-2">
-                  {pastSessions.slice(0, 5).map((s) => (
-                    <li key={s.id} className="text-xs">
-                      <button
-                        type="button"
-                        className="w-full rounded-lg border px-2 py-1.5 text-left hover:bg-[var(--panel-2)]"
-                        style={{ borderColor: "var(--border)" }}
-                        onClick={() => {
-                          setSession(s);
-                          setPhase(s.status === "completed" ? "summary" : "practice");
-                        }}
-                      >
-                        <span className="font-medium capitalize">{s.focus}</span>
-                        <span className="text-[var(--muted)]">
-                          {" "}
-                          · {s.status}
-                          {s.summary?.overall_score != null &&
-                            ` · ${s.summary.overall_score}/10`}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-            )}
-          </div>
+            <ContextSidebar
+              profile={profile}
+              pastSessions={pastSessions}
+              onOpenSession={openSession}
+            />
           )}
         </div>
       )}
 
       {phase === "practice" && session && currentQ && (
-        <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge tone="primary">
-                Q{session.current_index + 1} / {totalQ}
-              </Badge>
-              <Badge>
-                {session.curriculum_topic
-                  ? curriculumTopicLabel(currentQ.category)
-                  : currentQ.category}
-              </Badge>
-              {session.curriculum_topic && (
-                <Badge tone="green">{curriculumTopicLabel(session.curriculum_topic)} track</Badge>
-              )}
-              <Badge tone="default">{session.difficulty}</Badge>
-              {session.job_id && (
-                <Badge tone="amber">
-                  {jobs.find((j) => j.id === session.job_id)?.company ?? "Target role"}
-                </Badge>
-              )}
-            </div>
+        <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+          <div className="min-w-0 space-y-4">
+            <SessionMetaBadges
+              difficulty={session.difficulty}
+              company={
+                session.job_id
+                  ? (jobs.find((j) => j.id === session.job_id)?.company ?? "Target role")
+                  : undefined
+              }
+            />
 
-            <Card>
-              <p className="text-lg font-medium leading-snug">{currentQ.text}</p>
-              {currentQ.tip && (
-                <p className="mt-2 text-sm text-[var(--muted)]">Tip: {currentQ.tip}</p>
-              )}
-            </Card>
+            <QuestionCard
+              index={session.current_index}
+              total={totalQ}
+              text={currentQ.text}
+              category={categoryLabel}
+              tip={currentQ.tip}
+              trackLabel={
+                session.curriculum_topic
+                  ? `${curriculumTopicLabel(session.curriculum_topic)} track`
+                  : undefined
+              }
+            />
 
-            <div ref={scrollRef} className="max-h-[420px] space-y-4 overflow-y-auto pr-1">
-              {qTurns.map((t) => (
-                <div
-                  key={t.id}
-                  className={cn(
-                    "rounded-xl px-4 py-3 text-sm",
-                    t.role === "candidate" || t.role === "followup"
-                      ? "ml-8 bg-[var(--primary)]/15"
-                      : "mr-4 border bg-[var(--panel-2)]"
-                  )}
-                  style={
-                    t.role === "feedback" || t.role === "followup_reply"
-                      ? { borderColor: "var(--border)" }
-                      : undefined
-                  }
-                >
-                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">
-                    {t.role === "candidate"
-                      ? "Your answer"
-                      : t.role === "feedback"
-                        ? "Coach feedback"
-                        : t.role === "followup"
-                          ? "Your follow-up"
-                          : "Coach reply"}
-                  </p>
-                  {t.role === "feedback" || t.role === "followup_reply" ? (
-                    <div className="prose-chat">
-                      <ChatMarkdown content={t.content} />
-                    </div>
-                  ) : (
-                    <p className="whitespace-pre-wrap leading-relaxed">{t.content}</p>
-                  )}
-                </div>
-              ))}
-
-              {streaming && streamText && (
-                <div
-                  className="mr-4 rounded-xl border bg-[var(--panel-2)] px-4 py-3 text-sm"
-                  style={{ borderColor: "var(--border)" }}
-                >
-                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">
-                    Coach
-                  </p>
-                  <div className="prose-chat">
-                    <ChatMarkdown content={streamText} />
-                    <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-[var(--primary-2)]" />
-                  </div>
-                </div>
-              )}
-            </div>
+            <ConversationThread
+              turns={qTurns}
+              streamingText={streaming ? streamText : undefined}
+              scrollRef={scrollRef}
+            />
 
             {!answered && !streaming && (
-              <Card className="space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <label className="block text-sm font-medium">Your answer</label>
-                  {voice.isSupported && (
-                    <div className="flex items-center gap-2">
-                      {voice.state === "recording" && (
-                        <>
-                          <span className="text-xs text-red-400">
-                            ● {voice.seconds}s
-                          </span>
-                          <div
-                            className="h-2 w-16 overflow-hidden rounded-full bg-[var(--panel)]"
-                            style={{ borderColor: "var(--border)" }}
-                          >
-                            <div
-                              className="h-full rounded-full bg-[var(--primary)] transition-all"
-                              style={{ width: `${Math.round(voice.level * 100)}%` }}
-                            />
-                          </div>
-                        </>
-                      )}
-                      <Button
-                        variant={voice.state === "recording" ? "primary" : "outline"}
-                        size="sm"
-                        onClick={handleMicClick}
-                        disabled={transcribing || voice.state === "processing"}
-                      >
-                        {transcribing || voice.state === "processing"
-                          ? "Transcribing…"
-                          : voice.state === "recording"
-                            ? "Stop & transcribe"
-                            : "🎤 Record answer"}
-                      </Button>
-                      {voice.state === "recording" && (
-                        <Button variant="ghost" size="sm" onClick={() => void voice.cancelRecording()}>
-                          Cancel
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </div>
-                {(voice.error || transcribing) && voice.error && (
-                  <p className="text-xs text-amber-300">{voice.error}</p>
-                )}
-                {deliveryMetrics && (
-                  <div
-                    className="rounded-lg border px-3 py-2 text-xs text-[var(--muted)]"
-                    style={{ borderColor: "var(--border)" }}
-                  >
-                    <p className="mb-1 font-medium text-[var(--text)]">Delivery signals</p>
-                    <p>
-                      {deliveryMetrics.words_per_minute} wpm · {deliveryMetrics.word_count} words ·{" "}
-                      {deliveryMetrics.filler_count} fillers ({deliveryMetrics.filler_rate_per_100}/100)
-                      {deliveryMetrics.pause_count > 0 &&
-                        ` · ${deliveryMetrics.pause_count} pause(s)`}
-                    </p>
-                    {deliveryMetrics.observations.map((o) => (
-                      <p key={o} className="mt-1 italic">
-                        {o}
-                      </p>
-                    ))}
-                    <p className="mt-1.5 text-[10px]">
-                      Edit the transcript below before submitting.
-                    </p>
-                  </div>
-                )}
-                <textarea
-                  value={answer}
-                  onChange={(e) => setAnswer(e.target.value)}
-                  onKeyDown={onAnswerKeyDown}
-                  rows={6}
-                  placeholder="Type or record your answer. Use STAR for behavioral questions."
-                  className="w-full resize-none rounded-lg border bg-[var(--panel-2)] px-3 py-2 text-sm leading-relaxed outline-none focus:border-[var(--primary)]"
-                  style={{ borderColor: "var(--border)" }}
-                />
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs text-[var(--muted)]">⌘/Ctrl + Enter to submit</p>
-                  <Button
-                    onClick={submitAnswer}
-                    disabled={!answer.trim() || streaming || voice.state === "recording"}
-                  >
-                    Get feedback
-                  </Button>
-                </div>
-              </Card>
+              <AnswerComposer
+                answer={answer}
+                onAnswerChange={setAnswer}
+                onSubmit={submitAnswer}
+                onKeyDown={onAnswerKeyDown}
+                streaming={streaming}
+                voice={voice}
+                transcribing={transcribing}
+                deliveryMetrics={deliveryMetrics}
+                onMicClick={handleMicClick}
+                onCancelRecording={() => void voice.cancelRecording()}
+              />
             )}
 
             {answered && !streaming && (
-              <Card className="space-y-3">
-                <label className="block text-sm font-medium">
-                  Ask a follow-up (clarify, drill deeper, request a model answer)
-                </label>
-                <textarea
-                  value={followup}
-                  onChange={(e) => setFollowup(e.target.value)}
-                  rows={2}
-                  placeholder="e.g. How could I quantify impact better on this story?"
-                  className="w-full resize-none rounded-lg border bg-[var(--panel-2)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
-                  style={{ borderColor: "var(--border)" }}
-                />
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={sendFollowup}
-                    disabled={!followup.trim()}
-                  >
-                    Send follow-up
-                  </Button>
-                  {!isLast ? (
-                    <Button onClick={goNext} disabled={busy}>
-                      Next question →
-                    </Button>
-                  ) : (
-                    <Button onClick={finishSession} disabled={busy}>
-                      {busy ? "Summarizing…" : "Finish & get summary"}
-                    </Button>
-                  )}
-                </div>
-              </Card>
+              <FollowupComposer
+                followup={followup}
+                onFollowupChange={setFollowup}
+                onSend={sendFollowup}
+                onNext={goNext}
+                onFinish={finishSession}
+                isLast={isLast}
+                busy={busy}
+                streaming={streaming}
+              />
             )}
           </div>
 
-          <div className="space-y-4">
-            <Card>
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
-                Progress
-              </p>
-              <ul className="space-y-1.5">
-                {session.questions.map((q, i) => {
-                  const done = hasFeedbackForQuestion(session.turns, i);
-                  const current = i === session.current_index;
-                  return (
-                    <li
-                      key={i}
-                      className={cn(
-                        "rounded-lg px-2 py-1.5 text-xs",
-                        current && "bg-[var(--primary)]/10",
-                        done && !current && "text-[var(--muted)]"
-                      )}
-                    >
-                      {done ? "✓" : current ? "→" : "○"} Q{i + 1}:{" "}
-                      {q.text.slice(0, 48)}…
-                    </li>
-                  );
-                })}
-              </ul>
-            </Card>
-            <Button variant="ghost" size="sm" onClick={resetToSetup}>
-              ← New session
-            </Button>
-          </div>
+          <SessionRail
+            questions={session.questions}
+            turns={session.turns}
+            currentIndex={session.current_index}
+            onReset={resetToSetup}
+          />
         </div>
       )}
 
       {phase === "summary" && session && (
-        <div className="space-y-4">
-          <Card>
-            <div className="prose-chat">
-              <ChatMarkdown content={summaryMarkdown(session.summary)} />
-            </div>
-          </Card>
-          {session.recurring_weaknesses.length > 0 && (
-            <Card>
-              <p className="mb-2 text-sm font-medium">Recurring weaknesses to work on</p>
-              <ul className="list-disc space-y-1 pl-5 text-sm text-[var(--muted)]">
-                {session.recurring_weaknesses.map((w, i) => (
-                  <li key={i}>{w}</li>
-                ))}
-              </ul>
-            </Card>
-          )}
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={resetToSetup}>Start new session</Button>
-            <Button variant="outline" href="/coach">
-              Back to Coach
-            </Button>
-          </div>
-        </div>
+        <SummaryView session={session} onReset={resetToSetup} />
       )}
     </div>
   );
