@@ -18,7 +18,7 @@ h3, .role-title { font-size: 9.5pt !important; margin: 4px 0 1px !important; }
 p, li { font-size: 9pt !important; margin-bottom: 1px !important; }
 section { margin-bottom: 5px !important; }
 ul { margin: 1px 0 3px 16px !important; padding: 0 !important; }
-@page { size: letter; margin: 0.45in; }
+@page { size: A4; margin: 12mm; }
 """,
     },
     {
@@ -29,7 +29,7 @@ h2 { font-size: 9.5pt !important; margin: 5px 0 2px !important; }
 h3, .role-title { font-size: 9pt !important; }
 p, li { font-size: 8.5pt !important; line-height: 1.2 !important; }
 section { margin-bottom: 4px !important; }
-@page { size: letter; margin: 0.4in; }
+@page { size: A4; margin: 10mm; }
 """,
         "bullets_per_list": 4,
         "summary_words": 45,
@@ -41,7 +41,7 @@ h1 { font-size: 15pt !important; }
 h2 { font-size: 9pt !important; margin: 4px 0 2px !important; }
 h3, .role-title { font-size: 8.5pt !important; }
 p, li { font-size: 8pt !important; }
-@page { size: letter; margin: 0.35in; }
+@page { size: A4; margin: 8mm; }
 """,
         "bullets_per_list": 3,
         "max_roles": 4,
@@ -53,7 +53,7 @@ body { font-size: 8pt !important; line-height: 1.15 !important; }
 h1 { font-size: 14pt !important; }
 h2, h3 { font-size: 8.5pt !important; }
 p, li { font-size: 7.5pt !important; }
-@page { size: letter; margin: 0.3in; }
+@page { size: A4; margin: 7mm; }
 """,
         "bullets_per_list": 2,
         "max_roles": 3,
@@ -66,7 +66,7 @@ body { font-size: 7.5pt !important; line-height: 1.12 !important; }
 h1 { font-size: 13pt !important; }
 h2, h3 { font-size: 8pt !important; }
 p, li { font-size: 7pt !important; }
-@page { size: letter; margin: 0.28in; }
+@page { size: A4; margin: 6mm; }
 """,
         "bullets_per_list": 2,
         "max_roles": 2,
@@ -80,7 +80,7 @@ body { font-size: 7pt !important; line-height: 1.1 !important; }
 h1 { font-size: 12pt !important; }
 h2, h3 { font-size: 7.5pt !important; }
 p, li { font-size: 6.8pt !important; }
-@page { size: letter; margin: 0.25in; }
+@page { size: A4; margin: 5mm; }
 """,
         "bullets_per_list": 1,
         "max_roles": 2,

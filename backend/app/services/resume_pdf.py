@@ -9,7 +9,7 @@ from typing import Any
 from pypdf import PdfReader
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT
-from reportlab.lib.pagesizes import letter
+from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.platypus import HRFlowable, Paragraph, SimpleDocTemplate
@@ -386,7 +386,7 @@ def _render_pdf_bytes(doc: dict[str, Any]) -> bytes:
     buf = io.BytesIO()
     pdf = SimpleDocTemplate(
         buf,
-        pagesize=letter,
+        pagesize=A4,
         leftMargin=0.5 * inch,
         rightMargin=0.5 * inch,
         topMargin=0.45 * inch,

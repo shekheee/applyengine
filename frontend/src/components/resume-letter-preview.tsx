@@ -9,10 +9,15 @@ import {
 } from "react";
 import { Button, cn } from "@/components/ui";
 
-/** US Letter at 96 CSS px/in — matches PDF print dimensions. */
-export const LETTER_WIDTH_PX = 816; // 8.5in
-export const LETTER_HEIGHT_PX = 1056; // 11in
-export const LETTER_ASPECT = LETTER_HEIGHT_PX / LETTER_WIDTH_PX; // ~1.294
+/** ISO A4 at 96 CSS px/in — matches PDF print dimensions (210mm × 297mm). */
+export const A4_WIDTH_PX = 794;
+export const A4_HEIGHT_PX = 1123;
+export const A4_ASPECT = A4_HEIGHT_PX / A4_WIDTH_PX; // ~1.414
+
+/** @deprecated use A4_* — kept for imports */
+export const LETTER_WIDTH_PX = A4_WIDTH_PX;
+export const LETTER_HEIGHT_PX = A4_HEIGHT_PX;
+export const LETTER_ASPECT = A4_ASPECT;
 
 export type PreviewZoomMode = "fit" | "width" | "100";
 
@@ -78,12 +83,12 @@ export function ResumeLetterPreview({
     const availH = Math.max(viewportSize.height - pad, 120);
 
     if (zoomMode === "100") return 1;
-    if (zoomMode === "width") return availW / LETTER_WIDTH_PX;
-    return Math.min(availW / LETTER_WIDTH_PX, availH / LETTER_HEIGHT_PX, 1.25);
+    if (zoomMode === "width") return availW / A4_WIDTH_PX;
+    return Math.min(availW / A4_WIDTH_PX, availH / A4_HEIGHT_PX, 1.25);
   }, [viewportSize, zoomMode, variant]);
 
-  const scaledW = LETTER_WIDTH_PX * scale;
-  const scaledH = LETTER_HEIGHT_PX * scale;
+  const scaledW = A4_WIDTH_PX * scale;
+  const scaledH = A4_HEIGHT_PX * scale;
 
   const zoomLabel = ZOOM_MODES.find((z) => z.mode === zoomMode)?.label ?? "Fit page";
   const isStudio = variant === "default";
@@ -108,14 +113,14 @@ export function ResumeLetterPreview({
             style={{ borderColor: "var(--border)" }}
             aria-hidden
           >
-            Ltr
+            A4
           </span>
           <div className="min-w-0">
             <p className="truncate text-xs font-medium text-[var(--text-secondary)]">
-              {loading ? "Loading preview…" : html ? "US Letter · 8.5 × 11 in" : "Document preview"}
+              {loading ? "Loading preview…" : html ? "A4 · 210 × 297 mm" : "Document preview"}
             </p>
             {html && !loading && (
-              <p className="text-[10px] text-[var(--muted-2)]">Design Lab HTML · export-matched proportions</p>
+              <p className="text-[10px] text-[var(--muted-2)]">Professional template · export-matched A4 proportions</p>
             )}
           </div>
           {html && !loading && (
@@ -196,8 +201,8 @@ export function ResumeLetterPreview({
             <div
               className="relative origin-top-left"
               style={{
-                width: LETTER_WIDTH_PX,
-                height: LETTER_HEIGHT_PX,
+                width: A4_WIDTH_PX,
+                height: A4_HEIGHT_PX,
                 transform: `scale(${scale})`,
               }}
             >
@@ -256,7 +261,7 @@ export function ResumeLetterPreview({
           <span className="hidden text-[var(--muted-2)] sm:inline" aria-hidden>
             ·
           </span>
-          <span className="hidden sm:inline">Whole page at Letter proportions</span>
+          <span className="hidden sm:inline">Whole page at A4 proportions</span>
         </div>
       )}
     </div>

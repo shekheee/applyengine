@@ -19,7 +19,7 @@ export function ExportSection({
     <div className="space-y-2">
       <p className="text-[11px] leading-relaxed text-[var(--muted)]">
         Export the <strong className="font-medium text-[var(--text-secondary)]">selected version</strong>{" "}
-        above. PDF is Chromium-rendered at US Letter size; DOCX opens cleanly in Google Docs.
+        above. PDF is Chromium-rendered at A4 size (210×297mm); preview matches export.
       </p>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <Button

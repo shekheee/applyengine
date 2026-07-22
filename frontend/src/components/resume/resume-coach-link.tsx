@@ -24,7 +24,7 @@ export function ResumeCoachLink() {
           <h2 className="font-semibold tracking-tight">Resume studio</h2>
         </div>
         <p className="text-xs leading-relaxed text-[var(--muted)]">
-          Upload once, generate premium designs, preview the full Letter page, and export PDF or Word — all
+          Upload once, generate premium designs, preview the full A4 page, and export PDF or Word — all
           in the dedicated workspace.
         </p>
         <Button href="/resume" className="mt-4 w-full" variant="outline">

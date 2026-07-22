@@ -45,8 +45,8 @@ export function GenerateSection({
             </>
           ) : (
             <>
-              Claude Opus transforms your base resume into a premium one-page HTML design — typography,
-              layout, accent color, and skill chips — ready for preview and export.
+              Claude Opus extracts your real experience into structured content, rendered in a
+              hand-crafted professional A4 template — typography, layout, and skill chips included.
             </>
           )}
         </p>

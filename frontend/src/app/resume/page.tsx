@@ -10,7 +10,7 @@ export default function ResumePage() {
           <span className="inline-flex items-center rounded-full border bg-[var(--panel-2)] px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-[var(--primary-2)]" style={{ borderColor: "color-mix(in srgb, var(--primary) 30%, var(--border))" }}>
             Document studio
           </span>
-          <span className="text-[11px] text-[var(--muted-2)]">Claude Opus · Design Lab HTML</span>
+          <span className="text-[11px] text-[var(--muted-2)]">Claude Opus · Professional A4 templates</span>
         </div>
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div className="min-w-0 max-w-2xl">
@@ -19,13 +19,13 @@ export default function ResumePage() {
             </h1>
             <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
               A preview-first workspace for your one-page resume. Upload your base document, generate a
-              premium design, inspect the full US Letter canvas, then export a Chromium-rendered PDF or
+              premium design, inspect the full A4 canvas, then export a Chromium-rendered PDF or
               Google Docs–ready Word file.
             </p>
           </div>
           <dl className="hidden shrink-0 gap-6 sm:grid sm:grid-cols-3">
             {[
-              ["8.5×11", "US Letter"],
+              ["210×297", "A4 page"],
               ["1 page", "PDF export"],
               ["2 styles", "Editorial · Executive"],
             ].map(([value, label]) => (

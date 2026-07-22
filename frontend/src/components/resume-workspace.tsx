@@ -188,8 +188,8 @@ export function ResumeWorkspace({
   const previewEmpty = (
     <p className="max-w-md px-6 text-center text-sm leading-relaxed text-[var(--muted)]">
       {isApplication
-        ? "Generate a JD-tailored design to see the full Letter page here — or pick an existing version."
-        : "Generate a designed resume or select your base upload to preview the complete one-page layout."}
+        ? "Generate a JD-tailored design to see the full A4 page here — or pick an existing version."
+        : "Generate a designed resume or select your base upload to preview the complete A4 layout."}
     </p>
   );
 

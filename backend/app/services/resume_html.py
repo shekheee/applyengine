@@ -202,8 +202,8 @@ def profile_to_base_html(profile: Profile) -> str:
 <meta charset="utf-8"/>
 <title>{name} — Resume</title>
 <style>
-  @page {{ size: letter; margin: 0.4in 0.45in; }}
-  body {{ font-family: Georgia, 'Times New Roman', serif; font-size: 9.5pt; color: #1a1a2e; line-height: 1.28; max-width: 7.5in; margin: 0 auto; }}
+  @page {{ size: A4; margin: 12mm 14mm; }}
+  body {{ font-family: Georgia, 'Times New Roman', serif; font-size: 9.5pt; color: #1a1a2e; line-height: 1.28; max-width: 182mm; margin: 0 auto; }}
   h1 {{ font-size: 17pt; margin: 0 0 2px; color: #1a1a2e; }}
   .contact {{ color: #4b5563; font-size: 8.5pt; margin-bottom: 8px; }}
   h2 {{ font-size: 10pt; text-transform: uppercase; letter-spacing: 0.05em; color: #4338ca; border-bottom: 1px solid #4338ca; margin: 8px 0 4px; padding-bottom: 1px; }}

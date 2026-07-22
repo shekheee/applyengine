@@ -27,7 +27,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept", "Origin"],
-    expose_headers=["Content-Type", "Cache-Control"],
+    expose_headers=["Content-Type", "Cache-Control", "X-PDF-Engine", "X-PDF-Pages"],
     max_age=600,
 )
 
@@ -67,6 +67,8 @@ def health():
     except RuntimeError:
         memory_chain = {"model": None, "providers": []}
 
+    from app.services.resume_playwright_pdf import playwright_status
+
     return {
         "status": "ok",
         "llm_provider": provider.name,
@@ -74,4 +76,5 @@ def health():
         "coach_chain": coach_chain,
         "memory_chain": memory_chain,
         "prompts_version": PROMPTS_VERSION,
+        "resume_pdf": playwright_status(),
     }

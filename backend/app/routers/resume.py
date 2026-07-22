@@ -13,7 +13,7 @@ from app.schemas import ResumeDesignOut, ResumeVersionOut
 from app.services.profiles import get_base_profile
 from app.services.resume_designed import design_resume_with_claude
 from app.services.resume_docx import build_resume_docx_from_doc, render_resume_docx
-from app.services.resume_html import design_resume_html_fitted
+from app.services.resume_templates import design_and_render_resume, render_resume_template
 from app.services.resume_html_pdf import html_to_pdf_one_page
 from app.services.resume_pdf import (
     _safe_filename,
@@ -139,9 +139,9 @@ def generate_designed_resume(
     job = _optional_job(user, session, job_id)
     style_key = style if style in ("editorial", "executive") else "editorial"
     try:
-        html_doc, provider, model, _fit_level = design_resume_html_fitted(
-            profile, memories, job, style=style_key
-        )
+        doc, provider, model = design_resume_with_claude(profile, memories, job)
+        doc["_template_style"] = style_key
+        html_doc = design_and_render_resume(doc, style=style_key, job=job)
         version = create_designed_version(
             user,
             session,
@@ -150,6 +150,7 @@ def generate_designed_resume(
             job=job,
             model_served=model,
             provider_served=provider,
+            structured_json=doc,
         )
         return ResumeDesignOut(
             version_id=version.id or 0,
@@ -188,17 +189,27 @@ def download_resume_pdf(
         job = session.get(Job, version.job_id)
 
     try:
+        engine = "reportlab"
         if mode == "ats":
             if version and version.kind == ResumeVersionKind.base.value and profile:
                 pdf_bytes, filename = build_resume_pdf_from_profile(profile, memories)
             else:
                 pdf_bytes, filename = build_resume_pdf(profile, memories, job)
         elif version and version.html_content.strip():
+            export_html = version.html_content
+            style_guess = (version.structured_json or {}).get("_template_style", "editorial")
             try:
-                pdf_bytes, engine, _export_html, _level = html_to_pdf_one_page(
-                    version.html_content
+                pdf_bytes, engine, export_html, _level = html_to_pdf_one_page(
+                    export_html,
+                    structured=version.structured_json or None,
+                    style=style_guess,
+                    job=job,
                 )
-                logger.info("Designed resume PDF via %s (fit level %d)", engine, _level)
+                logger.info(
+                    "Designed resume PDF via %s (fit level %d, pages checked)",
+                    engine,
+                    _level,
+                )
             except RuntimeError as pdf_exc:
                 logger.warning("HTML PDF failed, falling back to ATS PDF: %s", pdf_exc)
                 pdf_bytes, filename = build_resume_pdf(profile, memories, job)
@@ -231,8 +242,19 @@ def download_resume_pdf(
         headers={
             "Content-Disposition": f'attachment; filename="{filename}"',
             "Cache-Control": "no-store",
+            "X-PDF-Engine": engine if mode != "ats" else "reportlab",
+            "X-PDF-Pages": str(_pdf_pages(pdf_bytes)),
         },
     )
+
+
+def _pdf_pages(pdf_bytes: bytes) -> int:
+    from app.services.resume_html_fit import pdf_page_count
+
+    try:
+        return pdf_page_count(pdf_bytes)
+    except Exception:
+        return 0
 
 
 @router.get("/docx")

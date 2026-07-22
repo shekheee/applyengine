@@ -172,8 +172,8 @@ CONTENT (truth only):
 - Ground every fact in profile + memories. Tailor emphasis to target job if provided — still truthful.
 - Drop oldest/lowest-priority content rather than cramming or shrinking below ~9.5pt body.
 
-ONE PAGE — US Letter 8.5×11in:
-- @page {{ size: letter; margin: 0.45in 0.5in; }} — must print as exactly ONE page.
+ONE PAGE — A4 (210mm × 297mm):
+- @page {{ size: A4; margin: 14mm 16mm; }} — must print as exactly ONE page.
 - Intentional density; premium NOT microscopic.
 
 TECHNICAL:
@@ -184,7 +184,7 @@ TECHNICAL:
 
 def resume_html_fit_user(original_html: str, page_count: int) -> str:
     return (
-        f"The HTML resume below rendered to {page_count} PDF pages on US Letter. "
+        f"The HTML resume below rendered to {page_count} PDF pages on A4. "
         "Redesign it to fit EXACTLY ONE page while KEEPING the premium Design Lab aesthetic "
         "(typography hierarchy, accent color, layout polish, skill chips — do NOT revert to a plain ATS dump).\n"
         "Techniques: tighten vertical rhythm slightly, reduce bullets on oldest roles, "
