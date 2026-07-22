@@ -31,6 +31,7 @@ export function ResumeWorkspace({
     lockedJobId ?? ""
   );
   const [designState, setDesignState] = useState<"idle" | "working" | "done">("idle");
+  const [designStyle, setDesignStyle] = useState<"editorial" | "executive">("editorial");
   const [pdfState, setPdfState] = useState<"idle" | "working" | "done">("idle");
   const [docxState, setDocxState] = useState<"idle" | "working" | "done">("idle");
   const [error, setError] = useState("");
@@ -104,7 +105,7 @@ export function ResumeWorkspace({
     setError("");
     try {
       const jobId = effectiveJobId;
-      const result = await api.generateDesignedResume(jobId);
+      const result = await api.generateDesignedResume(jobId, designStyle);
       await loadResumeVersions(result.version_id);
       setSelectedVersionId(result.version_id);
       await loadVersionPreview(result.version_id);
@@ -181,8 +182,8 @@ export function ResumeWorkspace({
           {previewLoading ? "Loading preview…" : previewHtml ? "Live preview" : "Preview"}
         </span>
         {previewHtml && !previewLoading && (
-          <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-300">
-            1-page layout
+          <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] text-violet-300">
+            Design Lab preview
           </span>
         )}
       </div>
@@ -233,9 +234,9 @@ export function ResumeWorkspace({
             <strong className="text-[var(--text)]">Download</strong> to export the selected version.
           </p>
         ) : (
-          <p className="mt-1 text-xs text-[var(--muted)]">
-            Claude designs a single-page HTML resume. Your base upload stays saved — pick any version
-            to preview and export.
+          <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
+            Claude Opus produces a premium Design Lab–style HTML resume — typography, layout, accent
+            color, and skill chips. Preview shows the full design; PDF uses Chromium print for fidelity.
           </p>
         )}
 
@@ -293,6 +294,32 @@ export function ResumeWorkspace({
           </p>
         )}
 
+        <div className="mt-3">
+          <p className="mb-2 text-xs font-medium text-[var(--muted)]">Layout style</p>
+          <div className="grid grid-cols-2 gap-2">
+            {(
+              [
+                ["editorial", "Modern editorial", "Asymmetric header, chips, accent rule"],
+                ["executive", "Clean executive", "Centered header, serif accents, restrained"],
+              ] as const
+            ).map(([id, label, desc]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setDesignStyle(id)}
+                className={`rounded-lg border px-2.5 py-2 text-left transition-colors ${
+                  designStyle === id
+                    ? "border-[var(--primary)] bg-[var(--primary)]/10"
+                    : "border-[var(--border)] hover:bg-[var(--panel-2)]"
+                }`}
+              >
+                <span className="block text-xs font-medium">{label}</span>
+                <span className="block text-[10px] text-[var(--muted)]">{desc}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <Button
           onClick={generateDesignedResume}
           disabled={designState === "working" || pdfState === "working" || docxState === "working"}
@@ -304,12 +331,12 @@ export function ResumeWorkspace({
               ? "✓ New tailored version saved"
               : isApplication
                 ? "✨ Generate for this role"
-                : "Generate designed resume"}
+                : "✨ Generate Design Lab resume"}
         </Button>
         <p className="mt-1.5 text-[10px] leading-snug text-[var(--muted)]">
           {isApplication
-            ? "Creates a new saved HTML version with live preview — does not overwrite your base upload."
-            : "Uses Claude Opus to produce a one-page HTML layout from your profile."}
+            ? "Creates a new premium HTML version with live preview — base upload stays untouched."
+            : "Claude Opus · full CSS design artifact · one page when exported to PDF."}
         </p>
 
         <div className="mt-3 grid gap-2 sm:grid-cols-2">

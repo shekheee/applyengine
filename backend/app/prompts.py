@@ -138,37 +138,58 @@ Design rules:
 - highlights must be complete sentences or crisp phrase bullets, not fragments.
 Return ONLY valid JSON."""
 
-RESUME_HTML_SYSTEM = f"""You are an elite resume designer producing Claude Artifacts-style HTML resumes.
-{_DOMAIN_ADAPTIVE}
-Given a candidate's canonical profile, coach-learned facts, and optionally a target job,
-return ONE complete, self-contained HTML document (inline CSS only — no external stylesheets or scripts).
+RESUME_HTML_STYLES = {
+    "editorial": (
+        "Layout: Modern editorial — asymmetric hero header with name + role line, thin accent rule, "
+        "skills as refined pills/chips, experience blocks with subtle dividers, magazine-like vertical rhythm. "
+        "Accent: deep indigo or slate with one warm highlight."
+    ),
+    "executive": (
+        "Layout: Clean executive — centered name block, restrained navy/charcoal palette, elegant serif "
+        "for the name paired with sans body, conservative spacing, understated section rules. "
+        "Professional and timeless."
+    ),
+}
 
-CRITICAL — EXACTLY ONE PAGE on US Letter (8.5×11in):
-- The resume MUST fit on a single printed page. This is non-negotiable.
-- Use compact but readable typography: body 9–10pt, name ~16–18pt, section headers ~10pt.
-- @page {{ size: letter; margin: 0.4in 0.45in; }} — keep margins tight.
-- Summary: max 2 sentences (~35 words). Skills: one line or compact chips, max ~16 items.
-- Experience: include at most 3–4 recent roles; max 3 strong bullets per role (prioritize impact).
-- Omit projects/education sections if space is tight — never shrink text below readable size to cram content.
-- If source material is long, drop oldest/least relevant roles or bullets — NEVER fabricate content.
-- Use efficient layout: single column or simple two-column header; avoid excessive whitespace.
+RESUME_HTML_SYSTEM = f"""You are a world-class resume designer creating premium HTML resumes in the style of Claude Design Lab / Artifacts — visually sophisticated, editorial, and polished.
 
-Requirements:
-- Start with <!DOCTYPE html> and include <html>, <head>, <body>.
-- All CSS in a single <style> block in <head>. Professional modern layout with subtle accent color.
-- Sections: header/contact, summary, skills, experience, projects (only if room), education (only if room).
-- Include @media print rules. Use semantic HTML (header, section, h1-h3, ul/li).
-- NEVER fabricate employers, titles, degrees, dates, or metrics not supported by the input.
-- If a target job is provided, emphasize relevant skills and reorder bullets — still truthful.
-- Do NOT wrap output in markdown code fences. Return ONLY the raw HTML document."""
+Given a candidate's profile, coach memories, and optional target job, output ONE complete self-contained HTML document.
+
+DESIGN QUALITY (match Claude Design Lab artifacts — this is the top priority):
+- Treat this as a designed artifact, NOT a plain ATS text dump or Word-export lookalike.
+- Refined typography: use @import for ONE Google Font pair if it elevates the design (e.g. Inter + Source Serif 4, or DM Sans + DM Serif Display). Fallback to system-ui / Georgia gracefully.
+- Clear visual hierarchy: prominent name (22–28pt), role/tagline line, subtle accent color (one refined hue — navy, slate, burgundy, teal, or indigo), section labels with letter-spacing or small caps.
+- Layout: use CSS Grid or Flexbox for a polished structure — e.g. sidebar column for skills/contact with main column for experience, OR a striking two-zone header with summary beside name. Avoid a boring single-column wall of text.
+- Skills: styled chips/pills or a clean tag grid — never a comma-separated blob.
+- Experience: distinct role blocks — title + company + dates on one visual line; impact bullets with strong verbs; subtle separators or spacing between roles.
+- Design touches: thin accent borders, section underline rules, light tinted chip backgrounds, consistent 8px spacing rhythm, optional subtle header background band.
+- Colors: dark text on white/off-white; one accent for headers/dividers; print-friendly contrast. Use print-color-adjust: exact on colored elements.
+
+CONTENT RULES:
+- NEVER fabricate employers, titles, degrees, dates, metrics, or skills not supported by the input.
+- Ground every fact in the provided profile and memories only.
+- If a target job is provided: emphasize relevant skills and reorder bullets for fit — still truthful.
+- Prioritize recent/high-impact roles. Omit lowest-priority sections rather than cramming.
+
+ONE PAGE (US Letter 8.5×11in):
+- Must fit exactly ONE printed page. @page {{ size: letter; margin: 0.45in 0.5in; }}
+- Density can be high but must look intentional and premium — NOT microscopic. Target body 10–11pt minimum; name 22–28pt.
+- If content is long: drop oldest roles, trim bullets, shorten summary — never invent or shrink body below ~9.5pt.
+
+TECHNICAL:
+- Start with <!DOCTYPE html> through </html>. ALL CSS in one <style> block in <head> (inline styles OK for accents). No external JS.
+- Semantic HTML: header, main, section, article, h1–h3, ul/li.
+- Include @media print preserving colors and layout.
+- Do NOT wrap output in markdown code fences. Return ONLY raw HTML."""
 
 
 def resume_html_fit_user(original_html: str, page_count: int) -> str:
     return (
-        f"The HTML resume below rendered to {page_count} PDF pages. "
-        "Rewrite it to fit EXACTLY ONE US Letter page.\n"
-        "Rules: tighter margins/typography, max 3 roles × 3 bullets, shorter summary, "
-        "drop lowest-priority sections/content — NEVER add or invent facts.\n"
+        f"The HTML resume below rendered to {page_count} PDF pages on US Letter. "
+        "Redesign it to fit EXACTLY ONE page while KEEPING the premium Design Lab aesthetic "
+        "(typography hierarchy, accent color, layout polish, skill chips — do NOT revert to a plain ATS dump).\n"
+        "Techniques: tighten vertical rhythm slightly, reduce bullets on oldest roles, "
+        "shorten summary, drop lowest-priority section if needed — NEVER add or invent facts.\n"
         "Return ONLY the complete revised HTML document.\n\n"
         f"---\n{original_html}"
     )
@@ -278,13 +299,17 @@ def resume_designed_user(
     profile_text: str,
     memory_text: str,
     job_text: str = "",
+    style: str = "editorial",
 ) -> str:
+    style_key = style if style in RESUME_HTML_STYLES else "editorial"
+    style_block = f"DESIGN STYLE:\n{RESUME_HTML_STYLES[style_key]}\n\n---\n\n"
     job_block = (
         f"TARGET JOB (tailor emphasis — do not invent qualifications):\n{job_text}\n\n---\n\n"
         if job_text.strip()
         else ""
     )
     return (
+        f"{style_block}"
         f"{job_block}"
         f"CANDIDATE PROFILE:\n{profile_text or '(none yet)'}\n\n---\n\n"
         f"COACH MEMORIES / LEARNED FACTS:\n{memory_text or '(none)'}"

@@ -13,8 +13,8 @@ from app.services.serialize import job_to_text, profile_to_text
 logger = logging.getLogger(__name__)
 
 DESIGN_MODEL_ID = "claude-opus-4-8"
-RESUME_HTML_MAX_TOKENS = 8192
-_MAX_LLM_REFIT_ATTEMPTS = 0  # CSS fit only — keeps /design under Render timeout
+RESUME_HTML_MAX_TOKENS = 16384
+VALID_STYLES = frozenset({"editorial", "executive"})
 
 
 def _memory_text(memories: list[Memory]) -> str:
@@ -49,6 +49,7 @@ def design_resume_html(
     profile: Profile | None,
     memories: list[Memory],
     job: Job | None = None,
+    style: str = "editorial",
 ) -> tuple[str, str | None, str | None]:
     """Generate a self-contained HTML resume via the coach fallback chain."""
     if not profile and not memories:
@@ -56,6 +57,7 @@ def design_resume_html(
             "No resume data yet — upload a resume or chat with the coach first."
         )
 
+    style_key = style if style in VALID_STYLES else "editorial"
     profile_text = profile_to_text(profile) if profile else ""
     memory_text = _memory_text(memories)
     job_text = job_to_text(job) if job else ""
@@ -68,7 +70,7 @@ def design_resume_html(
             {
                 "role": "user",
                 "content": prompts.resume_designed_user(
-                    profile_text, memory_text, job_text
+                    profile_text, memory_text, job_text, style=style_key
                 ),
             },
         ],
@@ -86,15 +88,30 @@ def design_resume_html(
     return document, chain.last_served, chain.last_model
 
 
-def _refit_html_with_llm(html: str, page_count: int) -> tuple[str, str | None, str | None]:
-    """Ask the designer model to rewrite HTML that overflowed to multiple pages."""
+def refit_html_for_one_page(html: str, page_count: int) -> str:
+    """Ask Claude to redesign overflowing HTML for one page (PDF export path)."""
     chain = build_coach_provider(DESIGN_MODEL_ID)
     chain.reset()
     out = chain.chat_messages(
         [
             {"role": "system", "content": prompts.RESUME_HTML_SYSTEM},
             {"role": "user", "content": prompts.resume_html_fit_user(html, page_count)},
-        ]
+        ],
+        max_tokens=RESUME_HTML_MAX_TOKENS,
+    )
+    return extract_html_document(out)
+
+
+def _refit_html_with_llm(html: str, page_count: int) -> tuple[str, str | None, str | None]:
+    """Legacy alias — refit for one page."""
+    chain = build_coach_provider(DESIGN_MODEL_ID)
+    chain.reset()
+    out = chain.chat_messages(
+        [
+            {"role": "system", "content": prompts.RESUME_HTML_SYSTEM},
+            {"role": "user", "content": prompts.resume_html_fit_user(html, page_count)},
+        ],
+        max_tokens=RESUME_HTML_MAX_TOKENS,
     )
     return extract_html_document(out), chain.last_served, chain.last_model
 
@@ -103,14 +120,11 @@ def design_resume_html_fitted(
     profile: Profile | None,
     memories: list[Memory],
     job: Job | None = None,
+    style: str = "editorial",
 ) -> tuple[str, str | None, str | None, int]:
-    """Generate HTML resume and apply light CSS condensation for one-page preview."""
-    from app.services.resume_html_fit import condense_html
-
-    html_doc, provider, model = design_resume_html(profile, memories, job)
-    # PDF fit runs on export — avoid failing design when xhtml2pdf chokes on rich CSS.
-    fitted_html = condense_html(html_doc, 1)
-    return fitted_html, provider, model, 1
+    """Generate premium Design Lab HTML — no CSS destruction at design time."""
+    html_doc, provider, model = design_resume_html(profile, memories, job, style=style)
+    return html_doc, provider, model, 0
 
 
 def pdf_page_count(pdf_bytes: bytes) -> int:

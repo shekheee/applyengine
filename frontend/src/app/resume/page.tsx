@@ -8,8 +8,8 @@ export default function ResumePage() {
       <div>
         <h1 className="text-2xl font-semibold">Resume</h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Manage your base resume, generate Claude-designed HTML versions, preview layouts, and export
-          one-page PDF or Google Docs–ready Word files.
+          Design Lab–quality HTML resumes powered by Claude Opus — rich typography, layout, and
+          color in the live preview. Export a one-page PDF (Chromium-rendered) or Google Docs–ready Word.
         </p>
       </div>
       <ResumeWorkspace />

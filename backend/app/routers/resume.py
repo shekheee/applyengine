@@ -129,16 +129,18 @@ def get_version(
 @router.post("/design", response_model=ResumeDesignOut)
 def generate_designed_resume(
     job_id: int | None = None,
+    style: str = "editorial",
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ):
-    """Generate Claude Artifacts-style HTML resume and save as a new version."""
+    """Generate Claude Design Lab–style HTML resume and save as a new version."""
     profile = _latest_profile(user, session)
     memories = _user_memories(user, session)
     job = _optional_job(user, session, job_id)
+    style_key = style if style in ("editorial", "executive") else "editorial"
     try:
         html_doc, provider, model, _fit_level = design_resume_html_fitted(
-            profile, memories, job
+            profile, memories, job, style=style_key
         )
         version = create_designed_version(
             user,
@@ -193,13 +195,10 @@ def download_resume_pdf(
                 pdf_bytes, filename = build_resume_pdf(profile, memories, job)
         elif version and version.html_content.strip():
             try:
-                pdf_bytes, _engine, fitted_html, _level = html_to_pdf_one_page(
+                pdf_bytes, engine, _export_html, _level = html_to_pdf_one_page(
                     version.html_content
                 )
-                if fitted_html != version.html_content:
-                    version.html_content = fitted_html
-                    session.add(version)
-                    session.commit()
+                logger.info("Designed resume PDF via %s (fit level %d)", engine, _level)
             except RuntimeError as pdf_exc:
                 logger.warning("HTML PDF failed, falling back to ATS PDF: %s", pdf_exc)
                 pdf_bytes, filename = build_resume_pdf(profile, memories, job)
