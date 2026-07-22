@@ -13,7 +13,7 @@ from app.schemas import ResumeDesignOut, ResumeVersionOut
 from app.services.profiles import get_base_profile
 from app.services.resume_designed import design_resume_with_claude
 from app.services.resume_docx import build_resume_docx_from_doc, render_resume_docx
-from app.services.resume_templates import design_and_render_resume, render_resume_template
+from app.services.resume_templates import design_and_render_resume, enrich_designed_doc, render_resume_template
 from app.services.resume_html_pdf import html_to_pdf_one_page
 from app.services.resume_pdf import (
     _safe_filename,
@@ -140,6 +140,7 @@ def generate_designed_resume(
     style_key = style if style in ("signature", "editorial", "executive", "minimal") else "signature"
     try:
         doc, provider, model = design_resume_with_claude(profile, memories, job)
+        doc = enrich_designed_doc(doc, profile)
         doc["_template_style"] = style_key
         html_doc = design_and_render_resume(doc, style=style_key, job=job)
         version = create_designed_version(

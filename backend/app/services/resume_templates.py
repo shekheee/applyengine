@@ -4,7 +4,7 @@ import html
 import re
 from typing import Any
 
-from app.models import Job
+from app.models import Job, Profile
 from app.services.resume_a4 import A4_PAGE_CSS
 
 VALID_TEMPLATE_STYLES = frozenset({"signature", "editorial", "executive", "minimal"})
@@ -162,7 +162,26 @@ def _format_bullet(text: Any) -> str:
             out.append(f"<strong>{_esc(part)}</strong>")
         else:
             out.append(_esc(part))
-    return "".join(out)
+    result = "".join(out)
+    # Ensure spaces around bold metrics when markers abut words.
+    result = re.sub(r"(\w)(<strong>)", r"\1 \2", result)
+    result = re.sub(r"(</strong>)(\w)", r"\1 \2", result)
+    return result
+
+
+def enrich_designed_doc(doc: dict[str, Any], profile: Profile | None) -> dict[str, Any]:
+    """Fill contact/education from base profile when Claude omits sidebar fields."""
+    if not profile:
+        return doc
+    out = dict(doc)
+    for key in ("name", "email", "phone", "location"):
+        if not out.get(key) and getattr(profile, key, None):
+            out[key] = getattr(profile, key)
+    if not out.get("links") and profile.links:
+        out["links"] = list(profile.links)
+    if not out.get("education") and profile.education:
+        out["education"] = profile.education
+    return out
 
 
 def _signature_headline(doc: dict[str, Any], job: Job | None) -> str:
