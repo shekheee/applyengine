@@ -7,7 +7,7 @@ from typing import Any
 from app.models import Job
 from app.services.resume_a4 import A4_PAGE_CSS
 
-VALID_TEMPLATE_STYLES = frozenset({"editorial", "executive", "minimal"})
+VALID_TEMPLATE_STYLES = frozenset({"signature", "editorial", "executive", "minimal"})
 
 
 def _esc(value: Any) -> str:
@@ -146,6 +146,318 @@ def _projects_blocks(projects: list[Any], *, compact: bool = False) -> str:
             f'{f"<p class=\"project-desc\">{desc}</p>" if desc else ""}</article>'
         )
     return "".join(blocks)
+
+
+def _format_bullet(text: Any) -> str:
+    """Escape bullet text but preserve **bold** markers as <strong>."""
+    raw = str(text or "").strip()
+    if not raw:
+        return ""
+    parts = re.split(r"\*\*(.+?)\*\*", raw)
+    out: list[str] = []
+    for i, part in enumerate(parts):
+        if not part:
+            continue
+        if i % 2 == 1:
+            out.append(f"<strong>{_esc(part)}</strong>")
+        else:
+            out.append(_esc(part))
+    return "".join(out)
+
+
+def _signature_headline(doc: dict[str, Any], job: Job | None) -> str:
+    headline = doc.get("headline")
+    if headline:
+        return _esc(str(headline))
+    if job and job.title:
+        company = f" · {job.company}" if job.company else ""
+        return _esc(f"{job.title}{company}")
+    experience = doc.get("experience") or []
+    if experience and isinstance(experience[0], dict):
+        title = experience[0].get("title")
+        if title:
+            return _esc(str(title))
+    return _role_headline(doc, job)
+
+
+_SKILL_CATEGORY_HINTS: list[tuple[str, tuple[str, ...]]] = [
+    ("Languages", ("python", "sql", "pyspark", "java", "scala", "r", "javascript", "typescript")),
+    ("GenAI / LLM", ("rag", "llm", "langchain", "llamaindex", "openai", "anthropic", "cohere", "prompt", "agentic", "genai", "generative", "gpt", "claude", "gemini")),
+    ("Vector / Retrieval", ("pinecone", "weaviate", "chroma", "kendra", "embedding", "vector", "retrieval")),
+    ("ML & Modeling", ("scikit", "xgboost", "random forest", "nlp", "spacy", "keras", "tensorflow", "pytorch", "shap", "forecast", "time-series", "machine learning")),
+    ("Data & Cloud", ("azure", "aws", "gcp", "databricks", "bigquery", "fastapi", "pandas", "numpy", "spark", "etl")),
+    ("Databases & BI", ("mysql", "sql server", "mongodb", "supabase", "postgres", "power bi", "tableau", "looker")),
+]
+
+
+def _auto_skill_groups(skills: list[Any]) -> list[dict[str, Any]]:
+    items = [str(s).strip() for s in skills if str(s).strip()]
+    if not items:
+        return []
+    buckets: dict[str, list[str]] = {name: [] for name, _ in _SKILL_CATEGORY_HINTS}
+    other: list[str] = []
+    for skill in items:
+        low = skill.lower()
+        matched = False
+        for name, hints in _SKILL_CATEGORY_HINTS:
+            if any(h in low for h in hints):
+                buckets[name].append(skill)
+                matched = True
+                break
+        if not matched:
+            other.append(skill)
+    groups: list[dict[str, Any]] = []
+    for name, _ in _SKILL_CATEGORY_HINTS:
+        if buckets[name]:
+            groups.append({"name": name, "items": buckets[name]})
+    if other:
+        groups.append({"name": "Other", "items": other})
+    return groups[:6]
+
+
+def _signature_contact(doc: dict[str, Any]) -> str:
+    rows: list[str] = []
+    for val in (doc.get("email"), doc.get("phone"), doc.get("location")):
+        if val:
+            rows.append(f"<span>{_esc(val)}</span>")
+    for link in (doc.get("links") or [])[:3]:
+        if not link:
+            continue
+        link_str = str(link).strip()
+        href = link_str if link_str.startswith("http") else f"https://{link_str}"
+        display = link_str.replace("https://", "").replace("http://", "").rstrip("/")
+        rows.append(f'<a href="{_esc(href)}">{_esc(display)}</a>')
+    if not rows:
+        return ""
+    return f'<div class="side-contact">{"".join(rows)}</div>'
+
+
+def _signature_education(education: list[Any]) -> str:
+    rows: list[str] = []
+    for ed in education or []:
+        if not isinstance(ed, dict):
+            continue
+        degree = _esc(ed.get("degree"))
+        school = _esc(ed.get("school"))
+        if not degree and not school:
+            continue
+        rows.append(
+            f"""<div class="side-edu">
+  <div class="side-edu-degree">{degree or school}</div>
+  {f'<div class="side-edu-school">{school}</div>' if degree and school else ''}
+</div>"""
+        )
+    return "".join(rows)
+
+
+def _signature_skill_groups(doc: dict[str, Any]) -> str:
+    raw_groups = doc.get("skill_groups") or []
+    groups: list[dict[str, Any]] = []
+    for g in raw_groups:
+        if isinstance(g, dict) and g.get("name") and g.get("items"):
+            groups.append(g)
+    if not groups:
+        groups = _auto_skill_groups(doc.get("skills") or [])
+    if not groups:
+        return ""
+    blocks: list[str] = []
+    for g in groups[:6]:
+        name = _esc(g.get("name"))
+        items = [str(i).strip() for i in (g.get("items") or []) if str(i).strip()]
+        if not items:
+            continue
+        blocks.append(
+            f"""<div class="skill-group">
+  <div class="skill-cat">{name}</div>
+  <div class="skill-items">{_esc(", ".join(items))}</div>
+</div>"""
+        )
+    return "".join(blocks)
+
+
+def _signature_certifications(doc: dict[str, Any]) -> str:
+    certs = [str(c).strip() for c in (doc.get("certifications") or []) if str(c).strip()]
+    if not certs:
+        return ""
+    return "".join(f"<span>{_esc(c)}</span>" for c in certs[:8])
+
+
+def _signature_experience(experience: list[Any], *, compact: bool) -> str:
+    blocks: list[str] = []
+    max_roles = 4 if compact else 5
+    bullets_per = 3 if compact else 5
+    gap = "8px" if compact else "10px"
+    for exp in (experience or [])[:max_roles]:
+        if not isinstance(exp, dict):
+            continue
+        title = _esc(exp.get("title"))
+        company = _esc(exp.get("company"))
+        dates = _esc(exp.get("dates"))
+        if not title and not company:
+            continue
+        highlights = exp.get("highlights") or []
+        bullets = ""
+        if highlights:
+            lis = "".join(
+                f"<li>{_format_bullet(h)}</li>"
+                for h in highlights[:bullets_per]
+                if str(h).strip()
+            )
+            if lis:
+                bullets = f'<ul class="sig-bullets">{lis}</ul>'
+        blocks.append(
+            f"""<div class="sig-role" style="margin-bottom:{gap}">
+  <div class="sig-role-top">
+    <div class="sig-role-title">{title or company}</div>
+    {f'<div class="sig-role-when">{dates}</div>' if dates else ''}
+  </div>
+  {f'<div class="sig-role-org">{company}</div>' if title and company else ''}
+  {bullets}
+</div>"""
+        )
+    return "".join(blocks)
+
+
+def _signature_side_section(label: str, body: str) -> str:
+    if not body:
+        return ""
+    return f"""<div class="side-block">
+  <div class="side-label">{label}</div>
+  {body}
+</div>"""
+
+
+def _signature_html(doc: dict[str, Any], job: Job | None, compact: bool) -> str:
+    name = _esc(doc.get("name") or "Candidate")
+    headline = _signature_headline(doc, job)
+    summary = _esc(doc.get("summary"))
+    contact = _signature_contact(doc)
+    education = _signature_education(doc.get("education") or [])
+    skills = _signature_skill_groups(doc)
+    certs = _signature_certifications(doc)
+    experience = _signature_experience(doc.get("experience") or [], compact=compact)
+
+    # Reference Design Lab export: Poppins, 27/73 split, #1a2b3c sidebar, #2b6cb0 accent
+    name_size = "27px" if compact else "31px"
+    summary_size = "10.5px" if compact else "11.5px"
+    role_gap = "8px" if compact else "10px"
+    side_gap = "12px" if compact else "16px"
+    main_pad = "9mm 11mm 9mm" if compact else "10.668mm 12.7mm 10.668mm"
+    side_pad = "9mm 7mm 9mm 10.668mm" if compact else "10.668mm 8.128mm 10.668mm 10.668mm"
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>{name} — Resume</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+{A4_PAGE_CSS}
+:root {{
+  --sidebar-bg: #1a2b3c;
+  --sidebar-label: #7fa8d0;
+  --sidebar-text: #cbd5e0;
+  --sidebar-heading: #f7fafc;
+  --sidebar-muted: #a0aec0;
+  --link: #9ecbff;
+  --ink: #1a2b3c;
+  --ink-body: #1a202c;
+  --accent: #2b6cb0;
+  --body: #4a5568;
+  --muted: #718096;
+}}
+* {{ box-sizing: border-box; margin: 0; padding: 0; }}
+html, body {{
+  width: 210mm; min-height: 297mm; background: #fff; color: var(--ink-body);
+  font-family: Poppins, system-ui, sans-serif;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}}
+a {{ color: var(--link); text-decoration: none; }}
+.page {{
+  width: 210mm; min-height: 297mm; display: flex; min-height: 100%;
+}}
+.sidebar {{
+  width: 27%; background: var(--sidebar-bg); color: var(--sidebar-text);
+  padding: {side_pad}; display: flex; flex-direction: column; gap: {side_gap};
+}}
+.side-label {{
+  font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--sidebar-label); margin-bottom: 9px;
+}}
+.side-contact {{
+  display: flex; flex-direction: column; gap: 7px;
+  font-size: 11px; line-height: 1.4; color: var(--sidebar-text);
+}}
+.side-edu {{ margin-bottom: 2px; }}
+.side-edu-degree {{
+  font-size: 12px; font-weight: 600; color: var(--sidebar-heading); line-height: 1.35;
+}}
+.side-edu-school {{ font-size: 10.5px; color: var(--sidebar-muted); margin-top: 2px; }}
+.skill-group {{ margin-bottom: 2px; }}
+.skill-cat {{ font-weight: 600; color: var(--sidebar-heading); margin-bottom: 3px; font-size: 10.5px; }}
+.skill-items {{ color: var(--sidebar-text); line-height: 1.4; font-size: 10.5px; }}
+.side-certs {{
+  display: flex; flex-direction: column; gap: 8px;
+  font-size: 11px; color: var(--sidebar-text); line-height: 1.45;
+}}
+.main {{
+  width: 73%; padding: {main_pad}; box-sizing: border-box;
+}}
+.main-header {{ margin-bottom: {"14px" if compact else "18px"}; }}
+.main-name {{
+  font-size: {name_size}; font-weight: 700; letter-spacing: 0.01em;
+  margin: 0; color: var(--ink); line-height: 1.05;
+}}
+.main-tagline {{
+  font-size: 12px; font-weight: 600; color: var(--accent);
+  letter-spacing: 0.06em; text-transform: uppercase; margin-top: 6px;
+}}
+.main-summary {{
+  font-size: {summary_size}; line-height: 1.55; color: var(--body);
+  margin: 0 0 {"10px" if compact else "13px"}; text-wrap: pretty;
+}}
+.exp-heading {{
+  font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink); margin: 0 0 4px; padding-bottom: 6px;
+  border-bottom: 2px solid var(--ink);
+}}
+.sig-roles {{ margin-top: {"8px" if compact else "10px"}; display: flex; flex-direction: column; gap: {role_gap}; }}
+.sig-role-top {{
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+}}
+.sig-role-title {{ font-size: 13px; font-weight: 600; color: var(--ink-body); }}
+.sig-role-when {{ font-size: 10px; color: var(--muted); white-space: nowrap; font-weight: 500; }}
+.sig-role-org {{
+  font-size: 11px; color: var(--accent); font-weight: 500;
+  margin: 2px 0 {"6px" if compact else "8px"};
+}}
+.sig-bullets {{
+  margin: 0; padding-left: 15px; font-size: 11px; line-height: {"1.45" if compact else "1.5"};
+  color: var(--body); display: flex; flex-direction: column; gap: {"4px" if compact else "5px"};
+}}
+</style>
+</head>
+<body>
+<div class="page signature">
+  <aside class="sidebar">
+    {_signature_side_section("Contact", contact)}
+    {_signature_side_section("Education", f'<div class="side-edu-list">{education}</div>' if education else "")}
+    {_signature_side_section("Skills", f'<div class="side-skills">{skills}</div>' if skills else "")}
+    {_signature_side_section("Certifications", f'<div class="side-certs">{certs}</div>' if certs else "")}
+  </aside>
+  <main class="main">
+    <header class="main-header">
+      <h1 class="main-name">{name}</h1>
+      <div class="main-tagline">{headline}</div>
+    </header>
+    {f'<p class="main-summary">{summary}</p>' if summary else ""}
+    {f'<section><h2 class="exp-heading">Experience</h2><div class="sig-roles">{experience}</div></section>' if experience else ""}
+  </main>
+</div>
+</body>
+</html>"""
 
 
 def _doc_sections(doc: dict[str, Any], job: Job | None, *, compact: bool) -> dict[str, str]:
@@ -446,11 +758,13 @@ html, body {{ width: 210mm; min-height: 297mm; background: #fff; color: var(--bo
 def render_resume_template(
     doc: dict[str, Any],
     *,
-    style: str = "editorial",
+    style: str = "signature",
     job: Job | None = None,
     compact: bool = False,
 ) -> str:
-    style_key = style if style in VALID_TEMPLATE_STYLES else "editorial"
+    style_key = style if style in VALID_TEMPLATE_STYLES else "signature"
+    if style_key == "signature":
+        return _signature_html(doc, job, compact)
     if style_key == "executive":
         return _executive_html(doc, job, compact)
     if style_key == "minimal":
@@ -461,7 +775,7 @@ def render_resume_template(
 def design_and_render_resume(
     doc: dict[str, Any],
     *,
-    style: str = "editorial",
+    style: str = "signature",
     job: Job | None = None,
 ) -> str:
     return render_resume_template(doc, style=style, job=job, compact=False)

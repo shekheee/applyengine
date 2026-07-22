@@ -4,6 +4,12 @@ import { cn } from "@/components/ui";
 
 const STYLES = [
   {
+    id: "signature" as const,
+    label: "Signature sidebar",
+    desc: "Poppins · navy sidebar · reference layout",
+    preview: "Sg",
+  },
+  {
     id: "editorial" as const,
     label: "Modern editorial",
     desc: "Indigo accent, Fraunces display, skill chips",
@@ -37,7 +43,7 @@ export function StylePicker({
       <legend className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-[var(--muted)]">
         Layout style
       </legend>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Resume layout style">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4" role="radiogroup" aria-label="Resume layout style">
         {STYLES.map((style) => {
           const active = value === style.id;
           return (

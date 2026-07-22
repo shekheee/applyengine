@@ -123,10 +123,13 @@ produce a polished, ATS-friendly, one-page-target structured resume as JSON.
 
 Return JSON with keys:
 name, email, phone, location, links (list of urls),
+headline (optional — professional title line e.g. "Senior Data Scientist · ML & Applied AI"),
 summary (2-3 tight sentences — impact-focused, quantified where the source supports it),
 skills (list of 12-24 concise keywords, deduplicated, most relevant first),
+skill_groups (optional list of {{name, items: [str]}} — group skills into 4-6 sidebar categories when profile supports it),
+certifications (optional list of strings — only if present in source),
 experience (list of {{company, title, dates, highlights: [str]}} — order by recency,
-  3-5 strong bullets per role with action verb + scope + metric),
+  3-5 strong bullets per role with action verb + scope + metric; use **double asterisks** around key metrics in highlights),
 projects (list of {{name, description, tech: [str]}}) — only if present in source,
 education (list of {{school, degree, dates}}).
 

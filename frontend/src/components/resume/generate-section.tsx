@@ -53,11 +53,13 @@ export function GenerateSection({
         </p>
         <p className="mt-2 text-[11px] text-[var(--muted-2)]">
           Style:{" "}
-          {designStyle === "editorial"
-            ? "Modern editorial"
-            : designStyle === "executive"
-              ? "Teal sidebar"
-              : "Refined minimal"}{" "}
+          {designStyle === "signature"
+            ? "Signature sidebar"
+            : designStyle === "editorial"
+              ? "Modern editorial"
+              : designStyle === "executive"
+                ? "Teal sidebar"
+                : "Refined minimal"}{" "}
           · PDF uses Chromium print for pixel fidelity
         </p>
       </div>

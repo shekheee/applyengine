@@ -46,7 +46,7 @@ export function ResumeWorkspace({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [resumeJobId, setResumeJobId] = useState<number | "">(lockedJobId ?? "");
   const [designState, setDesignState] = useState<"idle" | "working" | "done">("idle");
-  const [designStyle, setDesignStyle] = useState<ResumeDesignStyle>("editorial");
+  const [designStyle, setDesignStyle] = useState<ResumeDesignStyle>("signature");
   const [pdfState, setPdfState] = useState<"idle" | "working" | "done">("idle");
   const [docxState, setDocxState] = useState<"idle" | "working" | "done">("idle");
   const [error, setError] = useState("");

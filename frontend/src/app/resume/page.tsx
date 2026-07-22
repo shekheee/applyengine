@@ -27,7 +27,7 @@ export default function ResumePage() {
             {[
               ["210×297", "A4 page"],
               ["1 page", "PDF export"],
-              ["3 styles", "Editorial · Sidebar · Minimal"],
+              ["4 styles", "Signature · Editorial · Sidebar · Minimal"],
             ].map(([value, label]) => (
               <div key={label} className="text-right">
                 <dt className="text-[10px] font-medium uppercase tracking-wider text-[var(--muted-2)]">

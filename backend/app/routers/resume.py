@@ -129,7 +129,7 @@ def get_version(
 @router.post("/design", response_model=ResumeDesignOut)
 def generate_designed_resume(
     job_id: int | None = None,
-    style: str = "editorial",
+    style: str = "signature",
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ):
@@ -137,7 +137,7 @@ def generate_designed_resume(
     profile = _latest_profile(user, session)
     memories = _user_memories(user, session)
     job = _optional_job(user, session, job_id)
-    style_key = style if style in ("editorial", "executive", "minimal") else "editorial"
+    style_key = style if style in ("signature", "editorial", "executive", "minimal") else "signature"
     try:
         doc, provider, model = design_resume_with_claude(profile, memories, job)
         doc["_template_style"] = style_key
@@ -206,7 +206,7 @@ def download_resume_pdf(
                 pdf_bytes, filename = build_resume_pdf(profile, memories, job)
         elif version and version.html_content.strip():
             export_html = version.html_content
-            style_guess = (version.structured_json or {}).get("_template_style", "editorial")
+            style_guess = (version.structured_json or {}).get("_template_style", "signature")
             try:
                 pdf_bytes, engine, export_html, _level = html_to_pdf_one_page(
                     export_html,
