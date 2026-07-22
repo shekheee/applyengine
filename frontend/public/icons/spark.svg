@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <defs>
+    <linearGradient id="spark-g" x1="12" y1="4" x2="36" y2="44" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#a78bfa"/>
+      <stop offset="1" stop-color="#7c5cff"/>
+    </linearGradient>
+  </defs>
+  <path d="M24 4l3.2 11.2L38 18l-10.8 2.8L24 32l-3.2-11.2L10 18l10.8-2.8L24 4z" fill="url(#spark-g)"/>
+  <path d="M36 30l1.6 5.6L43 37l-5.4 1.4L36 44l-1.6-5.6L29 37l5.4-1.4L36 30z" fill="#34d399" opacity="0.85"/>
+</svg>

@@ -200,8 +200,12 @@ function MessageBubble({
 
 export function CoachChat({
   initialConversationId,
+  embedded = false,
+  applicationId,
 }: {
   initialConversationId?: number;
+  embedded?: boolean;
+  applicationId?: number;
 } = {}) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
@@ -264,6 +268,13 @@ export function CoachChat({
   useEffect(() => {
     async function load() {
       try {
+        let resolvedConvId: number | null = null;
+
+        if (applicationId != null) {
+          const roleConv = await api.getOrCreateApplicationConversation(applicationId);
+          resolvedConvId = roleConv.id;
+        }
+
         const [convs, mem, modelData, jobList] = await Promise.all([
           api.listConversations(),
           api.listMemories(),
@@ -283,21 +294,30 @@ export function CoachChat({
         if (valid) storeModelId(valid);
 
         const urlConv =
-          initialConversationId &&
+          resolvedConvId ??
+          (initialConversationId &&
           convs.some((c) => c.id === initialConversationId)
             ? initialConversationId
-            : null;
-        const storedConv = getStoredConversationId();
+            : null);
+        const storedConv = embedded || applicationId != null ? null : getStoredConversationId();
         const active =
           urlConv ??
           (storedConv && convs.some((c) => c.id === storedConv)
             ? storedConv
-            : convs[0]?.id ?? null);
+            : embedded || applicationId != null
+              ? null
+              : convs[0]?.id ?? null);
         if (active != null) {
           setActiveConversationId(active);
-          storeConversationId(active);
+          if (!embedded && applicationId == null) storeConversationId(active);
           setActiveConversation(convs.find((c) => c.id === active) ?? null);
           const m = await api.listMessages(active);
+          setMessages(m);
+        } else if (applicationId != null && resolvedConvId != null) {
+          setActiveConversationId(resolvedConvId);
+          const roleConv = convs.find((c) => c.id === resolvedConvId);
+          setActiveConversation(roleConv ?? null);
+          const m = await api.listMessages(resolvedConvId);
           setMessages(m);
         }
       } catch (e) {
@@ -307,7 +327,7 @@ export function CoachChat({
       }
     }
     load();
-  }, [initialConversationId]);
+  }, [initialConversationId, embedded, applicationId]);
 
   useEffect(() => {
     scrollToBottom();
@@ -579,11 +599,20 @@ export function CoachChat({
 
   if (loading) {
     return (
-      <div className="flex h-[70vh] items-center justify-center text-[var(--muted)]">
+      <div
+        className={`flex items-center justify-center text-[var(--muted)] ${
+          embedded ? "h-[min(70vh,640px)]" : "h-[70vh]"
+        }`}
+      >
         Loading coach…
       </div>
     );
   }
+
+  const openInCoachHref =
+    activeConversationId != null
+      ? `/coach?conversation_id=${activeConversationId}`
+      : "/coach";
 
   const sidebar = (
     <div className="space-y-4">
@@ -648,40 +677,48 @@ export function CoachChat({
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden lg:flex-row lg:gap-2">
+    <div
+      className={`flex min-h-0 flex-col overflow-hidden ${
+        embedded ? "h-[min(70vh,720px)]" : "h-full lg:flex-row lg:gap-2"
+      }`}
+    >
       {/* Conversations sidebar */}
-      <div
-        className={`shrink-0 border-r pr-2 lg:block lg:w-52 ${
-          convListOpen ? "block" : "hidden"
-        }`}
-        style={{ borderColor: "var(--border)" }}
-      >
-        <ConversationList
-          conversations={conversations}
-          activeId={activeConversationId}
-          onSelect={(id) => {
-            void selectConversation(id);
-            setConvListOpen(false);
-          }}
-          onNew={() => setShowNewConv(true)}
-          onRename={renameConversation}
-          onDelete={deleteConversation}
-          compact
-        />
-      </div>
+      {!embedded && (
+        <div
+          className={`shrink-0 border-r pr-2 lg:block lg:w-52 ${
+            convListOpen ? "block" : "hidden"
+          }`}
+          style={{ borderColor: "var(--border)" }}
+        >
+          <ConversationList
+            conversations={conversations}
+            activeId={activeConversationId}
+            onSelect={(id) => {
+              void selectConversation(id);
+              setConvListOpen(false);
+            }}
+            onNew={() => setShowNewConv(true)}
+            onRename={renameConversation}
+            onDelete={deleteConversation}
+            compact
+          />
+        </div>
+      )}
 
       {/* Main chat column — ChatGPT-style */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="lg:hidden"
-              onClick={() => setConvListOpen(!convListOpen)}
-            >
-              {convListOpen ? "Hide" : "Chats"}
-            </Button>
+            {!embedded && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="lg:hidden"
+                onClick={() => setConvListOpen(!convListOpen)}
+              >
+                {convListOpen ? "Hide" : "Chats"}
+              </Button>
+            )}
             <div className="min-w-0">
               <h1 className="truncate text-base font-semibold">
                 {activeConversation?.title ?? "Career coach"}
@@ -689,15 +726,22 @@ export function CoachChat({
               {activeConversation && (
                 <p className="truncate text-[10px] text-[var(--muted)]">
                   {conversationSubtitle(activeConversation)}
+                  {embedded && activeConversation.has_jd && " · JD in context"}
                 </p>
               )}
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden">
-            {sidebarOpen ? "Hide panel" : "Memory"}
-          </Button>
+          {embedded ? (
+            <Button href={openInCoachHref} variant="outline" size="sm">
+              Open in Coach →
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm" onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden">
+              {sidebarOpen ? "Hide panel" : "Memory"}
+            </Button>
+          )}
         </div>
-        {sidebarOpen && <div className="mb-2 shrink-0 lg:hidden">{sidebar}</div>}
+        {!embedded && sidebarOpen && <div className="mb-2 shrink-0 lg:hidden">{sidebar}</div>}
 
         <div
           ref={scrollRef}
@@ -706,14 +750,19 @@ export function CoachChat({
         >
           <div className="mx-auto w-full min-w-0 max-w-3xl space-y-5">
             {messages.length === 0 && !streaming && (
-              <div className="flex flex-col items-center py-12 text-center">
+              <div className={`flex flex-col items-center text-center ${embedded ? "py-8" : "py-12"}`}>
                 <div className="mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-[var(--primary)] text-3xl text-white shadow-lg shadow-violet-500/20">
                   ⚡
                 </div>
-                <h2 className="text-xl font-semibold">How can I help with your career?</h2>
+                <h2 className="text-xl font-semibold">
+                  {embedded && activeConversation?.has_jd
+                    ? "Ask anything about this role"
+                    : "How can I help with your career?"}
+                </h2>
                 <p className="mt-2 max-w-md text-sm text-[var(--muted)]">
-                  Ask about resume bullets, interview prep, or attach a PDF or screenshot
-                  for feedback.
+                  {embedded && activeConversation?.has_jd
+                    ? "This thread is scoped to the job description. Prep, gaps, and talking points stay role-specific."
+                    : "Ask about resume bullets, interview prep, or attach a PDF or screenshot for feedback."}
                 </p>
                 <div className="mt-6 flex flex-wrap justify-center gap-2">
                   {(activeConversation?.has_jd ? JD_STARTERS : STARTERS).map((s) => (
@@ -899,15 +948,17 @@ export function CoachChat({
       </div>
 
       {/* Desktop tools sidebar */}
-      <div className="hidden w-64 shrink-0 overflow-y-auto lg:block">{sidebar}</div>
+      {!embedded && <div className="hidden w-64 shrink-0 overflow-y-auto lg:block">{sidebar}</div>}
 
-      <NewConversationDialog
-        open={showNewConv}
-        onClose={() => setShowNewConv(false)}
-        onCreate={createConversation}
-        jobs={jobs}
-        busy={convBusy}
-      />
+      {!embedded && (
+        <NewConversationDialog
+          open={showNewConv}
+          onClose={() => setShowNewConv(false)}
+          onCreate={createConversation}
+          jobs={jobs}
+          busy={convBusy}
+        />
+      )}
     </div>
   );
 }

@@ -8,19 +8,113 @@ export function cn(...parts: (string | false | null | undefined)[]) {
 export function Card({
   children,
   className,
+  interactive,
 }: {
   children: ReactNode;
   className?: string;
+  interactive?: boolean;
 }) {
   return (
     <div
       className={cn(
         "rounded-xl border bg-[var(--panel)] p-5 shadow-[0_1px_0_rgba(255,255,255,0.03)_inset]",
+        interactive && "card-interactive",
         className
       )}
       style={{ borderColor: "var(--border)" }}
     >
       {children}
+    </div>
+  );
+}
+
+export function SectionHeader({
+  title,
+  description,
+  action,
+  icon,
+}: {
+  title: string;
+  description?: string;
+  action?: ReactNode;
+  icon?: ReactNode;
+}) {
+  return (
+    <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+      <div className="flex min-w-0 items-start gap-3">
+        {icon && (
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border bg-[var(--panel-2)]">
+            {icon}
+          </div>
+        )}
+        <div className="min-w-0">
+          <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+          {description && (
+            <p className="mt-0.5 text-sm text-[var(--muted)]">{description}</p>
+          )}
+        </div>
+      </div>
+      {action}
+    </div>
+  );
+}
+
+export function TabBar<T extends string>({
+  tabs,
+  active,
+  onChange,
+}: {
+  tabs: { id: T; label: string; icon?: ReactNode }[];
+  active: T;
+  onChange: (id: T) => void;
+}) {
+  return (
+    <div
+      className="inline-flex flex-wrap gap-1 rounded-xl border bg-[var(--panel)] p-1"
+      style={{ borderColor: "var(--border)" }}
+      role="tablist"
+    >
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          type="button"
+          role="tab"
+          aria-selected={active === tab.id}
+          data-active={active === tab.id}
+          onClick={() => onChange(tab.id)}
+          className="tab-pill inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-[var(--muted)] hover:text-[var(--text)]"
+        >
+          {tab.icon}
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function EmptyState({
+  icon,
+  title,
+  description,
+  action,
+}: {
+  icon?: ReactNode;
+  title: string;
+  description?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
+      {icon && (
+        <div className="mb-4 grid h-14 w-14 place-items-center rounded-2xl border bg-[var(--panel-2)]">
+          {icon}
+        </div>
+      )}
+      <h3 className="text-base font-semibold">{title}</h3>
+      {description && (
+        <p className="mt-2 max-w-sm text-sm text-[var(--muted)]">{description}</p>
+      )}
+      {action && <div className="mt-5">{action}</div>}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 import { AuthProvider, useAuth } from "@/lib/auth";
@@ -12,15 +13,16 @@ function NavBar() {
   const pathname = usePathname();
 
   const navLink = (href: string, label: string) => {
-    const active = pathname === href;
+    const active = pathname === href || (href !== "/" && pathname.startsWith(href));
     return (
       <Link
         href={href}
-        className={`shrink-0 rounded-lg px-2 py-1.5 sm:px-3 ${
+        className={`tab-pill shrink-0 rounded-lg px-2 py-1.5 sm:px-3 ${
           active
-            ? "bg-[var(--panel-2)] text-[var(--text)]"
+            ? "bg-[var(--panel-2)] text-[var(--text)] shadow-[0_0_0_1px_color-mix(in_srgb,var(--primary)_35%,transparent)]"
             : "text-[var(--muted)] hover:bg-[var(--panel-2)] hover:text-[var(--text)]"
         }`}
+        data-active={active}
       >
         {label}
       </Link>
@@ -31,8 +33,8 @@ function NavBar() {
     <header className="sticky top-0 z-10 overflow-x-hidden border-b bg-[var(--bg)]/80 backdrop-blur">
       <div className="mx-auto flex min-w-0 max-w-6xl items-center justify-between gap-2 px-4 py-3 sm:px-6">
         <Link href="/" className="flex shrink-0 items-center gap-2 font-semibold">
-          <span className="grid h-7 w-7 place-items-center rounded-md bg-[var(--primary)] text-white">
-            ⚡
+          <span className="grid h-7 w-7 place-items-center rounded-md bg-[var(--primary)] shadow-[0_4px_16px_-4px_var(--glow)]">
+            <Image src="/icons/spark.svg" alt="" width={16} height={16} aria-hidden />
           </span>
           <span className="hidden sm:inline">ApplyEngine</span>
         </Link>
@@ -97,14 +99,16 @@ function Gate({ children }: { children: ReactNode }) {
 export function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isCoach = pathname === "/coach";
+  const isApplication = pathname.startsWith("/applications/");
+  const wide = isCoach || isApplication;
 
   return (
     <AuthProvider>
       <div className="min-h-screen overflow-x-hidden">
         <NavBar />
         <main
-          className={`mx-auto max-w-6xl min-w-0 px-4 sm:px-6 ${
-            isCoach ? "py-3 sm:py-4" : "py-8"
+          className={`mx-auto min-w-0 px-4 sm:px-6 ${
+            wide ? "max-w-7xl py-3 sm:py-4" : "max-w-6xl py-8"
           }`}
         >
           <Gate>{children}</Gate>

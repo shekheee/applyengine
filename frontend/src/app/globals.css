@@ -4,6 +4,7 @@
   --bg: #0a0a0f;
   --panel: #14141c;
   --panel-2: #1b1b26;
+  --panel-3: #222230;
   --border: #2a2a38;
   --text: #e8e8f0;
   --muted: #9a9ab0;
@@ -12,6 +13,7 @@
   --green: #34d399;
   --amber: #fbbf24;
   --red: #f87171;
+  --glow: rgba(124, 92, 255, 0.35);
 }
 
 @theme inline {
@@ -43,11 +45,56 @@ body {
   overflow-x: hidden;
   background-image: radial-gradient(
       900px 500px at 80% -10%,
-      rgba(124, 92, 255, 0.12),
+      rgba(124, 92, 255, 0.14),
       transparent 60%
     ),
-    radial-gradient(700px 500px at -10% 20%, rgba(52, 211, 153, 0.06), transparent 60%);
+    radial-gradient(700px 500px at -10% 20%, rgba(52, 211, 153, 0.08), transparent 60%),
+    radial-gradient(600px 400px at 50% 100%, rgba(167, 139, 250, 0.05), transparent 55%);
   background-attachment: fixed;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.35s ease-out both;
+}
+
+.card-interactive {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.card-interactive:hover {
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+  box-shadow: 0 8px 32px -12px var(--glow);
+}
+
+.tab-pill {
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tab-pill[data-active="true"] {
+  background: color-mix(in srgb, var(--primary) 18%, var(--panel-2));
+  color: var(--text);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 40%, transparent),
+    0 4px 16px -6px var(--glow);
 }
 
 ::-webkit-scrollbar {

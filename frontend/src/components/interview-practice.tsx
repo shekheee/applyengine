@@ -88,7 +88,15 @@ function hasFeedbackForQuestion(turns: InterviewTurn[], idx: number): boolean {
   return turns.some((t) => t.question_index === idx && t.role === "feedback");
 }
 
-export function InterviewPractice() {
+export function InterviewPractice({
+  initialJobId,
+  embedded = false,
+  jobLabel,
+}: {
+  initialJobId?: number;
+  embedded?: boolean;
+  jobLabel?: string;
+} = {}) {
   const [phase, setPhase] = useState<"setup" | "practice" | "summary">("setup");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -104,7 +112,7 @@ export function InterviewPractice() {
 
   const [focus, setFocus] = useState("mixed");
   const [difficulty, setDifficulty] = useState("mid");
-  const [jobId, setJobId] = useState<number | "">("");
+  const [jobId, setJobId] = useState<number | "">(initialJobId ?? "");
   const [curriculumTopic, setCurriculumTopic] = useState("");
   const [curriculum, setCurriculum] = useState<InterviewCurriculum | null>(null);
   const [showStudyGuide, setShowStudyGuide] = useState(false);
@@ -156,6 +164,7 @@ export function InterviewPractice() {
             : modelData.default_model;
         setSelectedModel(valid);
         if (valid) storeModelId(valid);
+        if (initialJobId != null) setJobId(initialJobId);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load.");
       } finally {
@@ -163,7 +172,7 @@ export function InterviewPractice() {
       }
     }
     load();
-  }, []);
+  }, [initialJobId]);
 
   useEffect(() => {
     scrollToBottom();
@@ -369,35 +378,67 @@ export function InterviewPractice() {
     session != null && session.current_index >= (session.questions.length - 1);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Interview Practice</h1>
-          <p className="text-sm text-[var(--muted)]">
-            Tailored questions from your resume
-            {jobId !== "" ? " and target role" : ""} with actionable feedback.
-          </p>
+    <div className={embedded ? "space-y-4" : "space-y-6"}>
+      {!embedded && (
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold">Interview Practice</h1>
+            <p className="text-sm text-[var(--muted)]">
+              Tailored questions from your resume
+              {jobId !== "" ? " and target role" : ""} with actionable feedback.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {models.length > 0 && (
+              <ModelSelector
+                models={models}
+                selectedId={selectedModel}
+                onChange={setSelectedModel}
+                disabled={busy || streaming}
+              />
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          {models.length > 0 && (
-            <ModelSelector
-              models={models}
-              selectedId={selectedModel}
-              onChange={setSelectedModel}
-              disabled={busy || streaming}
-            />
-          )}
+      )}
+
+      {embedded && phase === "setup" && (
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">Prepare for interview</h2>
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              Questions and feedback scoped to{" "}
+              {jobLabel ? (
+                <strong className="text-[var(--text)]">{jobLabel}</strong>
+              ) : (
+                "this role"
+              )}
+              , grounded in your resume.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {models.length > 0 && (
+              <ModelSelector
+                models={models}
+                selectedId={selectedModel}
+                onChange={setSelectedModel}
+                disabled={busy || streaming}
+              />
+            )}
+            <Button href="/interview" variant="outline" size="sm">
+              Full practice →
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
       {!profile && (
         <Card className="border-amber-500/30 bg-amber-500/5">
           <p className="text-sm">
-            Upload your <strong>base resume</strong> in{" "}
-            <Link href="/coach" className="text-[var(--primary-2)] underline">
-              Coach
+            Upload your <strong>base resume</strong> on the{" "}
+            <Link href="/resume" className="text-[var(--primary-2)] underline">
+              Resume
             </Link>{" "}
-            before starting. Questions and feedback are grounded in your real profile.
+            page before starting. Questions and feedback are grounded in your real profile.
           </p>
         </Card>
       )}
@@ -408,12 +449,12 @@ export function InterviewPractice() {
         </div>
       )}
 
-      {(phase === "setup" || progress?.completed_sessions) ? (
+      {(phase === "setup" || progress?.completed_sessions) && !embedded ? (
         <InterviewProgressPanel progress={progress} />
       ) : null}
 
       {phase === "setup" && (
-        <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
+        <div className={embedded ? "space-y-4" : "grid gap-6 lg:grid-cols-[1fr_280px]"}>
           <Card className="space-y-5">
             <div>
               <p className="mb-2 text-sm font-medium">Focus area</p>
@@ -494,36 +535,47 @@ export function InterviewPractice() {
               </div>
             )}
 
-            <div>
-              <label className="mb-2 block text-sm font-medium">
-                Target role (optional)
-              </label>
-              <select
-                value={jobId}
-                onChange={(e) =>
-                  setJobId(e.target.value ? Number(e.target.value) : "")
-                }
-                className="w-full rounded-lg border bg-[var(--panel-2)] px-3 py-2 text-sm"
-                style={{ borderColor: "var(--border)" }}
-              >
-                <option value="">General (resume only)</option>
-                {jobs.map((j) => (
-                  <option key={j.id} value={j.id}>
-                    {j.title} @ {j.company}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {initialJobId == null ? (
+              <div>
+                <label className="mb-2 block text-sm font-medium">
+                  Target role (optional)
+                </label>
+                <select
+                  value={jobId}
+                  onChange={(e) =>
+                    setJobId(e.target.value ? Number(e.target.value) : "")
+                  }
+                  className="w-full rounded-lg border bg-[var(--panel-2)] px-3 py-2 text-sm"
+                  style={{ borderColor: "var(--border)" }}
+                >
+                  <option value="">General (resume only)</option>
+                  {jobs.map((j) => (
+                    <option key={j.id} value={j.id}>
+                      {j.title} @ {j.company}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <p className="rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs text-amber-100">
+                Session will use this application&apos;s job description for tailored questions.
+              </p>
+            )}
 
             <Button
               onClick={startSession}
               disabled={!profile || busy}
               className="w-full sm:w-auto"
             >
-              {busy ? "Generating questions…" : "Start practice session"}
+              {busy
+                ? "Generating questions…"
+                : embedded
+                  ? "▶ Prepare for interview"
+                  : "Start practice session"}
             </Button>
           </Card>
 
+          {!embedded && (
           <div className="space-y-4">
             {profile && (
               <Card>
@@ -567,6 +619,7 @@ export function InterviewPractice() {
               </Card>
             )}
           </div>
+          )}
         </div>
       )}
 
