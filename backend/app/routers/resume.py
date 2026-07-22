@@ -137,7 +137,7 @@ def generate_designed_resume(
     profile = _latest_profile(user, session)
     memories = _user_memories(user, session)
     job = _optional_job(user, session, job_id)
-    style_key = style if style in ("editorial", "executive") else "editorial"
+    style_key = style if style in ("editorial", "executive", "minimal") else "editorial"
     try:
         doc, provider, model = design_resume_with_claude(profile, memories, job)
         doc["_template_style"] = style_key

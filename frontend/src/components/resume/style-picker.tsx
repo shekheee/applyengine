@@ -6,30 +6,38 @@ const STYLES = [
   {
     id: "editorial" as const,
     label: "Modern editorial",
-    desc: "Asymmetric header, skill chips, accent rule",
-    preview: "Aa",
+    desc: "Indigo accent, Fraunces display, skill chips",
+    preview: "Ed",
   },
   {
     id: "executive" as const,
-    label: "Clean executive",
-    desc: "Centered header, serif accents, restrained",
-    preview: "Ab",
+    label: "Teal sidebar",
+    desc: "Two-column layout, contact stack, depth",
+    preview: "Sb",
+  },
+  {
+    id: "minimal" as const,
+    label: "Refined minimal",
+    desc: "Centered serif, copper rule, column skills",
+    preview: "Mn",
   },
 ];
+
+export type ResumeDesignStyle = (typeof STYLES)[number]["id"];
 
 export function StylePicker({
   value,
   onChange,
 }: {
-  value: "editorial" | "executive";
-  onChange: (style: "editorial" | "executive") => void;
+  value: ResumeDesignStyle;
+  onChange: (style: ResumeDesignStyle) => void;
 }) {
   return (
     <fieldset className="space-y-2">
       <legend className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-[var(--muted)]">
         Layout style
       </legend>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Resume layout style">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Resume layout style">
         {STYLES.map((style) => {
           const active = value === style.id;
           return (

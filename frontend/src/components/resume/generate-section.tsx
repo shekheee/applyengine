@@ -1,6 +1,7 @@
 "use client";
 
 import { Button, cn } from "@/components/ui";
+import type { ResumeDesignStyle } from "@/components/resume/style-picker";
 
 export function GenerateSection({
   designState,
@@ -11,7 +12,7 @@ export function GenerateSection({
   lockedJobLabel,
 }: {
   designState: "idle" | "working" | "done";
-  designStyle: "editorial" | "executive";
+  designStyle: ResumeDesignStyle;
   onGenerate: () => void;
   disabled?: boolean;
   isApplication?: boolean;
@@ -51,8 +52,13 @@ export function GenerateSection({
           )}
         </p>
         <p className="mt-2 text-[11px] text-[var(--muted-2)]">
-          Style: {designStyle === "editorial" ? "Modern editorial" : "Clean executive"} · PDF uses Chromium
-          print for pixel fidelity
+          Style:{" "}
+          {designStyle === "editorial"
+            ? "Modern editorial"
+            : designStyle === "executive"
+              ? "Teal sidebar"
+              : "Refined minimal"}{" "}
+          · PDF uses Chromium print for pixel fidelity
         </p>
       </div>
 
