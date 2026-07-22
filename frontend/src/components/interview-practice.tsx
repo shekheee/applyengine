@@ -35,6 +35,7 @@ import { ConversationThread } from "@/components/interview/conversation-thread";
 import { AnswerComposer, FollowupComposer } from "@/components/interview/answer-composer";
 import { SessionRail } from "@/components/interview/session-rail";
 import { SummaryView } from "@/components/interview/summary-view";
+import { LiveInterviewRoom } from "@/components/interview/live-interview-room";
 import {
   AlertBanner,
   InterviewLoadingState,
@@ -64,7 +65,7 @@ export function InterviewPractice({
   embedded?: boolean;
   jobLabel?: string;
 } = {}) {
-  const [phase, setPhase] = useState<"setup" | "practice" | "summary">("setup");
+  const [phase, setPhase] = useState<"setup" | "practice" | "live" | "summary">("setup");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [streaming, setStreaming] = useState(false);
@@ -145,7 +146,7 @@ export function InterviewPractice({
     scrollToBottom();
   }, [session, streamText, liveFeedback, scrollToBottom]);
 
-  async function startSession() {
+  async function startSession(mode: "text" | "live" = "text") {
     if (!profile) {
       setError("Upload your base resume in Coach before starting.");
       return;
@@ -159,13 +160,14 @@ export function InterviewPractice({
         job_id: jobId === "" ? null : jobId,
         model: selectedModel || undefined,
         curriculum_topic: curriculumTopic || undefined,
+        mode,
       });
       setSession(s);
       setAnswer("");
       setFollowup("");
       setLiveFeedback("");
       setDeliveryMetrics(null);
-      setPhase("practice");
+      setPhase(mode === "live" ? "live" : "practice");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not start session.");
     } finally {
@@ -297,7 +299,13 @@ export function InterviewPractice({
 
   function openSession(s: InterviewSession) {
     setSession(s);
-    setPhase(s.status === "completed" ? "summary" : "practice");
+    if (s.status === "completed") {
+      setPhase("summary");
+    } else if (s.mode === "live") {
+      setPhase("live");
+    } else {
+      setPhase("practice");
+    }
   }
 
   async function handleMicClick() {
@@ -384,7 +392,7 @@ export function InterviewPractice({
               />
             )}
           </div>
-          <PhaseStepper phase={phase} />
+          <PhaseStepper phase={phase === "live" ? "practice" : phase} liveMode={phase === "live"} />
         </header>
       )}
 
@@ -420,7 +428,7 @@ export function InterviewPractice({
       )}
 
       {embedded && phase !== "setup" && (
-        <PhaseStepper phase={phase} compact />
+        <PhaseStepper phase={phase === "live" ? "practice" : phase} compact liveMode={phase === "live"} />
       )}
 
       {!profile && <ProfileRequiredBanner />}
@@ -501,20 +509,48 @@ export function InterviewPractice({
               <JobContextNote />
             )}
 
-            <div className="border-t border-[var(--border)] pt-6">
-              <Button
-                onClick={startSession}
-                disabled={!profile || busy}
-                variant="gradient"
-                size="lg"
-                className="w-full sm:w-auto"
-              >
-                {busy
-                  ? "Generating questions…"
-                  : embedded
-                    ? "Prepare for interview"
-                    : "Start practice session"}
-              </Button>
+            <div className="border-t border-[var(--border)] pt-6 space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => void startSession("live")}
+                  disabled={!profile || busy}
+                  className="group rounded-[var(--radius-xl)] border p-5 text-left transition-[border-color,box-shadow] hover:border-[var(--primary)]/50 hover:shadow-[0_0_32px_-8px_var(--glow-soft)] disabled:opacity-50 motion-reduce:transition-none"
+                  style={{ borderColor: "var(--border-strong)" }}
+                >
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--primary-2)]">
+                    Recommended
+                  </p>
+                  <p className="mt-2 text-base font-semibold text-[var(--text)]">
+                    Start live interview
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed text-[var(--muted)]">
+                    AI interviewer speaks aloud, listens to your answers, and follows up in real time.
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void startSession("text")}
+                  disabled={!profile || busy}
+                  className="rounded-[var(--radius-xl)] border p-5 text-left transition-colors hover:border-[var(--border-strong)] disabled:opacity-50 motion-reduce:transition-none"
+                  style={{ borderColor: "var(--border)" }}
+                >
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+                    Text practice
+                  </p>
+                  <p className="mt-2 text-base font-semibold text-[var(--text)]">
+                    Turn-based practice
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed text-[var(--muted)]">
+                    Read questions, type or dictate answers, and get detailed written feedback.
+                  </p>
+                </button>
+              </div>
+              {busy && (
+                <p className="text-sm text-[var(--muted)]">
+                  {curriculumTopic ? "Preparing your interview room…" : "Generating questions…"}
+                </p>
+              )}
             </div>
           </Card>
 
@@ -526,6 +562,29 @@ export function InterviewPractice({
             />
           )}
         </div>
+      )}
+
+      {phase === "live" && session && (
+        <LiveInterviewRoom
+          session={session}
+          selectedModel={selectedModel}
+          companyLabel={
+            session.job_id
+              ? (jobs.find((j) => j.id === session.job_id)?.company ?? "Target role")
+              : undefined
+          }
+          embedded={embedded}
+          onSessionUpdate={setSession}
+          onComplete={async (completed) => {
+            setSession(completed);
+            setPhase("summary");
+            const sessions = await api.listInterviewSessions();
+            setPastSessions(sessions);
+            const prog = await api.getInterviewProgress().catch(() => null);
+            setProgress(prog);
+          }}
+          onExit={resetToSetup}
+        />
       )}
 
       {phase === "practice" && session && currentQ && (

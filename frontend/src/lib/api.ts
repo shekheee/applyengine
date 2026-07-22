@@ -521,6 +521,7 @@ export const api = {
     job_id?: number | null;
     model?: string;
     curriculum_topic?: string;
+    mode?: "text" | "live";
   }) =>
     req<InterviewSession>("/api/interview/sessions", {
       method: "POST",
@@ -726,5 +727,121 @@ export const api = {
       throw new ApiError(res.status, detail || `Transcription failed (${res.status})`);
     }
     return res.json() as Promise<TranscribeResult>;
+  },
+
+  liveInterviewTurnStream: async (
+    sessionId: number,
+    onToken: (token: string) => void,
+    opts?: { candidate_answer?: string; model?: string; signal?: AbortSignal }
+  ): Promise<{
+    speech: string;
+    meta: Record<string, unknown>;
+    end_interview: boolean;
+    turn: InterviewTurn;
+    current_index: number;
+  }> => {
+    const res = await fetch(
+      `${BASE}/api/interview/sessions/${sessionId}/live/turn/stream`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders(),
+        },
+        body: JSON.stringify({
+          candidate_answer: opts?.candidate_answer,
+          model: opts?.model,
+        }),
+        signal: opts?.signal,
+      }
+    );
+    if (!res.ok) {
+      if (res.status === 401) setToken(null);
+      let detail = "";
+      try {
+        const data = await res.json();
+        detail = data?.detail ?? JSON.stringify(data);
+      } catch {
+        detail = await res.text().catch(() => "");
+      }
+      throw new ApiError(res.status, detail || `Request failed (${res.status})`);
+    }
+    if (!res.body) throw new ApiError(500, "No response stream");
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let result: {
+      speech: string;
+      meta: Record<string, unknown>;
+      end_interview: boolean;
+      turn: InterviewTurn;
+      current_index: number;
+    } | null = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const payload = line.slice(6).trim();
+        if (!payload) continue;
+        try {
+          const evt = JSON.parse(payload) as {
+            type: string;
+            content?: string;
+            detail?: string;
+            speech?: string;
+            meta?: Record<string, unknown>;
+            end_interview?: boolean;
+            turn?: InterviewTurn;
+            current_index?: number;
+          };
+          if (evt.type === "token" && evt.content) onToken(evt.content);
+          if (evt.type === "done" && evt.speech && evt.turn) {
+            result = {
+              speech: evt.speech,
+              meta: evt.meta ?? {},
+              end_interview: !!evt.end_interview,
+              turn: evt.turn,
+              current_index: evt.current_index ?? 0,
+            };
+          }
+          if (evt.type === "error") {
+            throw new ApiError(500, evt.detail || "Stream failed");
+          }
+        } catch (e) {
+          if (e instanceof ApiError) throw e;
+        }
+      }
+    }
+    if (!result) throw new ApiError(500, "Stream ended without completion");
+    return result;
+  },
+
+  liveInterviewTts: async (sessionId: number, text: string): Promise<Blob> => {
+    const res = await fetch(`${BASE}/api/interview/sessions/${sessionId}/live/tts`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) {
+      if (res.status === 401) setToken(null);
+      let detail = "";
+      try {
+        const data = await res.json();
+        detail = data?.detail ?? JSON.stringify(data);
+      } catch {
+        detail = await res.text().catch(() => "");
+      }
+      throw new ApiError(res.status, detail || `TTS failed (${res.status})`);
+    }
+    return res.blob();
   },
 };

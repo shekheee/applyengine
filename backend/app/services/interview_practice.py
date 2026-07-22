@@ -289,6 +289,10 @@ async def stream_followup_async(
 
 
 def build_transcript(session: InterviewSession, turns: list[InterviewTurn]) -> str:
+    if getattr(session, "mode", "text") == "live":
+        from app.services.live_interview import build_live_transcript
+
+        return build_live_transcript(session, turns)
     lines: list[str] = []
     for i, q in enumerate(session.questions or []):
         lines.append(f"Q{i + 1}: {q.get('text', '')}")

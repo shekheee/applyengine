@@ -180,7 +180,7 @@ export interface InterviewTurn {
   id: number;
   session_id: number;
   question_index: number;
-  role: "candidate" | "feedback" | "followup" | "followup_reply";
+  role: "candidate" | "feedback" | "followup" | "followup_reply" | "interviewer";
   content: string;
   scores: Record<string, unknown>;
   created_at: string;
@@ -208,6 +208,8 @@ export interface InterviewSession {
   focus: string;
   difficulty: string;
   curriculum_topic?: string;
+  mode?: "text" | "live" | string;
+  live_state?: Record<string, unknown>;
   status: "active" | "completed" | string;
   questions: InterviewQuestion[];
   current_index: number;

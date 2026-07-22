@@ -122,6 +122,17 @@ class InterviewSessionCreate(BaseModel):
     job_id: int | None = None
     model: str | None = None
     curriculum_topic: str = ""  # AI/ML track: "" | all | ml_classics | ...
+    mode: str = "text"  # text | live
+
+
+class InterviewLiveTurnIn(BaseModel):
+    candidate_answer: str | None = None
+    model: str | None = None
+
+
+class InterviewLiveTtsIn(BaseModel):
+    text: str
+    voice: str | None = None
 
 
 class InterviewAnswerIn(BaseModel):
@@ -158,6 +169,8 @@ class InterviewSessionOut(BaseModel):
     focus: str
     difficulty: str
     curriculum_topic: str = ""
+    mode: str = "text"
+    live_state: dict = {}
     status: str
     questions: list[dict] = []
     current_index: int = 0

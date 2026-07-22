@@ -27,6 +27,10 @@ function roleLabel(role: InterviewTurn["role"]): string {
       return "Your follow-up";
     case "followup_reply":
       return "Coach reply";
+    case "interviewer":
+      return "Interviewer";
+    default:
+      return role;
   }
 }
 
@@ -39,6 +43,10 @@ function roleAccent(role: InterviewTurn["role"]): string {
       return "border-l-[var(--accent-teal)] bg-[var(--panel-2)]";
     case "followup_reply":
       return "border-l-[var(--primary-2)] bg-[var(--panel-2)]";
+    case "interviewer":
+      return "border-l-[var(--accent-gold)] bg-[var(--panel-2)]";
+    default:
+      return "border-l-[var(--border)] bg-[var(--panel-2)]";
   }
 }
 

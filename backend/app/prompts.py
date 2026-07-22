@@ -248,6 +248,31 @@ Return JSON:
 Ground everything in the actual Q&A transcript. Use field-appropriate skill pointers.
 If an AI/ML curriculum was active, include topic_scores keyed by topic id for each area practiced."""
 
+INTERVIEW_LIVE_SYSTEM = f"""You are a professional interviewer conducting a LIVE, in-person job interview.
+{_DOMAIN_ADAPTIVE}
+Your spoken lines will be read aloud via text-to-speech — speak naturally in first person as the interviewer.
+Be warm but professional, like a real hiring manager or panel interviewer.
+
+Rules:
+- Ground every question and follow-up ONLY in the candidate's real resume, optional target job/JD, focus area, and curriculum topic.
+- Never invent experience, projects, or credentials the candidate does not have.
+- Calibrate depth and expectations to the requested difficulty (junior/mid/senior).
+- Keep each spoken turn concise (typically 2-6 sentences, under 120 words) for natural pacing.
+- Do NOT use markdown, bullet points, labels like "Interviewer:", or JSON in the spoken portion.
+
+Turn behavior:
+- OPENING (no prior conversation): Brief greeting, optionally set context for the role/topic, then ask your first question.
+- After a candidate answer: Start with a brief natural acknowledgement (one short sentence), then EITHER:
+  (a) ask ONE probing follow-up if the answer was thin, vague, or warrants deeper exploration (max one follow-up per planned question theme), OR
+  (b) transition smoothly to the next planned question theme.
+- Use the PLANNED QUESTIONS as coverage themes — adapt wording naturally; do not read them verbatim as a script.
+- When all themes are reasonably covered (typically after 5-6 question areas), thank the candidate and close the interview warmly.
+
+After your spoken text, on its own final line, append exactly one metadata line:
+|||META|||{{"action":"opening|followup|next_question|closing","question_index":0,"end_interview":false}}
+- question_index: index (0-based) of the current planned question theme you are exploring.
+- end_interview: true only on your closing turn when the interview should end."""
+
 
 def coach_system_with_context(
     profile_text: str,
@@ -405,5 +430,46 @@ def interview_summary_user(
         f"RESUME:\n{profile_text or '(none)'}\n\n---\n\n"
         f"TARGET JOB:\n{job_text or '(none)'}\n\n---\n\n"
         f"SESSION TRANSCRIPT:\n{transcript}"
+        f"{curriculum_block}"
+    )
+
+
+def interview_live_turn_user(
+    profile_text: str,
+    job_text: str,
+    focus: str,
+    difficulty: str,
+    planned_questions: str,
+    conversation: str,
+    *,
+    profession_text: str = "",
+    focus_guide_text: str = "",
+    curriculum_text: str = "",
+    candidate_answer: str | None = None,
+    current_index: int = 0,
+    followups_at_index: str = "",
+) -> str:
+    curriculum_block = ""
+    if curriculum_text.strip():
+        curriculum_block = f"\n\n---\n\n{curriculum_text.strip()}"
+    answer_block = ""
+    if candidate_answer is not None:
+        answer_block = (
+            f"\n\n---\n\nCANDIDATE JUST SAID (respond to this now):\n{candidate_answer.strip()}"
+        )
+    else:
+        answer_block = "\n\n---\n\nThis is the OPENING of the interview. Greet the candidate and ask your first question."
+    return (
+        f"FOCUS: {focus}\n"
+        f"FOCUS GUIDANCE: {focus_guide_text or focus}\n"
+        f"DIFFICULTY: {difficulty}\n"
+        f"CURRENT QUESTION THEME INDEX: {current_index}\n"
+        f"FOLLOW-UPS USED AT THIS INDEX: {followups_at_index or '0'}\n\n"
+        f"PROFESSION CONTEXT:\n{profession_text or '(infer from resume and job)'}\n\n---\n\n"
+        f"CANDIDATE RESUME:\n{profile_text or '(none)'}\n\n---\n\n"
+        f"TARGET JOB:\n{job_text or '(general / no specific job)'}\n\n---\n\n"
+        f"PLANNED QUESTION THEMES (coverage guide — adapt naturally):\n{planned_questions}\n\n---\n\n"
+        f"CONVERSATION SO FAR:\n{conversation or '(none yet)'}"
+        f"{answer_block}"
         f"{curriculum_block}"
     )

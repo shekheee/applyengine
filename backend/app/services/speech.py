@@ -168,3 +168,39 @@ def transcribe_audio(
         "delivery": delivery,
         "model": "whisper-1",
     }
+
+
+DEFAULT_TTS_VOICE = "nova"
+DEFAULT_TTS_MODEL = "tts-1"
+
+
+def synthesize_speech(text: str, *, voice: str = DEFAULT_TTS_VOICE) -> tuple[bytes, str]:
+    """Return (audio_bytes, mime_type) for OpenAI TTS."""
+    settings = get_settings()
+    if not settings.openai_api_key:
+        raise ValueError("Text-to-speech is not configured on the server.")
+
+    cleaned = (text or "").strip()
+    if not cleaned:
+        raise ValueError("Nothing to speak.")
+    if len(cleaned) > 4096:
+        cleaned = cleaned[:4096]
+
+    from openai import OpenAI
+
+    client = OpenAI(api_key=settings.openai_api_key)
+    try:
+        response = client.audio.speech.create(
+            model=DEFAULT_TTS_MODEL,
+            voice=voice,
+            input=cleaned,
+            response_format="mp3",
+        )
+        audio_bytes = response.content
+    except Exception as e:
+        logger.warning("OpenAI TTS failed: %s", e)
+        raise ValueError("Could not synthesize speech. Try reading the caption instead.") from e
+
+    if not audio_bytes:
+        raise ValueError("TTS returned empty audio.")
+    return audio_bytes, "audio/mpeg"

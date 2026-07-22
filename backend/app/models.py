@@ -138,6 +138,8 @@ class InterviewSession(SQLModel, table=True):
     focus: str = "mixed"  # behavioral | role_technical | case_study | leadership_stakeholder | resume_deep_dive | mixed
     difficulty: str = "mid"  # junior | mid | senior
     curriculum_topic: str = ""  # "" | all | ml_classics | llm_fundamentals | ... (AI/ML track)
+    mode: str = "text"  # text | live
+    live_state: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     status: str = "active"  # active | completed
     questions: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON))
     current_index: int = 0
@@ -176,7 +178,7 @@ class InterviewTurn(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     session_id: int = Field(foreign_key="interviewsession.id", index=True)
     question_index: int = 0
-    role: str = "candidate"  # candidate | feedback | followup
+    role: str = "candidate"  # candidate | feedback | followup | interviewer | followup_reply
     content: str = Field(default="", sa_column=Column(Text))
     scores: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=_now)

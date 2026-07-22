@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from sqlmodel import Session, select
 
 from app.auth import get_current_user
@@ -18,6 +18,8 @@ from app.schemas import (
     InterviewCompleteIn,
     InterviewCurriculumOut,
     InterviewFollowupIn,
+    InterviewLiveTtsIn,
+    InterviewLiveTurnIn,
     InterviewProgressOut,
     InterviewSessionCreate,
     InterviewSessionOut,
@@ -33,12 +35,19 @@ from app.services.interview_practice import (
     summary_to_markdown,
 )
 from app.services.interview_progress import build_interview_progress
+from app.services.live_interview import (
+    apply_live_meta,
+    generate_live_summary,
+    parse_interviewer_response,
+    should_end_live_interview,
+    stream_interviewer_turn_async,
+)
 from app.services.ml_interview_curriculum import (
     curriculum_for_api,
     is_ml_relevant_profile,
     normalize_curriculum_topic,
 )
-from app.services.speech import transcribe_audio
+from app.services.speech import synthesize_speech, transcribe_audio
 from app.services.profiles import get_base_profile
 from app.services.serialize import profile_to_text
 
@@ -93,6 +102,8 @@ def _session_out(s: InterviewSession, turns: list[InterviewTurn] | None = None) 
         focus=s.focus,
         difficulty=s.difficulty,
         curriculum_topic=getattr(s, "curriculum_topic", "") or "",
+        mode=getattr(s, "mode", "text") or "text",
+        live_state=getattr(s, "live_state", None) or {},
         status=s.status,
         questions=s.questions or [],
         current_index=s.current_index,
@@ -180,6 +191,9 @@ def create_session(
     ).all()
 
     curriculum_topic = normalize_curriculum_topic(body.curriculum_topic)
+    mode = (body.mode or "text").strip().lower()
+    if mode not in ("text", "live"):
+        raise HTTPException(422, "mode must be 'text' or 'live'")
 
     questions = generate_questions(
         profile,
@@ -197,6 +211,7 @@ def create_session(
         focus=body.focus,
         difficulty=body.difficulty,
         curriculum_topic=curriculum_topic,
+        mode=mode,
         questions=questions,
         current_index=0,
         model_id=model_id or "",
@@ -470,6 +485,125 @@ async def followup_stream(
     )
 
 
+@router.post("/sessions/{session_id}/live/turn/stream")
+async def live_turn_stream(
+    session_id: int,
+    body: InterviewLiveTurnIn,
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    s = _owned_session(session_id, user, db)
+    if getattr(s, "mode", "text") != "live":
+        raise HTTPException(400, "Session is not a live interview.")
+    if s.status == "completed":
+        raise HTTPException(400, "Session already completed")
+
+    profile = get_base_profile(user, db)
+    profile_snap = _snapshot_profile(profile)
+    job = db.get(Job, s.job_id) if s.job_id else None
+    model_id = _resolve_model(body.model or s.model_id or None)
+
+    turns = db.exec(
+        select(InterviewTurn)
+        .where(InterviewTurn.session_id == session_id)
+        .order_by(InterviewTurn.id.asc())
+    ).all()
+
+    candidate_answer = (body.candidate_answer or "").strip() or None
+    if candidate_answer:
+        db.add(
+            InterviewTurn(
+                session_id=session_id,
+                question_index=s.current_index,
+                role="candidate",
+                content=candidate_answer,
+            )
+        )
+        s.updated_at = datetime.now(timezone.utc)
+        db.add(s)
+        db.commit()
+        db.refresh(s)
+        turns = db.exec(
+            select(InterviewTurn)
+            .where(InterviewTurn.session_id == session_id)
+            .order_by(InterviewTurn.id.asc())
+        ).all()
+
+    async def event_stream() -> AsyncIterator[str]:
+        accumulated = ""
+        try:
+            async for token in stream_interviewer_turn_async(
+                s,
+                profile_snap,
+                job,
+                turns,
+                candidate_answer=candidate_answer,
+                model_id=model_id,
+            ):
+                accumulated += token
+                yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+
+            speech, meta = parse_interviewer_response(accumulated)
+            end_interview = should_end_live_interview(s, meta)
+
+            from app.db import engine
+            from sqlmodel import Session as WriteSession
+
+            with WriteSession(engine) as write_db:
+                sess = write_db.get(InterviewSession, session_id)
+                if not sess:
+                    raise HTTPException(404, "Session not found")
+                apply_live_meta(sess, meta)
+                turn = InterviewTurn(
+                    session_id=session_id,
+                    question_index=sess.current_index,
+                    role="interviewer",
+                    content=speech,
+                    scores={
+                        "action": meta.get("action"),
+                        "end_interview": end_interview,
+                        **meta,
+                    },
+                )
+                write_db.add(turn)
+                sess.updated_at = datetime.now(timezone.utc)
+                write_db.add(sess)
+                write_db.commit()
+                write_db.refresh(turn)
+                write_db.refresh(sess)
+                current_index = sess.current_index
+            yield f"data: {json.dumps({'type': 'done', 'speech': speech, 'meta': meta, 'end_interview': end_interview, 'turn': _turn_out(turn).model_dump(mode='json'), 'current_index': current_index})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@router.post("/sessions/{session_id}/live/tts")
+def live_tts(
+    session_id: int,
+    body: InterviewLiveTtsIn,
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    s = _owned_session(session_id, user, db)
+    if getattr(s, "mode", "text") != "live":
+        raise HTTPException(400, "Session is not a live interview.")
+    try:
+        audio_bytes, mime = synthesize_speech(body.text.strip(), voice=body.voice or "nova")
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+    return Response(
+        content=audio_bytes,
+        media_type=mime,
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 @router.post("/sessions/{session_id}/next", response_model=InterviewSessionOut)
 def next_question(
     session_id: int,
@@ -508,7 +642,10 @@ def complete_session(
         .order_by(InterviewTurn.id.asc())
     ).all()
 
-    summary = generate_summary(s, turns, profile, job, model_id=model_id)
+    if getattr(s, "mode", "text") == "live":
+        summary = generate_live_summary(s, turns, profile, job, model_id=model_id)
+    else:
+        summary = generate_summary(s, turns, profile, job, model_id=model_id)
     s.summary = summary
     s.recurring_weaknesses = summary.get("recurring_weaknesses") or []
     raw_score = summary.get("overall_score")

@@ -11,9 +11,11 @@ const STEPS = [
 export function PhaseStepper({
   phase,
   compact = false,
+  liveMode = false,
 }: {
   phase: "setup" | "practice" | "summary";
   compact?: boolean;
+  liveMode?: boolean;
 }) {
   const activeIdx = STEPS.findIndex((s) => s.id === phase);
 
@@ -52,9 +54,11 @@ export function PhaseStepper({
                         active ? "text-[var(--text)]" : "text-[var(--muted)]"
                       )}
                     >
-                      {step.label}
+                      {step.id === "practice" && liveMode ? "Live interview" : step.label}
                     </p>
-                    <p className="hidden text-[10px] text-[var(--muted-2)] lg:block">{step.desc}</p>
+                    <p className="hidden text-[10px] text-[var(--muted-2)] lg:block">
+                      {step.id === "practice" && liveMode ? "Voice Q&A with AI interviewer" : step.desc}
+                    </p>
                   </div>
                 )}
               </div>

@@ -34,6 +34,7 @@ def init_db() -> None:
     _migrate_interview_curriculum_topic()
     _migrate_conversations()
     _migrate_resume_versions()
+    _migrate_interview_live_mode()
 
 
 def _migrate_resume_versions() -> None:
@@ -278,6 +279,43 @@ def _migrate_conversations() -> None:
                 msg.conversation_id = general.id
                 session.add(msg)
             session.commit()
+
+
+def _migrate_interview_live_mode() -> None:
+    """Add mode + live_state columns for live voice interview sessions."""
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        if is_sqlite:
+            try:
+                conn.execute(
+                    text(
+                        "ALTER TABLE interviewsession ADD COLUMN mode TEXT DEFAULT 'text'"
+                    )
+                )
+            except Exception:
+                pass
+            try:
+                conn.execute(
+                    text(
+                        "ALTER TABLE interviewsession ADD COLUMN live_state JSON DEFAULT '{}'"
+                    )
+                )
+            except Exception:
+                pass
+        else:
+            conn.execute(
+                text(
+                    "ALTER TABLE interviewsession ADD COLUMN IF NOT EXISTS mode "
+                    "TEXT DEFAULT 'text'"
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE interviewsession ADD COLUMN IF NOT EXISTS live_state "
+                    "JSON DEFAULT '{}'::json"
+                )
+            )
 
 
 def get_session() -> Generator[Session, None, None]:
