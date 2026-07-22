@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import type { Job, ResumeVersion } from "@/lib/types";
 import { Button } from "@/components/ui";
 import { ResumeUpload } from "@/components/resume-upload";
+import { ResumeLetterPreview } from "@/components/resume-letter-preview";
 
 function formatApiError(e: unknown, fallback: string): string {
   if (e instanceof Error && e.message) return e.message;
@@ -168,46 +169,19 @@ export function ResumeWorkspace({
   }
 
   const previewPanel = (
-    <div
-      className={`overflow-hidden rounded-xl border bg-white ${
-        isApplication ? "min-h-[min(75vh,920px)] lg:order-2" : "min-h-[480px] lg:sticky lg:top-20"
-      }`}
-      style={{ borderColor: "var(--border)" }}
-    >
-      <div
-        className="flex items-center justify-between border-b px-3 py-2 text-xs text-[var(--muted)]"
-        style={{ borderColor: "var(--border)", background: "var(--panel)" }}
-      >
-        <span>
-          {previewLoading ? "Loading preview…" : previewHtml ? "Live preview" : "Preview"}
-        </span>
-        {previewHtml && !previewLoading && (
-          <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] text-violet-300">
-            Design Lab preview
-          </span>
-        )}
-      </div>
-      {previewHtml ? (
-        <iframe
-          title="Resume preview"
-          srcDoc={previewHtml}
-          sandbox="allow-same-origin"
-          className={`w-full border-0 bg-white ${
-            isApplication ? "h-[min(75vh,920px)]" : "h-[min(80vh,900px)]"
-          }`}
-        />
-      ) : (
-        <div
-          className={`grid place-items-center p-8 text-center text-sm text-[var(--muted)] ${
-            isApplication ? "h-[min(60vh,720px)]" : "h-[min(50vh,480px)]"
-          }`}
-        >
+    <ResumeLetterPreview
+      html={previewHtml}
+      loading={previewLoading}
+      className={isApplication ? "lg:order-2 lg:sticky lg:top-20" : "lg:sticky lg:top-20"}
+      minViewportHeight={isApplication ? "min(72vh, 880px)" : "min(78vh, 960px)"}
+      empty={
+        <p className="max-w-md px-6 text-center text-sm text-[var(--muted)]">
           {isApplication
-            ? "Generate a JD-tailored design to see your resume layout here — or pick an existing version."
-            : "Generate a designed resume or select your base upload to see the layout here."}
-        </div>
-      )}
-    </div>
+            ? "Generate a JD-tailored design to see the full Letter page here — or pick an existing version."
+            : "Generate a designed resume or select your base upload to preview the complete one-page layout."}
+        </p>
+      }
+    />
   );
 
   const controlsPanel = (
@@ -371,8 +345,8 @@ export function ResumeWorkspace({
         compact
           ? "space-y-4"
           : isApplication
-            ? "grid gap-6 lg:grid-cols-[minmax(0,300px)_1fr] lg:items-start"
-            : "grid gap-6 lg:grid-cols-[minmax(0,340px)_1fr] lg:items-start"
+            ? "grid gap-6 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)] lg:items-start"
+            : "grid gap-6 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)] lg:items-start"
       }
     >
       {isApplication ? (
@@ -388,19 +362,11 @@ export function ResumeWorkspace({
       )}
 
       {compact && !isApplication && (previewLoading || previewHtml) && (
-        <div className="overflow-hidden rounded-lg border bg-white" style={{ borderColor: "var(--border)" }}>
-          <div className="border-b px-2 py-1 text-[10px] text-[var(--muted)]" style={{ borderColor: "var(--border)" }}>
-            {previewLoading ? "Loading preview…" : "Live preview"}
-          </div>
-          {!previewLoading && previewHtml && (
-            <iframe
-              title="Resume preview"
-              srcDoc={previewHtml}
-              sandbox="allow-same-origin"
-              className="h-64 w-full border-0 bg-white"
-            />
-          )}
-        </div>
+        <ResumeLetterPreview
+          html={previewHtml}
+          loading={previewLoading}
+          minViewportHeight="min(420px, 55vh)"
+        />
       )}
     </div>
   );
