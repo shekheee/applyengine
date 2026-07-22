@@ -10,7 +10,17 @@ import {
   type Job,
   type Status,
 } from "@/lib/types";
-import { Badge, Button, Card, cn } from "@/components/ui";
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  PageHeader,
+  PageSkeleton,
+  Select,
+  StatCard,
+  cn,
+} from "@/components/ui";
 
 const STATUS_TONE: Record<Status, "default" | "green" | "amber" | "red" | "primary"> = {
   saved: "default",
@@ -18,6 +28,14 @@ const STATUS_TONE: Record<Status, "default" | "green" | "amber" | "red" | "prima
   interview: "amber",
   offer: "green",
   rejected: "red",
+};
+
+const COL_CLASS: Record<Status, string> = {
+  saved: "kanban-col-saved",
+  applied: "kanban-col-applied",
+  interview: "kanban-col-interview",
+  offer: "kanban-col-offer",
+  rejected: "kanban-col-rejected",
 };
 
 function fitTone(score: number | null) {
@@ -66,105 +84,109 @@ export default function PipelinePage() {
       ? Math.round(scored.reduce((s, a) => s + (a.fit_score || 0), 0) / scored.length)
       : 0;
 
-  if (loading) return <p className="text-[var(--muted)]">Loading pipeline…</p>;
+  if (loading) return <PageSkeleton />;
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Application pipeline</h1>
-          <p className="text-sm text-[var(--muted)]">
-            Track every role, from saved to offer.
-          </p>
-        </div>
-        <Badge tone="primary">LLM: {provider}</Badge>
-      </div>
+      <PageHeader
+        title="Application pipeline"
+        description="Track every role from saved to offer — open any card for chat, resume, and interview prep."
+        badge={<Badge tone="primary">LLM · {provider}</Badge>}
+        action={
+          <Button href="/new" variant="gradient">
+            + New application
+          </Button>
+        }
+      />
 
       {error && (
-        <Card className="border-red-500/40">
+        <Card className="border-red-500/30 !bg-red-500/5">
           <p className="text-sm text-red-300">{error}</p>
-          <p className="mt-1 text-xs text-[var(--muted)]">
-            Start the backend: <code>uvicorn app.main:app --reload</code> in{" "}
-            <code>backend/</code>.
-          </p>
         </Card>
       )}
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Stat label="Applications" value={String(apps.length)} />
-        <Stat label="Avg. fit score" value={scored.length ? `${avgFit}` : "–"} />
-        <Stat
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+        <StatCard label="Applications" value={String(apps.length)} accent="primary" />
+        <StatCard
+          label="Avg. fit"
+          value={scored.length ? `${avgFit}` : "–"}
+          hint={scored.length ? "across scored roles" : undefined}
+          accent="green"
+        />
+        <StatCard
           label="Interviews"
           value={String(apps.filter((a) => a.status === "interview").length)}
+          accent="amber"
         />
-        <Stat
+        <StatCard
           label="Offers"
           value={String(apps.filter((a) => a.status === "offer").length)}
+          accent="green"
         />
       </div>
 
       {apps.length === 0 ? (
-        <Card className="text-center">
-          <p className="text-[var(--muted)]">No applications yet.</p>
-          <div className="mt-4 flex justify-center">
-            <Button href="/new">Create your first application</Button>
-          </div>
+        <Card glass>
+          <EmptyState
+            title="No applications yet"
+            description="Paste a job description to get a fit score, tailored materials, and a dedicated workspace for each role."
+            action={<Button href="/new" variant="gradient">Create your first application</Button>}
+          />
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-5">
           {STATUSES.map((status) => {
             const col = apps.filter((a) => a.status === status);
             return (
-              <div key={status} className="space-y-3">
-                <div className="flex items-center justify-between px-1">
-                  <span className="text-sm font-medium">{STATUS_LABELS[status]}</span>
+              <div key={status} className={cn("space-y-3", COL_CLASS[status])}>
+                <div className="flex items-center gap-2 px-1">
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{ background: "var(--col-accent)" }}
+                  />
+                  <span className="text-sm font-semibold">{STATUS_LABELS[status]}</span>
                   <Badge tone={STATUS_TONE[status]}>{col.length}</Badge>
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   {col.map((a) => {
                     const job = jobs[a.job_id];
                     return (
                       <div
                         key={a.id}
-                        className="rounded-lg border bg-[var(--panel)] p-3 transition-colors hover:border-[var(--primary)]"
+                        className="card-interactive rounded-[var(--radius-lg)] border bg-[var(--panel)]/90 p-3.5 backdrop-blur-sm"
                         style={{ borderColor: "var(--border)" }}
                       >
                         <Link href={`/applications/${a.id}`} className="block">
                           <div className="flex items-start justify-between gap-2">
-                            <span className="text-sm font-medium leading-tight">
+                            <span className="text-sm font-semibold leading-snug">
                               {job?.title || "Role"}
                             </span>
-                            <Badge tone={fitTone(a.fit_score)}>
-                              {a.fit_score ?? "–"}
-                            </Badge>
+                            <Badge tone={fitTone(a.fit_score)}>{a.fit_score ?? "–"}</Badge>
                           </div>
                           <p className="mt-0.5 text-xs text-[var(--muted)]">
                             {job?.company || "—"}
                           </p>
                         </Link>
-                        <select
+                        <Select
                           value={a.status}
                           onChange={(e) => move(a.id, e.target.value as Status)}
-                          className="mt-2 w-full rounded-md border bg-[var(--panel-2)] px-2 py-1 text-xs text-[var(--muted)] outline-none"
-                          style={{ borderColor: "var(--border)" }}
+                          className="mt-2.5 !py-1.5 text-xs"
                         >
                           {STATUSES.map((s) => (
                             <option key={s} value={s}>
                               {STATUS_LABELS[s]}
                             </option>
                           ))}
-                        </select>
+                        </Select>
                       </div>
                     );
                   })}
                   {col.length === 0 && (
                     <div
-                      className={cn(
-                        "rounded-lg border border-dashed p-4 text-center text-xs text-[var(--muted)]"
-                      )}
+                      className="rounded-[var(--radius-lg)] border border-dashed p-5 text-center text-xs text-[var(--muted-2)]"
                       style={{ borderColor: "var(--border)" }}
                     >
-                      empty
+                      Drop roles here
                     </div>
                   )}
                 </div>
@@ -174,14 +196,5 @@ export default function PipelinePage() {
         </div>
       )}
     </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <Card>
-      <p className="text-xs uppercase tracking-wide text-[var(--muted)]">{label}</p>
-      <p className="mt-1 text-2xl font-semibold">{value}</p>
-    </Card>
   );
 }

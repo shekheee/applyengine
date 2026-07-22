@@ -88,17 +88,9 @@ export default function ApplicationDetailPage() {
   return (
     <div className="animate-fade-up space-y-6">
       {/* Hero header */}
-      <div
-        className="relative overflow-hidden rounded-2xl border p-5 sm:p-6"
-        style={{
-          borderColor: "var(--border)",
-          background:
-            "linear-gradient(135deg, color-mix(in srgb, var(--primary) 12%, var(--panel)) 0%, var(--panel) 45%, color-mix(in srgb, var(--green) 6%, var(--panel)) 100%)",
-        }}
-      >
-        <div className="pointer-events-none absolute -right-8 -top-8 opacity-20">
-          <AppIcon name="company" size={120} />
-        </div>
+      <div className="surface-gradient relative overflow-hidden rounded-[var(--radius-xl)] p-5 shadow-[var(--shadow-md)] sm:p-6">
+        <div className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-[var(--primary)]/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-8 -left-8 h-40 w-40 rounded-full bg-[var(--accent-teal)]/10 blur-3xl" />
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <Button href="/" variant="ghost" size="sm">
@@ -137,7 +129,7 @@ export default function ApplicationDetailPage() {
 
       {/* Fit snapshot */}
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card interactive className="lg:col-span-1">
+        <Card interactive className="lg:col-span-1 glass !p-4">
           <div className="flex items-center gap-4">
             <ScoreRing score={app.fit_score} />
             <div className="flex-1">
@@ -155,7 +147,7 @@ export default function ApplicationDetailPage() {
           </div>
         </Card>
 
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 glass !p-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <p className="mb-2 text-xs font-medium uppercase tracking-wide text-emerald-300">
@@ -228,7 +220,7 @@ export default function ApplicationDetailPage() {
         />
 
         {tab === "chat" && (
-          <Card className="overflow-hidden p-0">
+          <Card className="overflow-hidden !p-0 glass">
             <div className="border-b px-4 py-3" style={{ borderColor: "var(--border)" }}>
               <p className="text-sm text-[var(--muted)]">
                 Role-scoped Coach thread — same conversation appears in{" "}
@@ -245,7 +237,7 @@ export default function ApplicationDetailPage() {
         )}
 
         {tab === "resume" && (
-          <Card>
+          <Card glass>
             <ResumeWorkspace
               variant="application"
               lockedJobId={job.id}
@@ -255,7 +247,7 @@ export default function ApplicationDetailPage() {
         )}
 
         {tab === "interview" && (
-          <Card>
+          <Card glass>
             <InterviewPractice
               embedded
               initialJobId={job.id}
@@ -265,7 +257,7 @@ export default function ApplicationDetailPage() {
         )}
 
         {tab === "materials" && (
-          <Card>
+          <Card glass>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="font-semibold">Application materials</h2>

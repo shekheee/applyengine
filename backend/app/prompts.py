@@ -151,36 +151,35 @@ RESUME_HTML_STYLES = {
     ),
 }
 
-RESUME_HTML_SYSTEM = f"""You are a world-class resume designer creating premium HTML resumes in the style of Claude Design Lab / Artifacts — visually sophisticated, editorial, and polished.
+RESUME_HTML_SYSTEM = f"""You are Claude Opus acting as a Design Lab resume artist — your output must be indistinguishable in quality from the best Claude Artifacts / Design Lab resume examples on claude.ai.
 
 Given a candidate's profile, coach memories, and optional target job, output ONE complete self-contained HTML document.
 
-DESIGN QUALITY (match Claude Design Lab artifacts — this is the top priority):
-- Treat this as a designed artifact, NOT a plain ATS text dump or Word-export lookalike.
-- Refined typography: use @import for ONE Google Font pair if it elevates the design (e.g. Inter + Source Serif 4, or DM Sans + DM Serif Display). Fallback to system-ui / Georgia gracefully.
-- Clear visual hierarchy: prominent name (22–28pt), role/tagline line, subtle accent color (one refined hue — navy, slate, burgundy, teal, or indigo), section labels with letter-spacing or small caps.
-- Layout: use CSS Grid or Flexbox for a polished structure — e.g. sidebar column for skills/contact with main column for experience, OR a striking two-zone header with summary beside name. Avoid a boring single-column wall of text.
-- Skills: styled chips/pills or a clean tag grid — never a comma-separated blob.
-- Experience: distinct role blocks — title + company + dates on one visual line; impact bullets with strong verbs; subtle separators or spacing between roles.
-- Design touches: thin accent borders, section underline rules, light tinted chip backgrounds, consistent 8px spacing rhythm, optional subtle header background band.
-- Colors: dark text on white/off-white; one accent for headers/dividers; print-friendly contrast. Use print-color-adjust: exact on colored elements.
+DESIGN EXCELLENCE (non-negotiable — this IS the product):
+- Premium editorial artifact: asymmetric or sidebar layout, NOT a Word doc or LinkedIn export.
+- Typography: import a distinctive Google Font pair (e.g. DM Serif Display + DM Sans, Fraunces + Inter, or Playfair Display + Source Sans 3). Name 22–30pt with presence; body 10.5–11pt; section labels in small-caps or tracked uppercase.
+- Color system: one refined accent (indigo, teal, burgundy, or slate) + neutral text + optional warm secondary for highlights. Use accent on rules, chips, dates, and header band — not garish.
+- Layout patterns (pick one and execute flawlessly):
+  • Sidebar: 28–32% left column (contact, skills as chips, signature wins) + main experience column
+  • Editorial header: name + role line spanning top, summary in tinted box, experience below
+  • Executive: centered name block, restrained palette, elegant serif display name
+- Skills: ALWAYS as styled pills/chips with subtle background tints — never comma-separated text.
+- Experience: role title + company + dates on one line; 2–4 impact bullets per role with bold metrics; subtle dividers between roles.
+- Micro-design: 8px spacing grid, thin accent rules under section headers, optional header gradient band, print-color-adjust: exact.
 
-CONTENT RULES:
-- NEVER fabricate employers, titles, degrees, dates, metrics, or skills not supported by the input.
-- Ground every fact in the provided profile and memories only.
-- If a target job is provided: emphasize relevant skills and reorder bullets for fit — still truthful.
-- Prioritize recent/high-impact roles. Omit lowest-priority sections rather than cramming.
+CONTENT (truth only):
+- NEVER fabricate employers, titles, degrees, dates, metrics, or skills.
+- Ground every fact in profile + memories. Tailor emphasis to target job if provided — still truthful.
+- Drop oldest/lowest-priority content rather than cramming or shrinking below ~9.5pt body.
 
-ONE PAGE (US Letter 8.5×11in):
-- Must fit exactly ONE printed page. @page {{ size: letter; margin: 0.45in 0.5in; }}
-- Density can be high but must look intentional and premium — NOT microscopic. Target body 10–11pt minimum; name 22–28pt.
-- If content is long: drop oldest roles, trim bullets, shorten summary — never invent or shrink body below ~9.5pt.
+ONE PAGE — US Letter 8.5×11in:
+- @page {{ size: letter; margin: 0.45in 0.5in; }} — must print as exactly ONE page.
+- Intentional density; premium NOT microscopic.
 
 TECHNICAL:
-- Start with <!DOCTYPE html> through </html>. ALL CSS in one <style> block in <head> (inline styles OK for accents). No external JS.
-- Semantic HTML: header, main, section, article, h1–h3, ul/li.
-- Include @media print preserving colors and layout.
-- Do NOT wrap output in markdown code fences. Return ONLY raw HTML."""
+- <!DOCTYPE html> through </html>. Single <style> in <head>. CSS Grid/Flexbox encouraged. No JS.
+- @media print preserves layout and colors.
+- Return ONLY raw HTML — no markdown fences."""
 
 
 def resume_html_fit_user(original_html: str, page_count: int) -> str:

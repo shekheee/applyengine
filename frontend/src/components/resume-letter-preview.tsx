@@ -87,10 +87,9 @@ export function ResumeLetterPreview({
   return (
     <div
       className={cn(
-        "flex min-h-0 flex-col overflow-hidden rounded-xl border bg-[var(--panel)]",
+        "flex min-h-0 flex-col overflow-hidden rounded-[var(--radius-xl)] border glass-panel",
         className
       )}
-      style={{ borderColor: "var(--border)" }}
     >
       <div
         className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2"

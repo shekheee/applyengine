@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useAuth } from "@/lib/auth";
-import { Button, Card } from "@/components/ui";
+import { Button, Card, Input, Label } from "@/components/ui";
 
 export default function LoginPage() {
   const { login, register } = useAuth();
@@ -24,7 +25,6 @@ export default function LoginPage() {
       } else {
         await register({ email, password, name, signup_code: signupCode });
       }
-      // Redirect handled by the Gate once user is set.
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -32,104 +32,132 @@ export default function LoginPage() {
     }
   }
 
-  const field =
-    "w-full rounded-lg border bg-[var(--panel-2)] px-3 py-2 text-sm text-[var(--text)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--primary)]";
-
   return (
-    <div className="mx-auto max-w-md pt-8">
-      <div className="mb-6 text-center">
-        <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-xl bg-[var(--primary)] text-2xl text-white">
-          ⚡
+    <div className="grid min-h-[calc(100dvh-0px)] lg:grid-cols-2">
+      {/* Brand panel */}
+      <div className="relative hidden flex-col justify-between overflow-hidden p-10 lg:flex">
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--primary)]/25 via-transparent to-[var(--accent-teal)]/15" />
+        <div className="relative">
+          <div className="mb-8 flex items-center gap-3">
+            <span className="grid h-11 w-11 place-items-center rounded-xl [background-image:var(--gradient-brand)] shadow-[0_8px_32px_-8px_var(--glow)]">
+              <Image src="/icons/spark.svg" alt="" width={22} height={22} />
+            </span>
+            <span className="text-xl font-semibold tracking-tight">ApplyEngine</span>
+          </div>
+          <h2 className="max-w-md text-3xl font-semibold leading-tight tracking-tight">
+            Your AI copilot for every application.
+          </h2>
+          <p className="mt-4 max-w-sm text-sm leading-relaxed text-[var(--muted)]">
+            Tailored resumes, role-scoped coaching, interview practice, and a pipeline that
+            keeps every opportunity organized — grounded in your real experience.
+          </p>
         </div>
-        <h1 className="text-2xl font-semibold">
-          {mode === "login" ? "Welcome back" : "Create your account"}
-        </h1>
-        <p className="mt-1 text-sm text-[var(--muted)]">
-          Your AI career copilot — tailored to your resume and target roles.
-        </p>
+        <ul className="relative space-y-3 text-sm text-[var(--text-secondary)]">
+          {[
+            "Design Lab–quality resume artifacts",
+            "JD-anchored Coach conversations",
+            "Interview prep with actionable feedback",
+          ].map((item) => (
+            <li key={item} className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--primary)]" />
+              {item}
+            </li>
+          ))}
+        </ul>
       </div>
 
-      <Card>
-        <form onSubmit={submit} className="space-y-3">
-          {mode === "register" && (
-            <div>
-              <label className="mb-1 block text-xs text-[var(--muted)]">Name</label>
-              <input
-                className={field}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Ada Lovelace"
-                autoComplete="name"
-              />
+      {/* Form panel */}
+      <div className="flex items-center justify-center px-4 py-12 sm:px-8">
+        <div className="w-full max-w-md">
+          <div className="mb-8 text-center lg:text-left">
+            <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-xl [background-image:var(--gradient-brand)] shadow-lg lg:hidden">
+              <Image src="/icons/spark.svg" alt="" width={24} height={24} />
             </div>
-          )}
-          <div>
-            <label className="mb-1 block text-xs text-[var(--muted)]">Email</label>
-            <input
-              className={field}
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              autoComplete="email"
-              required
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-[var(--muted)]">Password</label>
-            <input
-              className={field}
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={mode === "register" ? "At least 8 characters" : "••••••••"}
-              autoComplete={mode === "login" ? "current-password" : "new-password"}
-              required
-            />
-          </div>
-          {mode === "register" && (
-            <div>
-              <label className="mb-1 block text-xs text-[var(--muted)]">
-                Signup code{" "}
-                <span className="text-[var(--muted)]">(if required)</span>
-              </label>
-              <input
-                className={field}
-                value={signupCode}
-                onChange={(e) => setSignupCode(e.target.value)}
-                placeholder="Invite code"
-              />
-            </div>
-          )}
-
-          {error && (
-            <p className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-              {error}
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {mode === "login" ? "Welcome back" : "Create your account"}
+            </h1>
+            <p className="mt-1.5 text-sm text-[var(--muted)]">
+              {mode === "login"
+                ? "Sign in to continue your job search."
+                : "Start tailoring applications in minutes."}
             </p>
-          )}
+          </div>
 
-          <Button type="submit" disabled={busy} className="w-full">
-            {busy
-              ? "Please wait…"
-              : mode === "login"
-                ? "Log in"
-                : "Create account"}
-          </Button>
-        </form>
+          <Card glass className="!p-6">
+            <form onSubmit={submit} className="space-y-4">
+              {mode === "register" && (
+                <div>
+                  <Label>Name</Label>
+                  <Input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Ada Lovelace"
+                    autoComplete="name"
+                  />
+                </div>
+              )}
+              <div>
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  required
+                />
+              </div>
+              <div>
+                <Label>Password</Label>
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={mode === "register" ? "At least 8 characters" : "••••••••"}
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
+                  required
+                />
+              </div>
+              {mode === "register" && (
+                <div>
+                  <Label>
+                    Signup code <span className="font-normal text-[var(--muted-2)]">(if required)</span>
+                  </Label>
+                  <Input
+                    value={signupCode}
+                    onChange={(e) => setSignupCode(e.target.value)}
+                    placeholder="Invite code"
+                  />
+                </div>
+              )}
 
-        <p className="mt-4 text-center text-sm text-[var(--muted)]">
-          {mode === "login" ? "New here?" : "Already have an account?"}{" "}
-          <button
-            onClick={() => {
-              setMode(mode === "login" ? "register" : "login");
-              setError("");
-            }}
-            className="font-medium text-[var(--primary)] hover:underline"
-          >
-            {mode === "login" ? "Create an account" : "Log in"}
-          </button>
-        </p>
-      </Card>
+              {error && (
+                <p className="rounded-[var(--radius-md)] border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-300">
+                  {error}
+                </p>
+              )}
+
+              <Button type="submit" variant="gradient" disabled={busy} className="w-full" size="lg">
+                {busy ? "Please wait…" : mode === "login" ? "Log in" : "Create account"}
+              </Button>
+            </form>
+
+            <p className="mt-5 text-center text-sm text-[var(--muted)]">
+              {mode === "login" ? "New here?" : "Already have an account?"}{" "}
+              <button
+                type="button"
+                onClick={() => {
+                  setMode(mode === "login" ? "register" : "login");
+                  setError("");
+                }}
+                className="font-medium text-[var(--primary-2)] hover:underline"
+              >
+                {mode === "login" ? "Create an account" : "Log in"}
+              </button>
+            </p>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
