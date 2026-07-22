@@ -13,7 +13,9 @@ export function ChatMarkdown({ content }: { content: string }) {
         remarkPlugins={[remarkGfm]}
         components={{
           p: ({ children }) => (
-            <p className="mb-3 last:mb-0 leading-relaxed">{children}</p>
+            <p className="mb-3 last:mb-0 text-[15px] leading-[1.65] text-[var(--text-secondary)]">
+              {children}
+            </p>
           ),
           ul: ({ children }) => (
             <ul className="mb-3 list-disc space-y-1 pl-5 last:mb-0">{children}</ul>
@@ -21,7 +23,11 @@ export function ChatMarkdown({ content }: { content: string }) {
           ol: ({ children }) => (
             <ol className="mb-3 list-decimal space-y-1 pl-5 last:mb-0">{children}</ol>
           ),
-          li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+          li: ({ children }) => (
+            <li className="text-[15px] leading-[1.65] text-[var(--text-secondary)]">
+              {children}
+            </li>
+          ),
           strong: ({ children }) => (
             <strong className="font-semibold text-[var(--text)]">{children}</strong>
           ),
