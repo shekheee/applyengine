@@ -3,13 +3,28 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import type { Job, ResumeVersion } from "@/lib/types";
-import { Button } from "@/components/ui";
-import { ResumeUpload } from "@/components/resume-upload";
 import { ResumeLetterPreview } from "@/components/resume-letter-preview";
+import { ControlsRail } from "@/components/resume/controls-rail";
+import { ResumeCoachLink } from "@/components/resume/resume-coach-link";
+
+export { ResumeCoachLink };
 
 function formatApiError(e: unknown, fallback: string): string {
   if (e instanceof Error && e.message) return e.message;
   return fallback;
+}
+
+function WorkspaceSkeleton() {
+  return (
+    <div className="grid animate-pulse gap-6 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] motion-reduce:animate-none">
+      <div className="space-y-4">
+        <div className="h-40 rounded-[var(--radius-lg)] bg-[var(--panel-2)]" />
+        <div className="h-32 rounded-[var(--radius-lg)] bg-[var(--panel-2)]" />
+        <div className="h-48 rounded-[var(--radius-lg)] bg-[var(--panel-2)]" />
+      </div>
+      <div className="h-[min(78vh,960px)] rounded-[var(--radius-xl)] bg-[var(--panel-2)]" />
+    </div>
+  );
 }
 
 export function ResumeWorkspace({
@@ -28,9 +43,7 @@ export function ResumeWorkspace({
   const [selectedVersionId, setSelectedVersionId] = useState<number | "">("");
   const [previewHtml, setPreviewHtml] = useState("");
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [resumeJobId, setResumeJobId] = useState<number | "">(
-    lockedJobId ?? ""
-  );
+  const [resumeJobId, setResumeJobId] = useState<number | "">(lockedJobId ?? "");
   const [designState, setDesignState] = useState<"idle" | "working" | "done">("idle");
   const [designStyle, setDesignStyle] = useState<"editorial" | "executive">("editorial");
   const [pdfState, setPdfState] = useState<"idle" | "working" | "done">("idle");
@@ -165,226 +178,100 @@ export function ResumeWorkspace({
   }
 
   if (!loaded) {
-    return <p className="text-sm text-[var(--muted)]">Loading resume workspace…</p>;
+    return compact ? (
+      <p className="text-sm text-[var(--muted)]">Loading resume workspace…</p>
+    ) : (
+      <WorkspaceSkeleton />
+    );
   }
+
+  const previewEmpty = (
+    <p className="max-w-md px-6 text-center text-sm leading-relaxed text-[var(--muted)]">
+      {isApplication
+        ? "Generate a JD-tailored design to see the full Letter page here — or pick an existing version."
+        : "Generate a designed resume or select your base upload to preview the complete one-page layout."}
+    </p>
+  );
 
   const previewPanel = (
     <ResumeLetterPreview
       html={previewHtml}
       loading={previewLoading}
-      className={isApplication ? "lg:order-2 lg:sticky lg:top-20" : "lg:sticky lg:top-20"}
-      minViewportHeight={isApplication ? "min(72vh, 880px)" : "min(78vh, 960px)"}
-      empty={
-        <p className="max-w-md px-6 text-center text-sm text-[var(--muted)]">
-          {isApplication
-            ? "Generate a JD-tailored design to see the full Letter page here — or pick an existing version."
-            : "Generate a designed resume or select your base upload to preview the complete one-page layout."}
-        </p>
+      variant={compact ? "compact" : "default"}
+      className={
+        isApplication
+          ? "lg:order-2 lg:sticky lg:top-20 lg:min-h-[min(72vh,880px)]"
+          : "lg:sticky lg:top-20 lg:min-h-[min(78vh,960px)]"
       }
+      minViewportHeight={isApplication ? "min(72vh, 880px)" : "min(78vh, 960px)"}
+      empty={previewEmpty}
     />
   );
 
   const controlsPanel = (
-    <div className={`space-y-4 ${isApplication ? "lg:order-1" : ""}`}>
-      <ResumeUpload onLoaded={() => void loadResumeVersions()} compact={compact || isApplication} />
-
-      <div
-        className="rounded-xl border bg-[var(--panel)] p-4"
-        style={{ borderColor: "var(--border)" }}
-      >
-        <h2 className="font-semibold">
-          {isApplication ? "Designed resume for this role" : "Versions & export"}
-        </h2>
-        {isApplication ? (
-          <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
-            <strong className="text-[var(--text)]">Generate</strong> asks Claude to redesign your{" "}
-            <em>base upload</em> for{" "}
-            {lockedJobLabel ? (
-              <strong className="text-[var(--primary-2)]">{lockedJobLabel}</strong>
-            ) : (
-              "this job"
-            )}
-            . It saves a <em>new version</em> — your base file stays untouched. Use{" "}
-            <strong className="text-[var(--text)]">Download</strong> to export the selected version.
-          </p>
-        ) : (
-          <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
-            Claude Opus produces a premium Design Lab–style HTML resume — typography, layout, accent
-            color, and skill chips. Preview shows the full design; PDF uses Chromium print for fidelity.
-          </p>
-        )}
-
-        {resumeVersions.length > 0 ? (
-          <label className="mt-3 block text-xs text-[var(--muted)]">
-            {isApplication ? "Version to preview / export" : "Active version"}
-            <select
-              value={selectedVersionId}
-              onChange={(e) => {
-                const v = e.target.value;
-                setSelectedVersionId(v === "" ? "" : Number(v));
-              }}
-              className="mt-1 w-full rounded-lg border bg-[var(--panel-2)] px-2 py-1.5 text-sm text-[var(--text)]"
-              style={{ borderColor: "var(--border)" }}
-            >
-              {resumeVersions.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.kind === "base" ? "📄 Base · " : "✨ Designed · "}
-                  {v.title}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : (
-          <p className="mt-3 text-xs text-[var(--muted)]">
-            Upload a base resume first, then generate a designed version.
-          </p>
-        )}
-
-        {jobs.length > 0 && lockedJobId == null && (
-          <label className="mt-3 block text-xs text-[var(--muted)]">
-            Tailor new design to job (optional)
-            <select
-              value={resumeJobId}
-              onChange={(e) => {
-                const v = e.target.value;
-                setResumeJobId(v === "" ? "" : Number(v));
-              }}
-              className="mt-1 w-full rounded-lg border bg-[var(--panel-2)] px-2 py-1.5 text-sm text-[var(--text)]"
-              style={{ borderColor: "var(--border)" }}
-            >
-              <option value="">General resume</option>
-              {jobs.map((j) => (
-                <option key={j.id} value={j.id}>
-                  {j.title} @ {j.company}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-
-        {lockedJobId != null && (
-          <p className="mt-3 rounded-lg border border-violet-500/25 bg-violet-500/5 px-3 py-2 text-xs text-violet-200">
-            New designs from this page are tailored to this job&apos;s description.
-          </p>
-        )}
-
-        <div className="mt-3">
-          <p className="mb-2 text-xs font-medium text-[var(--muted)]">Layout style</p>
-          <div className="grid grid-cols-2 gap-2">
-            {(
-              [
-                ["editorial", "Modern editorial", "Asymmetric header, chips, accent rule"],
-                ["executive", "Clean executive", "Centered header, serif accents, restrained"],
-              ] as const
-            ).map(([id, label, desc]) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setDesignStyle(id)}
-                className={`rounded-lg border px-2.5 py-2 text-left transition-colors ${
-                  designStyle === id
-                    ? "border-[var(--primary)] bg-[var(--primary)]/10"
-                    : "border-[var(--border)] hover:bg-[var(--panel-2)]"
-                }`}
-              >
-                <span className="block text-xs font-medium">{label}</span>
-                <span className="block text-[10px] text-[var(--muted)]">{desc}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <Button
-          onClick={generateDesignedResume}
-          disabled={designState === "working" || pdfState === "working" || docxState === "working"}
-          className="mt-4 w-full"
-        >
-          {designState === "working"
-            ? "Claude is redesigning your resume…"
-            : designState === "done"
-              ? "✓ New tailored version saved"
-              : isApplication
-                ? "✨ Generate for this role"
-                : "✨ Generate Design Lab resume"}
-        </Button>
-        <p className="mt-1.5 text-[10px] leading-snug text-[var(--muted)]">
-          {isApplication
-            ? "Creates a new premium HTML version with live preview — base upload stays untouched."
-            : "Claude Opus · full CSS design artifact · one page when exported to PDF."}
-        </p>
-
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          <Button
-            onClick={downloadPdf}
-            disabled={pdfState === "working" || designState === "working" || selectedVersionId === ""}
-            variant="outline"
-          >
-            {pdfState === "working" ? "PDF…" : pdfState === "done" ? "✓ PDF" : "PDF (1 page)"}
-          </Button>
-          <Button
-            onClick={downloadDocx}
-            disabled={docxState === "working" || designState === "working" || selectedVersionId === ""}
-            variant="outline"
-          >
-            {docxState === "working" ? "Word…" : docxState === "done" ? "✓ DOCX" : "Google Docs (.docx)"}
-          </Button>
-        </div>
-      </div>
-
-      {error && (
-        <p className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-          {error}
-        </p>
-      )}
-    </div>
+    <ControlsRail
+      compact={compact}
+      isApplication={isApplication}
+      lockedJobId={lockedJobId}
+      lockedJobLabel={lockedJobLabel}
+      resumeVersions={resumeVersions}
+      selectedVersionId={selectedVersionId}
+      onVersionChange={setSelectedVersionId}
+      jobs={jobs}
+      resumeJobId={resumeJobId}
+      onJobChange={setResumeJobId}
+      designStyle={designStyle}
+      onStyleChange={setDesignStyle}
+      designState={designState}
+      onGenerate={generateDesignedResume}
+      generateDisabled={designState === "working" || pdfState === "working" || docxState === "working"}
+      pdfState={pdfState}
+      docxState={docxState}
+      onPdf={downloadPdf}
+      onDocx={downloadDocx}
+      exportDisabled={
+        pdfState === "working" || designState === "working" || selectedVersionId === ""
+      }
+      error={error}
+      onUploadLoaded={() => void loadResumeVersions()}
+    />
   );
+
+  if (compact && !isApplication) {
+    return (
+      <div className="space-y-4">
+        {controlsPanel}
+        {(previewLoading || previewHtml) && (
+          <ResumeLetterPreview
+            html={previewHtml}
+            loading={previewLoading}
+            variant="compact"
+            minViewportHeight="min(420px, 55vh)"
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div
       className={
-        compact
-          ? "space-y-4"
-          : isApplication
-            ? "grid gap-6 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)] lg:items-start"
-            : "grid gap-6 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)] lg:items-start"
+        isApplication
+          ? "grid gap-6 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)] lg:items-start"
+          : "grid gap-6 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] lg:items-start xl:gap-8"
       }
     >
       {isApplication ? (
         <>
           {previewPanel}
-          {controlsPanel}
+          <div className={isApplication ? "lg:order-1" : undefined}>{controlsPanel}</div>
         </>
       ) : (
         <>
           {controlsPanel}
-          {!compact && previewPanel}
+          {previewPanel}
         </>
       )}
-
-      {compact && !isApplication && (previewLoading || previewHtml) && (
-        <ResumeLetterPreview
-          html={previewHtml}
-          loading={previewLoading}
-          minViewportHeight="min(420px, 55vh)"
-        />
-      )}
-    </div>
-  );
-}
-
-export function ResumeCoachLink() {
-  return (
-    <div
-      className="rounded-xl border bg-[var(--panel)] p-4"
-      style={{ borderColor: "var(--border)" }}
-    >
-      <h2 className="font-semibold">Resume</h2>
-      <p className="mt-1 text-xs text-[var(--muted)]">
-        Upload, design, preview, and export PDF or Word — all on the dedicated Resume page.
-      </p>
-      <Button href="/resume" className="mt-3 w-full" variant="outline">
-        Open Resume workspace →
-      </Button>
     </div>
   );
 }
