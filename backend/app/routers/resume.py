@@ -174,6 +174,15 @@ def generate_designed_resume(
         ) from e
 
 
+@router.get("/pdf-diagnostics")
+def pdf_diagnostics(user: User = Depends(get_current_user)):
+    """Expose PDF engine path/status for ops (auth-gated)."""
+    from app.services.resume_playwright_pdf import playwright_status
+
+    _ = user
+    return playwright_status()
+
+
 @router.get("/pdf")
 def download_resume_pdf(
     job_id: int | None = None,
@@ -211,16 +220,11 @@ def download_resume_pdf(
                     _level,
                 )
             except RuntimeError as pdf_exc:
-                logger.warning("HTML PDF failed, falling back to ATS PDF: %s", pdf_exc)
-                pdf_bytes, filename = build_resume_pdf(profile, memories, job)
-                return Response(
-                    content=pdf_bytes,
-                    media_type="application/pdf",
-                    headers={
-                        "Content-Disposition": f'attachment; filename="{filename}"',
-                        "Cache-Control": "no-store",
-                    },
-                )
+                logger.warning("Designed HTML PDF failed: %s", pdf_exc)
+                raise HTTPException(
+                    status_code=503,
+                    detail=str(pdf_exc),
+                ) from pdf_exc
             name = profile.name if profile else "resume"
             filename = f"{_safe_filename(name)}_resume.pdf"
         elif version_id is None:
