@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import logging
 
+from app.config import get_settings
+
 logger = logging.getLogger(__name__)
+
+# Honour PLAYWRIGHT_BROWSERS_PATH set at build/deploy time (Render/Docker).
 
 _playwright_ok: bool | None = None
 _chromium_launch_error: str | None = None

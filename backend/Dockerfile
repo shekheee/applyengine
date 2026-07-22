@@ -10,13 +10,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libasound2 libatspi2.0-0 fonts-liberation fonts-noto-color-emoji \
     && rm -rf /var/lib/apt/lists/*
 
+ENV PLAYWRIGHT_BROWSERS_PATH=/app/pw-browsers
+ENV PORT=8000
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt \
+    && mkdir -p /app/pw-browsers \
     && playwright install chromium
 
 COPY app ./app
 
-ENV PORT=8000
 EXPOSE 8000
 
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]

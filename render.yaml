@@ -1,16 +1,18 @@
 # Backend deploy for ApplyEngine (Render).
 # Frontend deploys separately to Vercel at applyengine.ajayshekhawat.uk.
-# Uses Docker so Playwright/Chromium is available for high-fidelity A4 resume PDFs.
 services:
   - type: web
     name: applyengine-api
-    runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
+    runtime: python
+    rootDir: backend
     plan: free
+    buildCommand: pip install -r requirements.txt && PLAYWRIGHT_BROWSERS_PATH=/opt/render/project/src/backend/pw-browsers python -m playwright install chromium
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
+      - key: PLAYWRIGHT_BROWSERS_PATH
+        value: /opt/render/project/src/backend/pw-browsers
       - key: PYTHON_VERSION
         value: "3.12.7"
       - key: LLM_PROVIDER
