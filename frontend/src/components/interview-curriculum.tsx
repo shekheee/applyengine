@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import type { CurriculumTopic, InterviewCurriculum } from "@/lib/types";
-import { Badge, Card, cn } from "@/components/ui";
+import { Badge, cn } from "@/components/ui";
+import { IconBook, IconCheck } from "@/components/interview/icons";
 
 export function InterviewCurriculumPanel({
   curriculum,
@@ -30,51 +31,87 @@ export function InterviewCurriculumPanel({
   ];
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <p className="text-sm font-medium">{curriculum.track_title} prep track</p>
-          <p className="text-xs text-[var(--muted)]">{curriculum.track_description}</p>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-semibold">{curriculum.track_title}</p>
+            {curriculum.ml_profile_detected && (
+              <Badge tone="primary">Recommended for your profile</Badge>
+            )}
+          </div>
+          <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
+            {curriculum.track_description}
+          </p>
         </div>
         <button
           type="button"
           onClick={onToggleStudyGuide}
-          className="shrink-0 rounded-lg border px-2.5 py-1 text-xs font-medium hover:bg-[var(--panel-2)]"
-          style={{ borderColor: "var(--border)" }}
+          className={cn(
+            "btn-interactive inline-flex shrink-0 items-center gap-1.5 rounded-[var(--radius-md)] border px-3 py-1.5 text-xs font-medium transition-colors motion-reduce:transition-none",
+            showStudyGuide
+              ? "border-[var(--primary)] bg-[var(--primary)]/12 text-[var(--primary-2)]"
+              : "border-[var(--border)] bg-[var(--panel-2)] hover:border-[var(--border-strong)]"
+          )}
         >
+          <IconBook className="h-3.5 w-3.5" />
           {showStudyGuide ? "Hide study guide" : "Study guide"}
         </button>
       </div>
 
-      {curriculum.ml_profile_detected && (
-        <Badge tone="primary">Recommended for your profile</Badge>
-      )}
-
-      <div className="grid gap-2 sm:grid-cols-2">
-        {options.map((opt) => (
-          <button
-            key={opt.id || "none"}
-            type="button"
-            onClick={() => onSelectTopic(opt.id)}
-            className={cn(
-              "rounded-lg border px-3 py-2.5 text-left transition-colors",
-              selectedTopic === opt.id
-                ? "border-[var(--primary)] bg-[var(--primary)]/10"
-                : "border-[var(--border)] hover:bg-[var(--panel-2)]"
-            )}
-          >
-            <span className="block text-sm font-medium">{opt.title}</span>
-            <span className="block text-xs text-[var(--muted)]">{opt.desc}</span>
-          </button>
-        ))}
+      <div
+        className="grid gap-2 sm:grid-cols-2"
+        role="radiogroup"
+        aria-label="AI/ML curriculum topic"
+      >
+        {options.map((opt) => {
+          const selected = selectedTopic === opt.id;
+          return (
+            <button
+              key={opt.id || "none"}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              onClick={() => onSelectTopic(opt.id)}
+              className={cn(
+                "group relative rounded-[var(--radius-md)] border px-3 py-3 text-left transition-all motion-reduce:transition-none",
+                "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color-mix(in_srgb,var(--primary)_60%,transparent)]",
+                selected
+                  ? "border-[color-mix(in_srgb,var(--primary)_55%,var(--border))] bg-[color-mix(in_srgb,var(--primary)_10%,var(--panel-2))] shadow-[0_0_0_1px_color-mix(in_srgb,var(--primary)_20%,transparent)]"
+                  : "border-[var(--border)] bg-[var(--panel-2)]/40 hover:border-[var(--border-strong)] hover:bg-[var(--panel-2)]"
+              )}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <span className="block text-sm font-medium leading-snug">{opt.title}</span>
+                  <span className="mt-0.5 block text-xs text-[var(--muted)]">{opt.desc}</span>
+                </div>
+                <span
+                  className={cn(
+                    "grid h-5 w-5 shrink-0 place-items-center rounded-full border transition-all motion-reduce:transition-none",
+                    selected
+                      ? "border-[var(--primary)] bg-[var(--primary)] text-white"
+                      : "border-[var(--border)] opacity-0 group-hover:opacity-40"
+                  )}
+                  aria-hidden
+                >
+                  {selected && <IconCheck className="h-3 w-3" strokeWidth={2.5} />}
+                </span>
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       {showStudyGuide && (
-        <Card className="max-h-[420px] space-y-4 overflow-y-auto">
+        <div
+          className="max-h-[min(420px,50vh)] space-y-3 overflow-y-auto overscroll-contain rounded-[var(--radius-lg)] border bg-[var(--panel-2)]/50 p-3 motion-reduce:animate-none animate-fade-up"
+          style={{ borderColor: "var(--border)" }}
+        >
           {curriculum.topics.map((t) => (
             <TopicStudyCard key={t.id} topic={t} />
           ))}
-        </Card>
+        </div>
       )}
     </div>
   );
@@ -83,33 +120,45 @@ export function InterviewCurriculumPanel({
 function TopicStudyCard({ topic }: { topic: CurriculumTopic }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="rounded-lg border p-3" style={{ borderColor: "var(--border)" }}>
+    <div
+      className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel)]"
+    >
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex w-full items-start justify-between gap-2 text-left"
+        aria-expanded={open}
+        className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--panel-2)] motion-reduce:transition-none"
       >
-        <div>
+        <div className="min-w-0">
           <p className="text-sm font-semibold">
             {topic.order}. {topic.title}
           </p>
-          <p className="text-xs text-[var(--muted)]">{topic.tagline}</p>
+          <p className="mt-0.5 text-xs text-[var(--muted)]">{topic.tagline}</p>
         </div>
-        <span className="text-xs text-[var(--muted)]">{open ? "−" : "+"}</span>
+        <span
+          className={cn(
+            "grid h-6 w-6 shrink-0 place-items-center rounded-full border text-xs transition-transform motion-reduce:transition-none",
+            open && "rotate-180",
+            "border-[var(--border)] text-[var(--muted)]"
+          )}
+          aria-hidden
+        >
+          ▾
+        </span>
       </button>
       {open && (
-        <div className="mt-3 space-y-2 text-xs leading-relaxed">
-          <Section title="Subtopics" items={topic.subtopics} />
-          <Section title="Senior signals" items={topic.senior_signals} tone="green" />
-          <Section title="Strong answers" items={topic.strong_answer_patterns} />
-          <Section title="Weak patterns to avoid" items={topic.weak_answer_patterns} tone="warn" />
+        <div className="space-y-3 border-t border-[var(--border)] px-4 py-3 text-xs leading-relaxed motion-reduce:animate-none animate-fade-up">
+          <StudySection title="Subtopics" items={topic.subtopics} />
+          <StudySection title="Senior signals" items={topic.senior_signals} tone="green" />
+          <StudySection title="Strong answers" items={topic.strong_answer_patterns} />
+          <StudySection title="Weak patterns to avoid" items={topic.weak_answer_patterns} tone="warn" />
         </div>
       )}
     </div>
   );
 }
 
-function Section({
+function StudySection({
   title,
   items,
   tone = "default",
@@ -122,16 +171,20 @@ function Section({
     <div>
       <p
         className={cn(
-          "mb-1 font-medium",
-          tone === "green" && "text-green-400",
-          tone === "warn" && "text-amber-300"
+          "mb-1.5 text-[10px] font-semibold uppercase tracking-wider",
+          tone === "green" && "text-emerald-400",
+          tone === "warn" && "text-amber-300",
+          tone === "default" && "text-[var(--muted)]"
         )}
       >
         {title}
       </p>
-      <ul className="list-disc space-y-0.5 pl-4 text-[var(--muted)]">
+      <ul className="space-y-1 text-[var(--text-secondary)]">
         {items.map((item) => (
-          <li key={item}>{item}</li>
+          <li key={item} className="flex gap-2">
+            <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-[var(--muted-2)]" aria-hidden />
+            {item}
+          </li>
         ))}
       </ul>
     </div>
