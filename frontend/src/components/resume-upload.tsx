@@ -202,6 +202,7 @@ export function ResumeUpload({
     if (!loaded) return <p className="text-sm text-[var(--muted)]">Loading…</p>;
     if (profile && !editing) {
       const meta = profileSummary(profile);
+      const skills = profile.skills ?? [];
       return (
         <div className="space-y-3">
           <div className="rounded-lg border bg-[var(--panel-2)] p-3" style={{ borderColor: "var(--border)" }}>
@@ -222,13 +223,13 @@ export function ResumeUpload({
               Coach, PDF export, and tailoring build on this resume. Memories are layered on top.
             </p>
           </div>
-          {profile.skills.length > 0 && (
+          {skills.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
-              {profile.skills.slice(0, compact ? 8 : 12).map((s) => (
+              {skills.slice(0, compact ? 8 : 12).map((s) => (
                 <Badge key={s}>{s}</Badge>
               ))}
-              {profile.skills.length > (compact ? 8 : 12) && (
-                <Badge tone="primary">+{profile.skills.length - (compact ? 8 : 12)}</Badge>
+              {skills.length > (compact ? 8 : 12) && (
+                <Badge tone="primary">+{skills.length - (compact ? 8 : 12)}</Badge>
               )}
             </div>
           )}

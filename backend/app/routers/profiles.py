@@ -8,7 +8,7 @@ from app.db import get_session
 from app.models import Profile, User
 from app.schemas import ResumeTextIn
 from app.services.parsing import parse_resume
-from app.services.profiles import get_base_profile
+from app.services.profiles import get_base_profile, normalize_profile
 from app.services.text_extract import extract_text
 
 router = APIRouter(prefix="/api/profiles", tags=["profiles"])
@@ -89,7 +89,7 @@ def _create_base_profile(
     from app.services.resume_versions import ensure_base_version
 
     ensure_base_version(user, profile, session)
-    return profile
+    return normalize_profile(profile)
 
 
 @router.post("", response_model=Profile)
@@ -133,7 +133,7 @@ def base_profile(
     p = get_base_profile(user, session)
     if not p:
         raise HTTPException(404, "No base resume yet — upload your resume first.")
-    return p
+    return normalize_profile(p)
 
 
 @router.get("", response_model=list[Profile])
@@ -141,11 +141,11 @@ def list_profiles(
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ):
-    return session.exec(
+    return [normalize_profile(p) for p in session.exec(
         select(Profile)
         .where(Profile.user_id == user.id)
         .order_by(Profile.created_at.desc())
-    ).all()
+    ).all()]
 
 
 @router.get("/latest", response_model=Profile)
@@ -157,7 +157,7 @@ def latest_profile(
     p = get_base_profile(user, session)
     if not p:
         raise HTTPException(404, "No base resume yet — upload your resume first.")
-    return p
+    return normalize_profile(p)
 
 
 @router.get("/{profile_id}", response_model=Profile)
@@ -169,4 +169,4 @@ def get_profile(
     p = session.get(Profile, profile_id)
     if not p or p.user_id != user.id:
         raise HTTPException(404, "Profile not found")
-    return p
+    return normalize_profile(p)

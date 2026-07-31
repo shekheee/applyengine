@@ -13,8 +13,24 @@ def get_base_profile(user: User, session: Session) -> Profile | None:
         .order_by(Profile.id.desc())
     ).first()
     if base:
-        return base
+        return normalize_profile(base)
     # Back-compat: profiles created before is_base existed.
-    return session.exec(
+    legacy = session.exec(
         select(Profile).where(Profile.user_id == user.id).order_by(Profile.id.desc())
     ).first()
+    return normalize_profile(legacy) if legacy else None
+
+
+def normalize_profile(profile: Profile) -> Profile:
+    """Coalesce NULL JSON list columns from legacy rows into empty lists."""
+    if profile.links is None:
+        profile.links = []
+    if profile.skills is None:
+        profile.skills = []
+    if profile.experience is None:
+        profile.experience = []
+    if profile.projects is None:
+        profile.projects = []
+    if profile.education is None:
+        profile.education = []
+    return profile
