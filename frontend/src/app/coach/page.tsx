@@ -142,6 +142,23 @@ function CoachPageInner() {
           color: var(--text-secondary);
         }
 
+        .coach-prose :where(p + p) {
+          margin-top: 0;
+        }
+
+        .coach-prose :where(p + ul, p + ol, ul + p, ol + p, pre + p, p + pre) {
+          margin-top: 0.125rem;
+        }
+
+        .coach-prose :where(li + li) {
+          margin-top: 0.125rem;
+        }
+
+        .coach-prose :where(li > ul, li > ol) {
+          margin-top: 0.125rem;
+          margin-bottom: 0;
+        }
+
         .coach-prose pre,
         .coach-prose code {
           max-width: 100%;

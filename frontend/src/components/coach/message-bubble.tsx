@@ -86,7 +86,7 @@ export function MessageBubble({
         }`}
       >
         {!isUser && (
-          <div className="mb-1.5 flex items-center gap-2 px-0.5">
+          <div className="mb-1 flex items-center gap-2 px-0.5">
             <span className="text-xs font-medium text-[var(--text-secondary)]">Coach</span>
             {message.model_served && (
               <span
@@ -117,10 +117,10 @@ export function MessageBubble({
           )}
 
           <div
-            className={`coach-message-body block max-w-full overflow-hidden text-left text-[15px] leading-[1.65] [overflow-wrap:anywhere] [word-break:break-word] ${
+            className={`coach-message-body block max-w-full overflow-hidden text-left [overflow-wrap:anywhere] [word-break:break-word] ${
               isUser
-                ? "rounded-2xl rounded-br-md px-4 py-3 text-white"
-                : "rounded-2xl rounded-tl-md border px-4 py-3 text-[var(--text)]"
+                ? "rounded-2xl rounded-br-md px-4 py-3 text-[15px] leading-[1.65] text-white"
+                : "rounded-2xl rounded-tl-md border px-3 py-2.5 text-[15px] leading-[1.48] text-[var(--text)]"
             }`}
             style={
               isUser
@@ -185,7 +185,7 @@ export function MessageBubble({
                 disabled={streaming}
               >
                 <div className="prose-chat coach-prose">
-                  <ChatMarkdown content={message.content} />
+                  <ChatMarkdown content={message.content} density="compact" />
                   {streaming && (
                     <span
                       className="coach-stream-cursor ml-0.5 inline-block h-[1.1em] w-[2px] align-text-bottom"
