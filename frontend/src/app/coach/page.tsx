@@ -3,20 +3,63 @@
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { CoachChat } from "@/components/coach-chat";
+import { useCoachFullscreen } from "@/hooks/use-coach-fullscreen";
+import { cn } from "@/components/ui";
 
 function CoachPageInner() {
   const params = useSearchParams();
   const raw = params.get("conversation_id");
   const parsed = raw ? Number(raw) : NaN;
   const initialConversationId = Number.isFinite(parsed) ? parsed : undefined;
+  const { fullscreen, toggleFullscreen } = useCoachFullscreen(true);
 
   return (
-    <div className="coach-page flex h-[calc(100dvh-6.5rem)] min-h-[420px] flex-col overflow-hidden">
-      <CoachChat initialConversationId={initialConversationId} />
+    <div
+      className={cn(
+        "coach-page flex min-h-0 flex-col overflow-hidden",
+        fullscreen
+          ? "fixed inset-0 z-[200] h-dvh w-full"
+          : "h-[calc(100dvh-3.25rem)] min-h-[480px]"
+      )}
+      data-coach-fullscreen={fullscreen ? "true" : undefined}
+    >
+      <CoachChat
+        initialConversationId={initialConversationId}
+        fullscreen={fullscreen}
+        onToggleFullscreen={toggleFullscreen}
+      />
       <style jsx global>{`
         .coach-page {
-          --coach-read-width: 680px;
+          --coach-read-width: min(920px, 100%);
+          --coach-assistant-width: min(100%, 52rem);
           --coach-sidebar-width: 15rem;
+        }
+
+        .coach-page[data-coach-fullscreen="true"] {
+          --coach-read-width: min(1100px, 96vw);
+          --coach-assistant-width: min(100%, 68rem);
+        }
+
+        html.coach-fullscreen header[class*="sticky"] {
+          display: none;
+        }
+
+        html.coach-fullscreen main {
+          max-width: none !important;
+          padding: 0 !important;
+        }
+
+        html.coach-fullscreen .page-enter {
+          animation: none;
+        }
+
+        .coach-thread-inner,
+        .coach-composer-shell {
+          max-width: var(--coach-read-width);
+        }
+
+        .coach-message-assistant {
+          max-width: var(--coach-assistant-width);
         }
 
         .coach-thread-scroll {
@@ -97,6 +140,11 @@ function CoachPageInner() {
 
         .coach-prose :where(p, li) {
           color: var(--text-secondary);
+        }
+
+        .coach-prose pre,
+        .coach-prose code {
+          max-width: 100%;
         }
 
         @media (prefers-reduced-motion: reduce) {

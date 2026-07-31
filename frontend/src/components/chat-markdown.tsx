@@ -35,7 +35,7 @@ export function ChatMarkdown({ content }: { content: string }) {
             const isBlock = className?.includes("language-");
             if (isBlock) {
               return (
-                <code className="block max-w-full overflow-x-auto whitespace-pre rounded-lg bg-[#0d0d12] p-3 text-[13px] leading-relaxed text-[#e8e8f0]">
+                <code className="block max-w-full overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-[#0d0d12] p-3 text-[13px] leading-relaxed text-[#e8e8f0] sm:whitespace-pre">
                   {children}
                 </code>
               );

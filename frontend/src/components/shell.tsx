@@ -119,9 +119,10 @@ export function Shell({ children }: { children: ReactNode }) {
         {!isLogin && <NavBar />}
         <main
           className={cn(
-            "relative mx-auto min-w-0 px-4 sm:px-6",
-            wide ? "max-w-7xl py-3 sm:py-5" : isLogin ? "max-w-none py-0" : "max-w-6xl py-6 sm:py-8"
+            "relative mx-auto min-w-0",
+            wide ? "max-w-7xl px-2 py-1.5 sm:px-3 sm:py-2" : isLogin ? "max-w-none px-0 py-0" : "max-w-6xl px-4 py-6 sm:px-6 sm:py-8"
           )}
+          data-coach-layout={isCoach ? "true" : undefined}
         >
           <Gate>{children}</Gate>
         </main>

@@ -3,7 +3,12 @@
 import type { Conversation } from "@/lib/types";
 import { Button } from "@/components/ui";
 import { conversationSubtitle } from "@/components/coach-conversations";
-import { MenuIcon, PanelIcon } from "@/components/coach/coach-icons";
+import {
+  CompressIcon,
+  ExpandIcon,
+  MenuIcon,
+  PanelIcon,
+} from "@/components/coach/coach-icons";
 
 export function CoachHeader({
   embedded,
@@ -13,6 +18,8 @@ export function CoachHeader({
   toolsOpen,
   onToggleTools,
   openInCoachHref,
+  fullscreen,
+  onToggleFullscreen,
 }: {
   embedded?: boolean;
   activeConversation: Conversation | null;
@@ -21,17 +28,19 @@ export function CoachHeader({
   toolsOpen: boolean;
   onToggleTools: () => void;
   openInCoachHref: string;
+  fullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }) {
   return (
     <header
-      className="coach-header flex shrink-0 items-center justify-between gap-3 border-b px-3 py-3 sm:px-4"
+      className="coach-header flex shrink-0 items-center justify-between gap-3 border-b px-2 py-2.5 sm:px-3"
       style={{
         borderColor: "var(--border)",
         background: "color-mix(in srgb, var(--panel) 92%, transparent)",
       }}
     >
       <div className="flex min-w-0 items-center gap-2">
-        {!embedded && (
+        {!embedded && !fullscreen && (
           <button
             type="button"
             onClick={onToggleConvList}
@@ -64,26 +73,46 @@ export function CoachHeader({
         </div>
       </div>
 
-      {embedded ? (
-        <Button href={openInCoachHref} variant="outline" size="sm">
-          Open in Coach →
-        </Button>
-      ) : (
-        <button
-          type="button"
-          onClick={onToggleTools}
-          className="btn-interactive flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium text-[var(--muted)] transition-colors hover:bg-[var(--panel-2)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 lg:hidden"
-          style={{
-            borderColor: "var(--border-strong)",
-            outlineColor: "color-mix(in srgb, var(--primary) 60%, transparent)",
-          }}
-          aria-label={toolsOpen ? "Hide memory panel" : "Show memory panel"}
-          aria-expanded={toolsOpen}
-        >
-          <PanelIcon className="h-3.5 w-3.5" />
-          {toolsOpen ? "Hide" : "Memory"}
-        </button>
-      )}
+      <div className="flex shrink-0 items-center gap-1.5">
+        {embedded ? (
+          <Button href={openInCoachHref} variant="outline" size="sm">
+            Open in Coach →
+          </Button>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={onToggleFullscreen}
+              title={fullscreen ? "Exit full screen (Esc)" : "Full screen (F)"}
+              aria-label={fullscreen ? "Exit full screen" : "Enter full screen"}
+              aria-pressed={fullscreen}
+              className="btn-interactive flex h-9 w-9 items-center justify-center rounded-lg border text-[var(--muted)] transition-colors hover:bg-[var(--panel-2)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+              style={{
+                borderColor: "var(--border-strong)",
+                outlineColor: "color-mix(in srgb, var(--primary) 60%, transparent)",
+              }}
+            >
+              {fullscreen ? <CompressIcon /> : <ExpandIcon />}
+            </button>
+            {!fullscreen && (
+              <button
+                type="button"
+                onClick={onToggleTools}
+                className="btn-interactive flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium text-[var(--muted)] transition-colors hover:bg-[var(--panel-2)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 lg:hidden"
+                style={{
+                  borderColor: "var(--border-strong)",
+                  outlineColor: "color-mix(in srgb, var(--primary) 60%, transparent)",
+                }}
+                aria-label={toolsOpen ? "Hide memory panel" : "Show memory panel"}
+                aria-expanded={toolsOpen}
+              >
+                <PanelIcon className="h-3.5 w-3.5" />
+                {toolsOpen ? "Hide" : "Memory"}
+              </button>
+            )}
+          </>
+        )}
+      </div>
     </header>
   );
 }

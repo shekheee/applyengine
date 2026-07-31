@@ -79,8 +79,10 @@ export function MessageBubble({
       )}
 
       <div
-        className={`min-w-0 max-w-[min(100%,42rem)] flex-1 ${
-          isUser ? "flex flex-col items-end" : ""
+        className={`min-w-0 flex-1 ${
+          isUser
+            ? "flex max-w-[min(100%,36rem)] flex-col items-end"
+            : "coach-message-assistant w-full"
         }`}
       >
         {!isUser && (

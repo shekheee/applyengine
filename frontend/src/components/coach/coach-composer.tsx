@@ -47,9 +47,9 @@ export function CoachComposer({
   const canSend = Boolean(input.trim() || pendingFiles.length);
 
   return (
-    <div className="coach-composer shrink-0 px-3 pb-3 pt-1 sm:px-4 sm:pb-4">
+    <div className="coach-composer shrink-0 px-2 pb-2 pt-1 sm:px-3 sm:pb-3">
       <div
-        className="coach-composer-shell mx-auto w-full min-w-0 max-w-[680px] overflow-hidden rounded-2xl border transition-shadow focus-within:shadow-[0_0_0_3px_var(--glow-soft)]"
+        className="coach-composer-shell mx-auto w-full min-w-0 overflow-hidden rounded-2xl border transition-shadow focus-within:shadow-[0_0_0_3px_var(--glow-soft)]"
         style={{
           borderColor: "var(--border-strong)",
           background: "var(--panel-2)",

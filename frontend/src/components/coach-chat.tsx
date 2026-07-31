@@ -48,10 +48,14 @@ export function CoachChat({
   initialConversationId,
   embedded = false,
   applicationId,
+  fullscreen = false,
+  onToggleFullscreen,
 }: {
   initialConversationId?: number;
   embedded?: boolean;
   applicationId?: number;
+  fullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 } = {}) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
@@ -468,10 +472,10 @@ export function CoachChat({
     <div
       className={`coach-shell flex min-h-0 flex-col overflow-hidden ${
         embedded ? "h-[min(70vh,720px)]" : "h-full lg:flex-row"
-      }`}
+      } ${fullscreen ? "coach-shell-fullscreen" : ""}`}
       style={{ background: embedded ? undefined : "var(--bg-elevated)" }}
     >
-      {!embedded && (
+      {!embedded && !fullscreen && (
         <ConversationSidebar
           open={convListOpen}
           onClose={() => setConvListOpen(false)}
@@ -493,9 +497,11 @@ export function CoachChat({
           toolsOpen={toolsOpen}
           onToggleTools={() => setToolsOpen(!toolsOpen)}
           openInCoachHref={openInCoachHref}
+          fullscreen={fullscreen}
+          onToggleFullscreen={onToggleFullscreen}
         />
 
-        {!embedded && toolsOpen && (
+        {!embedded && !fullscreen && toolsOpen && (
           <div
             className="shrink-0 overflow-hidden border-b lg:hidden"
             style={{ borderColor: "var(--border)", maxHeight: "40vh" }}
@@ -514,9 +520,9 @@ export function CoachChat({
 
           <div
             ref={scrollRef}
-            className="coach-thread-scroll min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-6 sm:px-4"
+            className="coach-thread-scroll min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-2 py-4 sm:px-3 sm:py-5"
           >
-            <div className="mx-auto w-full min-w-0 max-w-[680px] space-y-6">
+            <div className="coach-thread-inner mx-auto w-full min-w-0 space-y-6">
               {messages.length === 0 && !streaming && (
                 <CoachEmptyState
                   embedded={embedded}
@@ -567,9 +573,9 @@ export function CoachChat({
           <div className="coach-composer-fade absolute inset-x-0 bottom-[7.5rem] h-8 sm:bottom-[8rem]" aria-hidden />
 
           {error && (
-            <div className="shrink-0 px-3 sm:px-4">
+            <div className="shrink-0 px-2 sm:px-3">
               <p
-                className="mx-auto max-w-[680px] rounded-xl border px-3 py-2 text-sm"
+                className="coach-thread-inner mx-auto rounded-xl border px-3 py-2 text-sm"
                 role="alert"
                 style={{
                   borderColor: "color-mix(in srgb, var(--red) 40%, transparent)",
@@ -601,7 +607,7 @@ export function CoachChat({
         </div>
       </div>
 
-      {!embedded && (
+      {!embedded && !fullscreen && (
         <div
           className="hidden w-64 shrink-0 overflow-y-auto border-l lg:block"
           style={{ borderColor: "var(--border)", background: "var(--panel)" }}
