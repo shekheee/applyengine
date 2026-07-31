@@ -44,12 +44,12 @@ def _apply_parsed_to_profile(
     profile.phone = parsed.get("phone", "")
     profile.location = parsed.get("location", "")
     profile.summary = parsed.get("summary", "")
-    profile.raw_text = parsed.get("raw_text", raw_text)
-    profile.links = parsed.get("links", [])
-    profile.skills = parsed.get("skills", [])
-    profile.experience = parsed.get("experience", [])
-    profile.projects = parsed.get("projects", [])
-    profile.education = parsed.get("education", [])
+    profile.raw_text = parsed.get("raw_text") or raw_text
+    profile.links = parsed.get("links") or []
+    profile.skills = parsed.get("skills") or []
+    profile.experience = parsed.get("experience") or []
+    profile.projects = parsed.get("projects") or []
+    profile.education = parsed.get("education") or []
     profile.is_base = True
     if source_filename:
         profile.source_filename = source_filename
@@ -131,10 +131,11 @@ def _upsert_base_profile(
     session.add(profile)
     session.commit()
     session.refresh(profile)
+    profile = normalize_profile(profile)
     from app.services.resume_versions import ensure_base_version
 
     ensure_base_version(user, profile, session)
-    return normalize_profile(profile)
+    return profile
 
 
 @router.post("", response_model=Profile)

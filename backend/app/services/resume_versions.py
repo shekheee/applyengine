@@ -53,17 +53,19 @@ def ensure_base_version(
 ) -> ResumeVersion:
     """Create or refresh the canonical base version for an uploaded profile."""
     existing = session.exec(
-        select(ResumeVersion).where(
+        select(ResumeVersion)
+        .where(
             ResumeVersion.user_id == user.id,
             ResumeVersion.kind == ResumeVersionKind.base.value,
-            ResumeVersion.profile_id == profile.id,
         )
+        .order_by(ResumeVersion.id.desc())
     ).first()
     html = profile_to_base_html(profile)
     title = version_title_for_base(profile)
     if existing:
         existing.title = title
         existing.html_content = html
+        existing.profile_id = profile.id
         session.add(existing)
         session.commit()
         session.refresh(existing)
