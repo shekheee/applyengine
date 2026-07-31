@@ -50,10 +50,16 @@ def parse_resume(raw_text: str) -> dict:
     data.setdefault("name", lines[0] if lines else "")
     data.setdefault("location", "")
     data.setdefault("summary", "")
+    for key in ("name", "email", "phone", "location", "summary"):
+        if data.get(key) is None:
+            data[key] = ""
     if not data.get("links"):
         data["links"] = sorted({m.group(0) for m in URL_RE.finditer(raw_text)})
     if not data.get("skills"):
         data["skills"] = extract_keywords(raw_text)
+    for key in ("links", "skills", "experience", "projects", "education"):
+        if data.get(key) is None:
+            data[key] = []
     data.setdefault("experience", [])
     data.setdefault("projects", [])
     data.setdefault("education", [])

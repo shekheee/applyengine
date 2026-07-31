@@ -39,11 +39,11 @@ def _apply_parsed_to_profile(
     *,
     source_filename: str = "",
 ) -> None:
-    profile.name = parsed.get("name", "")
-    profile.email = parsed.get("email", "")
-    profile.phone = parsed.get("phone", "")
-    profile.location = parsed.get("location", "")
-    profile.summary = parsed.get("summary", "")
+    profile.name = parsed.get("name") or ""
+    profile.email = parsed.get("email") or ""
+    profile.phone = parsed.get("phone") or ""
+    profile.location = parsed.get("location") or ""
+    profile.summary = parsed.get("summary") or ""
     profile.raw_text = parsed.get("raw_text") or raw_text
     profile.links = parsed.get("links") or []
     profile.skills = parsed.get("skills") or []
