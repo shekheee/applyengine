@@ -11,7 +11,7 @@ from app.models import Application, ApplicationStatus, Job, Profile, User
 from app.schemas import ApplicationCreate, NotesUpdate, StatusUpdate
 from app.services.doc_export import text_to_docx
 from app.services.matching import compute_fit, gap_analysis
-from app.services.profiles import get_base_profile
+from app.services.profiles import get_base_profile, normalize_profile
 from app.services.serialize import job_to_text, profile_to_text
 
 router = APIRouter(prefix="/api/applications", tags=["applications"])
@@ -26,6 +26,37 @@ def _owned_application(app_id: int, user: User, session: Session) -> Application
     if not a or a.user_id != user.id:
         raise HTTPException(404, "Application not found")
     return a
+
+
+def _compute_application_fit(profile: Profile, job: Job) -> dict:
+    profile_text = profile_to_text(profile)
+    job_text = job_to_text(job)
+    skills = profile.skills or []
+    keywords = job.keywords or []
+    fit = compute_fit(profile_text, job_text, keywords, skills)
+    analysis = gap_analysis(profile_text, job_text, fit)
+    return {
+        "fit_score": fit["fit_score"],
+        "keyword_coverage": fit["keyword_coverage"],
+        "matched_keywords": fit["matched_keywords"],
+        "missing_keywords": fit["missing_keywords"],
+        "gap_analysis": analysis,
+    }
+
+
+def _apply_fit_to_application(
+    app_row: Application,
+    profile: Profile,
+    job: Job,
+) -> None:
+    fit_fields = _compute_application_fit(profile, job)
+    app_row.profile_id = profile.id
+    app_row.fit_score = fit_fields["fit_score"]
+    app_row.keyword_coverage = fit_fields["keyword_coverage"]
+    app_row.matched_keywords = fit_fields["matched_keywords"]
+    app_row.missing_keywords = fit_fields["missing_keywords"]
+    app_row.gap_analysis = fit_fields["gap_analysis"]
+    app_row.updated_at = datetime.now(timezone.utc)
 
 
 @router.post("", response_model=Application)
@@ -47,21 +78,18 @@ def create_application(
     if not profile:
         raise HTTPException(400, "No profile available; create one first")
 
-    profile_text = profile_to_text(profile)
-    job_text = job_to_text(job)
-    fit = compute_fit(profile_text, job_text, job.keywords, profile.skills)
-    analysis = gap_analysis(profile_text, job_text, fit)
+    fit_fields = _compute_application_fit(profile, job)
 
     app_row = Application(
         user_id=user.id,
         job_id=job.id,
         profile_id=profile.id,
         status=ApplicationStatus.saved,
-        fit_score=fit["fit_score"],
-        keyword_coverage=fit["keyword_coverage"],
-        matched_keywords=fit["matched_keywords"],
-        missing_keywords=fit["missing_keywords"],
-        gap_analysis=analysis,
+        fit_score=fit_fields["fit_score"],
+        keyword_coverage=fit_fields["keyword_coverage"],
+        matched_keywords=fit_fields["matched_keywords"],
+        missing_keywords=fit_fields["missing_keywords"],
+        gap_analysis=fit_fields["gap_analysis"],
     )
     session.add(app_row)
     session.commit()
@@ -122,6 +150,30 @@ def update_notes(
     session.commit()
     session.refresh(a)
     return a
+
+
+@router.post("/{app_id}/analyze-fit", response_model=Application)
+def analyze_fit(
+    app_id: int,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Recompute fit against the user's current base profile and linked job."""
+    app_row = _owned_application(app_id, user, session)
+    job = session.get(Job, app_row.job_id)
+    if not job or job.user_id != user.id:
+        raise HTTPException(404, "Job not found")
+
+    profile = _latest_profile(user, session)
+    if not profile:
+        raise HTTPException(400, "No base resume yet — upload your profile first")
+
+    profile = normalize_profile(profile)
+    _apply_fit_to_application(app_row, profile, job)
+    session.add(app_row)
+    session.commit()
+    session.refresh(app_row)
+    return app_row
 
 
 @router.get("/{app_id}/export/{doc}")

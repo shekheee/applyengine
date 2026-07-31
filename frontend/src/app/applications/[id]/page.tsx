@@ -30,6 +30,8 @@ export default function ApplicationDetailPage() {
   const [job, setJob] = useState<Job | null>(null);
   const [tab, setTab] = useState<HubTabId>("chat");
   const [genBusy, setGenBusy] = useState(false);
+  const [fitBusy, setFitBusy] = useState(false);
+  const [fitError, setFitError] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
 
@@ -71,6 +73,19 @@ export default function ApplicationDetailPage() {
     setApp(await api.setNotes(app.id, notes));
   }
 
+  async function recheckFit() {
+    if (!app) return;
+    setFitBusy(true);
+    setFitError("");
+    try {
+      setApp(await api.analyzeFit(app.id));
+    } catch (e) {
+      setFitError(e instanceof Error ? e.message : "Fit analysis failed");
+    } finally {
+      setFitBusy(false);
+    }
+  }
+
   if (error) return <ApplicationError message={error} />;
   if (!app || !job) return <ApplicationLoading />;
 
@@ -80,7 +95,12 @@ export default function ApplicationDetailPage() {
     <div className="page-enter mx-auto max-w-6xl space-y-8 pb-8">
       <ApplicationHero job={job} app={app} onStatusChange={changeStatus} />
 
-      <FitSnapshot app={app} />
+      <FitSnapshot
+        app={app}
+        onAnalyze={recheckFit}
+        analyzing={fitBusy}
+        analyzeError={fitError}
+      />
 
       <section aria-label="Application workspace" className="space-y-0">
         <HubTabNav

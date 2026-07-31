@@ -498,6 +498,10 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ notes }),
     }),
+  analyzeFit: (id: number) =>
+    req<Application>(`/api/applications/${id}/analyze-fit`, {
+      method: "POST",
+    }),
   generate: (application_id: number, what: string[]) =>
     req<Application>("/api/generate", {
       method: "POST",

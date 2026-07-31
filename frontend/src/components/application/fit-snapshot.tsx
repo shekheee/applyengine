@@ -1,8 +1,18 @@
 "use client";
 
-import { Badge, cn, ScoreRing } from "@/components/ui";
+import { Badge, Button, cn, ScoreRing } from "@/components/ui";
 import { CollapsibleContent } from "@/components/collapsible-content";
 import type { Application } from "@/lib/types";
+
+function formatCheckedAt(iso: string) {
+  return new Date(iso).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
 
 function MetricBar({
   label,
@@ -91,15 +101,28 @@ function KeywordColumn({
   );
 }
 
-export function FitSnapshot({ app }: { app: Application }) {
+export function FitSnapshot({
+  app,
+  onAnalyze,
+  analyzing = false,
+  analyzeError,
+}: {
+  app: Application;
+  onAnalyze?: () => void;
+  analyzing?: boolean;
+  analyzeError?: string;
+}) {
+  const matched = app.matched_keywords ?? [];
+  const missing = app.missing_keywords ?? [];
   const coverage = Math.round((app.keyword_coverage ?? 0) * 100);
   const fitScore = app.fit_score ?? 0;
   const fitTone =
     fitScore >= 70 ? "green" : fitScore >= 45 ? "amber" : fitScore > 0 ? "red" : "primary";
+  const hasScore = app.fit_score !== null;
 
   return (
     <section aria-labelledby="fit-snapshot-heading">
-      <div className="mb-4 flex items-end justify-between gap-4">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2
             id="fit-snapshot-heading"
@@ -110,7 +133,24 @@ export function FitSnapshot({ app }: { app: Application }) {
           <p className="mt-1 text-sm text-[var(--muted-2)]">
             How your profile aligns with this role
           </p>
+          {hasScore && app.updated_at && (
+            <p className="mt-1 text-xs text-[var(--muted-2)]">
+              Last checked {formatCheckedAt(app.updated_at)}
+            </p>
+          )}
         </div>
+        {onAnalyze && (
+          <div className="flex flex-col items-end gap-2">
+            <Button onClick={onAnalyze} disabled={analyzing} size="sm" variant="outline">
+              {analyzing ? "Analyzing fit…" : hasScore ? "Re-check fit" : "Check fit"}
+            </Button>
+            {analyzeError && (
+              <p className="max-w-xs text-right text-xs text-[var(--red)]" role="alert">
+                {analyzeError}
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-12 lg:gap-6">
@@ -155,15 +195,15 @@ export function FitSnapshot({ app }: { app: Application }) {
           <div className="grid gap-6 sm:grid-cols-2">
             <KeywordColumn
               title="Matched"
-              count={app.matched_keywords.length}
-              keywords={app.matched_keywords}
+              count={matched.length}
+              keywords={matched}
               tone="green"
               emptyLabel="No matches yet"
             />
             <KeywordColumn
               title="Gaps"
-              count={app.missing_keywords.length}
-              keywords={app.missing_keywords}
+              count={missing.length}
+              keywords={missing}
               tone="red"
               emptyLabel="No gaps flagged"
             />
