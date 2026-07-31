@@ -40,7 +40,6 @@ export function ResumeUpload({
   compact?: boolean;
 }) {
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [editing, setEditing] = useState(false);
   const [pasting, setPasting] = useState(false);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -65,12 +64,15 @@ export function ResumeUpload({
     refresh().finally(() => setLoaded(true));
   }, [refresh]);
 
-  function done(p: Profile) {
+  function done(p: Profile, replaced: boolean) {
     setProfile(p);
-    setEditing(false);
     setPasting(false);
     setText("");
-    setSuccess("Base resume set — coach and exports will build on this.");
+    setSuccess(
+      replaced
+        ? "Base resume updated — coach, fit checks, and exports will use the new version."
+        : "Base resume set — coach and exports will build on this."
+    );
     setTimeout(() => setSuccess(""), 5000);
     onLoaded?.(p);
   }
@@ -83,10 +85,11 @@ export function ResumeUpload({
       setError(validation);
       return;
     }
+    const replacing = profile != null;
     setBusy(true);
     setProgress(`Uploading ${file.name}…`);
     try {
-      done(await api.uploadProfile(file));
+      done(await api.uploadProfile(file), replacing);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't parse that file.");
     } finally {
@@ -100,10 +103,11 @@ export function ResumeUpload({
     setError("");
     setSuccess("");
     if (!text.trim()) return setError("Paste your resume text first.");
+    const replacing = profile != null;
     setBusy(true);
     setProgress("Parsing resume…");
     try {
-      done(await api.createProfile(text));
+      done(await api.createProfile(text), replacing);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't save that resume.");
     } finally {
@@ -119,12 +123,14 @@ export function ResumeUpload({
     if (file) upload(file);
   }
 
+  const hasProfile = profile != null;
+
   const uploader = (
     <div className="space-y-3">
       <div
         onDragOver={(e) => {
           e.preventDefault();
-          setDragOver(true);
+          if (!busy) setDragOver(true);
         }}
         onDragLeave={() => setDragOver(false)}
         onDrop={onDrop}
@@ -134,17 +140,26 @@ export function ResumeUpload({
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") fileRef.current?.click();
         }}
-        className={`flex w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed px-4 py-6 text-center transition-colors disabled:opacity-50 ${
+        aria-disabled={busy}
+        className={`flex w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed px-4 text-center transition-colors ${
+          compact || hasProfile ? "py-4" : "py-6"
+        } ${busy ? "cursor-not-allowed opacity-60" : ""} ${
           dragOver ? "border-[var(--primary)] bg-[var(--primary)]/5" : ""
         }`}
         style={{ borderColor: dragOver ? undefined : "var(--border)" }}
       >
         <span className="text-2xl">{busy ? "⏳" : "📄"}</span>
         <span className="text-sm font-medium text-[var(--text)]">
-          {busy ? progress || "Processing…" : "Upload your base resume"}
+          {busy
+            ? progress || "Processing…"
+            : hasProfile
+              ? "Upload new resume"
+              : "Upload your base resume"}
         </span>
         <span className="text-xs text-[var(--muted)]">
-          Drag & drop or click · PDF, DOCX, or TXT · max 5 MB
+          {hasProfile
+            ? "Replaces your current base resume · PDF, DOCX, or TXT · max 5 MB"
+            : "Drag & drop or click · PDF, DOCX, or TXT · max 5 MB"}
         </span>
       </div>
       <input
@@ -163,14 +178,15 @@ export function ResumeUpload({
             onChange={(e) => setText(e.target.value)}
             placeholder="Paste your master resume here…"
             rows={compact ? 6 : 10}
-            className="w-full resize-y rounded-lg border bg-[var(--panel-2)] p-3 text-sm text-[var(--text)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--primary)]"
+            disabled={busy}
+            className="w-full resize-y rounded-lg border bg-[var(--panel-2)] p-3 text-sm text-[var(--text)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--primary)] disabled:opacity-60"
             style={{ borderColor: "var(--border)" }}
           />
           <div className="flex items-center gap-2">
             <Button onClick={savePasted} disabled={busy} size="sm">
-              Set as base resume
+              {hasProfile ? "Replace with pasted text" : "Set as base resume"}
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => setPasting(false)}>
+            <Button variant="ghost" size="sm" onClick={() => setPasting(false)} disabled={busy}>
               Cancel
             </Button>
           </div>
@@ -179,14 +195,15 @@ export function ResumeUpload({
         <button
           type="button"
           onClick={() => setPasting(true)}
-          className="text-xs text-[var(--muted)] underline-offset-2 hover:text-[var(--text)] hover:underline"
+          disabled={busy}
+          className="text-xs text-[var(--muted)] underline-offset-2 hover:text-[var(--text)] hover:underline disabled:opacity-50"
         >
-          or paste resume text instead
+          {hasProfile ? "or paste new resume text" : "or paste resume text instead"}
         </button>
       )}
 
       {error && (
-        <p className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+        <p className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300" role="alert">
           {error}
         </p>
       )}
@@ -200,46 +217,53 @@ export function ResumeUpload({
 
   const body = () => {
     if (!loaded) return <p className="text-sm text-[var(--muted)]">Loading…</p>;
-    if (profile && !editing) {
-      const meta = profileSummary(profile);
-      const skills = profile.skills ?? [];
-      return (
-        <div className="space-y-3">
-          <div className="rounded-lg border bg-[var(--panel-2)] p-3" style={{ borderColor: "var(--border)" }}>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge tone="green">Base resume set</Badge>
-              {profile.source_filename && (
-                <span className="text-xs text-[var(--muted)]">{profile.source_filename}</span>
+
+    const skills = profile?.skills ?? [];
+
+    return (
+      <div className="space-y-4">
+        {profile && (
+          <div className="space-y-3">
+            <div
+              className="rounded-lg border bg-[var(--panel-2)] p-3"
+              style={{ borderColor: "var(--border)" }}
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge tone="green">Base resume set</Badge>
+                {profile.source_filename && (
+                  <span className="text-xs text-[var(--muted)]">{profile.source_filename}</span>
+                )}
+              </div>
+              <p className="mt-2 text-sm font-medium text-[var(--text)]">
+                {profile.name || "Your profile"}
+              </p>
+              {profile.email && (
+                <p className="text-xs text-[var(--muted)]">{profile.email}</p>
               )}
+              {profileSummary(profile) && (
+                <p className="mt-1 text-xs text-[var(--muted)]">{profileSummary(profile)}</p>
+              )}
+              <p className="mt-2 text-xs text-[var(--muted)]">
+                Coach, PDF export, and tailoring build on this resume. Upload a new file below to
+                replace it.
+              </p>
             </div>
-            <p className="mt-2 text-sm font-medium text-[var(--text)]">
-              {profile.name || "Your profile"}
-            </p>
-            {profile.email && (
-              <p className="text-xs text-[var(--muted)]">{profile.email}</p>
+            {skills.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {skills.slice(0, compact ? 8 : 12).map((s) => (
+                  <Badge key={s}>{s}</Badge>
+                ))}
+                {skills.length > (compact ? 8 : 12) && (
+                  <Badge tone="primary">+{skills.length - (compact ? 8 : 12)}</Badge>
+                )}
+              </div>
             )}
-            {meta && <p className="mt-1 text-xs text-[var(--muted)]">{meta}</p>}
-            <p className="mt-2 text-xs text-[var(--muted)]">
-              Coach, PDF export, and tailoring build on this resume. Memories are layered on top.
-            </p>
           </div>
-          {skills.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {skills.slice(0, compact ? 8 : 12).map((s) => (
-                <Badge key={s}>{s}</Badge>
-              ))}
-              {skills.length > (compact ? 8 : 12) && (
-                <Badge tone="primary">+{skills.length - (compact ? 8 : 12)}</Badge>
-              )}
-            </div>
-          )}
-          <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
-            Replace base resume
-          </Button>
-        </div>
-      );
-    }
-    return uploader;
+        )}
+
+        {uploader}
+      </div>
+    );
   };
 
   return (
@@ -248,7 +272,9 @@ export function ResumeUpload({
         <h2 className="font-semibold">Base resume</h2>
       </div>
       <p className="mb-3 text-xs text-[var(--muted)]">
-        Provide your real resume once — everything else builds on it.
+        {hasProfile
+          ? "Your current base resume is shown above. Upload anytime to replace it with an updated version."
+          : "Provide your real resume once — everything else builds on it."}
       </p>
       {body()}
     </Card>

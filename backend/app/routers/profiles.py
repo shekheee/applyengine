@@ -32,13 +32,30 @@ def _validate_upload(filename: str, data: bytes) -> None:
         raise HTTPException(400, "File is empty.")
 
 
-def _create_base_profile(
+def _apply_parsed_to_profile(
+    profile: Profile,
+    parsed: dict,
     raw_text: str,
-    user: User,
-    session: Session,
     *,
     source_filename: str = "",
-) -> Profile:
+) -> None:
+    profile.name = parsed.get("name", "")
+    profile.email = parsed.get("email", "")
+    profile.phone = parsed.get("phone", "")
+    profile.location = parsed.get("location", "")
+    profile.summary = parsed.get("summary", "")
+    profile.raw_text = parsed.get("raw_text", raw_text)
+    profile.links = parsed.get("links", [])
+    profile.skills = parsed.get("skills", [])
+    profile.experience = parsed.get("experience", [])
+    profile.projects = parsed.get("projects", [])
+    profile.education = parsed.get("education", [])
+    profile.is_base = True
+    if source_filename:
+        profile.source_filename = source_filename
+
+
+def _parse_resume_or_raise(raw_text: str) -> dict:
     if len(raw_text.strip()) < MIN_EXTRACTED_CHARS:
         raise HTTPException(
             400,
@@ -66,23 +83,51 @@ def _create_base_profile(
             400,
             "That file doesn't look like a resume. Upload a PDF or DOCX with your experience.",
         )
+    return parsed
 
-    profile = Profile(
-        user_id=user.id,
-        name=parsed.get("name", ""),
-        email=parsed.get("email", ""),
-        phone=parsed.get("phone", ""),
-        location=parsed.get("location", ""),
-        summary=parsed.get("summary", ""),
-        raw_text=parsed.get("raw_text", raw_text),
-        links=parsed.get("links", []),
-        skills=parsed.get("skills", []),
-        experience=parsed.get("experience", []),
-        projects=parsed.get("projects", []),
-        education=parsed.get("education", []),
-        is_base=True,
-        source_filename=source_filename,
-    )
+
+def _upsert_base_profile(
+    raw_text: str,
+    user: User,
+    session: Session,
+    *,
+    source_filename: str = "",
+) -> Profile:
+    """Create or update the user's single canonical base resume profile."""
+    parsed = _parse_resume_or_raise(raw_text)
+
+    existing = session.exec(
+        select(Profile)
+        .where(Profile.user_id == user.id, Profile.is_base == True)  # noqa: E712
+        .order_by(Profile.id.desc())
+    ).first()
+    if not existing:
+        existing = session.exec(
+            select(Profile)
+            .where(Profile.user_id == user.id)
+            .order_by(Profile.id.desc())
+        ).first()
+
+    if existing:
+        _apply_parsed_to_profile(
+            existing, parsed, raw_text, source_filename=source_filename
+        )
+        profile = existing
+        for other in session.exec(
+            select(Profile).where(
+                Profile.user_id == user.id,
+                Profile.is_base == True,  # noqa: E712
+                Profile.id != profile.id,
+            )
+        ).all():
+            other.is_base = False
+            session.add(other)
+    else:
+        profile = Profile(user_id=user.id, is_base=True)
+        _apply_parsed_to_profile(
+            profile, parsed, raw_text, source_filename=source_filename
+        )
+
     session.add(profile)
     session.commit()
     session.refresh(profile)
@@ -101,7 +146,7 @@ def create_profile_from_text(
     """Paste resume text as the canonical base profile."""
     if not body.raw_text.strip():
         raise HTTPException(400, "Resume text is empty")
-    return _create_base_profile(body.raw_text, user, session, source_filename="pasted.txt")
+    return _upsert_base_profile(body.raw_text, user, session, source_filename="pasted.txt")
 
 
 @router.post("/upload", response_model=Profile)
@@ -121,7 +166,7 @@ async def upload_base_resume(
             400,
             f"Could not read '{filename}'. Ensure it is a valid PDF or DOCX file.",
         ) from exc
-    return _create_base_profile(raw_text, user, session, source_filename=filename)
+    return _upsert_base_profile(raw_text, user, session, source_filename=filename)
 
 
 @router.get("/base", response_model=Profile)
