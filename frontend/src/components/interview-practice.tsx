@@ -110,14 +110,14 @@ export function InterviewPractice({
       try {
         const [base, jobList, modelData, sessions, prog, curr] = await Promise.all([
           api.baseProfile().catch(() => null),
-          api.listJobs(),
-          api.listCoachModels(),
+          api.listJobs().catch(() => []),
+          api.listCoachModels().catch(() => ({ models: [], default_model: "" })),
           api.listInterviewSessions().catch(() => []),
           api.getInterviewProgress().catch(() => null),
           api.getInterviewCurriculum().catch(() => null),
         ]);
         setProfile(base);
-        setJobs(jobList);
+        setJobs(jobList ?? []);
         setModels(modelData.models);
         setPastSessions(sessions);
         setProgress(prog);

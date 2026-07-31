@@ -22,12 +22,12 @@ export default function PipelinePage() {
   async function load() {
     try {
       const [a, j, h] = await Promise.all([
-        api.listApplications(),
-        api.listJobs(),
+        api.listApplications().catch(() => [] as Application[]),
+        api.listJobs().catch(() => [] as Job[]),
         api.health().catch(() => ({ llm_provider: "?" })),
       ]);
-      setApps(a);
-      setJobs(Object.fromEntries(j.map((x) => [x.id, x])));
+      setApps(a ?? []);
+      setJobs(Object.fromEntries((j ?? []).map((x) => [x.id, x])));
       setProvider((h as { llm_provider: string }).llm_provider);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load. Is the API running?");

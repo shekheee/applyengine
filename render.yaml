@@ -30,7 +30,7 @@ services:
       - key: OPENAI_EMBED_MODEL
         value: text-embedding-3-small
       - key: CORS_ORIGINS
-        value: https://applyengine.ajayshekhawat.uk,https://applyengine.vercel.app,http://localhost:3000
+        value: https://applyengine.ajayshekhawat.uk,https://www.applyengine.ajayshekhawat.uk,https://applyengine.vercel.app,http://localhost:3000
       - key: DATABASE_URL
         sync: false
       - key: OPENAI_API_KEY

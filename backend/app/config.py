@@ -41,7 +41,12 @@ class Settings(BaseSettings):
 
     # App
     database_url: str = "sqlite:///./applyengine.db"
-    cors_origins: str = "http://localhost:3000"
+    cors_origins: str = (
+        "http://localhost:3000,"
+        "https://applyengine.ajayshekhawat.uk,"
+        "https://www.applyengine.ajayshekhawat.uk,"
+        "https://applyengine.vercel.app"
+    )
 
     # Auth
     jwt_secret: str = "dev-insecure-change-me"
