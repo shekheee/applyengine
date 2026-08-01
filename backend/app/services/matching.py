@@ -73,11 +73,13 @@ def gap_analysis(profile_text: str, job_text: str, fit: dict) -> str:
         else "Stretch role"
     )
     return (
-        f"**Fit score: {fit['fit_score']}/100** ({verdict})\n\n"
-        f"**Strengths / matched keywords:** {matched}\n\n"
-        f"**Gaps to address:** {missing}\n\n"
-        f"Semantic similarity to the JD is {fit['semantic_similarity']:.0%} and you "
-        f"cover {fit['keyword_coverage']:.0%} of the role's scanned keywords. "
-        f"Prioritize surfacing the matched skills near the top of your resume and, "
-        f"where truthful, add evidence for the missing ones."
+        f"## Fit summary\n"
+        f"**{fit['fit_score']}/100** — {verdict}.\n\n"
+        f"## Strengths\n"
+        f"- Matched keywords: {matched}\n"
+        f"- Semantic similarity to the JD: {fit['semantic_similarity']:.0%}\n"
+        f"- Keyword coverage: {fit['keyword_coverage']:.0%}\n\n"
+        f"## Gaps / how to improve\n"
+        f"- Missing keywords to surface if truthful: {missing}\n"
+        f"- Prioritize matched skills near the top of your resume and add evidence for gaps where accurate."
     )

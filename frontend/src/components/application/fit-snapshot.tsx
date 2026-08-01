@@ -1,5 +1,6 @@
 "use client";
 
+import { ChatMarkdown } from "@/components/chat-markdown";
 import { Badge, Button, cn, ScoreRing } from "@/components/ui";
 import { CollapsibleContent } from "@/components/collapsible-content";
 import type { Application } from "@/lib/types";
@@ -68,13 +69,13 @@ function KeywordColumn({
   title: string;
   count: number;
   keywords: string[];
-  tone: "green" | "red";
+  tone: "green" | "amber";
   emptyLabel: string;
 }) {
-  const titleColor = tone === "green" ? "text-emerald-400" : "text-red-400";
+  const titleColor = tone === "green" ? "text-emerald-400" : "text-amber-400";
 
   return (
-    <div className="flex min-h-0 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-col">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h3 className={cn("text-xs font-semibold uppercase tracking-wider", titleColor)}>
           {title}
@@ -86,11 +87,11 @@ function KeywordColumn({
           {count}
         </span>
       </div>
-      <div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto overscroll-contain sm:max-h-32">
+      <div className="flex max-h-36 flex-wrap content-start gap-1.5 overflow-y-auto overscroll-contain sm:max-h-40">
         {keywords.length ? (
           keywords.map((k) => (
-            <Badge key={k} tone={tone === "green" ? "green" : "red"}>
-              {k}
+            <Badge key={k} tone={tone}>
+              <span className="break-words">{k}</span>
             </Badge>
           ))
         ) : (
@@ -187,12 +188,12 @@ export function FitSnapshot({
         {/* Keywords + analysis */}
         <div
           className={cn(
-            "lg:col-span-8 rounded-[var(--radius-lg)] border bg-[var(--panel)] p-6",
+            "lg:col-span-8 min-w-0 rounded-[var(--radius-lg)] border bg-[var(--panel)] p-6",
             "shadow-[var(--shadow-sm),inset_0_1px_0_rgba(255,255,255,0.04)]"
           )}
           style={{ borderColor: "var(--border)" }}
         >
-          <div className="grid gap-6 sm:grid-cols-2">
+          <div className="grid min-w-0 gap-6 sm:grid-cols-2">
             <KeywordColumn
               title="Matched"
               count={matched.length}
@@ -204,24 +205,27 @@ export function FitSnapshot({
               title="Gaps"
               count={missing.length}
               keywords={missing}
-              tone="red"
+              tone="amber"
               emptyLabel="No gaps flagged"
             />
           </div>
 
           {app.gap_analysis?.trim() && (
             <div
-              className="mt-6 border-t pt-6"
+              className="mt-6 min-w-0 border-t pt-6"
               style={{ borderColor: "var(--border)" }}
             >
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
                 Gap analysis
               </h3>
-              <CollapsibleContent variant="assistant">
-                <p className="text-sm leading-relaxed text-[var(--text)]/90">
-                  {app.gap_analysis}
-                </p>
-              </CollapsibleContent>
+              <div
+                className="min-w-0 rounded-[var(--radius-md)] border bg-[var(--panel-2)]/60 px-4 py-3"
+                style={{ borderColor: "var(--border)" }}
+              >
+                <CollapsibleContent variant="assistant" className="min-w-0">
+                  <ChatMarkdown content={app.gap_analysis.trim()} density="compact" />
+                </CollapsibleContent>
+              </div>
             </div>
           )}
         </div>
