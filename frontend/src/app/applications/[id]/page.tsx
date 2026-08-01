@@ -74,6 +74,11 @@ export default function ApplicationDetailPage() {
     setApp(await api.setNotes(app.id, notes));
   }
 
+  function closeFitDialog() {
+    setFitDialogOpen(false);
+    setFitBusy(false);
+  }
+
   if (error) return <ApplicationError message={error} />;
   if (!app || !job) return <ApplicationLoading />;
 
@@ -91,7 +96,7 @@ export default function ApplicationDetailPage() {
       {fitDialogOpen && (
         <FitResumeDialog
           applicationId={app.id}
-          onClose={() => setFitDialogOpen(false)}
+          onClose={closeFitDialog}
           onAnalyzed={setApp}
           onBusyChange={setFitBusy}
         />
