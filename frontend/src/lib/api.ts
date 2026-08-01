@@ -566,7 +566,43 @@ export const api = {
       body: JSON.stringify({ raw_text }),
     }),
 
-  uploadProfile: async (file: File): Promise<Profile> => {
+  uploadProfile: async (file: File, onUploadComplete?: () => void): Promise<Profile> => {
+    if (onUploadComplete && typeof XMLHttpRequest !== "undefined") {
+      return new Promise<Profile>((resolve, reject) => {
+        const form = new FormData();
+        form.append("file", file);
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", `${BASE}/api/profiles/upload`);
+        const token = getToken();
+        if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+        xhr.upload.addEventListener("load", onUploadComplete);
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              resolve(JSON.parse(xhr.responseText) as Profile);
+            } catch {
+              reject(new ApiError(xhr.status, "Invalid upload response"));
+            }
+            return;
+          }
+          if (xhr.status === 401) setToken(null);
+          let detail = "";
+          try {
+            const data = JSON.parse(xhr.responseText);
+            detail =
+              typeof data?.detail === "string" ? data.detail : JSON.stringify(data?.detail ?? data);
+          } catch {
+            detail = xhr.responseText;
+          }
+          reject(new ApiError(xhr.status, detail || `Upload failed (${xhr.status})`));
+        });
+        xhr.addEventListener("error", () =>
+          reject(new ApiError(0, "Upload failed. Check your connection and try again."))
+        );
+        xhr.send(form);
+      });
+    }
+
     const form = new FormData();
     form.append("file", file);
     const res = await fetch(`${BASE}/api/profiles/upload`, {

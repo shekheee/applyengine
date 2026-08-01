@@ -16,6 +16,7 @@ import {
   ApplicationLoading,
   ApplicationNotes,
   FitSnapshot,
+  FitResumeDialog,
   HubTabNav,
   HubTabPanel,
   MaterialsPanel,
@@ -31,7 +32,7 @@ export default function ApplicationDetailPage() {
   const [tab, setTab] = useState<HubTabId>("chat");
   const [genBusy, setGenBusy] = useState(false);
   const [fitBusy, setFitBusy] = useState(false);
-  const [fitError, setFitError] = useState("");
+  const [fitDialogOpen, setFitDialogOpen] = useState(false);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
 
@@ -73,19 +74,6 @@ export default function ApplicationDetailPage() {
     setApp(await api.setNotes(app.id, notes));
   }
 
-  async function recheckFit() {
-    if (!app) return;
-    setFitBusy(true);
-    setFitError("");
-    try {
-      setApp(await api.analyzeFit(app.id));
-    } catch (e) {
-      setFitError(e instanceof Error ? e.message : "Fit analysis failed");
-    } finally {
-      setFitBusy(false);
-    }
-  }
-
   if (error) return <ApplicationError message={error} />;
   if (!app || !job) return <ApplicationLoading />;
 
@@ -97,10 +85,17 @@ export default function ApplicationDetailPage() {
 
       <FitSnapshot
         app={app}
-        onAnalyze={recheckFit}
+        onAnalyze={() => setFitDialogOpen(true)}
         analyzing={fitBusy}
-        analyzeError={fitError}
       />
+      {fitDialogOpen && (
+        <FitResumeDialog
+          applicationId={app.id}
+          onClose={() => setFitDialogOpen(false)}
+          onAnalyzed={setApp}
+          onBusyChange={setFitBusy}
+        />
+      )}
 
       <section aria-label="Application workspace" className="space-y-0">
         <HubTabNav
