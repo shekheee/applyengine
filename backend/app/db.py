@@ -128,6 +128,12 @@ def _migrate_profile_base() -> None:
                 "TEXT DEFAULT ''"
             )
         )
+        conn.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ux_profile_one_base_per_user "
+                "ON profile (user_id) WHERE is_base = TRUE"
+            )
+        )
 
 
 def _migrate_interview_overall_score() -> None:

@@ -4,6 +4,7 @@ import re
 
 from app import prompts
 from app.llm import get_provider
+from app.services.resume_normalize import normalize_resume_data
 from app.services.skills_vocab import ALIASES, SKILLS_SORTED
 
 EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
@@ -64,7 +65,7 @@ def parse_resume(raw_text: str) -> dict:
     data.setdefault("projects", [])
     data.setdefault("education", [])
     data["raw_text"] = raw_text
-    return data
+    return normalize_resume_data(data)
 
 
 def parse_job(raw_text: str) -> dict:

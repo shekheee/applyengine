@@ -62,7 +62,9 @@ def build_coach_messages(
     memory_text = _memory_text(memories)
     apps_text = _applications_text(applications or [], jobs or {})
     target = conversation_job or _target_job(applications, jobs)
-    profession_text = profession_context(profile, target)
+    # The canonical serialized profile below already contains resume signals.
+    # Keep this block job-only so Coach never receives overlapping profile copies.
+    profession_text = profession_context(profile, target, include_profile=False)
 
     system = prompts.coach_system_with_context(
         profile_text,

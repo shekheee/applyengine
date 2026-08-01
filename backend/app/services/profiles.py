@@ -3,6 +3,7 @@ from __future__ import annotations
 from sqlmodel import Session, select
 
 from app.models import Profile, User
+from app.services.resume_normalize import deduplicate_entries
 
 
 def get_base_profile(user: User, session: Session) -> Profile | None:
@@ -29,8 +30,12 @@ def normalize_profile(profile: Profile) -> Profile:
         profile.skills = []
     if profile.experience is None:
         profile.experience = []
+    else:
+        profile.experience = deduplicate_entries(profile.experience, "experience")
     if profile.projects is None:
         profile.projects = []
+    else:
+        profile.projects = deduplicate_entries(profile.projects, "projects")
     if profile.education is None:
         profile.education = []
     return profile

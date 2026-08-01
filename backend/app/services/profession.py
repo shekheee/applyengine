@@ -57,10 +57,15 @@ def focus_guide(focus: str) -> str:
     return FOCUS_GUIDE.get(normalize_focus(focus), FOCUS_GUIDE["mixed"])
 
 
-def profession_context(profile: Profile | None, job: Job | None = None) -> str:
+def profession_context(
+    profile: Profile | None,
+    job: Job | None = None,
+    *,
+    include_profile: bool = True,
+) -> str:
     """Resume/job signals for the LLM to infer field — no hardcoded profession."""
     parts: list[str] = []
-    if profile:
+    if profile and include_profile:
         summary = getattr(profile, "summary", "") or ""
         if summary:
             parts.append(f"Professional summary: {summary[:500]}")
@@ -84,10 +89,7 @@ def profession_context(profile: Profile | None, job: Job | None = None) -> str:
         if reqs:
             parts.append(f"Key requirements: {'; '.join(str(r) for r in reqs[:6])}")
     if not parts:
-        return (
-            "No detailed profile yet. Infer the candidate's profession only from whatever "
-            "resume and job context is provided in this request."
-        )
+        return ""
     return (
         "Use these signals to infer the candidate's profession, seniority, and the language "
         "norms of their field:\n" + "\n".join(f"- {p}" for p in parts)
