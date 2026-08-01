@@ -135,7 +135,10 @@ def _upsert_base_profile(
     from app.services.resume_versions import ensure_base_version
 
     ensure_base_version(user, profile, session)
-    return profile
+    # ensure_base_version commits the shared session and expires ORM attributes.
+    # Refresh before FastAPI serializes a sync endpoint's return value.
+    session.refresh(profile)
+    return normalize_profile(profile)
 
 
 @router.post("", response_model=Profile)
