@@ -151,13 +151,13 @@ def create_profile_from_text(
 
 
 @router.post("/upload", response_model=Profile)
-async def upload_base_resume(
+def upload_base_resume(
     file: UploadFile = File(...),
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ):
-    """Upload a resume file (PDF/DOCX/TXT) as the canonical base profile."""
-    data = await file.read()
+    """Upload a resume without blocking the ASGI event loop during parsing."""
+    data = file.file.read()
     filename = file.filename or "resume.pdf"
     _validate_upload(filename, data)
     try:
