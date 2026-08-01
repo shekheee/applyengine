@@ -3,7 +3,6 @@ import type {
   ChatMessage,
   CoachModel,
   Conversation,
-  DesignedResumePreview,
   ResumeDesignResult,
   ResumeVersion,
   InterviewCurriculum,
@@ -13,6 +12,9 @@ import type {
   Job,
   Memory,
   Profile,
+  SocialMessage,
+  SocialProject,
+  SocialPublishingStatus,
   Status,
   TranscribeResult,
   User,
@@ -353,6 +355,123 @@ export const api = {
     req<{ ok: boolean }>(`/api/chat/memories/${id}`, { method: "DELETE" }),
   applyToResume: () =>
     req<Profile>("/api/chat/apply-to-resume", { method: "POST" }),
+
+  // ---- Social Studio ----
+  listSocialProjects: () => req<SocialProject[]>("/api/social/projects"),
+  createSocialProject: (body: {
+    platform: "linkedin" | "medium";
+    title?: string;
+    settings?: Record<string, string>;
+  }) =>
+    req<SocialProject>("/api/social/projects", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  getSocialProject: (id: number) =>
+    req<SocialProject>(`/api/social/projects/${id}`),
+  updateSocialProject: (
+    id: number,
+    body: Partial<Pick<SocialProject, "title" | "status" | "settings" | "current_content">>
+  ) =>
+    req<SocialProject>(`/api/social/projects/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  deleteSocialProject: (id: number) =>
+    req<{ ok: boolean }>(`/api/social/projects/${id}`, { method: "DELETE" }),
+  listSocialMessages: (id: number) =>
+    req<SocialMessage[]>(`/api/social/projects/${id}/messages`),
+  socialPublishingStatus: () =>
+    req<SocialPublishingStatus>("/api/social/publishing-status"),
+  sendSocialMessageStream: async (
+    projectId: number,
+    message: string,
+    onToken: (token: string) => void,
+    signal?: AbortSignal,
+    model?: string
+  ): Promise<{
+    user_message: SocialMessage;
+    assistant_message: SocialMessage;
+    project: SocialProject;
+    provider_served?: string;
+    model_served?: string;
+  }> => {
+    const res = await fetch(`${BASE}/api/social/projects/${projectId}/messages/stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ message, model: model || undefined }),
+      signal,
+    });
+    if (!res.ok) {
+      if (res.status === 401) setToken(null);
+      let detail = "";
+      try {
+        const data = await res.json();
+        detail = data?.detail ?? JSON.stringify(data);
+      } catch {
+        detail = await res.text().catch(() => "");
+      }
+      throw new ApiError(res.status, detail || `Request failed (${res.status})`);
+    }
+    if (!res.body) throw new ApiError(500, "No response stream");
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let result: {
+      user_message: SocialMessage;
+      assistant_message: SocialMessage;
+      project: SocialProject;
+      provider_served?: string;
+      model_served?: string;
+    } | null = null;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const raw = line.slice(6).trim();
+        if (!raw) continue;
+        const event = JSON.parse(raw) as {
+          type: string;
+          content?: string;
+          detail?: string;
+          user_message?: SocialMessage;
+          assistant_message?: SocialMessage;
+          project?: SocialProject;
+          provider_served?: string;
+          model_served?: string;
+        };
+        if (event.type === "token" && event.content) onToken(event.content);
+        if (
+          event.type === "done" &&
+          event.user_message &&
+          event.assistant_message &&
+          event.project
+        ) {
+          result = {
+            user_message: event.user_message,
+            assistant_message: {
+              ...event.assistant_message,
+              provider_served: event.provider_served,
+              model_served: event.model_served,
+            },
+            project: event.project,
+            provider_served: event.provider_served,
+            model_served: event.model_served,
+          };
+        }
+        if (event.type === "error") {
+          throw new ApiError(500, event.detail || "Social draft stream failed");
+        }
+      }
+    }
+    if (!result) throw new ApiError(500, "Stream ended without completion");
+    return result;
+  },
 
   downloadResumePdf: async (opts?: {
     jobId?: number;

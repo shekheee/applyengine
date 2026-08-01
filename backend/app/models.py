@@ -119,6 +119,31 @@ class ChatMessage(SQLModel, table=True):
     created_at: datetime = Field(default_factory=_now)
 
 
+class SocialProject(SQLModel, table=True):
+    """A user-owned LinkedIn or Medium drafting workspace."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    platform: str = Field(default="linkedin", index=True)
+    title: str = "Untitled draft"
+    status: str = Field(default="draft", index=True)
+    settings: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    current_content: str = Field(default="", sa_column=Column(Text))
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
+
+
+class SocialMessage(SQLModel, table=True):
+    """A conversational turn within a social drafting project."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    project_id: int = Field(foreign_key="socialproject.id", index=True)
+    role: str = "user"
+    content: str = Field(default="", sa_column=Column(Text))
+    created_at: datetime = Field(default_factory=_now)
+
+
 class Memory(SQLModel, table=True):
     """A durable fact the coach has learned about the user."""
 

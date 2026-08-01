@@ -164,6 +164,35 @@ export interface CoachModel {
   is_default: boolean;
 }
 
+export type SocialPlatform = "linkedin" | "medium";
+
+export interface SocialProject {
+  id: number;
+  platform: SocialPlatform;
+  title: string;
+  status: "draft" | "ready" | "archived";
+  settings: Record<string, string>;
+  current_content: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SocialMessage {
+  id: number;
+  project_id: number;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+  model_served?: string;
+  provider_served?: string;
+}
+
+export interface SocialPublishingStatus {
+  linkedin: { connected: boolean; direct_publishing: boolean; handoff_url: string };
+  medium: { connected: boolean; direct_publishing: boolean; handoff_url: string };
+  note: string;
+}
+
 export interface ChatMessageMeta {
   model_served?: string;
   provider_served?: string;

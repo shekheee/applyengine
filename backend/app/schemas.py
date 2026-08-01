@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from pydantic import BaseModel
+from datetime import datetime
+from typing import Any
+
+from pydantic import BaseModel, Field
 
 from app.models import ApplicationStatus
 
@@ -87,6 +90,47 @@ class CoachModelOut(BaseModel):
 class CoachModelsOut(BaseModel):
     models: list[CoachModelOut]
     default_model: str
+
+
+class SocialProjectCreate(BaseModel):
+    platform: str = "linkedin"
+    title: str = ""
+    settings: dict[str, Any] = Field(default_factory=dict)
+
+
+class SocialProjectUpdate(BaseModel):
+    title: str | None = None
+    status: str | None = None
+    settings: dict[str, Any] | None = None
+    current_content: str | None = None
+
+
+class SocialMessageIn(BaseModel):
+    message: str
+    model: str | None = None
+
+
+class SocialProjectOut(BaseModel):
+    id: int
+    platform: str
+    title: str
+    status: str
+    settings: dict[str, Any] = Field(default_factory=dict)
+    current_content: str
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class SocialMessageOut(BaseModel):
+    id: int
+    project_id: int
+    role: str
+    content: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 class ResumeTextIn(BaseModel):

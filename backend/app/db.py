@@ -35,6 +35,7 @@ def init_db() -> None:
     _migrate_conversations()
     _migrate_resume_versions()
     _migrate_interview_live_mode()
+    _migrate_social_studio()
 
 
 def _migrate_resume_versions() -> None:
@@ -314,6 +315,93 @@ def _migrate_interview_live_mode() -> None:
                 text(
                     "ALTER TABLE interviewsession ADD COLUMN IF NOT EXISTS live_state "
                     "JSON DEFAULT '{}'::json"
+                )
+            )
+
+
+def _migrate_social_studio() -> None:
+    """Create durable, user-scoped Social Studio projects and messages."""
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        if is_sqlite:
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS socialproject (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        platform TEXT DEFAULT 'linkedin',
+                        title TEXT DEFAULT 'Untitled draft',
+                        status TEXT DEFAULT 'draft',
+                        settings JSON DEFAULT '{}',
+                        current_content TEXT DEFAULT '',
+                        created_at TEXT,
+                        updated_at TEXT,
+                        FOREIGN KEY(user_id) REFERENCES user(id)
+                    )
+                    """
+                )
+            )
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS socialmessage (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        project_id INTEGER NOT NULL,
+                        role TEXT DEFAULT 'user',
+                        content TEXT DEFAULT '',
+                        created_at TEXT,
+                        FOREIGN KEY(user_id) REFERENCES user(id),
+                        FOREIGN KEY(project_id) REFERENCES socialproject(id)
+                    )
+                    """
+                )
+            )
+        else:
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS socialproject (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER NOT NULL REFERENCES "user"(id),
+                        platform TEXT DEFAULT 'linkedin',
+                        title TEXT DEFAULT 'Untitled draft',
+                        status TEXT DEFAULT 'draft',
+                        settings JSON DEFAULT '{}'::json,
+                        current_content TEXT DEFAULT '',
+                        created_at TIMESTAMPTZ,
+                        updated_at TIMESTAMPTZ
+                    )
+                    """
+                )
+            )
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS socialmessage (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER NOT NULL REFERENCES "user"(id),
+                        project_id INTEGER NOT NULL REFERENCES socialproject(id),
+                        role TEXT DEFAULT 'user',
+                        content TEXT DEFAULT '',
+                        created_at TIMESTAMPTZ
+                    )
+                    """
+                )
+            )
+        for table, column in (
+            ("socialproject", "user_id"),
+            ("socialproject", "platform"),
+            ("socialproject", "status"),
+            ("socialmessage", "user_id"),
+            ("socialmessage", "project_id"),
+        ):
+            conn.execute(
+                text(
+                    f"CREATE INDEX IF NOT EXISTS ix_{table}_{column} "
+                    f"ON {table} ({column})"
                 )
             )
 

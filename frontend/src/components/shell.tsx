@@ -13,6 +13,7 @@ const NAV = [
   { href: "/", label: "Pipeline" },
   { href: "/coach", label: "Coach" },
   { href: "/resume", label: "Resume" },
+  { href: "/social", label: "Social Studio" },
   { href: "/interview", label: "Interview" },
 ] as const;
 
@@ -110,8 +111,9 @@ export function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isCoach = pathname === "/coach";
   const isApplication = pathname.startsWith("/applications/");
+  const isSocial = pathname === "/social";
   const isLogin = pathname === "/login";
-  const wide = isCoach || isApplication;
+  const wide = isCoach || isApplication || isSocial;
 
   return (
     <AuthProvider>

@@ -9,7 +9,17 @@ from app.config import get_settings
 from app.db import init_db
 from app.llm import get_coach_provider, get_memory_provider, get_provider, resolved_memory_model_id
 from app.prompts import PROMPTS_VERSION
-from app.routers import applications, auth, chat, generate, interview, jobs, profiles, resume
+from app.routers import (
+    applications,
+    auth,
+    chat,
+    generate,
+    interview,
+    jobs,
+    profiles,
+    resume,
+    social,
+)
 
 
 @asynccontextmanager
@@ -39,6 +49,7 @@ app.include_router(generate.router)
 app.include_router(chat.router)
 app.include_router(resume.router)
 app.include_router(interview.router)
+app.include_router(social.router)
 
 
 @app.get("/api/health")
