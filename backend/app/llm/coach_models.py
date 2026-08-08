@@ -22,6 +22,9 @@ _PROVIDER_LABELS = {
 
 _MODEL_LABELS = {
     "gpt-5.5": "GPT-5.5",
+    "gpt-5.6-sol": "GPT-5.6 Sol",
+    "claude-opus-5": "Claude Opus 5",
+    "claude-fable-5": "Claude Fable 5",
     "claude-opus-4-8": "Claude Opus 4.8",
     "gemini-3.1-pro-preview": "Gemini 3.1 Preview",
 }
@@ -38,40 +41,40 @@ def available_coach_models(settings: Settings | None = None) -> list[CoachModelO
     options: list[CoachModelOption] = []
 
     if s.openai_api_key and "openai" in s.coach_provider_chain_list:
-        mid = s.openai_chat_model
-        options.append(
-            CoachModelOption(
-                id=mid,
-                label=_label_for(mid),
-                provider="openai",
-                provider_label=_PROVIDER_LABELS["openai"],
-                is_default=mid == default_id,
+        for mid in s.openai_coach_model_list:
+            options.append(
+                CoachModelOption(
+                    id=mid,
+                    label=_label_for(mid),
+                    provider="openai",
+                    provider_label=_PROVIDER_LABELS["openai"],
+                    is_default=mid == default_id,
+                )
             )
-        )
 
     if s.anthropic_api_key and "anthropic" in s.coach_provider_chain_list:
-        mid = s.anthropic_coach_model
-        options.append(
-            CoachModelOption(
-                id=mid,
-                label=_label_for(mid),
-                provider="anthropic",
-                provider_label=_PROVIDER_LABELS["anthropic"],
-                is_default=mid == default_id,
+        for mid in s.anthropic_coach_model_list:
+            options.append(
+                CoachModelOption(
+                    id=mid,
+                    label=_label_for(mid),
+                    provider="anthropic",
+                    provider_label=_PROVIDER_LABELS["anthropic"],
+                    is_default=mid == default_id,
+                )
             )
-        )
 
     if s.resolved_gemini_api_key and "gemini" in s.coach_provider_chain_list:
-        mid = s.gemini_coach_model
-        options.append(
-            CoachModelOption(
-                id=mid,
-                label=_label_for(mid),
-                provider="gemini",
-                provider_label=_PROVIDER_LABELS["gemini"],
-                is_default=mid == default_id,
+        for mid in s.gemini_coach_model_list:
+            options.append(
+                CoachModelOption(
+                    id=mid,
+                    label=_label_for(mid),
+                    provider="gemini",
+                    provider_label=_PROVIDER_LABELS["gemini"],
+                    is_default=mid == default_id,
+                )
             )
-        )
 
     return options
 

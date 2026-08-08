@@ -14,13 +14,17 @@ class Settings(BaseSettings):
 
     # OpenAI
     openai_api_key: str | None = None
-    openai_chat_model: str = "gpt-5.5"
+    openai_chat_model: str = "gpt-5.6-sol"
+    openai_coach_models: str = "gpt-5.6-sol,gpt-5.5"
     openai_embed_model: str = "text-embedding-3-small"
 
     # Anthropic
     anthropic_api_key: str | None = None
     anthropic_chat_model: str = "claude-3-5-sonnet-latest"
-    anthropic_coach_model: str = "claude-opus-4-8"
+    anthropic_coach_model: str = "claude-opus-5"
+    anthropic_coach_models: str = (
+        "claude-opus-5,claude-fable-5,claude-opus-4-8"
+    )
 
     # Gemini (accepts common env var names)
     gemini_api_key: str | None = Field(
@@ -32,6 +36,7 @@ class Settings(BaseSettings):
         ),
     )
     gemini_coach_model: str = "gemini-3.1-pro-preview"
+    gemini_coach_models: str = "gemini-3.1-pro-preview"
 
     # Coach fallback order: comma-separated provider names
     coach_provider_chain: str = "openai,anthropic,gemini"
@@ -61,6 +66,27 @@ class Settings(BaseSettings):
     @property
     def coach_provider_chain_list(self) -> list[str]:
         return [p.strip().lower() for p in self.coach_provider_chain.split(",") if p.strip()]
+
+    @staticmethod
+    def _model_list(value: str, default: str) -> list[str]:
+        models = [model.strip() for model in value.split(",") if model.strip()]
+        if default and default not in models:
+            models.insert(0, default)
+        return list(dict.fromkeys(models))
+
+    @property
+    def openai_coach_model_list(self) -> list[str]:
+        return self._model_list(self.openai_coach_models, self.openai_chat_model)
+
+    @property
+    def anthropic_coach_model_list(self) -> list[str]:
+        return self._model_list(
+            self.anthropic_coach_models, self.anthropic_coach_model
+        )
+
+    @property
+    def gemini_coach_model_list(self) -> list[str]:
+        return self._model_list(self.gemini_coach_models, self.gemini_coach_model)
 
     @property
     def resolved_gemini_api_key(self) -> str | None:
