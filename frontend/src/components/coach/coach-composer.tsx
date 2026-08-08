@@ -49,7 +49,7 @@ export function CoachComposer({
   return (
     <div className="coach-composer shrink-0 px-2 pb-2 pt-1 sm:px-3 sm:pb-3">
       <div
-        className="coach-composer-shell mx-auto w-full min-w-0 overflow-hidden rounded-2xl border transition-shadow focus-within:shadow-[0_0_0_3px_var(--glow-soft)]"
+        className="coach-composer-shell mx-auto w-full min-w-0 overflow-visible rounded-2xl border transition-shadow focus-within:shadow-[0_0_0_3px_var(--glow-soft)]"
         style={{
           borderColor: "var(--border-strong)",
           background: "var(--panel-2)",
