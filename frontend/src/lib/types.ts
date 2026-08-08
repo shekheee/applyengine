@@ -164,6 +164,8 @@ export interface CoachModel {
   is_default: boolean;
 }
 
+export type WebSearchMode = "auto" | "on" | "off";
+
 export type SocialPlatform = "linkedin" | "medium";
 
 export interface SocialProject {

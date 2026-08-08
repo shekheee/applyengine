@@ -14,6 +14,7 @@ from app.db import engine, get_session
 from app.models import Application, ChatMessage, Conversation, Job, Memory, Profile, User
 from app.llm.coach_models import validate_coach_model
 from app.llm.factory import list_coach_models, default_model_id
+from app.services.web_research import normalize_search_mode, should_search
 from app.schemas import (
     ChatEditIn,
     ChatIn,
@@ -440,6 +441,7 @@ async def send_message_stream(
     message: str = Form(""),
     model: str = Form(""),
     conversation_id: int | None = Form(default=None),
+    web_search_mode: str = Form(default="auto"),
     files: list[UploadFile] = File(default=[]),
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
@@ -487,11 +489,14 @@ async def send_message_stream(
     apps_snap, jobs_snap = _snapshot_apps_jobs(apps, jobs)
     user_id = user.id
     coach_text = text or "Please review the attached file(s)."
+    search_mode = normalize_search_mode(web_search_mode)
 
     async def event_stream() -> AsyncIterator[str]:
         accumulated = ""
         served: dict = {}
         try:
+            if should_search(coach_text, search_mode):
+                yield f"data: {json.dumps({'type': 'search', 'status': 'searching'})}\n\n"
             async for token in coach.coach_reply_stream_async(
                 coach_text,
                 profile_snap,
@@ -504,6 +509,7 @@ async def send_message_stream(
                 served=served,
                 conversation_jd_text=jd_text,
                 conversation_job=job_snap,
+                web_search_mode=search_mode,
             ):
                 accumulated += token
                 yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
@@ -550,7 +556,7 @@ async def send_message_stream(
                 db.refresh(assistant_msg)
                 assistant_json = assistant_msg.model_dump(mode="json")
 
-            yield f"data: {json.dumps({'type': 'done', 'user_message': user_msg_json, 'assistant_message': assistant_json, 'provider_served': served.get('provider'), 'model_served': served.get('model'), 'conversation_id': conv_id})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'user_message': user_msg_json, 'assistant_message': assistant_json, 'provider_served': served.get('provider'), 'model_served': served.get('model'), 'conversation_id': conv_id, 'web_searched': served.get('web_searched', False), 'search_provider': served.get('search_provider'), 'sources': served.get('sources', []), 'web_search_error': served.get('web_search_error')})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
 
@@ -576,6 +582,7 @@ async def edit_message_stream(
         raise HTTPException(400, "Message is empty")
 
     model_id = _resolve_model(body.model)
+    search_mode = normalize_search_mode(body.web_search_mode)
     user_msg = _owned_user_message(message_id, user, session)
     conv_id = user_msg.conversation_id
     if not conv_id:
@@ -614,6 +621,8 @@ async def edit_message_stream(
         accumulated = ""
         served: dict = {}
         try:
+            if should_search(text, search_mode):
+                yield f"data: {json.dumps({'type': 'search', 'status': 'searching'})}\n\n"
             async for token in coach.coach_reply_stream_async(
                 text,
                 profile_snap,
@@ -626,6 +635,7 @@ async def edit_message_stream(
                 served=served,
                 conversation_jd_text=jd_text,
                 conversation_job=job_snap,
+                web_search_mode=search_mode,
             ):
                 accumulated += token
                 yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
@@ -674,7 +684,7 @@ async def edit_message_stream(
                 if served.get("provider"):
                     assistant_json["provider_served"] = served.get("provider")
 
-            yield f"data: {json.dumps({'type': 'done', 'user_message': user_msg_json, 'assistant_message': assistant_json, 'removed_message_ids': removed_ids, 'provider_served': served.get('provider'), 'model_served': served.get('model'), 'conversation_id': conv_id})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'user_message': user_msg_json, 'assistant_message': assistant_json, 'removed_message_ids': removed_ids, 'provider_served': served.get('provider'), 'model_served': served.get('model'), 'conversation_id': conv_id, 'web_searched': served.get('web_searched', False), 'search_provider': served.get('search_provider'), 'sources': served.get('sources', []), 'web_search_error': served.get('web_search_error')})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
 

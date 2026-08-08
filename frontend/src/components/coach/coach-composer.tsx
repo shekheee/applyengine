@@ -5,7 +5,7 @@ import {
   type KeyboardEvent,
   type RefObject,
 } from "react";
-import type { CoachModel, PendingAttachment } from "@/lib/types";
+import type { CoachModel, PendingAttachment, WebSearchMode } from "@/lib/types";
 import { ModelSelector } from "@/components/model-selector";
 import { AttachIcon, SendIcon } from "@/components/coach/coach-icons";
 
@@ -26,6 +26,9 @@ export function CoachComposer({
   models,
   selectedModel,
   onModelChange,
+  webSearchMode,
+  onWebSearchModeChange,
+  searchingWeb,
   textareaRef,
 }: {
   input: string;
@@ -41,6 +44,9 @@ export function CoachComposer({
   models: CoachModel[];
   selectedModel: string;
   onModelChange: (id: string) => void;
+  webSearchMode: WebSearchMode;
+  onWebSearchModeChange: (mode: WebSearchMode) => void;
+  searchingWeb: boolean;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -169,12 +175,57 @@ export function CoachComposer({
           className="flex items-center justify-between gap-2 border-t px-3 py-1.5"
           style={{ borderColor: "var(--border)" }}
         >
-          <ModelSelector
-            models={models}
-            selectedId={selectedModel}
-            onChange={onModelChange}
-            disabled={streaming || models.length === 0}
-          />
+          <div className="flex items-center gap-2">
+            <ModelSelector
+              models={models}
+              selectedId={selectedModel}
+              onChange={onModelChange}
+              disabled={streaming || models.length === 0}
+            />
+            <label className="relative inline-flex items-center">
+              <span className="sr-only">Web search mode</span>
+              <select
+                value={webSearchMode}
+                onChange={(event) =>
+                  onWebSearchModeChange(event.target.value as WebSearchMode)
+                }
+                disabled={streaming}
+                title="Control live web search"
+                className="h-[30px] appearance-none rounded-lg border bg-[var(--panel)] py-1 pl-7 pr-7 text-xs font-medium text-[var(--muted)] outline-none transition-colors hover:bg-[var(--panel-2)] disabled:opacity-50"
+                style={{ borderColor: "var(--border)" }}
+              >
+                <option value="auto">Web: Auto</option>
+                <option value="on">Web: On</option>
+                <option value="off">Web: Off</option>
+              </select>
+              <svg
+                aria-hidden
+                className="pointer-events-none absolute left-2 h-3.5 w-3.5 text-[var(--muted)]"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+              >
+                <circle cx="12" cy="12" r="9" />
+                <path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18" />
+              </svg>
+              <svg
+                aria-hidden
+                className="pointer-events-none absolute right-2 h-3 w-3 text-[var(--muted-2)]"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="m7 10 5 5 5-5" />
+              </svg>
+            </label>
+            {searchingWeb && (
+              <span className="hidden animate-pulse text-[10px] text-[var(--primary-2)] md:inline">
+                Searching live…
+              </span>
+            )}
+          </div>
           <span className="hidden text-[10px] text-[var(--muted-2)] sm:inline">
             Enter to send · Shift+Enter for newline
           </span>

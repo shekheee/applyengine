@@ -15,6 +15,7 @@ import type {
   Job,
   Memory,
   PendingAttachment,
+  WebSearchMode,
 } from "@/lib/types";
 import {
   NewConversationDialog,
@@ -43,6 +44,14 @@ const JD_STARTERS = [
   "How does my resume align with this job?",
   "What gaps should I address before applying?",
 ];
+
+const WEB_SEARCH_MODE_KEY = "applyengine_web_search_mode";
+
+function getStoredWebSearchMode(): WebSearchMode {
+  if (typeof window === "undefined") return "auto";
+  const value = window.localStorage.getItem(WEB_SEARCH_MODE_KEY);
+  return value === "on" || value === "off" ? value : "auto";
+}
 
 export function CoachChat({
   initialConversationId,
@@ -79,6 +88,8 @@ export function CoachChat({
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editDraft, setEditDraft] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
+  const [webSearchMode, setWebSearchMode] = useState<WebSearchMode>("auto");
+  const [searchingWeb, setSearchingWeb] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -134,6 +145,7 @@ export function CoachChat({
         setJobs(jobList);
         setMemories(mem);
         setModels(modelData.models);
+        setWebSearchMode(getStoredWebSearchMode());
         const stored = getStoredModelId();
         const valid =
           stored && modelData.models.some((x) => x.id === stored)
@@ -253,7 +265,9 @@ export function CoachChat({
         text,
         (token) => setStreamText((prev) => prev + token),
         controller.signal,
-        selectedModel || undefined
+        selectedModel || undefined,
+        webSearchMode,
+        setSearchingWeb
       );
       setMessages((prev) => {
         const idx = prev.findIndex((m) => m.id === result.user_message.id);
@@ -278,6 +292,7 @@ export function CoachChat({
       setStreaming(false);
       setStreamText("");
       setEditDraft("");
+      setSearchingWeb(false);
       abortRef.current = null;
     }
   }
@@ -377,7 +392,9 @@ export function CoachChat({
         (token) => setStreamText((prev) => prev + token),
         controller.signal,
         selectedModel || undefined,
-        activeConversationId
+        activeConversationId,
+        webSearchMode,
+        setSearchingWeb
       );
       setMessages((prev) => [
         ...prev.filter((m) => m.id !== optimistic.id),
@@ -417,6 +434,7 @@ export function CoachChat({
     } finally {
       setStreaming(false);
       setStreamText("");
+      setSearchingWeb(false);
       abortRef.current = null;
     }
   }
@@ -566,7 +584,9 @@ export function CoachChat({
                 />
               )}
 
-              {streaming && !streamText && <CoachTypingIndicator />}
+              {streaming && !streamText && (
+                <CoachTypingIndicator searchingWeb={searchingWeb} />
+              )}
             </div>
           </div>
 
@@ -602,6 +622,12 @@ export function CoachChat({
             models={models}
             selectedModel={selectedModel}
             onModelChange={setSelectedModel}
+            webSearchMode={webSearchMode}
+            onWebSearchModeChange={(mode) => {
+              setWebSearchMode(mode);
+              window.localStorage.setItem(WEB_SEARCH_MODE_KEY, mode);
+            }}
+            searchingWeb={searchingWeb}
             textareaRef={textareaRef}
           />
         </div>

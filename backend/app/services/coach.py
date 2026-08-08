@@ -10,6 +10,11 @@ from app.llm import build_coach_provider, build_memory_provider, get_provider
 from app.models import Application, ChatMessage, Job, Memory, Profile
 from app.services.profession import profession_context
 from app.services.attachments import ProcessedAttachment, build_user_content
+from app.services.web_research import (
+    inject_research,
+    run_web_research,
+    sources_markdown,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -170,6 +175,7 @@ async def coach_reply_stream_async(
     served: dict | None = None,
     conversation_jd_text: str = "",
     conversation_job: Job | None = None,
+    web_search_mode: str = "auto",
 ) -> AsyncIterator[str]:
     chain = build_coach_provider(model_id)
     chain.reset()
@@ -184,8 +190,33 @@ async def coach_reply_stream_async(
         conversation_jd_text=conversation_jd_text,
         conversation_job=conversation_job,
     )
+    try:
+        research = await run_web_research(
+            message,
+            model_id=model_id,
+            mode=web_search_mode,
+            context_hint=conversation_jd_text,
+        )
+    except Exception as exc:
+        logger.warning("Live web research failed; continuing without it: %s", exc)
+        research = None
+        if served is not None:
+            served["web_search_error"] = str(exc)
+    if research is not None:
+        messages = inject_research(messages, research)
+        if served is not None:
+            served["web_searched"] = True
+            served["search_provider"] = research.provider
+            served["sources"] = [
+                {"title": source.title, "url": source.url}
+                for source in research.sources
+            ]
     async for token in chain.chat_stream_async(messages):
         yield token
+    if research is not None:
+        source_block = sources_markdown(research)
+        if source_block:
+            yield source_block
     if served is not None:
         served["provider"] = chain.last_served
         served["model"] = chain.last_model

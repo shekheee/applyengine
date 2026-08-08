@@ -1,12 +1,16 @@
 "use client";
 
-export function CoachTypingIndicator() {
+export function CoachTypingIndicator({
+  searchingWeb = false,
+}: {
+  searchingWeb?: boolean;
+}) {
   return (
     <div
       className="coach-typing flex items-center gap-3"
       role="status"
       aria-live="polite"
-      aria-label="Coach is typing"
+      aria-label={searchingWeb ? "Coach is searching the live web" : "Coach is typing"}
     >
       <div
         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white"
@@ -25,11 +29,18 @@ export function CoachTypingIndicator() {
           boxShadow: "inset 0 1px 0 color-mix(in srgb, white 4%, transparent)",
         }}
       >
-        <span className="coach-typing-dots inline-flex items-center gap-1">
-          <span className="coach-typing-dot" />
-          <span className="coach-typing-dot" style={{ animationDelay: "120ms" }} />
-          <span className="coach-typing-dot" style={{ animationDelay: "240ms" }} />
-        </span>
+        {searchingWeb ? (
+          <span className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--primary-2)]" />
+            Searching the live web…
+          </span>
+        ) : (
+          <span className="coach-typing-dots inline-flex items-center gap-1">
+            <span className="coach-typing-dot" />
+            <span className="coach-typing-dot" style={{ animationDelay: "120ms" }} />
+            <span className="coach-typing-dot" style={{ animationDelay: "240ms" }} />
+          </span>
+        )}
       </div>
     </div>
   );

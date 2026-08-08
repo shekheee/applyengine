@@ -18,6 +18,7 @@ import type {
   Status,
   TranscribeResult,
   User,
+  WebSearchMode,
 } from "./types";
 
 const PROD_API = "https://applyengine-api.onrender.com";
@@ -166,7 +167,9 @@ export const api = {
     onToken: (token: string) => void,
     signal?: AbortSignal,
     model?: string,
-    conversationId?: number
+    conversationId?: number,
+    webSearchMode: WebSearchMode = "auto",
+    onSearchStatus?: (searching: boolean) => void
   ): Promise<{
     user_message: ChatMessage;
     assistant_message: ChatMessage;
@@ -178,6 +181,7 @@ export const api = {
     form.append("message", message);
     if (model) form.append("model", model);
     if (conversationId != null) form.append("conversation_id", String(conversationId));
+    form.append("web_search_mode", webSearchMode);
     for (const f of files) form.append("files", f);
 
     const res = await fetch(`${BASE}/api/chat/messages/stream`, {
@@ -230,9 +234,12 @@ export const api = {
             provider_served?: string;
             model_served?: string;
             conversation_id?: number;
+            status?: string;
           };
           if (evt.type === "token" && evt.content) onToken(evt.content);
+          if (evt.type === "search") onSearchStatus?.(evt.status === "searching");
           if (evt.type === "done" && evt.user_message && evt.assistant_message) {
+            onSearchStatus?.(false);
             result = {
               user_message: evt.user_message,
               assistant_message: {
@@ -262,7 +269,9 @@ export const api = {
     message: string,
     onToken: (token: string) => void,
     signal?: AbortSignal,
-    model?: string
+    model?: string,
+    webSearchMode: WebSearchMode = "auto",
+    onSearchStatus?: (searching: boolean) => void
   ): Promise<{
     user_message: ChatMessage;
     assistant_message: ChatMessage;
@@ -276,7 +285,11 @@ export const api = {
         "Content-Type": "application/json",
         ...authHeaders(),
       },
-      body: JSON.stringify({ message, model: model || undefined }),
+      body: JSON.stringify({
+        message,
+        model: model || undefined,
+        web_search_mode: webSearchMode,
+      }),
       signal,
     });
     if (!res.ok) {
@@ -323,9 +336,12 @@ export const api = {
             removed_message_ids?: number[];
             provider_served?: string;
             model_served?: string;
+            status?: string;
           };
           if (evt.type === "token" && evt.content) onToken(evt.content);
+          if (evt.type === "search") onSearchStatus?.(evt.status === "searching");
           if (evt.type === "done" && evt.user_message && evt.assistant_message) {
+            onSearchStatus?.(false);
             result = {
               user_message: evt.user_message,
               assistant_message: {

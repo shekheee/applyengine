@@ -35,11 +35,13 @@ class ChatIn(BaseModel):
     message: str
     model: str | None = None
     conversation_id: int | None = None
+    web_search_mode: str = "auto"
 
 
 class ChatEditIn(BaseModel):
     message: str
     model: str | None = None
+    web_search_mode: str = "auto"
 
 
 class ConversationCreate(BaseModel):
