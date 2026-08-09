@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 import re
 
 from app import prompts
-from app.llm import get_provider
+from app.llm import build_coach_provider
 from app.services.resume_normalize import normalize_resume_data
 from app.services.skills_vocab import ALIASES, SKILLS_SORTED
+
+logger = logging.getLogger(__name__)
 
 EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 PHONE_RE = re.compile(r"(\+?\d[\d\s().-]{7,}\d)")
@@ -35,14 +38,27 @@ def _first(pattern: re.Pattern, text: str) -> str:
     return m.group(0).strip() if m else ""
 
 
+def _parse_json_with_fallback(system: str, user: str) -> dict:
+    """Try every configured provider, then degrade to local heuristics."""
+    try:
+        chain = build_coach_provider()
+        chain.reset()
+        data = chain.chat_json(system, user)
+        if isinstance(data, dict):
+            return data
+    except Exception as exc:
+        logger.warning(
+            "Structured document parsing failed across providers; using local fallback: %s",
+            exc,
+        )
+    return {}
+
+
 def parse_resume(raw_text: str) -> dict:
     """Parse a resume into structured fields (LLM first, heuristic fallback)."""
-    provider = get_provider()
-    data = provider.chat_json(
+    data = _parse_json_with_fallback(
         prompts.RESUME_PARSE_SYSTEM, prompts.resume_parse_user(raw_text)
     )
-    if not isinstance(data, dict):
-        data = {}
 
     # Heuristic backfill for anything the LLM missed (or when using mock).
     lines = [ln.strip() for ln in raw_text.splitlines() if ln.strip()]
@@ -70,10 +86,9 @@ def parse_resume(raw_text: str) -> dict:
 
 def parse_job(raw_text: str) -> dict:
     """Parse a job description into structured fields."""
-    provider = get_provider()
-    data = provider.chat_json(prompts.JOB_PARSE_SYSTEM, prompts.job_parse_user(raw_text))
-    if not isinstance(data, dict):
-        data = {}
+    data = _parse_json_with_fallback(
+        prompts.JOB_PARSE_SYSTEM, prompts.job_parse_user(raw_text)
+    )
 
     lines = [ln.strip() for ln in raw_text.splitlines() if ln.strip()]
     data.setdefault("title", lines[0] if lines else "")
