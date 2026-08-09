@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 
 from app import prompts
-from app.llm import get_provider
+from app.llm import build_coach_provider, get_provider
+from app.llm.base import local_embed
+
+logger = logging.getLogger(__name__)
 
 
 def cosine(a: list[float], b: list[float]) -> float:
@@ -30,8 +35,17 @@ def keyword_coverage(
 
 
 def semantic_similarity(profile_text: str, job_text: str) -> float:
-    provider = get_provider()
-    vecs = provider.embed([profile_text, job_text])
+    try:
+        provider = get_provider()
+        vecs = provider.embed([profile_text, job_text])
+        if len(vecs) != 2 or not vecs[0] or not vecs[1]:
+            raise ValueError("Embedding provider returned incomplete vectors")
+    except Exception as exc:
+        logger.warning(
+            "Remote embeddings unavailable; using deterministic local embeddings: %s",
+            exc,
+        )
+        vecs = local_embed([profile_text, job_text])
     return cosine(vecs[0], vecs[1])
 
 
@@ -59,10 +73,22 @@ def compute_fit(
 
 
 def gap_analysis(profile_text: str, job_text: str, fit: dict) -> str:
-    provider = get_provider()
-    llm_text = provider.chat(prompts.FIT_SYSTEM, prompts.fit_user(profile_text, job_text))
-    if llm_text.strip():
-        return llm_text.strip()
+    try:
+        chain = build_coach_provider()
+        chain.reset()
+        llm_text = chain.chat_messages(
+            [
+                {"role": "system", "content": prompts.FIT_SYSTEM},
+                {"role": "user", "content": prompts.fit_user(profile_text, job_text)},
+            ]
+        )
+        if llm_text.strip():
+            return llm_text.strip()
+    except Exception as exc:
+        logger.warning(
+            "AI gap analysis unavailable; using deterministic local analysis: %s",
+            exc,
+        )
 
     # Offline heuristic gap analysis.
     matched = ", ".join(fit["matched_keywords"][:10]) or "none detected"
