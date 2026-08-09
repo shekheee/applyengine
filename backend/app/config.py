@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     gemini_coach_models: str = "gemini-3.1-pro-preview"
 
     # Coach fallback order: comma-separated provider names
-    coach_provider_chain: str = "openai,anthropic,gemini"
+    coach_provider_chain: str = "anthropic,gemini,openai"
 
     # Memory extraction — uses coach fallback chain with this model first
     memory_model: str = "claude-opus-4-8"

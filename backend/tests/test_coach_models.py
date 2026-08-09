@@ -29,8 +29,13 @@ class CoachModelCatalogueTests(unittest.TestCase):
             }.issubset(ids)
         )
 
-    def test_gpt_56_sol_is_default(self):
-        self.assertEqual(default_coach_model_id(self.settings), "gpt-5.6-sol")
+    def test_claude_opus_5_is_default(self):
+        self.assertEqual(default_coach_model_id(self.settings), "claude-opus-5")
+
+    def test_model_catalogue_follows_fallback_order(self):
+        providers = [model.provider for model in available_coach_models(self.settings)]
+        self.assertLess(providers.index("anthropic"), providers.index("gemini"))
+        self.assertLess(providers.index("gemini"), providers.index("openai"))
 
     def test_each_requested_model_resolves_to_its_provider(self):
         expected = {

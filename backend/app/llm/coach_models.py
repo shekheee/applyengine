@@ -40,38 +40,22 @@ def available_coach_models(settings: Settings | None = None) -> list[CoachModelO
     default_id = default_coach_model_id(s)
     options: list[CoachModelOption] = []
 
-    if s.openai_api_key and "openai" in s.coach_provider_chain_list:
-        for mid in s.openai_coach_model_list:
+    configured = {
+        "openai": (bool(s.openai_api_key), s.openai_coach_model_list),
+        "anthropic": (bool(s.anthropic_api_key), s.anthropic_coach_model_list),
+        "gemini": (bool(s.resolved_gemini_api_key), s.gemini_coach_model_list),
+    }
+    for provider in s.coach_provider_chain_list:
+        enabled, model_ids = configured.get(provider, (False, []))
+        if not enabled:
+            continue
+        for mid in model_ids:
             options.append(
                 CoachModelOption(
                     id=mid,
                     label=_label_for(mid),
-                    provider="openai",
-                    provider_label=_PROVIDER_LABELS["openai"],
-                    is_default=mid == default_id,
-                )
-            )
-
-    if s.anthropic_api_key and "anthropic" in s.coach_provider_chain_list:
-        for mid in s.anthropic_coach_model_list:
-            options.append(
-                CoachModelOption(
-                    id=mid,
-                    label=_label_for(mid),
-                    provider="anthropic",
-                    provider_label=_PROVIDER_LABELS["anthropic"],
-                    is_default=mid == default_id,
-                )
-            )
-
-    if s.resolved_gemini_api_key and "gemini" in s.coach_provider_chain_list:
-        for mid in s.gemini_coach_model_list:
-            options.append(
-                CoachModelOption(
-                    id=mid,
-                    label=_label_for(mid),
-                    provider="gemini",
-                    provider_label=_PROVIDER_LABELS["gemini"],
+                    provider=provider,
+                    provider_label=_PROVIDER_LABELS[provider],
                     is_default=mid == default_id,
                 )
             )
