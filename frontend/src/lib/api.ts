@@ -169,7 +169,14 @@ export const api = {
     model?: string,
     conversationId?: number,
     webSearchMode: WebSearchMode = "auto",
-    onSearchStatus?: (searching: boolean) => void
+    onSearchStatus?: (searching: boolean) => void,
+    onRoute?: (route: {
+      requested_model?: string;
+      model_served?: string;
+      provider_served?: string;
+      fallback_used?: boolean;
+      fallback_reason?: string;
+    }) => void
   ): Promise<{
     user_message: ChatMessage;
     assistant_message: ChatMessage;
@@ -235,9 +242,13 @@ export const api = {
             model_served?: string;
             conversation_id?: number;
             status?: string;
+            requested_model?: string;
+            fallback_used?: boolean;
+            fallback_reason?: string;
           };
           if (evt.type === "token" && evt.content) onToken(evt.content);
           if (evt.type === "search") onSearchStatus?.(evt.status === "searching");
+          if (evt.type === "route") onRoute?.(evt);
           if (evt.type === "done" && evt.user_message && evt.assistant_message) {
             onSearchStatus?.(false);
             result = {
@@ -246,6 +257,9 @@ export const api = {
                 ...evt.assistant_message,
                 provider_served: evt.provider_served,
                 model_served: evt.model_served,
+                requested_model: evt.requested_model,
+                fallback_used: evt.fallback_used,
+                fallback_reason: evt.fallback_reason,
               },
               provider_served: evt.provider_served,
               model_served: evt.model_served,
@@ -271,7 +285,8 @@ export const api = {
     signal?: AbortSignal,
     model?: string,
     webSearchMode: WebSearchMode = "auto",
-    onSearchStatus?: (searching: boolean) => void
+    onSearchStatus?: (searching: boolean) => void,
+    onRoute?: (route: Partial<ChatMessage>) => void
   ): Promise<{
     user_message: ChatMessage;
     assistant_message: ChatMessage;
@@ -337,9 +352,13 @@ export const api = {
             provider_served?: string;
             model_served?: string;
             status?: string;
+            requested_model?: string;
+            fallback_used?: boolean;
+            fallback_reason?: string;
           };
           if (evt.type === "token" && evt.content) onToken(evt.content);
           if (evt.type === "search") onSearchStatus?.(evt.status === "searching");
+          if (evt.type === "route") onRoute?.(evt);
           if (evt.type === "done" && evt.user_message && evt.assistant_message) {
             onSearchStatus?.(false);
             result = {
@@ -348,6 +367,9 @@ export const api = {
                 ...evt.assistant_message,
                 model_served: evt.model_served,
                 provider_served: evt.provider_served,
+                requested_model: evt.requested_model,
+                fallback_used: evt.fallback_used,
+                fallback_reason: evt.fallback_reason,
               },
               removed_message_ids: evt.removed_message_ids ?? [],
               provider_served: evt.provider_served,

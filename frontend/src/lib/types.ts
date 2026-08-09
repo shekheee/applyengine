@@ -21,6 +21,9 @@ export interface ChatMessage {
   created_at: string;
   model_served?: string;
   provider_served?: string;
+  requested_model?: string;
+  fallback_used?: boolean;
+  fallback_reason?: string;
 }
 
 export interface Conversation {

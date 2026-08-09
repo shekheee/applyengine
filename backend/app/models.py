@@ -116,6 +116,11 @@ class ChatMessage(SQLModel, table=True):
     attachments: list[dict[str, str]] = Field(
         default_factory=list, sa_column=Column(JSON)
     )
+    requested_model: str = ""
+    model_served: str = ""
+    provider_served: str = ""
+    fallback_used: bool = False
+    fallback_reason: str = ""
     created_at: datetime = Field(default_factory=_now)
 
 

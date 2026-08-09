@@ -157,10 +157,23 @@ def coach_reply_stream(
         conversation_job=conversation_job,
     )
     for token in chain.chat_stream(messages):
+        if served is not None:
+            served.update(
+                {
+                    "provider": chain.last_served,
+                    "model": chain.last_model,
+                    "requested_model": chain.requested_model,
+                    "fallback_used": chain.fallback_used,
+                    "fallback_reason": chain.fallback_reason,
+                }
+            )
         yield token
     if served is not None:
         served["provider"] = chain.last_served
         served["model"] = chain.last_model
+        served["requested_model"] = chain.requested_model
+        served["fallback_used"] = chain.fallback_used
+        served["fallback_reason"] = chain.fallback_reason
 
 
 async def coach_reply_stream_async(
@@ -212,6 +225,16 @@ async def coach_reply_stream_async(
                 for source in research.sources
             ]
     async for token in chain.chat_stream_async(messages):
+        if served is not None:
+            served.update(
+                {
+                    "provider": chain.last_served,
+                    "model": chain.last_model,
+                    "requested_model": chain.requested_model,
+                    "fallback_used": chain.fallback_used,
+                    "fallback_reason": chain.fallback_reason,
+                }
+            )
         yield token
     if research is not None:
         source_block = sources_markdown(research)
@@ -220,6 +243,9 @@ async def coach_reply_stream_async(
     if served is not None:
         served["provider"] = chain.last_served
         served["model"] = chain.last_model
+        served["requested_model"] = chain.requested_model
+        served["fallback_used"] = chain.fallback_used
+        served["fallback_reason"] = chain.fallback_reason
 
 
 def extract_memories(

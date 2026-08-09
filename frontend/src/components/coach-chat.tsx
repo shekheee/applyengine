@@ -85,6 +85,7 @@ export function CoachChat({
   const [toolsOpen, setToolsOpen] = useState(false);
   const [models, setModels] = useState<CoachModel[]>([]);
   const [selectedModel, setSelectedModel] = useState("");
+  const [activeRoute, setActiveRoute] = useState<Partial<ChatMessage> | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editDraft, setEditDraft] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
@@ -249,6 +250,7 @@ export function CoachChat({
     setSavingEdit(true);
     setStreaming(true);
     setStreamText("");
+    setActiveRoute(null);
     setEditingId(null);
 
     const kept = messages.slice(0, editIndex + 1).map((m) =>
@@ -267,7 +269,8 @@ export function CoachChat({
         controller.signal,
         selectedModel || undefined,
         webSearchMode,
-        setSearchingWeb
+        setSearchingWeb,
+        setActiveRoute
       );
       setMessages((prev) => {
         const idx = prev.findIndex((m) => m.id === result.user_message.id);
@@ -394,7 +397,8 @@ export function CoachChat({
         selectedModel || undefined,
         activeConversationId,
         webSearchMode,
-        setSearchingWeb
+        setSearchingWeb,
+        setActiveRoute
       );
       setMessages((prev) => [
         ...prev.filter((m) => m.id !== optimistic.id),
@@ -567,6 +571,11 @@ export function CoachChat({
                     onSaveEdit={saveEdit}
                     canEdit={m.role === "user" && m.id > 0}
                     savingEdit={savingEdit}
+                    onUseModel={(modelId) => {
+                      if (!models.some((model) => model.id === modelId)) return;
+                      setSelectedModel(modelId);
+                      storeModelId(modelId);
+                    }}
                   />
                 );
               })}
@@ -578,6 +587,10 @@ export function CoachChat({
                     role: "assistant",
                     content: streamText,
                     created_at: new Date().toISOString(),
+                    model_served: activeRoute?.model_served,
+                    requested_model: activeRoute?.requested_model,
+                    fallback_used: activeRoute?.fallback_used,
+                    fallback_reason: activeRoute?.fallback_reason,
                   }}
                   streaming
                   defaultExpanded

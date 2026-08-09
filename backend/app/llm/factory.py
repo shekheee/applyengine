@@ -6,6 +6,7 @@ from functools import lru_cache
 from app.config import get_settings
 from app.llm.base import LLMProvider
 from app.llm.coach_chain import CoachFallbackChain
+from app.llm.embedding_chain import EmbeddingFallbackChain
 from app.llm.coach_models import (
     available_coach_models,
     default_coach_model_id,
@@ -93,7 +94,11 @@ def build_coach_provider(selected_model: str | None = None) -> CoachFallbackChai
         raise RuntimeError(
             "No coach providers configured — set API keys and COACH_PROVIDER_CHAIN"
         )
-    return CoachFallbackChain(providers)
+    return CoachFallbackChain(
+        providers,
+        requested_model=model_id or providers[0].chat_model,
+        requested_provider=providers[0].name,
+    )
 
 
 def resolved_memory_model_id() -> str | None:
@@ -145,17 +150,22 @@ def default_model_id() -> str:
 @lru_cache
 def get_provider() -> LLMProvider:
     s = get_settings()
-    provider = s.llm_provider.lower()
+    chat_providers = _coach_providers_for_chain(s)
+    if not chat_providers:
+        from app.llm.mock_provider import MockProvider
 
-    if provider == "openai" and s.openai_api_key:
-        return _build_openai(s)
+        return MockProvider()
 
-    if provider == "anthropic" and s.anthropic_api_key:
-        return _build_anthropic(s)
+    embedding_providers = []
+    if s.openai_api_key:
+        embedding_providers.append(_build_openai(s))
 
-    from app.llm.mock_provider import MockProvider
+    from app.llm.resilient_provider import ResilientLLMProvider
 
-    return MockProvider()
+    return ResilientLLMProvider(
+        CoachFallbackChain(chat_providers),
+        EmbeddingFallbackChain(embedding_providers),
+    )
 
 
 def get_coach_provider() -> CoachFallbackChain:

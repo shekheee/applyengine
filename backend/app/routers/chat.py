@@ -405,7 +405,7 @@ def send_message(
     touch_conversation(conv)
     session.add(conv)
 
-    reply, _, _ = coach.coach_reply(
+    reply, provider_served, model_served = coach.coach_reply(
         text,
         profile,
         memories,
@@ -422,6 +422,15 @@ def send_message(
         conversation_id=conv_id,
         role="assistant",
         content=reply,
+        requested_model=model_id or "",
+        model_served=model_served or "",
+        provider_served=provider_served or "",
+        fallback_used=bool(model_id and model_served and model_id != model_served),
+        fallback_reason=(
+            f"{model_id} was unavailable"
+            if model_id and model_served and model_id != model_served
+            else ""
+        ),
     )
     session.add(assistant_msg)
 
@@ -494,6 +503,7 @@ async def send_message_stream(
     async def event_stream() -> AsyncIterator[str]:
         accumulated = ""
         served: dict = {}
+        route_sent = False
         try:
             if should_search(coach_text, search_mode):
                 yield f"data: {json.dumps({'type': 'search', 'status': 'searching'})}\n\n"
@@ -511,6 +521,9 @@ async def send_message_stream(
                 conversation_job=job_snap,
                 web_search_mode=search_mode,
             ):
+                if served.get("fallback_used") and not route_sent:
+                    route_sent = True
+                    yield f"data: {json.dumps({'type': 'route', 'requested_model': served.get('requested_model'), 'provider_served': served.get('provider'), 'model_served': served.get('model'), 'fallback_used': True, 'fallback_reason': served.get('fallback_reason')})}\n\n"
                 accumulated += token
                 yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
 
@@ -537,6 +550,11 @@ async def send_message_stream(
                     conversation_id=conv_id,
                     role="assistant",
                     content=reply,
+                    requested_model=served.get("requested_model") or model_id or "",
+                    model_served=served.get("model") or "",
+                    provider_served=served.get("provider") or "",
+                    fallback_used=bool(served.get("fallback_used")),
+                    fallback_reason=served.get("fallback_reason") or "",
                 )
                 db.add(assistant_msg)
 
@@ -556,7 +574,7 @@ async def send_message_stream(
                 db.refresh(assistant_msg)
                 assistant_json = assistant_msg.model_dump(mode="json")
 
-            yield f"data: {json.dumps({'type': 'done', 'user_message': user_msg_json, 'assistant_message': assistant_json, 'provider_served': served.get('provider'), 'model_served': served.get('model'), 'conversation_id': conv_id, 'web_searched': served.get('web_searched', False), 'search_provider': served.get('search_provider'), 'sources': served.get('sources', []), 'web_search_error': served.get('web_search_error')})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'user_message': user_msg_json, 'assistant_message': assistant_json, 'provider_served': served.get('provider'), 'model_served': served.get('model'), 'requested_model': served.get('requested_model'), 'fallback_used': served.get('fallback_used', False), 'fallback_reason': served.get('fallback_reason'), 'conversation_id': conv_id, 'web_searched': served.get('web_searched', False), 'search_provider': served.get('search_provider'), 'sources': served.get('sources', []), 'web_search_error': served.get('web_search_error')})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
 
@@ -620,6 +638,7 @@ async def edit_message_stream(
     async def event_stream() -> AsyncIterator[str]:
         accumulated = ""
         served: dict = {}
+        route_sent = False
         try:
             if should_search(text, search_mode):
                 yield f"data: {json.dumps({'type': 'search', 'status': 'searching'})}\n\n"
@@ -637,6 +656,9 @@ async def edit_message_stream(
                 conversation_job=job_snap,
                 web_search_mode=search_mode,
             ):
+                if served.get("fallback_used") and not route_sent:
+                    route_sent = True
+                    yield f"data: {json.dumps({'type': 'route', 'requested_model': served.get('requested_model'), 'provider_served': served.get('provider'), 'model_served': served.get('model'), 'fallback_used': True, 'fallback_reason': served.get('fallback_reason')})}\n\n"
                 accumulated += token
                 yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
 
@@ -663,6 +685,11 @@ async def edit_message_stream(
                     conversation_id=conv_id,
                     role="assistant",
                     content=reply,
+                    requested_model=served.get("requested_model") or model_id or "",
+                    model_served=served.get("model") or "",
+                    provider_served=served.get("provider") or "",
+                    fallback_used=bool(served.get("fallback_used")),
+                    fallback_reason=served.get("fallback_reason") or "",
                 )
                 db.add(assistant_msg)
 
@@ -684,7 +711,7 @@ async def edit_message_stream(
                 if served.get("provider"):
                     assistant_json["provider_served"] = served.get("provider")
 
-            yield f"data: {json.dumps({'type': 'done', 'user_message': user_msg_json, 'assistant_message': assistant_json, 'removed_message_ids': removed_ids, 'provider_served': served.get('provider'), 'model_served': served.get('model'), 'conversation_id': conv_id, 'web_searched': served.get('web_searched', False), 'search_provider': served.get('search_provider'), 'sources': served.get('sources', []), 'web_search_error': served.get('web_search_error')})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'user_message': user_msg_json, 'assistant_message': assistant_json, 'removed_message_ids': removed_ids, 'provider_served': served.get('provider'), 'model_served': served.get('model'), 'requested_model': served.get('requested_model'), 'fallback_used': served.get('fallback_used', False), 'fallback_reason': served.get('fallback_reason'), 'conversation_id': conv_id, 'web_searched': served.get('web_searched', False), 'search_provider': served.get('search_provider'), 'sources': served.get('sources', []), 'web_search_error': served.get('web_search_error')})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
 

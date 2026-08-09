@@ -39,6 +39,7 @@ export function MessageBubble({
   onSaveEdit,
   canEdit,
   savingEdit,
+  onUseModel,
 }: {
   message: ChatMessage;
   streaming?: boolean;
@@ -51,6 +52,7 @@ export function MessageBubble({
   onSaveEdit?: () => void;
   canEdit?: boolean;
   savingEdit?: boolean;
+  onUseModel?: (modelId: string) => void;
 }) {
   const isUser = message.role === "user";
   const collapseFade = isUser
@@ -88,7 +90,7 @@ export function MessageBubble({
         {!isUser && (
           <div className="mb-1 flex items-center gap-2 px-0.5">
             <span className="text-xs font-medium text-[var(--text-secondary)]">Coach</span>
-            {message.model_served && (
+            {message.model_served && !message.fallback_used && (
               <span
                 className="rounded-full px-2 py-0.5 text-[10px] font-medium tracking-wide text-[var(--muted)]"
                 style={{
@@ -97,6 +99,23 @@ export function MessageBubble({
                 }}
               >
                 {message.model_served}
+              </span>
+            )}
+            {message.model_served && message.fallback_used && (
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-200"
+                title={message.fallback_reason || "The selected model was unavailable"}
+              >
+                Backup · {message.model_served}
+                {onUseModel && (
+                  <button
+                    type="button"
+                    className="rounded-full bg-amber-300/15 px-1.5 py-0.5 text-amber-100 hover:bg-amber-300/25"
+                    onClick={() => onUseModel(message.model_served!)}
+                  >
+                    Use next time
+                  </button>
+                )}
               </span>
             )}
           </div>

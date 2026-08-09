@@ -29,6 +29,7 @@ def init_db() -> None:
 
     SQLModel.metadata.create_all(engine)
     _migrate_chat_attachments()
+    _migrate_chat_routing()
     _migrate_profile_base()
     _migrate_interview_overall_score()
     _migrate_interview_curriculum_topic()
@@ -107,6 +108,26 @@ def _migrate_chat_attachments() -> None:
                 "DEFAULT '[]'::json"
             )
         )
+
+
+def _migrate_chat_routing() -> None:
+    """Persist which requested or backup model served each Coach response."""
+    if is_sqlite:
+        return
+    from sqlalchemy import text
+
+    columns = (
+        "requested_model TEXT DEFAULT ''",
+        "model_served TEXT DEFAULT ''",
+        "provider_served TEXT DEFAULT ''",
+        "fallback_used BOOLEAN DEFAULT FALSE",
+        "fallback_reason TEXT DEFAULT ''",
+    )
+    with engine.begin() as conn:
+        for definition in columns:
+            conn.execute(
+                text(f"ALTER TABLE chatmessage ADD COLUMN IF NOT EXISTS {definition}")
+            )
 
 
 def _migrate_profile_base() -> None:

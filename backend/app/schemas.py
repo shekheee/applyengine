@@ -77,6 +77,9 @@ class ChatMessageOut(BaseModel):
     created_at: str = ""
     model_served: str | None = None
     provider_served: str | None = None
+    requested_model: str | None = None
+    fallback_used: bool = False
+    fallback_reason: str | None = None
 
     model_config = {"from_attributes": True}
 

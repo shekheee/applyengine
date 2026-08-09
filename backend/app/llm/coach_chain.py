@@ -29,12 +29,20 @@ class CoachFallbackChain:
 
     name = "coach-fallback"
 
-    def __init__(self, providers: list[CoachCapable]):
+    def __init__(
+        self,
+        providers: list[CoachCapable],
+        requested_model: str | None = None,
+        requested_provider: str | None = None,
+    ):
         if not providers:
             raise ValueError("CoachFallbackChain requires at least one provider")
         self._providers = providers
         self._last_served: str | None = None
         self._last_model: str | None = None
+        self._requested_model = requested_model or providers[0].chat_model
+        self._requested_provider = requested_provider or providers[0].name
+        self._failures: list[dict[str, str]] = []
 
     @property
     def chat_model(self) -> str:
@@ -53,9 +61,47 @@ class CoachFallbackChain:
     def last_model(self) -> str | None:
         return self._last_model
 
+    @property
+    def requested_model(self) -> str:
+        return self._requested_model
+
+    @property
+    def requested_provider(self) -> str:
+        return self._requested_provider
+
+    @property
+    def fallback_used(self) -> bool:
+        return bool(
+            self._last_served
+            and (
+                self._last_served != self._requested_provider
+                or self._last_model != self._requested_model
+            )
+        )
+
+    @property
+    def fallback_reason(self) -> str | None:
+        if not self.fallback_used:
+            return None
+        return f"{self._requested_model} was unavailable"
+
+    @property
+    def failures(self) -> list[dict[str, str]]:
+        return list(self._failures)
+
     def reset(self) -> None:
         self._last_served = None
         self._last_model = None
+        self._failures = []
+
+    def _record_failure(self, provider: CoachCapable, exc: Exception | None = None) -> None:
+        self._failures.append(
+            {
+                "provider": provider.name,
+                "model": provider.chat_model,
+                "error": type(exc).__name__ if exc else "EmptyResponse",
+            }
+        )
 
     def _mark_served(self, provider: CoachCapable) -> None:
         self._last_served = provider.name
@@ -91,8 +137,10 @@ class CoachFallbackChain:
                     logger.info("Coach reply served by %s", label)
                     return out
                 logger.warning("Coach empty response from %s — trying next", label)
+                self._record_failure(provider)
             except Exception as exc:
                 last_err = exc
+                self._record_failure(provider, exc)
                 logger.warning("Coach failed on %s: %s — trying next", label, exc)
         if last_err:
             raise last_err
@@ -113,11 +161,14 @@ class CoachFallbackChain:
                 if got:
                     return
                 logger.warning("Coach empty stream from %s — trying next", label)
+                self._record_failure(provider)
             except Exception as exc:
                 if self._last_served == provider.name:
                     raise
                 last_err = exc
-                self.reset()
+                self._last_served = None
+                self._last_model = None
+                self._record_failure(provider, exc)
                 logger.warning("Coach stream failed on %s: %s — trying next", label, exc)
         if last_err:
             raise last_err
@@ -140,11 +191,14 @@ class CoachFallbackChain:
                 if got:
                     return
                 logger.warning("Coach empty stream from %s — trying next", label)
+                self._record_failure(provider)
             except Exception as exc:
                 if self._last_served == provider.name:
                     raise
                 last_err = exc
-                self.reset()
+                self._last_served = None
+                self._last_model = None
+                self._record_failure(provider, exc)
                 logger.warning("Coach stream failed on %s: %s — trying next", label, exc)
         if last_err:
             raise last_err
