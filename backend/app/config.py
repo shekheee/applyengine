@@ -21,9 +21,9 @@ class Settings(BaseSettings):
     # Anthropic
     anthropic_api_key: str | None = None
     anthropic_chat_model: str = "claude-3-5-sonnet-latest"
-    anthropic_coach_model: str = "claude-opus-5"
+    anthropic_coach_model: str = "claude-opus-4-8"
     anthropic_coach_models: str = (
-        "claude-opus-5,claude-fable-5,claude-opus-4-8"
+        "claude-opus-4-8,claude-opus-5,claude-fable-5"
     )
 
     # Gemini (accepts common env var names)
@@ -70,8 +70,8 @@ class Settings(BaseSettings):
     @staticmethod
     def _model_list(value: str, default: str) -> list[str]:
         models = [model.strip() for model in value.split(",") if model.strip()]
-        if default and default not in models:
-            models.insert(0, default)
+        if default:
+            models = [default, *(model for model in models if model != default)]
         return list(dict.fromkeys(models))
 
     @property
