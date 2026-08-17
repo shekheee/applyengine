@@ -276,6 +276,25 @@ body {
   overflow-x: auto;
 }
 
+/* Math in assistant messages */
+.chat-markdown .katex-display {
+  max-width: 100%;
+  margin: 0.75rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0;
+}
+
+.chat-markdown .katex-display > .katex {
+  min-width: min-content;
+  text-align: left;
+}
+
+.chat-markdown .katex {
+  color: var(--text);
+  font-size: 1em;
+}
+
 /* ─── Kanban column accent ─── */
 .kanban-col-saved {
   --col-accent: var(--muted);

@@ -1,10 +1,13 @@
 "use client";
 
 import ReactMarkdown from "react-markdown";
+import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import { normalizeChatMath } from "@/lib/chat-math";
 
 const WRAP =
-  "min-w-0 max-w-full [overflow-wrap:anywhere] [word-break:break-word]";
+  "chat-markdown min-w-0 max-w-full [overflow-wrap:anywhere] [word-break:break-word]";
 
 type Density = "default" | "compact";
 
@@ -51,7 +54,8 @@ export function ChatMarkdown({
   return (
     <div className={WRAP}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[[rehypeKatex, { strict: false, throwOnError: false }]]}
         components={{
           p: ({ children }) => <p className={d.p}>{children}</p>,
           ul: ({ children }) => <ul className={d.ul}>{children}</ul>,
@@ -118,7 +122,7 @@ export function ChatMarkdown({
           ),
         }}
       >
-        {content}
+        {normalizeChatMath(content)}
       </ReactMarkdown>
     </div>
   );
