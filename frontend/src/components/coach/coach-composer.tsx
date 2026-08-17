@@ -6,6 +6,7 @@ import {
   type RefObject,
 } from "react";
 import type {
+  AnswerLength,
   CoachModel,
   PendingAttachment,
   ReasoningEffort,
@@ -33,6 +34,8 @@ export function CoachComposer({
   onModelChange,
   reasoningEffort,
   onReasoningEffortChange,
+  answerLength,
+  onAnswerLengthChange,
   webSearchMode,
   onWebSearchModeChange,
   searchingWeb,
@@ -53,6 +56,8 @@ export function CoachComposer({
   onModelChange: (id: string) => void;
   reasoningEffort: ReasoningEffort;
   onReasoningEffortChange: (effort: ReasoningEffort) => void;
+  answerLength: AnswerLength;
+  onAnswerLengthChange: (length: AnswerLength) => void;
   webSearchMode: WebSearchMode;
   onWebSearchModeChange: (mode: WebSearchMode) => void;
   searchingWeb: boolean;
@@ -216,6 +221,43 @@ export function CoachComposer({
                 strokeWidth="1.8"
               >
                 <path d="M9.5 4.5a3 3 0 0 1 5 2.2A3.5 3.5 0 0 1 17 13a3 3 0 0 1-3 5.2M9.5 4.5A3 3 0 0 0 5 8a3.5 3.5 0 0 0 2 6.3A3 3 0 0 0 10 19V5.5M14 6v12" />
+              </svg>
+              <svg
+                aria-hidden
+                className="pointer-events-none absolute right-2 h-3 w-3 text-[var(--muted-2)]"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="m7 10 5 5 5-5" />
+              </svg>
+            </label>
+            <label className="relative inline-flex items-center">
+              <span className="sr-only">Answer length</span>
+              <select
+                value={answerLength}
+                onChange={(event) =>
+                  onAnswerLengthChange(event.target.value as AnswerLength)
+                }
+                disabled={streaming}
+                title="Control visible answer detail independently of thinking depth"
+                className="h-[30px] appearance-none rounded-lg border bg-[var(--panel)] py-1 pl-7 pr-7 text-xs font-medium text-[var(--muted)] outline-none transition-colors hover:bg-[var(--panel-2)] disabled:opacity-50"
+                style={{ borderColor: "var(--border)" }}
+              >
+                <option value="concise">Answer: Concise</option>
+                <option value="normal">Answer: Normal</option>
+                <option value="detailed">Answer: Detailed</option>
+              </select>
+              <svg
+                aria-hidden
+                className="pointer-events-none absolute left-2 h-3.5 w-3.5 text-[var(--muted)]"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+              >
+                <path d="M5 6h14M5 12h10M5 18h7" />
               </svg>
               <svg
                 aria-hidden

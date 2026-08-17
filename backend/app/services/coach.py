@@ -7,6 +7,7 @@ from typing import Any
 
 from app import prompts
 from app.llm import build_coach_provider, build_memory_provider, get_provider
+from app.llm.answer_length import answer_length_instruction
 from app.models import Application, ChatMessage, Job, Memory, Profile
 from app.services.profession import profession_context
 from app.services.attachments import ProcessedAttachment, build_user_content
@@ -62,6 +63,7 @@ def build_coach_messages(
     jobs: dict[int, Job] | None = None,
     conversation_jd_text: str = "",
     conversation_job: Job | None = None,
+    answer_length: str = "normal",
 ) -> list[dict[str, Any]]:
     profile_text = _profile_text(profile)
     memory_text = _memory_text(memories)
@@ -78,6 +80,7 @@ def build_coach_messages(
         profession_text,
         conversation_jd_text=conversation_jd_text,
     )
+    system += f"\n\nRESPONSE LENGTH FOR THIS TURN:\n{answer_length_instruction(answer_length)}"
     messages: list[dict[str, Any]] = [{"role": "system", "content": system}]
 
     for msg in history[-HISTORY_LIMIT:]:
@@ -101,6 +104,7 @@ def coach_reply(
     reasoning_effort: str | None = None,
     conversation_jd_text: str = "",
     conversation_job: Job | None = None,
+    answer_length: str = "normal",
 ) -> tuple[str, str | None, str | None]:
     chain = build_coach_provider(model_id, reasoning_effort)
     chain.reset()
@@ -114,6 +118,7 @@ def coach_reply(
         jobs,
         conversation_jd_text=conversation_jd_text,
         conversation_job=conversation_job,
+        answer_length=answer_length,
     )
     try:
         out = chain.chat_messages(messages).strip()
@@ -144,6 +149,7 @@ def coach_reply_stream(
     served: dict | None = None,
     conversation_jd_text: str = "",
     conversation_job: Job | None = None,
+    answer_length: str = "normal",
 ) -> Iterator[str]:
     chain = build_coach_provider(model_id, reasoning_effort)
     chain.reset()
@@ -157,6 +163,7 @@ def coach_reply_stream(
         jobs,
         conversation_jd_text=conversation_jd_text,
         conversation_job=conversation_job,
+        answer_length=answer_length,
     )
     for token in chain.chat_stream(messages):
         if served is not None:
@@ -194,6 +201,7 @@ async def coach_reply_stream_async(
     conversation_jd_text: str = "",
     conversation_job: Job | None = None,
     web_search_mode: str = "auto",
+    answer_length: str = "normal",
 ) -> AsyncIterator[str]:
     chain = build_coach_provider(model_id, reasoning_effort)
     chain.reset()
@@ -207,6 +215,7 @@ async def coach_reply_stream_async(
         jobs,
         conversation_jd_text=conversation_jd_text,
         conversation_job=conversation_job,
+        answer_length=answer_length,
     )
     try:
         research = await run_web_research(

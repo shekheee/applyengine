@@ -156,13 +156,19 @@ export const api = {
         ? `/api/chat/conversations/${conversationId}/messages`
         : "/api/chat/messages"
     ),
-  sendMessage: (message: string, model?: string, reasoningEffort = "medium") =>
+  sendMessage: (
+    message: string,
+    model?: string,
+    reasoningEffort = "medium",
+    answerLength = "normal"
+  ) =>
     req<ChatMessage>("/api/chat/messages", {
       method: "POST",
       body: JSON.stringify({
         message,
         model: model || undefined,
         reasoning_effort: reasoningEffort,
+        answer_length: answerLength,
       }),
     }),
   sendMessageStream: async (
@@ -174,6 +180,7 @@ export const api = {
     conversationId?: number,
     webSearchMode: WebSearchMode = "auto",
     reasoningEffort = "medium",
+    answerLength = "normal",
     onSearchStatus?: (searching: boolean) => void,
     onRoute?: (route: {
       requested_model?: string;
@@ -195,6 +202,7 @@ export const api = {
     if (conversationId != null) form.append("conversation_id", String(conversationId));
     form.append("web_search_mode", webSearchMode);
     form.append("reasoning_effort", reasoningEffort);
+    form.append("answer_length", answerLength);
     for (const f of files) form.append("files", f);
 
     const res = await fetch(`${BASE}/api/chat/messages/stream`, {
@@ -294,6 +302,7 @@ export const api = {
     model?: string,
     webSearchMode: WebSearchMode = "auto",
     reasoningEffort = "medium",
+    answerLength = "normal",
     onSearchStatus?: (searching: boolean) => void,
     onRoute?: (route: Partial<ChatMessage>) => void
   ): Promise<{
@@ -314,6 +323,7 @@ export const api = {
         model: model || undefined,
         web_search_mode: webSearchMode,
         reasoning_effort: reasoningEffort,
+        answer_length: answerLength,
       }),
       signal,
     });

@@ -9,6 +9,7 @@ import {
 } from "react";
 import { api } from "@/lib/api";
 import type {
+  AnswerLength,
   ChatMessage,
   CoachModel,
   Conversation,
@@ -48,6 +49,7 @@ const JD_STARTERS = [
 
 const WEB_SEARCH_MODE_KEY = "applyengine_web_search_mode";
 const REASONING_EFFORT_KEY = "applyengine_reasoning_effort";
+const ANSWER_LENGTH_KEY = "applyengine_answer_length";
 
 function getStoredWebSearchMode(): WebSearchMode {
   if (typeof window === "undefined") return "auto";
@@ -59,6 +61,12 @@ function getStoredReasoningEffort(): ReasoningEffort {
   if (typeof window === "undefined") return "medium";
   const value = window.localStorage.getItem(REASONING_EFFORT_KEY);
   return value === "high" || value === "xhigh" ? value : "medium";
+}
+
+function getStoredAnswerLength(): AnswerLength {
+  if (typeof window === "undefined") return "normal";
+  const value = window.localStorage.getItem(ANSWER_LENGTH_KEY);
+  return value === "concise" || value === "detailed" ? value : "normal";
 }
 
 export function CoachChat({
@@ -100,6 +108,7 @@ export function CoachChat({
   const [webSearchMode, setWebSearchMode] = useState<WebSearchMode>("auto");
   const [reasoningEffort, setReasoningEffort] =
     useState<ReasoningEffort>("medium");
+  const [answerLength, setAnswerLength] = useState<AnswerLength>("normal");
   const [searchingWeb, setSearchingWeb] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -158,6 +167,7 @@ export function CoachChat({
         setModels(modelData.models);
         setWebSearchMode(getStoredWebSearchMode());
         setReasoningEffort(getStoredReasoningEffort());
+        setAnswerLength(getStoredAnswerLength());
         const stored = getStoredModelId();
         const valid =
           stored && modelData.models.some((x) => x.id === stored)
@@ -281,6 +291,7 @@ export function CoachChat({
         selectedModel || undefined,
         webSearchMode,
         reasoningEffort,
+        answerLength,
         setSearchingWeb,
         setActiveRoute
       );
@@ -410,6 +421,7 @@ export function CoachChat({
         activeConversationId,
         webSearchMode,
         reasoningEffort,
+        answerLength,
         setSearchingWeb,
         setActiveRoute
       );
@@ -653,6 +665,11 @@ export function CoachChat({
             onReasoningEffortChange={(effort) => {
               setReasoningEffort(effort);
               window.localStorage.setItem(REASONING_EFFORT_KEY, effort);
+            }}
+            answerLength={answerLength}
+            onAnswerLengthChange={(length) => {
+              setAnswerLength(length);
+              window.localStorage.setItem(ANSWER_LENGTH_KEY, length);
             }}
             webSearchMode={webSearchMode}
             onWebSearchModeChange={(mode) => {

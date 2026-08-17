@@ -1,5 +1,6 @@
 export type Status = "saved" | "applied" | "interview" | "offer" | "rejected";
 export type ReasoningEffort = "medium" | "high" | "xhigh";
+export type AnswerLength = "concise" | "normal" | "detailed";
 
 export interface User {
   id: number;

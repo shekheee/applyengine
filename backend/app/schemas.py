@@ -37,6 +37,7 @@ class ChatIn(BaseModel):
     conversation_id: int | None = None
     web_search_mode: str = "auto"
     reasoning_effort: str = "medium"
+    answer_length: str = "normal"
 
 
 class ChatEditIn(BaseModel):
@@ -44,6 +45,7 @@ class ChatEditIn(BaseModel):
     model: str | None = None
     web_search_mode: str = "auto"
     reasoning_effort: str = "medium"
+    answer_length: str = "normal"
 
 
 class ConversationCreate(BaseModel):

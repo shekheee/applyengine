@@ -15,6 +15,7 @@ from app.models import Application, ChatMessage, Conversation, Job, Memory, Prof
 from app.llm.coach_models import validate_coach_model
 from app.llm.factory import list_coach_models, default_model_id
 from app.llm.effort import normalize_reasoning_effort
+from app.llm.answer_length import normalize_answer_length
 from app.services.web_research import normalize_search_mode, should_search
 from app.schemas import (
     ChatEditIn,
@@ -128,6 +129,13 @@ def _resolve_model(model: str | None) -> str | None:
 def _resolve_effort(effort: str | None) -> str:
     try:
         return normalize_reasoning_effort(effort, default="medium") or "medium"
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+
+def _resolve_answer_length(value: str | None) -> str:
+    try:
+        return normalize_answer_length(value)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
 
@@ -393,6 +401,7 @@ def send_message(
 
     model_id = _resolve_model(body.model)
     reasoning_effort = _resolve_effort(body.reasoning_effort)
+    answer_length = _resolve_answer_length(body.answer_length)
     conv = _get_conversation(body.conversation_id, user, session)
     conv_id = conv.id or 0
     job, jd_text = _conv_context(session, conv)
@@ -424,6 +433,7 @@ def send_message(
         jobs,
         model_id=model_id,
         reasoning_effort=reasoning_effort,
+        answer_length=answer_length,
         conversation_jd_text=jd_text,
         conversation_job=job,
     )
@@ -463,6 +473,7 @@ async def send_message_stream(
     conversation_id: int | None = Form(default=None),
     web_search_mode: str = Form(default="auto"),
     reasoning_effort: str = Form(default="medium"),
+    answer_length: str = Form(default="normal"),
     files: list[UploadFile] = File(default=[]),
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
@@ -473,6 +484,7 @@ async def send_message_stream(
 
     model_id = _resolve_model(model.strip() or None)
     effort = _resolve_effort(reasoning_effort)
+    resolved_answer_length = _resolve_answer_length(answer_length)
     conv = _get_conversation(conversation_id, user, session)
     conv_id = conv.id or 0
     job, jd_text = _conv_context(session, conv)
@@ -534,6 +546,7 @@ async def send_message_stream(
                 conversation_jd_text=jd_text,
                 conversation_job=job_snap,
                 web_search_mode=search_mode,
+                answer_length=resolved_answer_length,
             ):
                 if served.get("fallback_used") and not route_sent:
                     route_sent = True
@@ -555,6 +568,7 @@ async def send_message_stream(
                     reasoning_effort=effort,
                     conversation_jd_text=jd_text,
                     conversation_job=job_snap,
+                    answer_length=resolved_answer_length,
                 )
                 served["provider"] = prov
                 served["model"] = mod
@@ -617,6 +631,7 @@ async def edit_message_stream(
 
     model_id = _resolve_model(body.model)
     effort = _resolve_effort(body.reasoning_effort)
+    answer_length = _resolve_answer_length(body.answer_length)
     search_mode = normalize_search_mode(body.web_search_mode)
     user_msg = _owned_user_message(message_id, user, session)
     conv_id = user_msg.conversation_id
@@ -673,6 +688,7 @@ async def edit_message_stream(
                 conversation_jd_text=jd_text,
                 conversation_job=job_snap,
                 web_search_mode=search_mode,
+                answer_length=answer_length,
             ):
                 if served.get("fallback_used") and not route_sent:
                     route_sent = True
@@ -694,6 +710,7 @@ async def edit_message_stream(
                     reasoning_effort=effort,
                     conversation_jd_text=jd_text,
                     conversation_job=job_snap,
+                    answer_length=answer_length,
                 )
                 served["provider"] = prov
                 served["model"] = mod
