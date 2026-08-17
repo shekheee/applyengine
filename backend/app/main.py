@@ -17,6 +17,7 @@ from app.routers import (
     jobs,
     profiles,
     resume,
+    skills,
     social,
 )
 
@@ -48,6 +49,7 @@ app.include_router(generate.router)
 app.include_router(chat.router)
 app.include_router(resume.router)
 app.include_router(interview.router)
+app.include_router(skills.router)
 app.include_router(social.router)
 
 

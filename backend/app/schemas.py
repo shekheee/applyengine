@@ -102,6 +102,47 @@ class CoachModelsOut(BaseModel):
     default_model: str
 
 
+class SkillOut(BaseModel):
+    id: str
+    name: str
+    description: str
+    category: str
+    href: str
+    output_formats: list[str]
+    status: str = "ready"
+
+
+class SkillArtifactCreate(BaseModel):
+    skill_id: str
+    template: str
+    title: str = ""
+    brief: str
+    job_id: int | None = None
+    model: str | None = None
+    reasoning_effort: str = "high"
+
+
+class SkillArtifactRevise(BaseModel):
+    instruction: str
+    model: str | None = None
+    reasoning_effort: str = "high"
+
+
+class SkillArtifactOut(BaseModel):
+    id: int
+    skill_id: str
+    title: str
+    template: str
+    job_id: int | None = None
+    parent_id: int | None = None
+    brief: str
+    content: dict[str, Any]
+    requested_model: str | None = None
+    model_served: str | None = None
+    provider_served: str | None = None
+    created_at: str
+
+
 class SocialProjectCreate(BaseModel):
     platform: str = "linkedin"
     title: str = ""

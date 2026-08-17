@@ -203,6 +203,24 @@ class ResumeVersion(SQLModel, table=True):
     created_at: datetime = Field(default_factory=_now)
 
 
+class SkillArtifact(SQLModel, table=True):
+    """A versioned output created by an ApplyEngine skill."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    skill_id: str = Field(index=True)
+    title: str = "Untitled artifact"
+    template: str = ""
+    job_id: int | None = Field(default=None, foreign_key="job.id", index=True)
+    parent_id: int | None = Field(default=None, foreign_key="skillartifact.id", index=True)
+    brief: str = Field(default="", sa_column=Column(Text))
+    content_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    requested_model: str = ""
+    model_served: str = ""
+    provider_served: str = ""
+    created_at: datetime = Field(default_factory=_now)
+
+
 class InterviewTurn(SQLModel, table=True):
     """A single turn within an interview practice session."""
 

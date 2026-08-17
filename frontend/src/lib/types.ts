@@ -170,6 +170,53 @@ export interface CoachModel {
   is_default: boolean;
 }
 
+export interface SkillDefinition {
+  id: "resume-builder" | "document-writer" | "presentation-builder" | string;
+  name: string;
+  description: string;
+  category: string;
+  href: string;
+  output_formats: string[];
+  status: "ready" | "planned" | string;
+}
+
+export interface DocumentSection {
+  heading: string;
+  paragraphs: string[];
+  bullets: string[];
+}
+
+export interface PresentationSlide {
+  title: string;
+  kicker: string;
+  body: string;
+  bullets: string[];
+  speaker_notes: string;
+}
+
+export interface SkillArtifact {
+  id: number;
+  skill_id: string;
+  title: string;
+  template: string;
+  job_id: number | null;
+  parent_id: number | null;
+  brief: string;
+  content: {
+    kind?: "document" | "presentation" | string;
+    template?: string;
+    title?: string;
+    subtitle?: string;
+    sections?: DocumentSection[];
+    slides?: PresentationSlide[];
+    closing?: string;
+  };
+  requested_model: string | null;
+  model_served: string | null;
+  provider_served: string | null;
+  created_at: string;
+}
+
 export type WebSearchMode = "auto" | "on" | "off";
 
 export type SocialPlatform = "linkedin" | "medium";

@@ -9,9 +9,12 @@ import type {
   InterviewProgress,
   InterviewSession,
   InterviewTurn,
+  SkillArtifact,
+  SkillDefinition,
   Job,
   Memory,
   Profile,
+  ReasoningEffort,
   SocialMessage,
   SocialProject,
   SocialPublishingStatus,
@@ -618,6 +621,65 @@ export const api = {
     const filename = match?.[1] || "resume.docx";
     const blob = await res.blob();
     return { blob, filename };
+  },
+
+  // ---- Skills and artifacts ----
+  listSkills: () => req<SkillDefinition[]>("/api/skills"),
+
+  listSkillArtifacts: (skillId?: string) => {
+    const query = skillId ? `?skill_id=${encodeURIComponent(skillId)}` : "";
+    return req<SkillArtifact[]>(`/api/skills/artifacts${query}`);
+  },
+
+  createSkillArtifact: (body: {
+    skill_id: string;
+    template: string;
+    title?: string;
+    brief: string;
+    job_id?: number | null;
+    model?: string;
+    reasoning_effort?: ReasoningEffort;
+  }) =>
+    req<SkillArtifact>("/api/skills/artifacts", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  reviseSkillArtifact: (
+    artifactId: number,
+    body: {
+      instruction: string;
+      model?: string;
+      reasoning_effort?: ReasoningEffort;
+    }
+  ) =>
+    req<SkillArtifact>(`/api/skills/artifacts/${artifactId}/revise`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  downloadSkillArtifact: async (
+    artifactId: number,
+    format: "docx" | "pdf" | "pptx"
+  ): Promise<{ blob: Blob; filename: string }> => {
+    const res = await fetch(
+      `${BASE}/api/skills/artifacts/${artifactId}/download?format=${format}`,
+      { headers: { ...authHeaders() }, cache: "no-store" }
+    );
+    if (!res.ok) {
+      if (res.status === 401) setToken(null);
+      let detail = "";
+      try {
+        const data = await res.json();
+        detail = data?.detail ?? JSON.stringify(data);
+      } catch {
+        detail = await res.text().catch(() => "");
+      }
+      throw new ApiError(res.status, detail || `Download failed (${res.status})`);
+    }
+    const disposition = res.headers.get("Content-Disposition") || "";
+    const match = disposition.match(/filename="([^"]+)"/);
+    return { blob: await res.blob(), filename: match?.[1] || `artifact.${format}` };
   },
 
   createProfile: (raw_text: string) =>

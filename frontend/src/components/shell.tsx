@@ -12,6 +12,7 @@ const PUBLIC_PATHS = ["/login"];
 const NAV = [
   { href: "/", label: "Pipeline" },
   { href: "/coach", label: "Coach" },
+  { href: "/skills", label: "Skills" },
   { href: "/resume", label: "Resume" },
   { href: "/social", label: "Social Studio" },
   { href: "/interview", label: "Interview" },
@@ -112,8 +113,9 @@ export function Shell({ children }: { children: ReactNode }) {
   const isCoach = pathname === "/coach";
   const isApplication = pathname.startsWith("/applications/");
   const isSocial = pathname === "/social";
+  const isSkills = pathname.startsWith("/skills");
   const isLogin = pathname === "/login";
-  const wide = isCoach || isApplication || isSocial;
+  const wide = isCoach || isApplication || isSocial || isSkills;
 
   return (
     <AuthProvider>
