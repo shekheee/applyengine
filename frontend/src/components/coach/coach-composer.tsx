@@ -5,7 +5,12 @@ import {
   type KeyboardEvent,
   type RefObject,
 } from "react";
-import type { CoachModel, PendingAttachment, WebSearchMode } from "@/lib/types";
+import type {
+  CoachModel,
+  PendingAttachment,
+  ReasoningEffort,
+  WebSearchMode,
+} from "@/lib/types";
 import { ModelSelector } from "@/components/model-selector";
 import { AttachIcon, SendIcon } from "@/components/coach/coach-icons";
 
@@ -26,6 +31,8 @@ export function CoachComposer({
   models,
   selectedModel,
   onModelChange,
+  reasoningEffort,
+  onReasoningEffortChange,
   webSearchMode,
   onWebSearchModeChange,
   searchingWeb,
@@ -44,6 +51,8 @@ export function CoachComposer({
   models: CoachModel[];
   selectedModel: string;
   onModelChange: (id: string) => void;
+  reasoningEffort: ReasoningEffort;
+  onReasoningEffortChange: (effort: ReasoningEffort) => void;
   webSearchMode: WebSearchMode;
   onWebSearchModeChange: (mode: WebSearchMode) => void;
   searchingWeb: boolean;
@@ -175,13 +184,50 @@ export function CoachComposer({
           className="flex items-center justify-between gap-2 border-t px-3 py-1.5"
           style={{ borderColor: "var(--border)" }}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <ModelSelector
               models={models}
               selectedId={selectedModel}
               onChange={onModelChange}
               disabled={streaming || models.length === 0}
             />
+            <label className="relative inline-flex items-center">
+              <span className="sr-only">Thinking depth</span>
+              <select
+                value={reasoningEffort}
+                onChange={(event) =>
+                  onReasoningEffortChange(event.target.value as ReasoningEffort)
+                }
+                disabled={streaming}
+                title="Higher thinking depth can improve difficult answers but takes longer and costs more"
+                className="h-[30px] appearance-none rounded-lg border bg-[var(--panel)] py-1 pl-7 pr-7 text-xs font-medium text-[var(--muted)] outline-none transition-colors hover:bg-[var(--panel-2)] disabled:opacity-50"
+                style={{ borderColor: "var(--border)" }}
+              >
+                <option value="medium">Think: Medium</option>
+                <option value="high">Think: Hard</option>
+                <option value="xhigh">Think: Very hard</option>
+              </select>
+              <svg
+                aria-hidden
+                className="pointer-events-none absolute left-2 h-3.5 w-3.5 text-[var(--muted)]"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+              >
+                <path d="M9.5 4.5a3 3 0 0 1 5 2.2A3.5 3.5 0 0 1 17 13a3 3 0 0 1-3 5.2M9.5 4.5A3 3 0 0 0 5 8a3.5 3.5 0 0 0 2 6.3A3 3 0 0 0 10 19V5.5M14 6v12" />
+              </svg>
+              <svg
+                aria-hidden
+                className="pointer-events-none absolute right-2 h-3 w-3 text-[var(--muted-2)]"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="m7 10 5 5 5-5" />
+              </svg>
+            </label>
             <label className="relative inline-flex items-center">
               <span className="sr-only">Web search mode</span>
               <select

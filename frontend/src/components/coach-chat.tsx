@@ -15,6 +15,7 @@ import type {
   Job,
   Memory,
   PendingAttachment,
+  ReasoningEffort,
   WebSearchMode,
 } from "@/lib/types";
 import {
@@ -46,11 +47,18 @@ const JD_STARTERS = [
 ];
 
 const WEB_SEARCH_MODE_KEY = "applyengine_web_search_mode";
+const REASONING_EFFORT_KEY = "applyengine_reasoning_effort";
 
 function getStoredWebSearchMode(): WebSearchMode {
   if (typeof window === "undefined") return "auto";
   const value = window.localStorage.getItem(WEB_SEARCH_MODE_KEY);
   return value === "on" || value === "off" ? value : "auto";
+}
+
+function getStoredReasoningEffort(): ReasoningEffort {
+  if (typeof window === "undefined") return "medium";
+  const value = window.localStorage.getItem(REASONING_EFFORT_KEY);
+  return value === "high" || value === "xhigh" ? value : "medium";
 }
 
 export function CoachChat({
@@ -90,6 +98,8 @@ export function CoachChat({
   const [editDraft, setEditDraft] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
   const [webSearchMode, setWebSearchMode] = useState<WebSearchMode>("auto");
+  const [reasoningEffort, setReasoningEffort] =
+    useState<ReasoningEffort>("medium");
   const [searchingWeb, setSearchingWeb] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -147,6 +157,7 @@ export function CoachChat({
         setMemories(mem);
         setModels(modelData.models);
         setWebSearchMode(getStoredWebSearchMode());
+        setReasoningEffort(getStoredReasoningEffort());
         const stored = getStoredModelId();
         const valid =
           stored && modelData.models.some((x) => x.id === stored)
@@ -269,6 +280,7 @@ export function CoachChat({
         controller.signal,
         selectedModel || undefined,
         webSearchMode,
+        reasoningEffort,
         setSearchingWeb,
         setActiveRoute
       );
@@ -397,6 +409,7 @@ export function CoachChat({
         selectedModel || undefined,
         activeConversationId,
         webSearchMode,
+        reasoningEffort,
         setSearchingWeb,
         setActiveRoute
       );
@@ -591,6 +604,7 @@ export function CoachChat({
                     requested_model: activeRoute?.requested_model,
                     fallback_used: activeRoute?.fallback_used,
                     fallback_reason: activeRoute?.fallback_reason,
+                    reasoning_effort: reasoningEffort,
                   }}
                   streaming
                   defaultExpanded
@@ -635,6 +649,11 @@ export function CoachChat({
             models={models}
             selectedModel={selectedModel}
             onModelChange={setSelectedModel}
+            reasoningEffort={reasoningEffort}
+            onReasoningEffortChange={(effort) => {
+              setReasoningEffort(effort);
+              window.localStorage.setItem(REASONING_EFFORT_KEY, effort);
+            }}
             webSearchMode={webSearchMode}
             onWebSearchModeChange={(mode) => {
               setWebSearchMode(mode);

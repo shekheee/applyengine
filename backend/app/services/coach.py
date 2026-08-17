@@ -98,10 +98,11 @@ def coach_reply(
     applications: list[Application] | None = None,
     jobs: dict[int, Job] | None = None,
     model_id: str | None = None,
+    reasoning_effort: str | None = None,
     conversation_jd_text: str = "",
     conversation_job: Job | None = None,
 ) -> tuple[str, str | None, str | None]:
-    chain = build_coach_provider(model_id)
+    chain = build_coach_provider(model_id, reasoning_effort)
     chain.reset()
     messages = build_coach_messages(
         message,
@@ -139,11 +140,12 @@ def coach_reply_stream(
     applications: list[Application] | None = None,
     jobs: dict[int, Job] | None = None,
     model_id: str | None = None,
+    reasoning_effort: str | None = None,
     served: dict | None = None,
     conversation_jd_text: str = "",
     conversation_job: Job | None = None,
 ) -> Iterator[str]:
-    chain = build_coach_provider(model_id)
+    chain = build_coach_provider(model_id, reasoning_effort)
     chain.reset()
     messages = build_coach_messages(
         message,
@@ -165,6 +167,7 @@ def coach_reply_stream(
                     "requested_model": chain.requested_model,
                     "fallback_used": chain.fallback_used,
                     "fallback_reason": chain.fallback_reason,
+                    "reasoning_effort": chain.reasoning_effort,
                 }
             )
         yield token
@@ -174,6 +177,7 @@ def coach_reply_stream(
         served["requested_model"] = chain.requested_model
         served["fallback_used"] = chain.fallback_used
         served["fallback_reason"] = chain.fallback_reason
+        served["reasoning_effort"] = chain.reasoning_effort
 
 
 async def coach_reply_stream_async(
@@ -185,12 +189,13 @@ async def coach_reply_stream_async(
     applications: list[Application] | None = None,
     jobs: dict[int, Job] | None = None,
     model_id: str | None = None,
+    reasoning_effort: str | None = None,
     served: dict | None = None,
     conversation_jd_text: str = "",
     conversation_job: Job | None = None,
     web_search_mode: str = "auto",
 ) -> AsyncIterator[str]:
-    chain = build_coach_provider(model_id)
+    chain = build_coach_provider(model_id, reasoning_effort)
     chain.reset()
     messages = build_coach_messages(
         message,
@@ -233,6 +238,7 @@ async def coach_reply_stream_async(
                     "requested_model": chain.requested_model,
                     "fallback_used": chain.fallback_used,
                     "fallback_reason": chain.fallback_reason,
+                    "reasoning_effort": chain.reasoning_effort,
                 }
             )
         yield token
@@ -246,6 +252,7 @@ async def coach_reply_stream_async(
         served["requested_model"] = chain.requested_model
         served["fallback_used"] = chain.fallback_used
         served["fallback_reason"] = chain.fallback_reason
+        served["reasoning_effort"] = chain.reasoning_effort
 
 
 def extract_memories(

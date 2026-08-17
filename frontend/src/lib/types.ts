@@ -1,4 +1,5 @@
 export type Status = "saved" | "applied" | "interview" | "offer" | "rejected";
+export type ReasoningEffort = "medium" | "high" | "xhigh";
 
 export interface User {
   id: number;
@@ -24,6 +25,7 @@ export interface ChatMessage {
   requested_model?: string;
   fallback_used?: boolean;
   fallback_reason?: string;
+  reasoning_effort?: ReasoningEffort;
 }
 
 export interface Conversation {

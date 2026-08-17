@@ -121,6 +121,7 @@ class ChatMessage(SQLModel, table=True):
     provider_served: str = ""
     fallback_used: bool = False
     fallback_reason: str = ""
+    reasoning_effort: str = ""
     created_at: datetime = Field(default_factory=_now)
 
 

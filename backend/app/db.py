@@ -112,8 +112,6 @@ def _migrate_chat_attachments() -> None:
 
 def _migrate_chat_routing() -> None:
     """Persist which requested or backup model served each Coach response."""
-    if is_sqlite:
-        return
     from sqlalchemy import text
 
     columns = (
@@ -122,8 +120,19 @@ def _migrate_chat_routing() -> None:
         "provider_served TEXT DEFAULT ''",
         "fallback_used BOOLEAN DEFAULT FALSE",
         "fallback_reason TEXT DEFAULT ''",
+        "reasoning_effort TEXT DEFAULT ''",
     )
     with engine.begin() as conn:
+        if is_sqlite:
+            existing = {
+                row[1]
+                for row in conn.execute(text("PRAGMA table_info(chatmessage)"))
+            }
+            for definition in columns:
+                column_name = definition.split()[0]
+                if column_name not in existing:
+                    conn.execute(text(f"ALTER TABLE chatmessage ADD COLUMN {definition}"))
+            return
         for definition in columns:
             conn.execute(
                 text(f"ALTER TABLE chatmessage ADD COLUMN IF NOT EXISTS {definition}")

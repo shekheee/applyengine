@@ -7,6 +7,7 @@ from app.config import get_settings
 from app.llm.base import LLMProvider
 from app.llm.coach_chain import CoachFallbackChain
 from app.llm.embedding_chain import EmbeddingFallbackChain
+from app.llm.effort import ReasoningEffort, normalize_reasoning_effort
 from app.llm.coach_models import (
     available_coach_models,
     default_coach_model_id,
@@ -17,17 +18,26 @@ from app.llm.coach_models import (
 logger = logging.getLogger(__name__)
 
 
-def _build_openai(s, *, model: str | None = None):
+def _build_openai(
+    s, *, model: str | None = None, reasoning_effort: ReasoningEffort | None = None
+):
     from app.llm.openai_provider import OpenAIProvider
 
     return OpenAIProvider(
         api_key=s.openai_api_key,
         chat_model=model or s.openai_chat_model,
         embed_model=s.openai_embed_model,
+        reasoning_effort=reasoning_effort,
     )
 
 
-def _build_anthropic(s, *, coach: bool = False, model: str | None = None):
+def _build_anthropic(
+    s,
+    *,
+    coach: bool = False,
+    model: str | None = None,
+    reasoning_effort: ReasoningEffort | None = None,
+):
     from app.llm.anthropic_provider import AnthropicProvider
 
     default = s.anthropic_coach_model if coach else s.anthropic_chat_model
@@ -36,47 +46,70 @@ def _build_anthropic(s, *, coach: bool = False, model: str | None = None):
         chat_model=model or default,
         openai_api_key=s.openai_api_key,
         openai_embed_model=s.openai_embed_model,
+        reasoning_effort=reasoning_effort,
     )
 
 
-def _build_gemini(s, *, model: str | None = None):
+def _build_gemini(
+    s, *, model: str | None = None, reasoning_effort: ReasoningEffort | None = None
+):
     from app.llm.gemini_provider import GeminiProvider
 
     key = s.resolved_gemini_api_key
     if not key:
         return None
-    return GeminiProvider(api_key=key, chat_model=model or s.gemini_coach_model)
+    return GeminiProvider(
+        api_key=key,
+        chat_model=model or s.gemini_coach_model,
+        reasoning_effort=reasoning_effort,
+    )
 
 
-def _provider_builder(s, name: str, *, model: str | None = None):
+def _provider_builder(
+    s,
+    name: str,
+    *,
+    model: str | None = None,
+    reasoning_effort: ReasoningEffort | None = None,
+):
     if name == "openai" and s.openai_api_key:
-        return _build_openai(s, model=model)
+        return _build_openai(s, model=model, reasoning_effort=reasoning_effort)
     if name == "anthropic" and s.anthropic_api_key:
-        return _build_anthropic(s, coach=True, model=model)
+        return _build_anthropic(
+            s, coach=True, model=model, reasoning_effort=reasoning_effort
+        )
     if name == "gemini":
-        return _build_gemini(s, model=model)
+        return _build_gemini(s, model=model, reasoning_effort=reasoning_effort)
     return None
 
 
-def _coach_providers_for_chain(s) -> list:
+def _coach_providers_for_chain(
+    s, reasoning_effort: ReasoningEffort | None = None
+) -> list:
     providers = []
     for name in s.coach_provider_chain_list:
-        provider = _provider_builder(s, name)
+        provider = _provider_builder(s, name, reasoning_effort=reasoning_effort)
         if provider is not None:
             providers.append(provider)
     return providers
 
 
-def build_coach_provider(selected_model: str | None = None) -> CoachFallbackChain:
+def build_coach_provider(
+    selected_model: str | None = None,
+    reasoning_effort: str | None = None,
+) -> CoachFallbackChain:
     """Build a fallback chain, optionally prioritizing a user-selected model."""
     s = get_settings()
     model_id = validate_coach_model(selected_model, s)
+    effort = normalize_reasoning_effort(reasoning_effort)
 
     if not model_id:
-        providers = _coach_providers_for_chain(s)
+        providers = _coach_providers_for_chain(s, effort)
     else:
         primary_name = provider_for_model(model_id, s)
-        primary = _provider_builder(s, primary_name, model=model_id)
+        primary = _provider_builder(
+            s, primary_name, model=model_id, reasoning_effort=effort
+        )
         if primary is None:
             raise RuntimeError(f"Provider '{primary_name}' is not configured")
 
@@ -85,7 +118,7 @@ def build_coach_provider(selected_model: str | None = None) -> CoachFallbackChai
         for name in s.coach_provider_chain_list:
             if name in seen:
                 continue
-            fallback = _provider_builder(s, name)
+            fallback = _provider_builder(s, name, reasoning_effort=effort)
             if fallback is not None:
                 providers.append(fallback)
                 seen.add(name)
@@ -98,6 +131,7 @@ def build_coach_provider(selected_model: str | None = None) -> CoachFallbackChai
         providers,
         requested_model=model_id or providers[0].chat_model,
         requested_provider=providers[0].name,
+        reasoning_effort=effort,
     )
 
 

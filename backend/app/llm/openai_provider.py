@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
 from app.llm.base import LLMProvider
+from app.llm.effort import ReasoningEffort, output_tokens_for_effort
 
 
 def _is_gpt5_family(model: str) -> bool:
@@ -26,13 +27,25 @@ def _completion_kwargs(model: str, **extra: Any) -> dict[str, Any]:
 class OpenAIProvider(LLMProvider):
     name = "openai"
 
-    def __init__(self, api_key: str, chat_model: str, embed_model: str):
+    def __init__(
+        self,
+        api_key: str,
+        chat_model: str,
+        embed_model: str,
+        reasoning_effort: ReasoningEffort | None = None,
+    ):
         from openai import AsyncOpenAI, OpenAI
 
         self._client = OpenAI(api_key=api_key)
         self._async_client = AsyncOpenAI(api_key=api_key)
         self._chat_model = chat_model
         self._embed_model = embed_model
+        self._reasoning_effort = reasoning_effort
+
+    def _reasoning_body(self) -> dict[str, str] | None:
+        if self._reasoning_effort and _is_gpt5_family(self._chat_model):
+            return {"reasoning_effort": self._reasoning_effort}
+        return None
 
     @property
     def chat_model(self) -> str:
@@ -55,6 +68,9 @@ class OpenAIProvider(LLMProvider):
             self._chat_model,
             messages=messages,
         )
+        if self._reasoning_body():
+            kwargs["extra_body"] = self._reasoning_body()
+        max_tokens = output_tokens_for_effort(self._reasoning_effort, max_tokens)
         if _is_gpt5_family(self._chat_model):
             kwargs["max_completion_tokens"] = max_tokens
         else:
@@ -71,8 +87,14 @@ class OpenAIProvider(LLMProvider):
             self._chat_model,
             messages=messages,
             stream=True,
-            max_completion_tokens=4096 if _is_gpt5_family(self._chat_model) else None,
+            max_completion_tokens=(
+                output_tokens_for_effort(self._reasoning_effort, 4096)
+                if _is_gpt5_family(self._chat_model)
+                else None
+            ),
         )
+        if self._reasoning_body():
+            kwargs["extra_body"] = self._reasoning_body()
         if kwargs.get("max_completion_tokens") is None:
             kwargs.pop("max_completion_tokens", None)
         stream = self._client.chat.completions.create(**kwargs)
@@ -88,8 +110,14 @@ class OpenAIProvider(LLMProvider):
             self._chat_model,
             messages=messages,
             stream=True,
-            max_completion_tokens=4096 if _is_gpt5_family(self._chat_model) else None,
+            max_completion_tokens=(
+                output_tokens_for_effort(self._reasoning_effort, 4096)
+                if _is_gpt5_family(self._chat_model)
+                else None
+            ),
         )
+        if self._reasoning_body():
+            kwargs["extra_body"] = self._reasoning_body()
         if kwargs.get("max_completion_tokens") is None:
             kwargs.pop("max_completion_tokens", None)
         stream = await self._async_client.chat.completions.create(**kwargs)

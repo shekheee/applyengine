@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator, Iterator
 from typing import Any, Protocol
 
 from app.llm.base import _safe_json
+from app.llm.effort import ReasoningEffort
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ class CoachFallbackChain:
         providers: list[CoachCapable],
         requested_model: str | None = None,
         requested_provider: str | None = None,
+        reasoning_effort: ReasoningEffort | None = None,
     ):
         if not providers:
             raise ValueError("CoachFallbackChain requires at least one provider")
@@ -42,6 +44,7 @@ class CoachFallbackChain:
         self._last_model: str | None = None
         self._requested_model = requested_model or providers[0].chat_model
         self._requested_provider = requested_provider or providers[0].name
+        self._reasoning_effort = reasoning_effort
         self._failures: list[dict[str, str]] = []
 
     @property
@@ -68,6 +71,10 @@ class CoachFallbackChain:
     @property
     def requested_provider(self) -> str:
         return self._requested_provider
+
+    @property
+    def reasoning_effort(self) -> ReasoningEffort | None:
+        return self._reasoning_effort
 
     @property
     def fallback_used(self) -> bool:

@@ -36,12 +36,14 @@ class ChatIn(BaseModel):
     model: str | None = None
     conversation_id: int | None = None
     web_search_mode: str = "auto"
+    reasoning_effort: str = "medium"
 
 
 class ChatEditIn(BaseModel):
     message: str
     model: str | None = None
     web_search_mode: str = "auto"
+    reasoning_effort: str = "medium"
 
 
 class ConversationCreate(BaseModel):
@@ -80,6 +82,7 @@ class ChatMessageOut(BaseModel):
     requested_model: str | None = None
     fallback_used: bool = False
     fallback_reason: str | None = None
+    reasoning_effort: str | None = None
 
     model_config = {"from_attributes": True}
 

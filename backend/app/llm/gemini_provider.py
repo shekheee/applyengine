@@ -8,6 +8,7 @@ from typing import Any
 import httpx
 
 from app.llm.base import LLMProvider, local_embed
+from app.llm.effort import ReasoningEffort, gemini_thinking_level, output_tokens_for_effort
 from app.llm.messages import to_gemini
 
 logger = logging.getLogger(__name__)
@@ -20,9 +21,15 @@ class GeminiProvider(LLMProvider):
 
     name = "gemini"
 
-    def __init__(self, api_key: str, chat_model: str):
+    def __init__(
+        self,
+        api_key: str,
+        chat_model: str,
+        reasoning_effort: ReasoningEffort | None = None,
+    ):
         self._api_key = api_key
         self._chat_model = chat_model
+        self._reasoning_effort = reasoning_effort
         self._client = httpx.Client(timeout=120.0)
         self._async_client = httpx.AsyncClient(timeout=120.0)
 
@@ -47,6 +54,17 @@ class GeminiProvider(LLMProvider):
         )
         return "".join(p.get("text", "") for p in parts if isinstance(p, dict))
 
+    def _generation_config(self, max_tokens: int = 4096) -> dict[str, Any]:
+        config: dict[str, Any] = {
+            "maxOutputTokens": output_tokens_for_effort(
+                self._reasoning_effort, max_tokens
+            )
+        }
+        thinking_level = gemini_thinking_level(self._reasoning_effort)
+        if thinking_level:
+            config["thinkingConfig"] = {"thinkingLevel": thinking_level}
+        return config
+
     def chat(self, system: str, user: str, json_mode: bool = False) -> str:
         return self.chat_messages(
             [{"role": "system", "content": system}, {"role": "user", "content": user}],
@@ -60,7 +78,7 @@ class GeminiProvider(LLMProvider):
         max_tokens: int = 4096,
     ) -> str:
         body = self._payload(messages)
-        gen_cfg: dict[str, Any] = {"maxOutputTokens": max_tokens}
+        gen_cfg = self._generation_config(max_tokens)
         if json_mode:
             gen_cfg["responseMimeType"] = "application/json"
         body["generationConfig"] = gen_cfg
@@ -71,6 +89,7 @@ class GeminiProvider(LLMProvider):
 
     def chat_stream(self, messages: list[dict[str, Any]]) -> Iterator[str]:
         body = self._payload(messages)
+        body["generationConfig"] = self._generation_config()
         url = f"{_GEMINI_BASE}/models/{self._chat_model}:streamGenerateContent"
         with self._client.stream(
             "POST", url, params={"key": self._api_key, "alt": "sse"}, json=body
@@ -88,6 +107,7 @@ class GeminiProvider(LLMProvider):
         self, messages: list[dict[str, Any]]
     ) -> AsyncIterator[str]:
         body = self._payload(messages)
+        body["generationConfig"] = self._generation_config()
         url = f"{_GEMINI_BASE}/models/{self._chat_model}:streamGenerateContent"
         async with self._async_client.stream(
             "POST", url, params={"key": self._api_key, "alt": "sse"}, json=body

@@ -14,6 +14,7 @@ from app.db import engine, get_session
 from app.models import Application, ChatMessage, Conversation, Job, Memory, Profile, User
 from app.llm.coach_models import validate_coach_model
 from app.llm.factory import list_coach_models, default_model_id
+from app.llm.effort import normalize_reasoning_effort
 from app.services.web_research import normalize_search_mode, should_search
 from app.schemas import (
     ChatEditIn,
@@ -120,6 +121,13 @@ def _snapshot_apps_jobs(
 def _resolve_model(model: str | None) -> str | None:
     try:
         return validate_coach_model(model)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+
+def _resolve_effort(effort: str | None) -> str:
+    try:
+        return normalize_reasoning_effort(effort, default="medium") or "medium"
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
 
@@ -384,6 +392,7 @@ def send_message(
         raise HTTPException(400, "Message is empty")
 
     model_id = _resolve_model(body.model)
+    reasoning_effort = _resolve_effort(body.reasoning_effort)
     conv = _get_conversation(body.conversation_id, user, session)
     conv_id = conv.id or 0
     job, jd_text = _conv_context(session, conv)
@@ -414,6 +423,7 @@ def send_message(
         apps,
         jobs,
         model_id=model_id,
+        reasoning_effort=reasoning_effort,
         conversation_jd_text=jd_text,
         conversation_job=job,
     )
@@ -431,6 +441,7 @@ def send_message(
             if model_id and model_served and model_id != model_served
             else ""
         ),
+        reasoning_effort=reasoning_effort,
     )
     session.add(assistant_msg)
 
@@ -451,6 +462,7 @@ async def send_message_stream(
     model: str = Form(""),
     conversation_id: int | None = Form(default=None),
     web_search_mode: str = Form(default="auto"),
+    reasoning_effort: str = Form(default="medium"),
     files: list[UploadFile] = File(default=[]),
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
@@ -460,6 +472,7 @@ async def send_message_stream(
         raise HTTPException(400, "Message or attachment is required")
 
     model_id = _resolve_model(model.strip() or None)
+    effort = _resolve_effort(reasoning_effort)
     conv = _get_conversation(conversation_id, user, session)
     conv_id = conv.id or 0
     job, jd_text = _conv_context(session, conv)
@@ -516,6 +529,7 @@ async def send_message_stream(
                 apps_snap,
                 jobs_snap,
                 model_id=model_id,
+                reasoning_effort=effort,
                 served=served,
                 conversation_jd_text=jd_text,
                 conversation_job=job_snap,
@@ -538,6 +552,7 @@ async def send_message_stream(
                     apps_snap,
                     jobs_snap,
                     model_id=model_id,
+                    reasoning_effort=effort,
                     conversation_jd_text=jd_text,
                     conversation_job=job_snap,
                 )
@@ -555,6 +570,7 @@ async def send_message_stream(
                     provider_served=served.get("provider") or "",
                     fallback_used=bool(served.get("fallback_used")),
                     fallback_reason=served.get("fallback_reason") or "",
+                    reasoning_effort=served.get("reasoning_effort") or effort,
                 )
                 db.add(assistant_msg)
 
@@ -574,7 +590,7 @@ async def send_message_stream(
                 db.refresh(assistant_msg)
                 assistant_json = assistant_msg.model_dump(mode="json")
 
-            yield f"data: {json.dumps({'type': 'done', 'user_message': user_msg_json, 'assistant_message': assistant_json, 'provider_served': served.get('provider'), 'model_served': served.get('model'), 'requested_model': served.get('requested_model'), 'fallback_used': served.get('fallback_used', False), 'fallback_reason': served.get('fallback_reason'), 'conversation_id': conv_id, 'web_searched': served.get('web_searched', False), 'search_provider': served.get('search_provider'), 'sources': served.get('sources', []), 'web_search_error': served.get('web_search_error')})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'user_message': user_msg_json, 'assistant_message': assistant_json, 'provider_served': served.get('provider'), 'model_served': served.get('model'), 'requested_model': served.get('requested_model'), 'fallback_used': served.get('fallback_used', False), 'fallback_reason': served.get('fallback_reason'), 'reasoning_effort': served.get('reasoning_effort') or effort, 'conversation_id': conv_id, 'web_searched': served.get('web_searched', False), 'search_provider': served.get('search_provider'), 'sources': served.get('sources', []), 'web_search_error': served.get('web_search_error')})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
 
@@ -600,6 +616,7 @@ async def edit_message_stream(
         raise HTTPException(400, "Message is empty")
 
     model_id = _resolve_model(body.model)
+    effort = _resolve_effort(body.reasoning_effort)
     search_mode = normalize_search_mode(body.web_search_mode)
     user_msg = _owned_user_message(message_id, user, session)
     conv_id = user_msg.conversation_id
@@ -651,6 +668,7 @@ async def edit_message_stream(
                 apps_snap,
                 jobs_snap,
                 model_id=model_id,
+                reasoning_effort=effort,
                 served=served,
                 conversation_jd_text=jd_text,
                 conversation_job=job_snap,
@@ -673,6 +691,7 @@ async def edit_message_stream(
                     apps_snap,
                     jobs_snap,
                     model_id=model_id,
+                    reasoning_effort=effort,
                     conversation_jd_text=jd_text,
                     conversation_job=job_snap,
                 )
@@ -690,6 +709,7 @@ async def edit_message_stream(
                     provider_served=served.get("provider") or "",
                     fallback_used=bool(served.get("fallback_used")),
                     fallback_reason=served.get("fallback_reason") or "",
+                    reasoning_effort=served.get("reasoning_effort") or effort,
                 )
                 db.add(assistant_msg)
 
@@ -711,7 +731,7 @@ async def edit_message_stream(
                 if served.get("provider"):
                     assistant_json["provider_served"] = served.get("provider")
 
-            yield f"data: {json.dumps({'type': 'done', 'user_message': user_msg_json, 'assistant_message': assistant_json, 'removed_message_ids': removed_ids, 'provider_served': served.get('provider'), 'model_served': served.get('model'), 'requested_model': served.get('requested_model'), 'fallback_used': served.get('fallback_used', False), 'fallback_reason': served.get('fallback_reason'), 'conversation_id': conv_id, 'web_searched': served.get('web_searched', False), 'search_provider': served.get('search_provider'), 'sources': served.get('sources', []), 'web_search_error': served.get('web_search_error')})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'user_message': user_msg_json, 'assistant_message': assistant_json, 'removed_message_ids': removed_ids, 'provider_served': served.get('provider'), 'model_served': served.get('model'), 'requested_model': served.get('requested_model'), 'fallback_used': served.get('fallback_used', False), 'fallback_reason': served.get('fallback_reason'), 'reasoning_effort': served.get('reasoning_effort') or effort, 'conversation_id': conv_id, 'web_searched': served.get('web_searched', False), 'search_provider': served.get('search_provider'), 'sources': served.get('sources', []), 'web_search_error': served.get('web_search_error')})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
 

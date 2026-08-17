@@ -118,6 +118,19 @@ export function MessageBubble({
                 )}
               </span>
             )}
+            {message.reasoning_effort && (
+              <span
+                className="rounded-full border px-2 py-0.5 text-[10px] font-medium text-[var(--muted)]"
+                style={{ borderColor: "var(--border)", background: "var(--panel-3)" }}
+                title="Thinking depth used for this answer"
+              >
+                {message.reasoning_effort === "xhigh"
+                  ? "Very hard"
+                  : message.reasoning_effort === "high"
+                    ? "Hard"
+                    : "Medium"}
+              </span>
+            )}
           </div>
         )}
 

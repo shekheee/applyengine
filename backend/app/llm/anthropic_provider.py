@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
 from app.llm.base import LLMProvider, local_embed
+from app.llm.effort import ReasoningEffort, output_tokens_for_effort
 from app.llm.messages import to_anthropic
 
 
@@ -18,12 +19,14 @@ class AnthropicProvider(LLMProvider):
         chat_model: str,
         openai_api_key: str | None = None,
         openai_embed_model: str = "text-embedding-3-small",
+        reasoning_effort: ReasoningEffort | None = None,
     ):
         from anthropic import Anthropic, AsyncAnthropic
 
         self._client = Anthropic(api_key=api_key)
         self._async_client = AsyncAnthropic(api_key=api_key)
         self._chat_model = chat_model
+        self._reasoning_effort = reasoning_effort
         self._openai_embed = None
         if openai_api_key:
             from app.llm.openai_provider import OpenAIProvider
@@ -35,6 +38,14 @@ class AnthropicProvider(LLMProvider):
     @property
     def chat_model(self) -> str:
         return self._chat_model
+
+    def _reasoning_body(self) -> dict[str, Any] | None:
+        if not self._reasoning_effort:
+            return None
+        return {
+            "thinking": {"type": "adaptive"},
+            "output_config": {"effort": self._reasoning_effort},
+        }
 
     def chat(self, system: str, user: str, json_mode: bool = False) -> str:
         if json_mode:
@@ -54,9 +65,10 @@ class AnthropicProvider(LLMProvider):
             system = f"{system}\n\nRespond with a single valid JSON object and nothing else."
         resp = self._client.messages.create(
             model=self._chat_model,
-            max_tokens=max_tokens,
+            max_tokens=output_tokens_for_effort(self._reasoning_effort, max_tokens),
             system=system,
             messages=api_messages,
+            extra_body=self._reasoning_body(),
         )
         return "".join(block.text for block in resp.content if block.type == "text")
 
@@ -64,9 +76,10 @@ class AnthropicProvider(LLMProvider):
         system, api_messages = to_anthropic(messages)
         with self._client.messages.stream(
             model=self._chat_model,
-            max_tokens=4096,
+            max_tokens=output_tokens_for_effort(self._reasoning_effort, 4096),
             system=system,
             messages=api_messages,
+            extra_body=self._reasoning_body(),
         ) as stream:
             for text in stream.text_stream:
                 if text:
@@ -78,9 +91,10 @@ class AnthropicProvider(LLMProvider):
         system, api_messages = to_anthropic(messages)
         async with self._async_client.messages.stream(
             model=self._chat_model,
-            max_tokens=4096,
+            max_tokens=output_tokens_for_effort(self._reasoning_effort, 4096),
             system=system,
             messages=api_messages,
+            extra_body=self._reasoning_body(),
         ) as stream:
             async for text in stream.text_stream:
                 if text:
