@@ -38,6 +38,7 @@ class ChatIn(BaseModel):
     web_search_mode: str = "auto"
     reasoning_effort: str = "medium"
     answer_length: str = "normal"
+    coach_mode: str = "career"
 
 
 class ChatEditIn(BaseModel):
@@ -46,6 +47,7 @@ class ChatEditIn(BaseModel):
     web_search_mode: str = "auto"
     reasoning_effort: str = "medium"
     answer_length: str = "normal"
+    coach_mode: str = "career"
 
 
 class ConversationCreate(BaseModel):

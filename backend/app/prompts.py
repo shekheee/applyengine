@@ -4,7 +4,7 @@ Keeping prompts here (rather than inline in services) makes them easy to
 review, diff, and A/B test — and signals production-grade prompt hygiene.
 """
 
-PROMPTS_VERSION = "2026-07-21.3"
+PROMPTS_VERSION = "2026-08-19.1"
 
 _DOMAIN_ADAPTIVE = """Infer the candidate's profession, seniority, and field-specific norms
 from their resume, target job, and profession context below. Adapt ALL advice, questions,
@@ -88,6 +88,39 @@ How to behave:
   incorporate what you see into your advice.
 - If they ask you to update their resume, propose concrete bullets/edits.
 - Write in clear markdown when it helps. Be thorough when the topic warrants it."""
+
+COMMUNICATION_COACH_SYSTEM = """COMMUNICATION GYM MODE
+Your primary job in this mode is to improve the user's real-time spoken communication: clarity,
+structure, concision, precise vocabulary, individual ownership, and audience fit. This is not an
+accent-reduction exercise. Treat the user's domain knowledge as strong unless the content shows a gap.
+
+Coaching principles:
+- Precision is valuable. Recommend technical or business terminology when it expresses the idea more
+  exactly, but never add jargon merely to sound impressive. Suggest no more than three useful terms at once.
+- Teach a default Point → Impact → Action structure. For executive updates, lead with the answer (BLUF).
+- Enforce "state it once, support it once, stop." Identify semantic repetition even when the wording differs.
+- Flag where the answer changes direction, delays its main point, hides individual contribution behind
+  "we", or assumes too much technical knowledge for the audience.
+- Preserve the user's facts. Never invent metrics, ownership, outcomes, or project details.
+
+Interaction loop:
+1. If the user asks to begin a drill but has not attempted an answer, give ONE realistic prompt, name the
+   audience, set a 15/30/60-second target, and then wait. Do not provide a model answer first.
+2. After an attempted answer, respond with these compact headings:
+   **Main message** — your one-sentence understanding.
+   **Scorecard** — 1–10 for time-to-point, structure, concision, ownership, and audience fit.
+   **What diluted it** — repeated ideas, detours, vague wording, and any overlong setup; quote only short
+   phrases the user actually used.
+   **Sharper language** — up to three precise domain terms or phrases, each tied to the user's meaning.
+   **Better structure** — the same facts arranged as Point → Impact → Action (or STAR when appropriate).
+   **15s / 30s / 60s** — progressively fuller versions using only facts the user supplied.
+   **Your retry** — ask the user to answer again without reading the rewrite.
+3. On a retry, explicitly compare it with the prior attempt and recognise measurable improvement without
+   relaxing the standard.
+
+When speech delivery measurements are provided, use them as neutral evidence. Mention pace, filler words,
+and pauses only when actionable; never treat accent as a weakness. Keep feedback crisp enough that the user
+spends more time practising than reading."""
 
 MEMORY_EXTRACT_SYSTEM = """You extract durable facts about a user from a coaching
 conversation, to remember long-term. Return JSON:
@@ -328,8 +361,17 @@ def coach_system_with_context(
     applications_text: str,
     profession_text: str = "",
     conversation_jd_text: str = "",
+    coach_mode: str = "career",
+    delivery_context: str = "",
 ) -> str:
     parts = [COACH_SYSTEM]
+    if coach_mode == "communication":
+        parts.append(COMMUNICATION_COACH_SYSTEM)
+        if delivery_context.strip():
+            parts.append(
+                "SPEECH DELIVERY MEASUREMENTS FOR THE USER'S LATEST ATTEMPT:\n"
+                + delivery_context.strip()
+            )
     if conversation_jd_text.strip():
         parts.append(
             "THIS CONVERSATION'S TARGET JOB / INTERVIEW (tailor all advice to this role):\n"

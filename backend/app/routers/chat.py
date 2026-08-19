@@ -140,6 +140,38 @@ def _resolve_answer_length(value: str | None) -> str:
         raise HTTPException(status_code=422, detail=str(e)) from e
 
 
+def _resolve_coach_mode(value: str | None) -> str:
+    mode = (value or "career").strip().lower()
+    if mode not in {"career", "communication"}:
+        raise HTTPException(422, "coach_mode must be 'career' or 'communication'")
+    return mode
+
+
+def _delivery_context(raw: str | None) -> str:
+    if not raw:
+        return ""
+    try:
+        value = json.loads(raw)
+    except (TypeError, ValueError):
+        return ""
+    if not isinstance(value, dict):
+        return ""
+    fields = (
+        ("duration_seconds", "duration seconds"),
+        ("word_count", "word count"),
+        ("words_per_minute", "words per minute"),
+        ("filler_count", "filler words"),
+        ("filler_rate_per_100", "fillers per 100 words"),
+        ("pause_count", "detected pauses"),
+        ("longest_pause_ms", "longest pause ms"),
+    )
+    return "\n".join(
+        f"- {label}: {value[key]}"
+        for key, label in fields
+        if isinstance(value.get(key), (int, float))
+    )
+
+
 def _get_conversation(
     conversation_id: int | None, user: User, session: Session
 ) -> Conversation:
@@ -402,6 +434,7 @@ def send_message(
     model_id = _resolve_model(body.model)
     reasoning_effort = _resolve_effort(body.reasoning_effort)
     answer_length = _resolve_answer_length(body.answer_length)
+    coach_mode = _resolve_coach_mode(body.coach_mode)
     conv = _get_conversation(body.conversation_id, user, session)
     conv_id = conv.id or 0
     job, jd_text = _conv_context(session, conv)
@@ -434,6 +467,7 @@ def send_message(
         model_id=model_id,
         reasoning_effort=reasoning_effort,
         answer_length=answer_length,
+        coach_mode=coach_mode,
         conversation_jd_text=jd_text,
         conversation_job=job,
     )
@@ -474,6 +508,8 @@ async def send_message_stream(
     web_search_mode: str = Form(default="auto"),
     reasoning_effort: str = Form(default="medium"),
     answer_length: str = Form(default="normal"),
+    coach_mode: str = Form(default="career"),
+    delivery_json: str = Form(default=""),
     files: list[UploadFile] = File(default=[]),
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
@@ -485,6 +521,8 @@ async def send_message_stream(
     model_id = _resolve_model(model.strip() or None)
     effort = _resolve_effort(reasoning_effort)
     resolved_answer_length = _resolve_answer_length(answer_length)
+    resolved_coach_mode = _resolve_coach_mode(coach_mode)
+    delivery_context = _delivery_context(delivery_json)
     conv = _get_conversation(conversation_id, user, session)
     conv_id = conv.id or 0
     job, jd_text = _conv_context(session, conv)
@@ -547,6 +585,8 @@ async def send_message_stream(
                 conversation_job=job_snap,
                 web_search_mode=search_mode,
                 answer_length=resolved_answer_length,
+                coach_mode=resolved_coach_mode,
+                delivery_context=delivery_context,
             ):
                 if served.get("fallback_used") and not route_sent:
                     route_sent = True
@@ -569,6 +609,8 @@ async def send_message_stream(
                     conversation_jd_text=jd_text,
                     conversation_job=job_snap,
                     answer_length=resolved_answer_length,
+                    coach_mode=resolved_coach_mode,
+                    delivery_context=delivery_context,
                 )
                 served["provider"] = prov
                 served["model"] = mod
@@ -632,6 +674,7 @@ async def edit_message_stream(
     model_id = _resolve_model(body.model)
     effort = _resolve_effort(body.reasoning_effort)
     answer_length = _resolve_answer_length(body.answer_length)
+    coach_mode = _resolve_coach_mode(body.coach_mode)
     search_mode = normalize_search_mode(body.web_search_mode)
     user_msg = _owned_user_message(message_id, user, session)
     conv_id = user_msg.conversation_id
@@ -689,6 +732,7 @@ async def edit_message_stream(
                 conversation_job=job_snap,
                 web_search_mode=search_mode,
                 answer_length=answer_length,
+                coach_mode=coach_mode,
             ):
                 if served.get("fallback_used") and not route_sent:
                     route_sent = True
@@ -711,6 +755,7 @@ async def edit_message_stream(
                     conversation_jd_text=jd_text,
                     conversation_job=job_snap,
                     answer_length=answer_length,
+                    coach_mode=coach_mode,
                 )
                 served["provider"] = prov
                 served["model"] = mod

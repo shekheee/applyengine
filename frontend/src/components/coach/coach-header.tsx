@@ -1,6 +1,6 @@
 "use client";
 
-import type { Conversation } from "@/lib/types";
+import type { CoachMode, Conversation } from "@/lib/types";
 import { Button } from "@/components/ui";
 import { conversationSubtitle } from "@/components/coach-conversations";
 import {
@@ -20,6 +20,8 @@ export function CoachHeader({
   openInCoachHref,
   fullscreen,
   onToggleFullscreen,
+  coachMode,
+  onCoachModeChange,
 }: {
   embedded?: boolean;
   activeConversation: Conversation | null;
@@ -30,6 +32,8 @@ export function CoachHeader({
   openInCoachHref: string;
   fullscreen?: boolean;
   onToggleFullscreen?: () => void;
+  coachMode: CoachMode;
+  onCoachModeChange: (mode: CoachMode) => void;
 }) {
   return (
     <header
@@ -74,6 +78,39 @@ export function CoachHeader({
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
+        {!embedded && (
+          <div
+            className="flex rounded-lg border p-0.5"
+            style={{ borderColor: "var(--border-strong)", background: "var(--panel-2)" }}
+            aria-label="Coach mode"
+          >
+            <button
+              type="button"
+              onClick={() => onCoachModeChange("career")}
+              aria-pressed={coachMode === "career"}
+              className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                coachMode === "career"
+                  ? "bg-[var(--panel-3)] text-[var(--text)] shadow-sm"
+                  : "text-[var(--muted)] hover:text-[var(--text)]"
+              }`}
+            >
+              Career
+            </button>
+            <button
+              type="button"
+              onClick={() => onCoachModeChange("communication")}
+              aria-pressed={coachMode === "communication"}
+              className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                coachMode === "communication"
+                  ? "bg-emerald-400/15 text-emerald-300 shadow-sm"
+                  : "text-[var(--muted)] hover:text-[var(--text)]"
+              }`}
+            >
+              <span className="sm:hidden">Gym</span>
+              <span className="hidden sm:inline">Communication Gym</span>
+            </button>
+          </div>
+        )}
         {embedded ? (
           <Button href={openInCoachHref} variant="outline" size="sm">
             Open in Coach →

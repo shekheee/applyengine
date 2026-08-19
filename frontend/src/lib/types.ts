@@ -1,6 +1,7 @@
 export type Status = "saved" | "applied" | "interview" | "offer" | "rejected";
 export type ReasoningEffort = "medium" | "high" | "xhigh";
 export type AnswerLength = "concise" | "normal" | "detailed";
+export type CoachMode = "career" | "communication";
 
 export interface User {
   id: number;

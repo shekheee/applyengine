@@ -2,6 +2,7 @@ import type {
   Application,
   ChatMessage,
   CoachModel,
+  CoachMode,
   Conversation,
   DeliveryMetrics,
   ResumeDesignResult,
@@ -164,7 +165,8 @@ export const api = {
     message: string,
     model?: string,
     reasoningEffort = "medium",
-    answerLength = "normal"
+    answerLength = "normal",
+    coachMode: CoachMode = "career"
   ) =>
     req<ChatMessage>("/api/chat/messages", {
       method: "POST",
@@ -173,6 +175,7 @@ export const api = {
         model: model || undefined,
         reasoning_effort: reasoningEffort,
         answer_length: answerLength,
+        coach_mode: coachMode,
       }),
     }),
   sendMessageStream: async (
@@ -185,6 +188,8 @@ export const api = {
     webSearchMode: WebSearchMode = "auto",
     reasoningEffort = "medium",
     answerLength = "normal",
+    coachMode: CoachMode = "career",
+    delivery?: DeliveryMetrics,
     onSearchStatus?: (searching: boolean) => void,
     onRoute?: (route: {
       requested_model?: string;
@@ -207,6 +212,8 @@ export const api = {
     form.append("web_search_mode", webSearchMode);
     form.append("reasoning_effort", reasoningEffort);
     form.append("answer_length", answerLength);
+    form.append("coach_mode", coachMode);
+    if (delivery) form.append("delivery_json", JSON.stringify(delivery));
     for (const f of files) form.append("files", f);
 
     const res = await fetch(`${BASE}/api/chat/messages/stream`, {
@@ -307,6 +314,7 @@ export const api = {
     webSearchMode: WebSearchMode = "auto",
     reasoningEffort = "medium",
     answerLength = "normal",
+    coachMode: CoachMode = "career",
     onSearchStatus?: (searching: boolean) => void,
     onRoute?: (route: Partial<ChatMessage>) => void
   ): Promise<{
@@ -328,6 +336,7 @@ export const api = {
         web_search_mode: webSearchMode,
         reasoning_effort: reasoningEffort,
         answer_length: answerLength,
+        coach_mode: coachMode,
       }),
       signal,
     });

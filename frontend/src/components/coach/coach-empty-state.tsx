@@ -1,6 +1,7 @@
 "use client";
 
 import { CoachAvatarIcon } from "@/components/coach/coach-icons";
+import type { CoachMode } from "@/lib/types";
 
 export function CoachEmptyState({
   embedded,
@@ -8,19 +9,25 @@ export function CoachEmptyState({
   starters,
   onStarter,
   disabled,
+  coachMode = "career",
 }: {
   embedded?: boolean;
   hasJd?: boolean;
   starters: string[];
   onStarter: (text: string) => void;
   disabled?: boolean;
+  coachMode?: CoachMode;
 }) {
   const title =
-    embedded && hasJd
+    coachMode === "communication"
+      ? "Say it once. Make it land."
+      : embedded && hasJd
       ? "Ask anything about this role"
       : "How can I help with your career?";
   const subtitle =
-    embedded && hasJd
+    coachMode === "communication"
+      ? "Practise aloud or type an answer. The coach will find repetition, sharpen your vocabulary, compress the message, and ask you to retry."
+      : embedded && hasJd
       ? "This thread is scoped to the job description. Prep, gaps, and talking points stay role-specific."
       : "Ask about resume bullets, interview prep, or attach a PDF or screenshot for feedback.";
 

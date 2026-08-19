@@ -64,6 +64,8 @@ def build_coach_messages(
     conversation_jd_text: str = "",
     conversation_job: Job | None = None,
     answer_length: str = "normal",
+    coach_mode: str = "career",
+    delivery_context: str = "",
 ) -> list[dict[str, Any]]:
     profile_text = _profile_text(profile)
     memory_text = _memory_text(memories)
@@ -79,6 +81,8 @@ def build_coach_messages(
         apps_text,
         profession_text,
         conversation_jd_text=conversation_jd_text,
+        coach_mode=coach_mode,
+        delivery_context=delivery_context,
     )
     system += f"\n\nRESPONSE LENGTH FOR THIS TURN:\n{answer_length_instruction(answer_length)}"
     messages: list[dict[str, Any]] = [{"role": "system", "content": system}]
@@ -105,6 +109,8 @@ def coach_reply(
     conversation_jd_text: str = "",
     conversation_job: Job | None = None,
     answer_length: str = "normal",
+    coach_mode: str = "career",
+    delivery_context: str = "",
 ) -> tuple[str, str | None, str | None]:
     chain = build_coach_provider(model_id, reasoning_effort)
     chain.reset()
@@ -119,6 +125,8 @@ def coach_reply(
         conversation_jd_text=conversation_jd_text,
         conversation_job=conversation_job,
         answer_length=answer_length,
+        coach_mode=coach_mode,
+        delivery_context=delivery_context,
     )
     try:
         out = chain.chat_messages(messages).strip()
@@ -150,6 +158,8 @@ def coach_reply_stream(
     conversation_jd_text: str = "",
     conversation_job: Job | None = None,
     answer_length: str = "normal",
+    coach_mode: str = "career",
+    delivery_context: str = "",
 ) -> Iterator[str]:
     chain = build_coach_provider(model_id, reasoning_effort)
     chain.reset()
@@ -164,6 +174,8 @@ def coach_reply_stream(
         conversation_jd_text=conversation_jd_text,
         conversation_job=conversation_job,
         answer_length=answer_length,
+        coach_mode=coach_mode,
+        delivery_context=delivery_context,
     )
     for token in chain.chat_stream(messages):
         if served is not None:
@@ -202,6 +214,8 @@ async def coach_reply_stream_async(
     conversation_job: Job | None = None,
     web_search_mode: str = "auto",
     answer_length: str = "normal",
+    coach_mode: str = "career",
+    delivery_context: str = "",
 ) -> AsyncIterator[str]:
     chain = build_coach_provider(model_id, reasoning_effort)
     chain.reset()
@@ -216,6 +230,8 @@ async def coach_reply_stream_async(
         conversation_jd_text=conversation_jd_text,
         conversation_job=conversation_job,
         answer_length=answer_length,
+        coach_mode=coach_mode,
+        delivery_context=delivery_context,
     )
     try:
         research = await run_web_research(

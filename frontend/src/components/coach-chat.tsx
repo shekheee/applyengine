@@ -11,8 +11,10 @@ import { api } from "@/lib/api";
 import type {
   AnswerLength,
   ChatMessage,
+  CoachMode,
   CoachModel,
   Conversation,
+  DeliveryMetrics,
   Job,
   Memory,
   PendingAttachment,
@@ -29,9 +31,11 @@ import { CoachEmptyState } from "@/components/coach/coach-empty-state";
 import { CoachHeader } from "@/components/coach/coach-header";
 import { CoachToolsPanel } from "@/components/coach/coach-tools-panel";
 import { CoachTypingIndicator } from "@/components/coach/coach-typing-indicator";
+import { CommunicationPracticeBar } from "@/components/coach/communication-practice-bar";
 import { ConversationSidebar } from "@/components/coach/conversation-sidebar";
 import { MessageBubble } from "@/components/coach/message-bubble";
 import { getStoredModelId, storeModelId } from "@/components/model-selector";
+import { useVoiceRecorder, type RecordedAudio } from "@/hooks/use-voice-recorder";
 
 const STARTERS = [
   "Help me sharpen my resume summary.",
@@ -47,9 +51,17 @@ const JD_STARTERS = [
   "What gaps should I address before applying?",
 ];
 
+const COMMUNICATION_STARTERS = [
+  "Test how clearly I can explain a stale or blocked production run.",
+  "Give me a 30-second senior stakeholder update to practise.",
+  "Ask me a competency question and catch repeated ideas.",
+  "Help me activate stronger technical and business vocabulary.",
+];
+
 const WEB_SEARCH_MODE_KEY = "applyengine_web_search_mode";
 const REASONING_EFFORT_KEY = "applyengine_reasoning_effort";
 const ANSWER_LENGTH_KEY = "applyengine_answer_length";
+const COACH_MODE_KEY = "applyengine_coach_mode";
 
 function getStoredWebSearchMode(): WebSearchMode {
   if (typeof window === "undefined") return "auto";
@@ -67,6 +79,13 @@ function getStoredAnswerLength(): AnswerLength {
   if (typeof window === "undefined") return "normal";
   const value = window.localStorage.getItem(ANSWER_LENGTH_KEY);
   return value === "concise" || value === "detailed" ? value : "normal";
+}
+
+function getStoredCoachMode(): CoachMode {
+  if (typeof window === "undefined") return "career";
+  return window.localStorage.getItem(COACH_MODE_KEY) === "communication"
+    ? "communication"
+    : "career";
 }
 
 export function CoachChat({
@@ -110,6 +129,35 @@ export function CoachChat({
     useState<ReasoningEffort>("medium");
   const [answerLength, setAnswerLength] = useState<AnswerLength>("normal");
   const [searchingWeb, setSearchingWeb] = useState(false);
+  const [coachMode, setCoachMode] = useState<CoachMode>("career");
+  const [voiceDelivery, setVoiceDelivery] = useState<DeliveryMetrics | null>(null);
+  const [transcribingVoice, setTranscribingVoice] = useState(false);
+  const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
+
+  async function processRecordedAudio(recorded: RecordedAudio | null) {
+    setTranscribingVoice(true);
+    setTranscriptionError(null);
+    try {
+      if (!recorded || recorded.blob.size < 100) {
+        setTranscriptionError("Recording too short. Try again.");
+        return;
+      }
+      const result = await api.transcribeInterviewAudio(
+        recorded.blob,
+        recorded.mime,
+        recorded.duration
+      );
+      setInput(result.text);
+      setVoiceDelivery(result.delivery);
+      requestAnimationFrame(() => textareaRef.current?.focus());
+    } catch (e) {
+      setTranscriptionError(e instanceof Error ? e.message : "Transcription failed.");
+    } finally {
+      setTranscribingVoice(false);
+    }
+  }
+
+  const voice = useVoiceRecorder(processRecordedAudio);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -168,6 +216,7 @@ export function CoachChat({
         setWebSearchMode(getStoredWebSearchMode());
         setReasoningEffort(getStoredReasoningEffort());
         setAnswerLength(getStoredAnswerLength());
+        setCoachMode(getStoredCoachMode());
         const stored = getStoredModelId();
         const valid =
           stored && modelData.models.some((x) => x.id === stored)
@@ -219,6 +268,8 @@ export function CoachChat({
   useEffect(() => {
     const ta = textareaRef.current;
     if (!ta) return;
+    // Imperative textarea autosizing is an intentional DOM synchronization.
+    // eslint-disable-next-line react-hooks/immutability
     ta.style.height = "auto";
     ta.style.height = `${Math.min(ta.scrollHeight, 200)}px`;
   }, [input]);
@@ -292,6 +343,7 @@ export function CoachChat({
         webSearchMode,
         reasoningEffort,
         answerLength,
+        coachMode,
         setSearchingWeb,
         setActiveRoute
       );
@@ -385,6 +437,7 @@ export function CoachChat({
 
     setError("");
     const files = pendingFiles.map((p) => p.file);
+    const delivery = textOverride == null ? voiceDelivery ?? undefined : undefined;
     const attMeta = files.map((f) => ({
       name: f.name,
       kind: f.type.startsWith("image/") ? ("image" as const) : ("document" as const),
@@ -422,6 +475,8 @@ export function CoachChat({
         webSearchMode,
         reasoningEffort,
         answerLength,
+        coachMode,
+        delivery,
         setSearchingWeb,
         setActiveRoute
       );
@@ -431,6 +486,7 @@ export function CoachChat({
         result.assistant_message,
       ]);
       setMemories(await api.listMemories());
+      setVoiceDelivery(null);
       const convs = await api.listConversations();
       setConversations(convs);
       if (activeConversationId) {
@@ -475,6 +531,25 @@ export function CoachChat({
     }
   }
 
+  async function handleMicClick() {
+    if (voice.state === "recording") {
+      await processRecordedAudio(await voice.finishRecording());
+      return;
+    }
+    if (voice.state === "processing" || transcribingVoice) return;
+    setVoiceDelivery(null);
+    setTranscriptionError(null);
+    await voice.startRecording();
+  }
+
+  function changeCoachMode(mode: CoachMode) {
+    setCoachMode(mode);
+    window.localStorage.setItem(COACH_MODE_KEY, mode);
+    voice.setError(null);
+    setTranscriptionError(null);
+    if (mode === "career") setVoiceDelivery(null);
+  }
+
   async function removeMemory(id: number) {
     await api.deleteMemory(id);
     setMemories((prev) => prev.filter((m) => m.id !== id));
@@ -513,7 +588,12 @@ export function CoachChat({
       ? `/coach?conversation_id=${activeConversationId}`
       : "/coach";
 
-  const starters = activeConversation?.has_jd ? JD_STARTERS : STARTERS;
+  const starters =
+    coachMode === "communication"
+      ? COMMUNICATION_STARTERS
+      : activeConversation?.has_jd
+        ? JD_STARTERS
+        : STARTERS;
 
   return (
     <div
@@ -546,7 +626,22 @@ export function CoachChat({
           openInCoachHref={openInCoachHref}
           fullscreen={fullscreen}
           onToggleFullscreen={onToggleFullscreen}
+          coachMode={coachMode}
+          onCoachModeChange={changeCoachMode}
         />
+
+        {!embedded && coachMode === "communication" && (
+          <CommunicationPracticeBar
+            onStartDrill={(prompt) => void send(prompt)}
+            disabled={streaming || savingEdit || activeConversationId == null}
+            voice={{ ...voice, error: transcriptionError || voice.error }}
+            transcribing={transcribingVoice}
+            onMicClick={() => void handleMicClick()}
+            onCancelRecording={() => void voice.cancelRecording()}
+            delivery={voiceDelivery}
+            onClearDelivery={() => setVoiceDelivery(null)}
+          />
+        )}
 
         {!embedded && !fullscreen && toolsOpen && (
           <div
@@ -574,6 +669,7 @@ export function CoachChat({
                 <CoachEmptyState
                   embedded={embedded}
                   hasJd={activeConversation?.has_jd}
+                  coachMode={coachMode}
                   starters={starters}
                   onStarter={send}
                   disabled={streaming || savingEdit}
