@@ -263,6 +263,7 @@ export interface InterviewQuestion {
 export interface InterviewTurn {
   id: number;
   session_id: number;
+  request_id?: string;
   question_index: number;
   role: "candidate" | "feedback" | "followup" | "followup_reply" | "interviewer";
   content: string;
@@ -278,6 +279,20 @@ export interface InterviewSessionSummary {
   skill_pointers?: string[];
   next_steps?: string[];
   topic_scores?: Record<string, number | string>;
+  competency_scores?: Record<string, number | string>;
+  story_bank?: Array<{
+    title: string;
+    best_for?: string[];
+    evidence?: string;
+    upgrade?: string;
+  }>;
+  practice_drills?: Array<{
+    skill: string;
+    prompt: string;
+    due_in_days?: number;
+  }>;
+  partial_session?: boolean;
+  answered_questions?: number;
   per_question?: Array<{
     question?: string;
     score?: number | string;
@@ -289,6 +304,8 @@ export interface InterviewSessionSummary {
 export interface InterviewSession {
   id: number;
   job_id: number | null;
+  title?: string;
+  archived?: boolean;
   focus: string;
   difficulty: string;
   curriculum_topic?: string;
@@ -383,6 +400,7 @@ export interface InterviewProgress {
   top_strengths: ProgressTheme[];
   activity_streak_days: number;
   trend: "stable" | "improving" | "declining";
+  delivery_averages?: Record<string, number>;
 }
 
 export interface CurriculumTopic {

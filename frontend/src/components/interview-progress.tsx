@@ -74,6 +74,34 @@ export function InterviewProgressPanel({ progress }: { progress: InterviewProgre
           <ScoreTimelineChart points={progress.score_over_time} />
         </div>
 
+        {progress.delivery_averages && Object.keys(progress.delivery_averages).length > 0 && (
+          <div className="space-y-3">
+            <div>
+              <p className="text-sm font-semibold">Speaking delivery</p>
+              <p className="mt-0.5 text-xs text-[var(--muted)]">
+                Descriptive voice measurements—not an accent score.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <StatCard
+                label="Average pace"
+                value={`${progress.delivery_averages.words_per_minute ?? 0} wpm`}
+                accent="primary"
+              />
+              <StatCard
+                label="Fillers / 100 words"
+                value={String(progress.delivery_averages.filler_rate_per_100 ?? 0)}
+                accent="default"
+              />
+              <StatCard
+                label="Pauses / answer"
+                value={String(progress.delivery_averages.pause_count ?? 0)}
+                accent="default"
+              />
+            </div>
+          </div>
+        )}
+
         {Object.keys(progress.focus_averages).length > 0 && (
           <div className="space-y-3">
             <p className="text-sm font-semibold">By focus area</p>

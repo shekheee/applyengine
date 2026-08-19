@@ -9,7 +9,7 @@ from typing import Any
 from app import prompts
 from app.llm.factory import build_coach_provider
 from app.models import InterviewSession, InterviewTurn, Job, Profile
-from app.services.interview_practice import generate_summary
+from app.services.interview_practice import generate_summary, routing_metadata
 from app.services.ml_interview_curriculum import (
     curriculum_prompt_block,
     normalize_curriculum_topic,
@@ -104,6 +104,7 @@ async def stream_interviewer_turn_async(
     *,
     candidate_answer: str | None = None,
     model_id: str | None = None,
+    routing_out: dict[str, Any] | None = None,
 ) -> AsyncIterator[str]:
     focus = normalize_focus(session.focus)
     curriculum_topic = normalize_curriculum_topic(getattr(session, "curriculum_topic", "") or "")
@@ -134,6 +135,8 @@ async def stream_interviewer_turn_async(
     ]
     async for token in chain.chat_stream_async(messages):
         yield token
+    if routing_out is not None:
+        routing_out.update(routing_metadata(chain))
     logger.info("Live interviewer turn served by %s/%s", chain.last_served, chain.last_model)
 
 
@@ -188,6 +191,9 @@ def build_live_transcript(session: InterviewSession, turns: list[InterviewTurn])
             lines.append(f"Interviewer{suffix}: {t.content.strip()}")
         elif t.role == "candidate":
             lines.append(f"Candidate: {t.content.strip()}")
+            delivery = (t.scores or {}).get("delivery")
+            if delivery:
+                lines.append(f"Delivery evidence: {json.dumps(delivery)}")
     return "\n".join(lines)
 
 
@@ -217,6 +223,7 @@ def generate_live_summary(
     )
     if not isinstance(data, dict):
         data = {}
+    data["_routing"] = routing_metadata(chain)
     logger.info("Live interview summary served by %s/%s", chain.last_served, chain.last_model)
     return data
 

@@ -28,6 +28,7 @@ import { InterviewCurriculumPanel } from "@/components/interview-curriculum";
 import { InterviewProgressPanel } from "@/components/interview-progress";
 import { ModelSelector, getStoredModelId, storeModelId } from "@/components/model-selector";
 import { useVoiceRecorder } from "@/hooks/use-voice-recorder";
+import type { RecordedAudio } from "@/hooks/use-voice-recorder";
 import { PhaseStepper } from "@/components/interview/phase-stepper";
 import { OptionGrid, SegmentControl } from "@/components/interview/option-grid";
 import { QuestionCard, SessionMetaBadges } from "@/components/interview/question-card";
@@ -94,8 +95,9 @@ export function InterviewPractice({
   const [deliveryMetrics, setDeliveryMetrics] = useState<DeliveryMetrics | null>(null);
   const [transcribing, setTranscribing] = useState(false);
 
-  const voice = useVoiceRecorder();
+  const voice = useVoiceRecorder(processRecordedAudio);
   const abortRef = useRef<AbortController | null>(null);
+  const answerRequestRef = useRef<{ fingerprint: string; id: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -183,11 +185,18 @@ export function InterviewPractice({
     setLiveFeedback("");
     abortRef.current?.abort();
     abortRef.current = new AbortController();
+    const submittedAnswer = answer.trim();
+    const fingerprint = `${session.id}:${session.current_index}:${submittedAnswer}`;
+    const requestId =
+      answerRequestRef.current?.fingerprint === fingerprint
+        ? answerRequestRef.current.id
+        : crypto.randomUUID();
+    answerRequestRef.current = { fingerprint, id: requestId };
 
     try {
       const { turn } = await api.submitInterviewAnswerStream(
         session.id,
-        answer.trim(),
+        submittedAnswer,
         (token) => {
           setStreamText((prev) => prev + token);
           setLiveFeedback((prev) => prev + token);
@@ -196,6 +205,8 @@ export function InterviewPractice({
           question_index: session.current_index,
           model: selectedModel || undefined,
           signal: abortRef.current.signal,
+          request_id: requestId,
+          delivery: deliveryMetrics ?? undefined,
         }
       );
       const updated = await api.getInterviewSession(session.id);
@@ -204,6 +215,7 @@ export function InterviewPractice({
       setDeliveryMetrics(null);
       setLiveFeedback(turn.content);
       setStreamText("");
+      answerRequestRef.current = null;
     } catch (e) {
       if ((e as Error).name !== "AbortError") {
         setError(e instanceof Error ? e.message : "Feedback failed.");
@@ -297,39 +309,80 @@ export function InterviewPractice({
     setError("");
   }
 
-  function openSession(s: InterviewSession) {
-    setSession(s);
-    if (s.status === "completed") {
+  async function openSession(s: InterviewSession) {
+    setError("");
+    let detailed = s;
+    try {
+      detailed = await api.getInterviewSession(s.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not open this session.");
+      return;
+    }
+    setSession(detailed);
+    if (detailed.status === "completed") {
       setPhase("summary");
-    } else if (s.mode === "live") {
+    } else if (detailed.mode === "live") {
       setPhase("live");
     } else {
       setPhase("practice");
     }
   }
 
+  async function renameSession(s: InterviewSession) {
+    const title = window.prompt("Session name", s.title || "Interview practice");
+    if (title == null || !title.trim()) return;
+    try {
+      const updated = await api.updateInterviewSession(s.id, { title: title.trim() });
+      setPastSessions((items) => items.map((item) => (item.id === s.id ? updated : item)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not rename session.");
+    }
+  }
+
+  async function archiveSession(s: InterviewSession) {
+    try {
+      await api.updateInterviewSession(s.id, { archived: true });
+      setPastSessions((items) => items.filter((item) => item.id !== s.id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not archive session.");
+    }
+  }
+
+  async function deleteSession(s: InterviewSession) {
+    if (!window.confirm(`Delete “${s.title || "this interview"}” and its transcript?`)) return;
+    try {
+      await api.deleteInterviewSession(s.id);
+      setPastSessions((items) => items.filter((item) => item.id !== s.id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not delete session.");
+    }
+  }
+
+  async function processRecordedAudio(recorded: RecordedAudio | null) {
+    setTranscribing(true);
+    voice.setError(null);
+    try {
+      if (!recorded || recorded.blob.size < 100) {
+        voice.setError("Recording too short. Try again.");
+        return;
+      }
+      const result = await api.transcribeInterviewAudio(
+        recorded.blob,
+        recorded.mime,
+        recorded.duration
+      );
+      setAnswer(result.text);
+      setDeliveryMetrics(result.delivery);
+    } catch (e) {
+      voice.setError(e instanceof Error ? e.message : "Transcription failed.");
+    } finally {
+      setTranscribing(false);
+    }
+  }
+
   async function handleMicClick() {
     if (voice.state === "recording") {
-      setTranscribing(true);
-      voice.setError(null);
-      try {
-        const recorded = await voice.finishRecording();
-        if (!recorded || recorded.blob.size < 100) {
-          voice.setError("Recording too short. Try again.");
-          return;
-        }
-        const result = await api.transcribeInterviewAudio(
-          recorded.blob,
-          recorded.mime,
-          recorded.duration
-        );
-        setAnswer(result.text);
-        setDeliveryMetrics(result.delivery);
-      } catch (e) {
-        voice.setError(e instanceof Error ? e.message : "Transcription failed.");
-      } finally {
-        setTranscribing(false);
-      }
+      await processRecordedAudio(await voice.finishRecording());
       return;
     }
     if (voice.state === "processing" || transcribing) return;
@@ -551,6 +604,9 @@ export function InterviewPractice({
                   {curriculumTopic ? "Preparing your interview room…" : "Generating questions…"}
                 </p>
               )}
+              <p className="text-xs leading-relaxed text-[var(--muted)]">
+                Your selected AI model receives the resume/JD context needed for coaching. Voice answers are transcribed by the configured speech provider; transcripts and delivery measurements remain in your session until you delete it.
+              </p>
             </div>
           </Card>
 
@@ -558,7 +614,10 @@ export function InterviewPractice({
             <ContextSidebar
               profile={profile}
               pastSessions={pastSessions}
-              onOpenSession={openSession}
+              onOpenSession={(item) => void openSession(item)}
+              onRenameSession={(item) => void renameSession(item)}
+              onArchiveSession={(item) => void archiveSession(item)}
+              onDeleteSession={(item) => void deleteSession(item)}
             />
           )}
         </div>

@@ -134,6 +134,47 @@ export function SummaryView({
         />
       </div>
 
+      {summary.partial_session && (
+        <div className="rounded-[var(--radius-md)] border border-amber-500/25 bg-amber-500/5 px-4 py-3 text-sm text-amber-100">
+          Partial session · feedback is based on {summary.answered_questions ?? "the answered"} response
+          {summary.answered_questions === 1 ? "" : "s"}.
+        </div>
+      )}
+
+      {summary.competency_scores && Object.keys(summary.competency_scores).length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold">Competency evidence</h3>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {Object.entries(summary.competency_scores).map(([name, score]) => (
+              <QuestionScoreBar key={name} score={score} label={name} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {summary.story_bank && summary.story_bank.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold">Your reusable story bank</h3>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {summary.story_bank.map((story, index) => (
+              <Card key={`${story.title}-${index}`}>
+                <h4 className="text-sm font-semibold">{story.title}</h4>
+                {story.best_for?.length ? <p className="mt-1 text-xs text-[var(--primary-2)]">Best for: {story.best_for.join(" · ")}</p> : null}
+                {story.evidence ? <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">{story.evidence}</p> : null}
+                {story.upgrade ? <p className="mt-2 text-xs text-[var(--muted)]">Upgrade: {story.upgrade}</p> : null}
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {summary.practice_drills && summary.practice_drills.length > 0 && (
+        <SummarySection
+          title="Rehearsal plan"
+          items={summary.practice_drills.map((drill) => `${drill.skill}: ${drill.prompt}${drill.due_in_days ? ` (repeat in ${drill.due_in_days} day${drill.due_in_days === 1 ? "" : "s"})` : ""}`)}
+        />
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2">
         <SummarySection title="Recurring patterns" items={summary.recurring_weaknesses ?? []} />
         <SummarySection title="Skill enhancement pointers" items={summary.skill_pointers ?? []} />

@@ -3,6 +3,7 @@ import type {
   ChatMessage,
   CoachModel,
   Conversation,
+  DeliveryMetrics,
   ResumeDesignResult,
   ResumeVersion,
   InterviewCurriculum,
@@ -812,7 +813,7 @@ export const api = {
   submitInterviewAnswer: (
     sessionId: number,
     answer: string,
-    opts?: { question_index?: number; model?: string }
+    opts?: { question_index?: number; model?: string; request_id?: string; delivery?: DeliveryMetrics }
   ) =>
     req<InterviewTurn>(`/api/interview/sessions/${sessionId}/answer`, {
       method: "POST",
@@ -820,6 +821,8 @@ export const api = {
         answer,
         question_index: opts?.question_index,
         model: opts?.model,
+        request_id: opts?.request_id,
+        delivery: opts?.delivery,
       }),
     }),
 
@@ -827,7 +830,13 @@ export const api = {
     sessionId: number,
     answer: string,
     onToken: (token: string) => void,
-    opts?: { question_index?: number; model?: string; signal?: AbortSignal }
+    opts?: {
+      question_index?: number;
+      model?: string;
+      signal?: AbortSignal;
+      request_id?: string;
+      delivery?: DeliveryMetrics;
+    }
   ): Promise<{ feedback: Record<string, unknown>; turn: InterviewTurn }> => {
     const res = await fetch(
       `${BASE}/api/interview/sessions/${sessionId}/answer/stream`,
@@ -841,6 +850,8 @@ export const api = {
           answer,
           question_index: opts?.question_index,
           model: opts?.model,
+          request_id: opts?.request_id,
+          delivery: opts?.delivery,
         }),
         signal: opts?.signal,
       }
@@ -983,6 +994,18 @@ export const api = {
 
   getInterviewProgress: () => req<InterviewProgress>("/api/interview/progress"),
 
+  updateInterviewSession: (
+    sessionId: number,
+    body: { title?: string; archived?: boolean }
+  ) =>
+    req<InterviewSession>(`/api/interview/sessions/${sessionId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
+  deleteInterviewSession: (sessionId: number) =>
+    req<void>(`/api/interview/sessions/${sessionId}`, { method: "DELETE" }),
+
   transcribeInterviewAudio: async (
     blob: Blob,
     mime: string,
@@ -1013,7 +1036,13 @@ export const api = {
   liveInterviewTurnStream: async (
     sessionId: number,
     onToken: (token: string) => void,
-    opts?: { candidate_answer?: string; model?: string; signal?: AbortSignal }
+    opts?: {
+      candidate_answer?: string;
+      model?: string;
+      signal?: AbortSignal;
+      request_id?: string;
+      delivery?: DeliveryMetrics;
+    }
   ): Promise<{
     speech: string;
     meta: Record<string, unknown>;
@@ -1032,6 +1061,8 @@ export const api = {
         body: JSON.stringify({
           candidate_answer: opts?.candidate_answer,
           model: opts?.model,
+          request_id: opts?.request_id,
+          delivery: opts?.delivery,
         }),
         signal: opts?.signal,
       }

@@ -74,6 +74,20 @@ export function ConversationThread({
         const score =
           extractScoresFromTurn(t.scores) ??
           (isCoach ? parseScoreFromContent(t.content) : null);
+        const routing = t.scores?._routing as
+          | {
+              fallback_used?: boolean;
+              model_served?: string;
+              provider_served?: string;
+            }
+          | undefined;
+        const delivery = t.scores?.delivery as
+          | {
+              words_per_minute?: number;
+              filler_count?: number;
+              pause_count?: number;
+            }
+          | undefined;
 
         return (
           <div
@@ -97,6 +111,16 @@ export function ConversationThread({
             ) : (
               <p className="whitespace-pre-wrap leading-relaxed text-[var(--text-secondary)]">
                 {t.content}
+              </p>
+            )}
+            {delivery && t.role === "candidate" && (
+              <p className="mt-2 text-[11px] text-[var(--muted)]">
+                {delivery.words_per_minute ?? 0} wpm · {delivery.filler_count ?? 0} fillers · {delivery.pause_count ?? 0} pauses
+              </p>
+            )}
+            {routing?.fallback_used && isCoach && (
+              <p className="mt-2 text-[11px] text-amber-300/90">
+                Backup model used · {routing.model_served || routing.provider_served || "available provider"}
               </p>
             )}
           </div>

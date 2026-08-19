@@ -8,10 +8,11 @@ import {
   type KeyboardEvent,
 } from "react";
 import { api } from "@/lib/api";
-import type { InterviewSession, InterviewTurn } from "@/lib/types";
+import type { DeliveryMetrics, InterviewSession, InterviewTurn } from "@/lib/types";
 import { interviewFocusLabel, curriculumTopicLabel } from "@/lib/types";
 import { Button, cn } from "@/components/ui";
 import { useVoiceRecorder } from "@/hooks/use-voice-recorder";
+import type { RecordedAudio } from "@/hooks/use-voice-recorder";
 import { useInterviewerAudio } from "@/hooks/use-interviewer-audio";
 import { SessionMetaBadges } from "@/components/interview/question-card";
 
@@ -28,6 +29,19 @@ function formatElapsed(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+function speakWithBrowser(text: string): Promise<boolean> {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+    return Promise.resolve(false);
+  }
+  return new Promise((resolve) => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1;
+    utterance.onend = () => resolve(true);
+    utterance.onerror = () => resolve(false);
+    window.speechSynthesis.speak(utterance);
+  });
 }
 
 function InterviewerAvatar({ state }: { state: RoomState }) {
@@ -77,6 +91,10 @@ function InterviewerAvatar({ state }: { state: RoomState }) {
 
 function TranscriptLine({ turn }: { turn: InterviewTurn }) {
   const isInterviewer = turn.role === "interviewer";
+  const delivery = turn.scores?.delivery as DeliveryMetrics | undefined;
+  const routing = turn.scores?._routing as
+    | { fallback_used?: boolean; model_served?: string; provider_served?: string }
+    | undefined;
   return (
     <div
       className={cn(
@@ -90,6 +108,18 @@ function TranscriptLine({ turn }: { turn: InterviewTurn }) {
         {isInterviewer ? "Interviewer" : "You"}
       </p>
       <p>{turn.content}</p>
+      {delivery && !isInterviewer && (
+        <p className="mt-2 text-[11px] text-[var(--muted)]">
+          {delivery.words_per_minute} wpm · {delivery.filler_count} filler word
+          {delivery.filler_count === 1 ? "" : "s"} · {delivery.pause_count} pause
+          {delivery.pause_count === 1 ? "" : "s"}
+        </p>
+      )}
+      {routing?.fallback_used && isInterviewer && (
+        <p className="mt-2 text-[11px] text-amber-300/90">
+          Backup model used · {routing.model_served || routing.provider_served}
+        </p>
+      )}
     </div>
   );
 }
@@ -111,31 +141,49 @@ export function LiveInterviewRoom({
   onExit: () => void;
   embedded?: boolean;
 }) {
+  const hasConversation = initialSession.turns.some(
+    (turn) => turn.role === "candidate" || turn.role === "interviewer"
+  );
   const [session, setSession] = useState(initialSession);
-  const [roomState, setRoomState] = useState<RoomState>("starting");
+  const [roomState, setRoomState] = useState<RoomState>(
+    initialSession.status === "completed"
+      ? "ended"
+      : hasConversation
+        ? "listening"
+        : "starting"
+  );
   const [caption, setCaption] = useState("");
   const [textAnswer, setTextAnswer] = useState("");
   const [error, setError] = useState("");
   const [ttsFailed, setTtsFailed] = useState(false);
+  const [ttsFallbackUsed, setTtsFallbackUsed] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [ending, setEnding] = useState(false);
+  const [readinessBusy, setReadinessBusy] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [canRetry, setCanRetry] = useState(false);
 
-  const voice = useVoiceRecorder();
+  const voice = useVoiceRecorder(processRecordedAudio);
   const interviewerAudio = useInterviewerAudio();
   const abortRef = useRef<AbortController | null>(null);
-  const startedRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const streamedSpeechRef = useRef("");
   const queuedThroughRef = useRef(0);
   const playbackRef = useRef<Promise<void>>(Promise.resolve());
   const generationDoneRef = useRef(false);
   const requestVersionRef = useRef(0);
+  const pendingTurnRef = useRef<{
+    answer?: string;
+    delivery?: DeliveryMetrics;
+    requestId: string;
+  } | null>(null);
 
   useEffect(() => {
+    if (roomState === "starting" || roomState === "ended") return;
     const t = setInterval(() => setElapsed((s) => s + 1), 1000);
     return () => clearInterval(t);
-  }, []);
+  }, [roomState]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -165,7 +213,13 @@ export function LiveInterviewRoom({
         const audio = await audioRequest;
         if (requestVersion !== requestVersionRef.current) return;
         if (audio.failed || !audio.blob) {
-          setTtsFailed(true);
+          setRoomState("speaking");
+          setCaption(speech);
+          const spoken = await speakWithBrowser(speech);
+          setTtsFallbackUsed(spoken);
+          setTtsFailed(!spoken);
+          setCaption("");
+          if (!generationDoneRef.current) setRoomState("thinking");
           return;
         }
 
@@ -214,12 +268,21 @@ export function LiveInterviewRoom({
   );
 
   const requestInterviewerTurn = useCallback(
-    async (candidateAnswer?: string) => {
+    async (
+      candidateAnswer?: string,
+      delivery?: DeliveryMetrics,
+      existingRequestId?: string
+    ) => {
+      const requestId = existingRequestId || crypto.randomUUID();
+      pendingTurnRef.current = { answer: candidateAnswer, delivery, requestId };
+      setCanRetry(false);
       const requestVersion = requestVersionRef.current + 1;
       requestVersionRef.current = requestVersion;
       setError("");
       setCaption("");
       setTtsFailed(false);
+      setTtsFallbackUsed(false);
+      if (typeof window !== "undefined") window.speechSynthesis?.cancel();
       setRoomState("thinking");
       streamedSpeechRef.current = "";
       queuedThroughRef.current = 0;
@@ -238,6 +301,8 @@ export function LiveInterviewRoom({
           {
             candidate_answer: candidateAnswer,
             model: selectedModel || undefined,
+            request_id: requestId,
+            delivery,
             signal: abortRef.current.signal,
           }
         );
@@ -249,6 +314,8 @@ export function LiveInterviewRoom({
         setCaption("");
         const updated = await refreshSession();
         setRoomState(result.end_interview ? "ended" : "listening");
+        pendingTurnRef.current = null;
+        setCanRetry(false);
 
         if (result.end_interview) {
           setEnding(true);
@@ -268,6 +335,7 @@ export function LiveInterviewRoom({
       } catch (e) {
         if ((e as Error).name !== "AbortError") {
           setError(e instanceof Error ? e.message : "Interviewer turn failed.");
+          setCanRetry(true);
           setRoomState("listening");
         }
       }
@@ -275,44 +343,68 @@ export function LiveInterviewRoom({
     [refreshSession, selectedModel, session.id, queueReadySentences, onComplete]
   );
 
-  useEffect(() => {
-    if (startedRef.current) return;
-    startedRef.current = true;
-    void requestInterviewerTurn();
-  }, [requestInterviewerTurn]);
+  async function beginInterview() {
+    if (readinessBusy) return;
+    setReadinessBusy(true);
+    setError("");
+    try {
+      const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mic.getTracks().forEach((track) => track.stop());
+      for (let value = 3; value > 0; value -= 1) {
+        setCountdown(value);
+        await new Promise((resolve) => window.setTimeout(resolve, 700));
+      }
+      setCountdown(0);
+      await requestInterviewerTurn();
+    } catch (e) {
+      setError(
+        e instanceof DOMException && e.name === "NotAllowedError"
+          ? "Microphone access is blocked. Allow it in your browser, then try again."
+          : e instanceof Error
+            ? e.message
+            : "Could not prepare the interview room."
+      );
+    } finally {
+      setCountdown(0);
+      setReadinessBusy(false);
+    }
+  }
 
-  async function submitAnswer(answer: string) {
+  async function submitAnswer(answer: string, delivery?: DeliveryMetrics) {
     const trimmed = answer.trim();
     if (!trimmed || roomState === "thinking" || roomState === "speaking" || roomState === "ended") {
       return;
     }
     setTextAnswer("");
-    await requestInterviewerTurn(trimmed);
+    await requestInterviewerTurn(trimmed, delivery);
+  }
+
+  async function processRecordedAudio(recorded: RecordedAudio | null) {
+    setTranscribing(true);
+    voice.setError(null);
+    try {
+      if (!recorded || recorded.blob.size < 100) {
+        voice.setError("Recording too short. Try again.");
+        return;
+      }
+      const result = await api.transcribeInterviewAudio(
+        recorded.blob,
+        recorded.mime,
+        recorded.duration
+      );
+      await submitAnswer(result.text, result.delivery);
+    } catch (e) {
+      voice.setError(e instanceof Error ? e.message : "Transcription failed.");
+    } finally {
+      setTranscribing(false);
+    }
   }
 
   async function handleMicClick() {
     if (roomState === "speaking" || roomState === "thinking" || roomState === "ended") return;
 
     if (voice.state === "recording") {
-      setTranscribing(true);
-      voice.setError(null);
-      try {
-        const recorded = await voice.finishRecording();
-        if (!recorded || recorded.blob.size < 100) {
-          voice.setError("Recording too short. Try again.");
-          return;
-        }
-        const result = await api.transcribeInterviewAudio(
-          recorded.blob,
-          recorded.mime,
-          recorded.duration
-        );
-        await submitAnswer(result.text);
-      } catch (e) {
-        voice.setError(e instanceof Error ? e.message : "Transcription failed.");
-      } finally {
-        setTranscribing(false);
-      }
+      await processRecordedAudio(await voice.finishRecording());
       return;
     }
     if (voice.state === "processing" || transcribing) return;
@@ -325,6 +417,7 @@ export function LiveInterviewRoom({
     setError("");
     requestVersionRef.current += 1;
     interviewerAudio.stop();
+    if (typeof window !== "undefined") window.speechSynthesis?.cancel();
     abortRef.current?.abort();
     try {
       const completed = await api.completeInterviewSession(
@@ -426,6 +519,12 @@ export function LiveInterviewRoom({
               </p>
             )}
 
+            {ttsFallbackUsed && roomState === "listening" && (
+              <p className="text-xs text-amber-300/90">
+                Cloud voice was unavailable, so the browser voice completed this turn.
+              </p>
+            )}
+
             <div
               ref={scrollRef}
               className="max-h-[min(340px,45vh)] min-h-[160px] space-y-3 overflow-y-auto overflow-x-hidden rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-2)]/40 p-3 sm:p-4"
@@ -433,7 +532,25 @@ export function LiveInterviewRoom({
             >
               {session.turns.filter((t) => t.role === "interviewer" || t.role === "candidate").length === 0 &&
                 !liveCaption && (
-                  <p className="text-sm text-[var(--muted)]">Your interview will appear here…</p>
+                  <div className="mx-auto max-w-md py-5 text-center">
+                    <p className="text-sm font-medium text-[var(--text)]">Ready for a realistic interview?</p>
+                    <p className="mt-2 text-xs leading-relaxed text-[var(--muted)]">
+                      We will test microphone access, then the interviewer will speak first. Use headphones for the clearest turn-taking.
+                    </p>
+                    <Button
+                      className="mt-4"
+                      variant="gradient"
+                      size="sm"
+                      onClick={() => void beginInterview()}
+                      disabled={readinessBusy}
+                    >
+                      {countdown > 0
+                        ? `Starting in ${countdown}…`
+                        : readinessBusy
+                          ? "Preparing room…"
+                          : "Check mic & start"}
+                    </Button>
+                  </div>
                 )}
               {session.turns
                 .filter((t) => t.role === "interviewer" || t.role === "candidate")
@@ -443,9 +560,21 @@ export function LiveInterviewRoom({
             </div>
 
             {error && (
-              <p className="text-sm text-red-300" role="alert">
-                {error}
-              </p>
+              <div className="flex flex-wrap items-center gap-2" role="alert">
+                <p className="text-sm text-red-300">{error}</p>
+                {canRetry && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const pending = pendingTurnRef.current;
+                      if (pending) void requestInterviewerTurn(pending.answer, pending.delivery, pending.requestId);
+                    }}
+                  >
+                    Retry safely
+                  </Button>
+                )}
+              </div>
             )}
 
             {voice.error && (

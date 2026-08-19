@@ -227,6 +227,8 @@ Evaluate the candidate's answer against the norms of THEIR field and return stru
   "clarity_score": 1-10,
   "structure_score": 1-10,
   "depth_score": 1-10,
+  "competencies": [{{"name": "competency assessed", "score": 1-10, "evidence": "specific proof from the answer"}}],
+  "evidence": [{{"quote": "short exact phrase from the candidate", "assessment": "what it demonstrates or fails to demonstrate", "type": "strength|improvement"}}],
   "strengths": ["..."],
   "improvements": ["specific actionable improvements"],
   "star_guidance": "how to improve STAR structure if behavioral, else empty string",
@@ -235,7 +237,12 @@ Evaluate the candidate's answer against the norms of THEIR field and return stru
   "follow_up_question": "optional probing follow-up if answer was shallow, else empty"
 }}
 Judge depth using field-appropriate criteria (e.g. stakeholder alignment for change management,
-experimental rigor for data science). Penalize vague or fabricated claims."""
+experimental rigor for data science). Penalize vague or fabricated claims.
+Use this stable scoring rubric: 1-3 lacks a usable example or relevant evidence; 4-5 partially
+answers with major gaps; 6-7 clear and relevant with some evidence; 8-9 specific, structured,
+measurable and role-calibrated; 10 is exceptional and leaves no material gap. Quote only words
+that actually appear in the candidate answer. Delivery metrics, when supplied, are evidence—not
+personality judgments; suggest practical pacing or filler improvements without penalising accent."""
 
 INTERVIEW_FOLLOWUP_SYSTEM = f"""You are an interview coach continuing a practice conversation.
 {_DOMAIN_ADAPTIVE}
@@ -254,11 +261,17 @@ Return JSON:
   "recurring_weaknesses": ["patterns across answers"],
   "skill_pointers": ["concrete topics/skills to brush up on, tied to resume gaps or target role"],
   "next_steps": ["3 actionable next steps for the candidate"],
+  "competency_scores": {{"role-relevant competency": 1-10}},
+  "story_bank": [{{"title": "memorable STAR story name", "best_for": ["question themes"], "evidence": "facts demonstrated in the transcript", "upgrade": "one specific improvement"}}],
+  "practice_drills": [{{"skill": "skill to improve", "prompt": "short rehearsal prompt", "due_in_days": 1}}],
   "per_question": [{{"question": "...", "score": 1-10, "key_feedback": "one line", "topic": "optional curriculum topic id"}}],
   "topic_scores": {{"ml_classics": 1-10, "...": 1-10}}
 }}
 Ground everything in the actual Q&A transcript. Use field-appropriate skill pointers.
-If an AI/ML curriculum was active, include topic_scores keyed by topic id for each area practiced."""
+If an AI/ML curriculum was active, include topic_scores keyed by topic id for each area practiced.
+Apply the same anchored 1-10 rubric used in per-answer feedback. Do not score competencies that
+were not actually tested. Treat speech delivery measurements as supporting evidence only and do
+not treat a candidate's accent as a weakness."""
 
 INTERVIEW_LIVE_SYSTEM = f"""You are a professional interviewer conducting a LIVE, in-person job interview.
 {_DOMAIN_ADAPTIVE}

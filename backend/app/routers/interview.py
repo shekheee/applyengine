@@ -23,6 +23,7 @@ from app.schemas import (
     InterviewProgressOut,
     InterviewSessionCreate,
     InterviewSessionOut,
+    InterviewSessionUpdate,
     InterviewTurnOut,
     TranscribeOut,
 )
@@ -61,6 +62,30 @@ def _resolve_model(model: str | None) -> str | None:
         raise HTTPException(status_code=422, detail=str(e)) from e
 
 
+def _request_id(value: str | None) -> str:
+    request_id = (value or "").strip()
+    if len(request_id) > 128:
+        raise HTTPException(422, "request_id must be 128 characters or fewer.")
+    return request_id
+
+
+def _turn_for_request(
+    db: Session,
+    session_id: int,
+    request_id: str,
+    role: str,
+) -> InterviewTurn | None:
+    if not request_id:
+        return None
+    return db.exec(
+        select(InterviewTurn).where(
+            InterviewTurn.session_id == session_id,
+            InterviewTurn.request_id == request_id,
+            InterviewTurn.role == role,
+        )
+    ).first()
+
+
 def _owned_session(session_id: int, user: User, db: Session) -> InterviewSession:
     s = db.get(InterviewSession, session_id)
     if not s or s.user_id != user.id:
@@ -87,6 +112,7 @@ def _turn_out(t: InterviewTurn) -> InterviewTurnOut:
     return InterviewTurnOut(
         id=t.id or 0,
         session_id=t.session_id,
+        request_id=getattr(t, "request_id", "") or "",
         question_index=t.question_index,
         role=t.role,
         content=t.content,
@@ -99,6 +125,8 @@ def _session_out(s: InterviewSession, turns: list[InterviewTurn] | None = None) 
     return InterviewSessionOut(
         id=s.id or 0,
         job_id=s.job_id,
+        title=getattr(s, "title", "") or "",
+        archived=bool(getattr(s, "archived", False)),
         focus=s.focus,
         difficulty=s.difficulty,
         curriculum_topic=getattr(s, "curriculum_topic", "") or "",
@@ -115,6 +143,43 @@ def _session_out(s: InterviewSession, turns: list[InterviewTurn] | None = None) 
         updated_at=s.updated_at.isoformat() if s.updated_at else "",
         turns=[_turn_out(t) for t in (turns or [])],
     )
+
+
+def _competency_blueprint(
+    questions: list[dict], job: Job | None, focus: str
+) -> list[dict[str, str]]:
+    """Create a transparent coverage map from the JD and planned questions."""
+    labels: dict[str, str] = {
+        "behavioral": "Behavioural evidence",
+        "role_technical": "Role-specific expertise",
+        "case_study": "Structured problem solving",
+        "leadership_stakeholder": "Leadership and stakeholder influence",
+        "resume_deep_dive": "Resume evidence and impact",
+    }
+    blueprint: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for question in questions:
+        category = str(question.get("category", focus)).strip()
+        key = category.lower()
+        if key and key not in seen:
+            seen.add(key)
+            blueprint.append(
+                {
+                    "id": key,
+                    "label": labels.get(key, key.replace("_", " ").title()),
+                    "source": "practice focus",
+                }
+            )
+    if job:
+        for requirement in (job.requirements or [])[:4]:
+            text = str(requirement).strip()
+            key = text.lower()
+            if text and key not in seen:
+                seen.add(key)
+                blueprint.append(
+                    {"id": f"jd-{len(blueprint) + 1}", "label": text[:100], "source": "job description"}
+                )
+    return blueprint[:8]
 
 
 @router.get("/curriculum", response_model=InterviewCurriculumOut)
@@ -210,10 +275,12 @@ def create_session(
     session = InterviewSession(
         user_id=user.id,
         job_id=body.job_id,
+        title=(f"{job.company} · {job.title}" if job else f"{body.focus.replace('_', ' ').title()} interview"),
         focus=body.focus,
         difficulty=body.difficulty,
         curriculum_topic=curriculum_topic,
         mode=mode,
+        live_state={"competency_blueprint": _competency_blueprint(questions, job, body.focus)},
         questions=questions,
         current_index=0,
         model_id=model_id or "",
@@ -231,7 +298,10 @@ def list_sessions(
 ):
     sessions = db.exec(
         select(InterviewSession)
-        .where(InterviewSession.user_id == user.id)
+        .where(
+            InterviewSession.user_id == user.id,
+            InterviewSession.archived == False,  # noqa: E712
+        )
         .order_by(InterviewSession.id.desc())
     ).all()
     return [_session_out(s) for s in sessions]
@@ -252,6 +322,45 @@ def get_session_detail(
     return _session_out(s, turns)
 
 
+@router.patch("/sessions/{session_id}", response_model=InterviewSessionOut)
+def update_session(
+    session_id: int,
+    body: InterviewSessionUpdate,
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    s = _owned_session(session_id, user, db)
+    if body.title is not None:
+        title = body.title.strip()
+        if len(title) > 120:
+            raise HTTPException(422, "Session title must be 120 characters or fewer.")
+        s.title = title
+    if body.archived is not None:
+        s.archived = body.archived
+    s.updated_at = datetime.now(timezone.utc)
+    db.add(s)
+    db.commit()
+    db.refresh(s)
+    return _session_out(s)
+
+
+@router.delete("/sessions/{session_id}", status_code=204)
+def delete_session(
+    session_id: int,
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    s = _owned_session(session_id, user, db)
+    turns = db.exec(
+        select(InterviewTurn).where(InterviewTurn.session_id == session_id)
+    ).all()
+    for turn in turns:
+        db.delete(turn)
+    db.delete(s)
+    db.commit()
+    return Response(status_code=204)
+
+
 @router.post("/sessions/{session_id}/answer", response_model=InterviewTurnOut)
 def submit_answer(
     session_id: int,
@@ -270,6 +379,10 @@ def submit_answer(
     questions = s.questions or []
     if idx < 0 or idx >= len(questions):
         raise HTTPException(400, "Invalid question index")
+    request_id = _request_id(body.request_id)
+    existing = _turn_for_request(db, session_id, request_id, "feedback")
+    if existing:
+        return _turn_out(existing)
 
     profile = get_base_profile(user, db)
     job = db.get(Job, s.job_id) if s.job_id else None
@@ -287,6 +400,8 @@ def submit_answer(
             question_index=idx,
             role="candidate",
             content=answer,
+            request_id=request_id,
+            scores={"delivery": body.delivery or {}} if body.delivery else {},
         )
     )
 
@@ -308,6 +423,7 @@ def submit_answer(
         role="feedback",
         content=md,
         scores=fb,
+        request_id=request_id,
     )
     db.add(turn)
     s.updated_at = datetime.now(timezone.utc)
@@ -335,6 +451,18 @@ async def submit_answer_stream(
     questions = s.questions or []
     if idx < 0 or idx >= len(questions):
         raise HTTPException(400, "Invalid question index")
+    request_id = _request_id(body.request_id)
+    existing = _turn_for_request(db, session_id, request_id, "feedback")
+    if existing:
+        async def replay_existing() -> AsyncIterator[str]:
+            yield f"data: {json.dumps({'type': 'token', 'content': existing.content})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'feedback': existing.scores or {}, 'turn': _turn_out(existing).model_dump(mode='json'), 'replayed': True})}\n\n"
+
+        return StreamingResponse(
+            replay_existing(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
 
     profile = get_base_profile(user, db)
     profile_snap = _snapshot_profile(profile)
@@ -379,6 +507,8 @@ async def submit_answer_stream(
                         question_index=idx,
                         role="candidate",
                         content=answer,
+                        request_id=request_id,
+                        scores={"delivery": body.delivery or {}} if body.delivery else {},
                     )
                 )
                 turn = InterviewTurn(
@@ -387,6 +517,7 @@ async def submit_answer_stream(
                     role="feedback",
                     content=md,
                     scores=fb,
+                    request_id=request_id,
                 )
                 write_db.add(turn)
                 sess = write_db.get(InterviewSession, session_id)
@@ -504,6 +635,22 @@ async def live_turn_stream(
     profile_snap = _snapshot_profile(profile)
     job = db.get(Job, s.job_id) if s.job_id else None
     model_id = _resolve_model(body.model or s.model_id or None)
+    request_id = _request_id(body.request_id)
+
+    existing_interviewer = _turn_for_request(
+        db, session_id, request_id, "interviewer"
+    )
+    if existing_interviewer:
+        async def replay_existing() -> AsyncIterator[str]:
+            scores = existing_interviewer.scores or {}
+            yield f"data: {json.dumps({'type': 'token', 'content': existing_interviewer.content})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'speech': existing_interviewer.content, 'meta': scores, 'end_interview': bool(scores.get('end_interview')), 'turn': _turn_out(existing_interviewer).model_dump(mode='json'), 'current_index': s.current_index, 'replayed': True})}\n\n"
+
+        return StreamingResponse(
+            replay_existing(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
 
     turns = db.exec(
         select(InterviewTurn)
@@ -512,13 +659,16 @@ async def live_turn_stream(
     ).all()
 
     candidate_answer = (body.candidate_answer or "").strip() or None
-    if candidate_answer:
+    existing_candidate = _turn_for_request(db, session_id, request_id, "candidate")
+    if candidate_answer and not existing_candidate:
         db.add(
             InterviewTurn(
                 session_id=session_id,
                 question_index=s.current_index,
                 role="candidate",
                 content=candidate_answer,
+                request_id=request_id,
+                scores={"delivery": body.delivery or {}} if body.delivery else {},
             )
         )
         s.updated_at = datetime.now(timezone.utc)
@@ -533,6 +683,7 @@ async def live_turn_stream(
 
     async def event_stream() -> AsyncIterator[str]:
         accumulated = ""
+        routing: dict = {}
         try:
             async for token in stream_interviewer_turn_async(
                 s,
@@ -541,6 +692,7 @@ async def live_turn_stream(
                 turns,
                 candidate_answer=candidate_answer,
                 model_id=model_id,
+                routing_out=routing,
             ):
                 accumulated += token
                 yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
@@ -565,7 +717,9 @@ async def live_turn_stream(
                         "action": meta.get("action"),
                         "end_interview": end_interview,
                         **meta,
+                        "_routing": routing,
                     },
+                    request_id=request_id,
                 )
                 write_db.add(turn)
                 sess.updated_at = datetime.now(timezone.utc)
@@ -634,6 +788,13 @@ def complete_session(
     user: User = Depends(get_current_user),
 ):
     s = _owned_session(session_id, user, db)
+    if s.status == "completed" and s.summary:
+        turns = db.exec(
+            select(InterviewTurn)
+            .where(InterviewTurn.session_id == session_id)
+            .order_by(InterviewTurn.id.asc())
+        ).all()
+        return _session_out(s, turns)
     profile = get_base_profile(user, db)
     job = db.get(Job, s.job_id) if s.job_id else None
     model_id = _resolve_model(body.model or s.model_id or None)
@@ -643,11 +804,22 @@ def complete_session(
         .where(InterviewTurn.session_id == session_id)
         .order_by(InterviewTurn.id.asc())
     ).all()
+    candidate_answers = [
+        turn for turn in turns if turn.role == "candidate" and turn.content.strip()
+    ]
+    if not candidate_answers:
+        raise HTTPException(
+            400,
+            "Answer at least one interview question before ending the session.",
+        )
 
     if getattr(s, "mode", "text") == "live":
         summary = generate_live_summary(s, turns, profile, job, model_id=model_id)
     else:
         summary = generate_summary(s, turns, profile, job, model_id=model_id)
+    answered_questions = len({turn.question_index for turn in candidate_answers})
+    summary["partial_session"] = answered_questions < len(s.questions or [])
+    summary["answered_questions"] = answered_questions
     s.summary = summary
     s.recurring_weaknesses = summary.get("recurring_weaknesses") or []
     raw_score = summary.get("overall_score")

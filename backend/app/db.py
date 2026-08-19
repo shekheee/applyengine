@@ -36,6 +36,7 @@ def init_db() -> None:
     _migrate_conversations()
     _migrate_resume_versions()
     _migrate_interview_live_mode()
+    _migrate_interview_reliability()
     _migrate_social_studio()
 
 
@@ -353,6 +354,61 @@ def _migrate_interview_live_mode() -> None:
                     "JSON DEFAULT '{}'::json"
                 )
             )
+
+
+def _migrate_interview_reliability() -> None:
+    """Add resumable session controls and request-level idempotency."""
+    from sqlalchemy import text
+
+    session_columns = (
+        "title TEXT DEFAULT ''",
+        "archived BOOLEAN DEFAULT FALSE",
+    )
+    turn_columns = ("request_id TEXT DEFAULT ''",)
+    with engine.begin() as conn:
+        if is_sqlite:
+            session_existing = {
+                row[1] for row in conn.execute(text("PRAGMA table_info(interviewsession)"))
+            }
+            turn_existing = {
+                row[1] for row in conn.execute(text("PRAGMA table_info(interviewturn)"))
+            }
+            for definition in session_columns:
+                name = definition.split()[0]
+                if name not in session_existing:
+                    conn.execute(text(f"ALTER TABLE interviewsession ADD COLUMN {definition}"))
+            for definition in turn_columns:
+                name = definition.split()[0]
+                if name not in turn_existing:
+                    conn.execute(text(f"ALTER TABLE interviewturn ADD COLUMN {definition}"))
+        else:
+            for definition in session_columns:
+                conn.execute(
+                    text(f"ALTER TABLE interviewsession ADD COLUMN IF NOT EXISTS {definition}")
+                )
+            for definition in turn_columns:
+                conn.execute(
+                    text(f"ALTER TABLE interviewturn ADD COLUMN IF NOT EXISTS {definition}")
+                )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_interviewsession_archived "
+                "ON interviewsession (archived)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_interviewturn_request_id "
+                "ON interviewturn (request_id)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ux_interviewturn_request_role "
+                "ON interviewturn (session_id, request_id, role) "
+                "WHERE request_id <> ''"
+            )
+        )
 
 
 def _migrate_social_studio() -> None:

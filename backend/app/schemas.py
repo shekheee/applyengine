@@ -220,9 +220,16 @@ class InterviewSessionCreate(BaseModel):
     mode: str = "text"  # text | live
 
 
+class InterviewSessionUpdate(BaseModel):
+    title: str | None = None
+    archived: bool | None = None
+
+
 class InterviewLiveTurnIn(BaseModel):
     candidate_answer: str | None = None
     model: str | None = None
+    request_id: str | None = None
+    delivery: dict[str, Any] | None = None
 
 
 class InterviewLiveTtsIn(BaseModel):
@@ -234,6 +241,8 @@ class InterviewAnswerIn(BaseModel):
     answer: str
     question_index: int | None = None
     model: str | None = None
+    request_id: str | None = None
+    delivery: dict[str, Any] | None = None
 
 
 class InterviewFollowupIn(BaseModel):
@@ -249,6 +258,7 @@ class InterviewCompleteIn(BaseModel):
 class InterviewTurnOut(BaseModel):
     id: int
     session_id: int
+    request_id: str = ""
     question_index: int
     role: str
     content: str
@@ -261,6 +271,8 @@ class InterviewTurnOut(BaseModel):
 class InterviewSessionOut(BaseModel):
     id: int
     job_id: int | None = None
+    title: str = ""
+    archived: bool = False
     focus: str
     difficulty: str
     curriculum_topic: str = ""
@@ -332,6 +344,7 @@ class InterviewProgressOut(BaseModel):
     top_strengths: list[ProgressTheme] = []
     activity_streak_days: int = 0
     trend: str = "stable"
+    delivery_averages: dict[str, float] = {}
 
 
 class CurriculumTopicOut(BaseModel):

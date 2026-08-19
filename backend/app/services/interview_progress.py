@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
@@ -22,6 +23,35 @@ def _session_score(session: InterviewSession) -> float | None:
         return float(session.overall_score)
     summary = session.summary or {}
     return _parse_score(summary.get("overall_score"))
+
+
+def _theme_key(text: str) -> str:
+    """Cluster wording variants without requiring an embedding provider."""
+    stop = {
+        "a", "an", "and", "are", "be", "for", "from", "in", "is", "of", "on",
+        "the", "to", "use", "with", "your", "you", "more", "improve", "needs", "need",
+    }
+    words = [
+        word for word in re.findall(r"[a-z0-9]+", text.lower())
+        if len(word) > 2 and word not in stop
+    ]
+    return " ".join(sorted(set(words))[:10]) or text.strip().lower()
+
+
+def _clustered_themes(items: list[str], limit: int) -> list[dict[str, Any]]:
+    counts: Counter[str] = Counter()
+    representative: dict[str, str] = {}
+    for item in items:
+        clean = item.strip()
+        if not clean:
+            continue
+        key = _theme_key(clean)
+        counts[key] += 1
+        representative.setdefault(key, clean)
+    return [
+        {"text": representative[key], "count": count}
+        for key, count in counts.most_common(limit)
+    ]
 
 
 def build_interview_progress(sessions: list[InterviewSession], turns_by_session: dict[int, list[InterviewTurn]] | None = None) -> dict[str, Any]:
@@ -69,14 +99,18 @@ def build_interview_progress(sessions: list[InterviewSession], turns_by_session:
     for s in completed:
         summary = s.summary or {}
         topic_scores = summary.get("topic_scores") or {}
+        has_summary_topic_scores = isinstance(topic_scores, dict) and bool(topic_scores)
         if isinstance(topic_scores, dict):
             for tid, sc in topic_scores.items():
                 parsed = _parse_score(sc)
                 if parsed is not None and tid in TOPIC_BY_ID:
                     topic_buckets.setdefault(str(tid), []).append(parsed)
-        # Also aggregate from per-question feedback scores in turns
+        # Use per-question scores only when the summary did not already aggregate
+        # the same session, avoiding double-counting.
         turns = turns_by_session.get(s.id or 0, [])
         questions = s.questions or []
+        if has_summary_topic_scores:
+            continue
         for t in turns:
             if t.role != "feedback" or not t.scores:
                 continue
@@ -98,37 +132,48 @@ def build_interview_progress(sessions: list[InterviewSession], turns_by_session:
     worst_topic = min(topic_averages, key=topic_averages.get) if topic_averages else None
 
     # Recurring themes from weaknesses + priority improvements
-    theme_counter: Counter[str] = Counter()
-    pointer_counter: Counter[str] = Counter()
-    strength_counter: Counter[str] = Counter()
+    theme_items: list[str] = []
+    pointer_items: list[str] = []
+    strength_items: list[str] = []
 
     for s in completed:
         for w in s.recurring_weaknesses or []:
             if w.strip():
-                theme_counter[w.strip()] += 1
+                theme_items.append(w.strip())
         summary = s.summary or {}
         for item in summary.get("priority_improvements") or []:
             if isinstance(item, str) and item.strip():
-                theme_counter[item.strip()] += 1
+                theme_items.append(item.strip())
         for item in summary.get("skill_pointers") or []:
             if isinstance(item, str) and item.strip():
-                pointer_counter[item.strip()] += 1
+                pointer_items.append(item.strip())
         for item in summary.get("strengths") or []:
             if isinstance(item, str) and item.strip():
-                strength_counter[item.strip()] += 1
+                strength_items.append(item.strip())
 
-    recurring_themes = [
-        {"text": text, "count": count}
-        for text, count in theme_counter.most_common(8)
-    ]
-    skill_pointers = [
-        {"text": text, "count": count}
-        for text, count in pointer_counter.most_common(6)
-    ]
-    top_strengths = [
-        {"text": text, "count": count}
-        for text, count in strength_counter.most_common(6)
-    ]
+    recurring_themes = _clustered_themes(theme_items, 8)
+    skill_pointers = _clustered_themes(pointer_items, 6)
+    top_strengths = _clustered_themes(strength_items, 6)
+
+    delivery_values: dict[str, list[float]] = {
+        "words_per_minute": [],
+        "filler_rate_per_100": [],
+        "pause_count": [],
+    }
+    for turns in turns_by_session.values():
+        for turn in turns:
+            if turn.role != "candidate":
+                continue
+            delivery = (turn.scores or {}).get("delivery") or {}
+            for key in delivery_values:
+                value = _parse_score(delivery.get(key))
+                if value is not None:
+                    delivery_values[key].append(value)
+    delivery_averages = {
+        key: round(sum(values) / len(values), 1)
+        for key, values in delivery_values.items()
+        if values
+    }
 
     # Activity streak (consecutive calendar days with any session)
     session_dates = sorted(
@@ -181,4 +226,5 @@ def build_interview_progress(sessions: list[InterviewSession], turns_by_session:
         "top_strengths": top_strengths,
         "activity_streak_days": streak,
         "trend": trend,
+        "delivery_averages": delivery_averages,
     }

@@ -166,6 +166,8 @@ class InterviewSession(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     job_id: int | None = Field(default=None, foreign_key="job.id", index=True)
+    title: str = ""
+    archived: bool = Field(default=False, index=True)
     focus: str = "mixed"  # behavioral | role_technical | case_study | leadership_stakeholder | resume_deep_dive | mixed
     difficulty: str = "mid"  # junior | mid | senior
     curriculum_topic: str = ""  # "" | all | ml_classics | llm_fundamentals | ... (AI/ML track)
@@ -226,6 +228,7 @@ class InterviewTurn(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     session_id: int = Field(foreign_key="interviewsession.id", index=True)
+    request_id: str = Field(default="", index=True)
     question_index: int = 0
     role: str = "candidate"  # candidate | feedback | followup | interviewer | followup_reply
     content: str = Field(default="", sa_column=Column(Text))

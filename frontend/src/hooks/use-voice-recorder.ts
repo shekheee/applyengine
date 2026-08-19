@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getSupportedRecordingMimeType,
   MAX_RECORDING_MS,
@@ -8,8 +8,11 @@ import {
 } from "@/lib/audio";
 
 export type VoiceRecorderState = "idle" | "recording" | "processing";
+export type RecordedAudio = { blob: Blob; duration: number; mime: string };
 
-export function useVoiceRecorder() {
+export function useVoiceRecorder(
+  onAutoComplete?: (recording: RecordedAudio) => void | Promise<void>
+) {
   const [state, setState] = useState<VoiceRecorderState>("idle");
   const [seconds, setSeconds] = useState(0);
   const [level, setLevel] = useState(0);
@@ -25,6 +28,11 @@ export function useVoiceRecorder() {
   const maxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mimeRef = useRef("audio/webm");
   const startRef = useRef(0);
+  const onAutoCompleteRef = useRef(onAutoComplete);
+
+  useEffect(() => {
+    onAutoCompleteRef.current = onAutoComplete;
+  }, [onAutoComplete]);
 
   const clearTimers = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -46,7 +54,7 @@ export function useVoiceRecorder() {
     setLevel(0);
   }, []);
 
-  const stopRecording = useCallback((): Promise<{ blob: Blob; duration: number; mime: string } | null> => {
+  const stopRecording = useCallback((): Promise<RecordedAudio | null> => {
     clearTimers();
     return new Promise((resolve) => {
       const recorder = recorderRef.current;
@@ -121,7 +129,16 @@ export function useVoiceRecorder() {
       }, 500);
 
       maxTimerRef.current = setTimeout(() => {
-        void stopRecording();
+        setState("processing");
+        void stopRecording().then(async (recording) => {
+          setState("idle");
+          setSeconds(0);
+          if (recording && onAutoCompleteRef.current) {
+            await onAutoCompleteRef.current(recording);
+          } else if (recording) {
+            setError("Maximum recording length reached. Please record a shorter answer.");
+          }
+        });
       }, MAX_RECORDING_MS);
 
       return true;

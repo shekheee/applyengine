@@ -36,6 +36,18 @@ def _chain(model_id: str | None):
     return chain
 
 
+def routing_metadata(chain: Any) -> dict[str, Any]:
+    """Expose fallback behaviour without leaking provider credentials or internals."""
+    return {
+        "requested_model": getattr(chain, "requested_model", "") or "",
+        "requested_provider": getattr(chain, "requested_provider", "") or "",
+        "model_served": getattr(chain, "last_model", "") or "",
+        "provider_served": getattr(chain, "last_served", "") or "",
+        "fallback_used": bool(getattr(chain, "fallback_used", False)),
+        "fallback_reason": getattr(chain, "fallback_reason", "") or "",
+    }
+
+
 def generate_questions(
     profile: Profile | None,
     job: Job | None,
@@ -230,6 +242,7 @@ def evaluate_answer(
     )
     if not isinstance(data, dict):
         data = {}
+    data["_routing"] = routing_metadata(chain)
     logger.info("Interview feedback served by %s/%s", chain.last_served, chain.last_model)
     return data
 
@@ -254,6 +267,17 @@ def feedback_to_markdown(fb: dict[str, Any]) -> str:
     if fb.get("model_answer_outline"):
         lines.append("**Model answer outline**")
         lines.append(fb["model_answer_outline"])
+        lines.append("")
+    evidence = fb.get("evidence") or []
+    if evidence:
+        lines.append("**Evidence from your answer**")
+        for item in evidence[:4]:
+            if not isinstance(item, dict):
+                continue
+            quote = str(item.get("quote", "")).strip()
+            assessment = str(item.get("assessment", "")).strip()
+            if quote and assessment:
+                lines.append(f'- “{quote}” — {assessment}')
         lines.append("")
     if fb.get("follow_up_question"):
         lines.append(f"**Follow-up to practice:** {fb['follow_up_question']}")
@@ -352,6 +376,7 @@ def generate_summary(
     )
     if not isinstance(data, dict):
         data = {}
+    data["_routing"] = routing_metadata(chain)
     logger.info("Interview summary served by %s/%s", chain.last_served, chain.last_model)
     return data
 
