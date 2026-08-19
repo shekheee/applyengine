@@ -203,6 +203,8 @@ def create_session(
         difficulty=body.difficulty,
         model_id=model_id,
         curriculum_topic=curriculum_topic,
+        question_count=4 if mode == "live" else 6,
+        instant=mode == "live",
     )
 
     session = InterviewSession(

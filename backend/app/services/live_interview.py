@@ -21,6 +21,9 @@ logger = logging.getLogger(__name__)
 
 META_DELIMITER = "|||META|||"
 MAX_FOLLOWUPS_PER_QUESTION = 1
+MAX_PROFILE_CONTEXT_CHARS = 8_000
+MAX_JOB_CONTEXT_CHARS = 6_000
+MAX_CONVERSATION_CONTEXT_CHARS = 8_000
 
 
 def _chain(model_id: str | None):
@@ -54,6 +57,14 @@ def followups_at_index(session: InterviewSession, index: int) -> int:
     state = session.live_state or {}
     raw = state.get("followups_at_index") or {}
     return int(raw.get(str(index), 0))
+
+
+def _bounded_context(value: str, limit: int) -> str:
+    """Keep live-turn prompts responsive without losing the most useful context."""
+    text = (value or "").strip()
+    if len(text) <= limit:
+        return text
+    return text[:limit].rstrip() + "\n[Context shortened for live response speed]"
 
 
 def parse_interviewer_response(full_text: str) -> tuple[str, dict[str, Any]]:
@@ -102,12 +113,12 @@ async def stream_interviewer_turn_async(
     followups = followups_at_index(session, idx)
 
     user_msg = prompts.interview_live_turn_user(
-        profile_to_text(profile) if profile else "",
-        job_to_text(job) if job else "",
+        _bounded_context(profile_to_text(profile) if profile else "", MAX_PROFILE_CONTEXT_CHARS),
+        _bounded_context(job_to_text(job) if job else "", MAX_JOB_CONTEXT_CHARS),
         focus,
         session.difficulty,
         planned_questions_block(session),
-        conversation_block(turns),
+        _bounded_context(conversation_block(turns[-12:]), MAX_CONVERSATION_CONTEXT_CHARS),
         profession_text=prof_ctx,
         focus_guide_text=focus_guide(focus),
         curriculum_text=curriculum_text,

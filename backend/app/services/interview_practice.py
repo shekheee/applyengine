@@ -45,9 +45,29 @@ def generate_questions(
     difficulty: str,
     model_id: str | None = None,
     curriculum_topic: str = "",
+    question_count: int = 6,
+    instant: bool = False,
 ) -> list[dict[str, Any]]:
     focus = normalize_focus(focus)
     curriculum_topic = normalize_curriculum_topic(curriculum_topic)
+
+    # Live mode only needs lightweight coverage themes. The interviewer receives
+    # the full resume and job context on each turn, so a separate blocking LLM
+    # call here adds latency without improving the spoken question materially.
+    if instant:
+        if curriculum_topic:
+            questions = fallback_curriculum_questions(
+                curriculum_topic,
+                profile,
+                job.title if job else "",
+            )
+        else:
+            questions = _fallback_questions(profile, job, focus)
+        questions = questions[:question_count]
+        for i, q in enumerate(questions):
+            q.setdefault("id", i)
+        return questions
+
     prof_ctx = profession_context(profile, job)
     curriculum_text = curriculum_prompt_block(curriculum_topic) if curriculum_topic else ""
     chain = _chain(model_id)
@@ -62,11 +82,12 @@ def generate_questions(
             profession_text=prof_ctx,
             focus_guide_text=focus_guide(focus),
             curriculum_text=curriculum_text,
+            question_count=question_count,
         ),
     )
     raw = data.get("questions", []) if isinstance(data, dict) else []
     questions: list[dict[str, Any]] = []
-    for i, q in enumerate(raw[:6]):
+    for i, q in enumerate(raw[:question_count]):
         if isinstance(q, str):
             cat = curriculum_topic if curriculum_topic and curriculum_topic != "all" else focus
             questions.append({"text": q, "category": cat, "tip": ""})
@@ -90,6 +111,7 @@ def generate_questions(
             )
         else:
             questions = _fallback_questions(profile, job, focus)
+    questions = questions[:question_count]
     for i, q in enumerate(questions):
         q.setdefault("id", i)
     logger.info("Interview questions served by %s/%s", chain.last_served, chain.last_model)

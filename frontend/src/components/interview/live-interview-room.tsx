@@ -126,6 +126,11 @@ export function LiveInterviewRoom({
   const abortRef = useRef<AbortController | null>(null);
   const startedRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const streamedSpeechRef = useRef("");
+  const queuedThroughRef = useRef(0);
+  const playbackRef = useRef<Promise<void>>(Promise.resolve());
+  const generationDoneRef = useRef(false);
+  const requestVersionRef = useRef(0);
 
   useEffect(() => {
     const t = setInterval(() => setElapsed((s) => s + 1), 1000);
@@ -143,33 +148,93 @@ export function LiveInterviewRoom({
     return updated;
   }, [session.id, onSessionUpdate]);
 
-  const speakInterviewerLine = useCallback(
-    async (speech: string) => {
-      setRoomState("speaking");
-      setTtsFailed(false);
-      try {
-        const blob = await api.liveInterviewTts(session.id, speech);
-        await interviewerAudio.play(blob);
-      } catch {
-        setTtsFailed(true);
-      }
-      setRoomState("listening");
+  const enqueueInterviewerSpeech = useCallback(
+    (value: string, requestVersion: number) => {
+      const speech = value.trim();
+      if (!speech) return;
+
+      // Start synthesizing immediately, while the model continues generating
+      // later sentences. The playback chain preserves sentence order.
+      const audioRequest = api
+        .liveInterviewTts(session.id, speech)
+        .then((blob) => ({ blob, failed: false as const }))
+        .catch(() => ({ blob: null, failed: true as const }));
+
+      playbackRef.current = playbackRef.current.then(async () => {
+        if (requestVersion !== requestVersionRef.current) return;
+        const audio = await audioRequest;
+        if (requestVersion !== requestVersionRef.current) return;
+        if (audio.failed || !audio.blob) {
+          setTtsFailed(true);
+          return;
+        }
+
+        setRoomState("speaking");
+        setCaption(speech);
+        try {
+          await interviewerAudio.play(audio.blob);
+        } catch {
+          setTtsFailed(true);
+        } finally {
+          if (requestVersion === requestVersionRef.current) {
+            setCaption("");
+            if (!generationDoneRef.current) setRoomState("thinking");
+          }
+        }
+      });
     },
     [interviewerAudio, session.id]
   );
 
+  const queueReadySentences = useCallback(
+    (requestVersion: number, force = false, fallbackSpeech = "") => {
+      const streamed = streamedSpeechRef.current;
+      const markerIndex = streamed.indexOf(META_MARKER);
+      const source = markerIndex >= 0 ? streamed.slice(0, markerIndex) : streamed;
+      const usableSource = source.trim() ? source : fallbackSpeech;
+      let pending = usableSource.slice(queuedThroughRef.current);
+
+      if (force) {
+        enqueueInterviewerSpeech(pending, requestVersion);
+        queuedThroughRef.current = usableSource.length;
+        return;
+      }
+
+      let consumed = 0;
+      while (pending) {
+        const sentence = pending.match(/^([\s\S]*?[.!?])(?=\s|$)/);
+        if (!sentence) break;
+        enqueueInterviewerSpeech(sentence[1], requestVersion);
+        consumed += sentence[1].length;
+        pending = pending.slice(sentence[1].length);
+      }
+      queuedThroughRef.current += consumed;
+    },
+    [enqueueInterviewerSpeech]
+  );
+
   const requestInterviewerTurn = useCallback(
     async (candidateAnswer?: string) => {
+      const requestVersion = requestVersionRef.current + 1;
+      requestVersionRef.current = requestVersion;
       setError("");
       setCaption("");
+      setTtsFailed(false);
       setRoomState("thinking");
+      streamedSpeechRef.current = "";
+      queuedThroughRef.current = 0;
+      playbackRef.current = Promise.resolve();
+      generationDoneRef.current = false;
       abortRef.current?.abort();
       abortRef.current = new AbortController();
 
       try {
         const result = await api.liveInterviewTurnStream(
           session.id,
-          (token) => setCaption((prev) => prev + token),
+          (token) => {
+            streamedSpeechRef.current += token;
+            queueReadySentences(requestVersion);
+          },
           {
             candidate_answer: candidateAnswer,
             model: selectedModel || undefined,
@@ -177,12 +242,15 @@ export function LiveInterviewRoom({
           }
         );
         const speech = stripMeta(result.speech);
+        generationDoneRef.current = true;
+        queueReadySentences(requestVersion, true, speech);
+        await playbackRef.current;
+        if (requestVersion !== requestVersionRef.current) return;
         setCaption("");
         const updated = await refreshSession();
-        await speakInterviewerLine(speech);
+        setRoomState(result.end_interview ? "ended" : "listening");
 
         if (result.end_interview) {
-          setRoomState("ended");
           setEnding(true);
           try {
             const completed = await api.completeInterviewSession(
@@ -204,7 +272,7 @@ export function LiveInterviewRoom({
         }
       }
     },
-    [refreshSession, selectedModel, session.id, speakInterviewerLine, onComplete]
+    [refreshSession, selectedModel, session.id, queueReadySentences, onComplete]
   );
 
   useEffect(() => {
@@ -255,6 +323,7 @@ export function LiveInterviewRoom({
     if (ending) return;
     setEnding(true);
     setError("");
+    requestVersionRef.current += 1;
     interviewerAudio.stop();
     abortRef.current?.abort();
     try {
@@ -339,13 +408,13 @@ export function LiveInterviewRoom({
           </div>
 
           <div className="min-w-0 space-y-4">
-            {(roomState === "speaking" || roomState === "thinking") && liveCaption && (
+            {roomState === "speaking" && liveCaption && (
               <div
                 className="rounded-[var(--radius-md)] border border-[var(--primary)]/25 bg-[var(--primary)]/5 px-4 py-3"
                 aria-live="polite"
               >
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--primary-2)]">
-                  Interviewer {roomState === "thinking" ? "typing" : "speaking"}
+                  Interviewer speaking
                 </p>
                 <p className="mt-1 text-sm leading-relaxed text-[var(--text)]">{liveCaption}</p>
               </div>

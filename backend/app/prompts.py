@@ -209,12 +209,14 @@ Generate tailored interview practice questions grounded ONLY in the candidate's 
 and optional target job.
 Return JSON: {{"questions": [{{"text": "...", "category": "behavioral|role_technical|case_study|leadership_stakeholder|resume_deep_dive", "tip": "what a strong answer should cover"}}]}}
 Rules:
-- 5-6 questions matching the requested FOCUS (see user message).
+- Generate exactly the requested number of questions matching the requested FOCUS.
 - Reference specific companies, projects, skills, or methods from the resume when possible.
 - If a target job is provided, align themes to that role's requirements.
 - Calibrate difficulty to the requested level (junior/mid/senior).
 - Never invent experience the candidate does not have.
 - For non-technical professions, do NOT ask ML/model/system-design questions unless the resume is technical.
+- Keep each question under 28 words. Ask one thing at a time; never combine several
+  questions or add a long scenario preamble.
 - Questions must be answerable in 2-4 minutes each."""
 
 INTERVIEW_FEEDBACK_SYSTEM = f"""You are an expert interview coach.
@@ -267,7 +269,10 @@ Rules:
 - Ground every question and follow-up ONLY in the candidate's real resume, optional target job/JD, focus area, and curriculum topic.
 - Never invent experience, projects, or credentials the candidate does not have.
 - Calibrate depth and expectations to the requested difficulty (junior/mid/senior).
-- Keep each spoken turn concise (typically 2-6 sentences, under 120 words) for natural pacing.
+- Keep each spoken turn to 1-3 brief sentences and no more than 45 words.
+- Ask exactly ONE direct question per turn. Do not ask multipart questions, stack follow-ups,
+  repeat the planned theme, or give a long preamble.
+- Keep acknowledgements to 3-8 words. The question itself should normally be under 25 words.
 - Do NOT use markdown, bullet points, labels like "Interviewer:", or JSON in the spoken portion.
 
 Turn behavior:
@@ -276,7 +281,7 @@ Turn behavior:
   (a) ask ONE probing follow-up if the answer was thin, vague, or warrants deeper exploration (max one follow-up per planned question theme), OR
   (b) transition smoothly to the next planned question theme.
 - Use the PLANNED QUESTIONS as coverage themes — adapt wording naturally; do not read them verbatim as a script.
-- When all themes are reasonably covered (typically after 5-6 question areas), thank the candidate and close the interview warmly.
+- When all themes are reasonably covered, thank the candidate and close the interview warmly.
 
 After your spoken text, on its own final line, append exactly one metadata line:
 |||META|||{{"action":"opening|followup|next_question|closing","question_index":0,"end_interview":false}}
@@ -387,6 +392,7 @@ def interview_questions_user(
     profession_text: str = "",
     focus_guide_text: str = "",
     curriculum_text: str = "",
+    question_count: int = 6,
 ) -> str:
     curriculum_block = ""
     if curriculum_text.strip():
@@ -395,6 +401,7 @@ def interview_questions_user(
         f"FOCUS: {focus}\n"
         f"FOCUS GUIDANCE: {focus_guide_text or focus}\n"
         f"DIFFICULTY: {difficulty}\n\n"
+        f"NUMBER OF QUESTIONS: {question_count}\n\n"
         f"PROFESSION CONTEXT:\n{profession_text or '(infer from resume and job)'}\n\n---\n\n"
         f"CANDIDATE RESUME:\n{profile_text or '(none)'}\n\n---\n\n"
         f"TARGET JOB:\n{job_text or '(general / no specific job)'}\n\n---\n\n"
