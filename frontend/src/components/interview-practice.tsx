@@ -83,6 +83,9 @@ export function InterviewPractice({
   const [difficulty, setDifficulty] = useState("mid");
   const [jobId, setJobId] = useState<number | "">(initialJobId ?? "");
   const [curriculumTopic, setCurriculumTopic] = useState("");
+  const [behaviorMode, setBehaviorMode] = useState<"simulation" | "coach">("simulation");
+  const [interviewerPersona, setInterviewerPersona] = useState("hiring_manager");
+  const [captionMode, setCaptionMode] = useState<"progressive" | "hidden">("progressive");
   const [curriculum, setCurriculum] = useState<InterviewCurriculum | null>(null);
   const [showStudyGuide, setShowStudyGuide] = useState(false);
   const [showMlTrack, setShowMlTrack] = useState(false);
@@ -163,6 +166,9 @@ export function InterviewPractice({
         model: selectedModel || undefined,
         curriculum_topic: curriculumTopic || undefined,
         mode,
+        behavior_mode: behaviorMode,
+        interviewer_persona: interviewerPersona,
+        captions: captionMode,
       });
       setSession(s);
       setAnswer("");
@@ -516,6 +522,45 @@ export function InterviewPractice({
               value={difficulty}
               onChange={setDifficulty}
             />
+
+            <div className="space-y-5 rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--panel-2)]/35 p-5">
+              <SegmentControl
+                label="Live interview behaviour"
+                options={[
+                  { id: "simulation", label: "Simulation" },
+                  { id: "coach", label: "Coach" },
+                ]}
+                value={behaviorMode}
+                onChange={(value) => setBehaviorMode(value as "simulation" | "coach")}
+              />
+              <OptionGrid
+                label="Interviewer persona"
+                hint="Changes the interviewer’s priorities and challenge style"
+                options={[
+                  { id: "hiring_manager", label: "Hiring manager", desc: "Balanced ownership, judgement and impact" },
+                  { id: "recruiter", label: "Recruiter screen", desc: "Motivation, fit and career narrative" },
+                  { id: "technical_panel", label: "Technical panel", desc: "Depth, trade-offs and failure modes" },
+                  { id: "skeptical_stakeholder", label: "Senior stakeholder", desc: "Pushback, influence and risk" },
+                  { id: "change_leader", label: "Change leader", desc: "Adoption, sponsorship and resistance" },
+                ]}
+                value={interviewerPersona}
+                onChange={setInterviewerPersona}
+              />
+              <SegmentControl
+                label="Spoken-question captions"
+                options={[
+                  { id: "progressive", label: "Show progressively" },
+                  { id: "hidden", label: "Audio only" },
+                ]}
+                value={captionMode}
+                onChange={(value) => setCaptionMode(value as "progressive" | "hidden")}
+              />
+              <p className="text-xs leading-relaxed text-[var(--muted)]">
+                {behaviorMode === "simulation"
+                  ? "Simulation withholds coaching and scores until the interview ends."
+                  : "Coach mode gives one brief actionable observation between questions."}
+              </p>
+            </div>
 
             {curriculum && (
               <div

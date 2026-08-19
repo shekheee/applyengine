@@ -39,6 +39,7 @@ from app.services.interview_progress import build_interview_progress
 from app.services.live_interview import (
     apply_live_meta,
     generate_live_summary,
+    govern_live_meta,
     parse_interviewer_response,
     should_end_live_interview,
     stream_interviewer_turn_async,
@@ -259,6 +260,22 @@ def create_session(
     mode = (body.mode or "text").strip().lower()
     if mode not in ("text", "live"):
         raise HTTPException(422, "mode must be 'text' or 'live'")
+    behavior_mode = (body.behavior_mode or "simulation").strip().lower()
+    if behavior_mode not in ("simulation", "coach"):
+        raise HTTPException(422, "behavior_mode must be 'simulation' or 'coach'")
+    persona = (body.interviewer_persona or "hiring_manager").strip().lower()
+    allowed_personas = {
+        "hiring_manager",
+        "recruiter",
+        "technical_panel",
+        "skeptical_stakeholder",
+        "change_leader",
+    }
+    if persona not in allowed_personas:
+        raise HTTPException(422, "Unsupported interviewer persona")
+    captions = (body.captions or "progressive").strip().lower()
+    if captions not in ("progressive", "hidden"):
+        raise HTTPException(422, "captions must be 'progressive' or 'hidden'")
 
     questions = generate_questions(
         profile,
@@ -280,7 +297,13 @@ def create_session(
         difficulty=body.difficulty,
         curriculum_topic=curriculum_topic,
         mode=mode,
-        live_state={"competency_blueprint": _competency_blueprint(questions, job, body.focus)},
+        live_state={
+            "competency_blueprint": _competency_blueprint(questions, job, body.focus),
+            "behavior_mode": behavior_mode,
+            "interviewer_persona": persona,
+            "captions": captions,
+            "stage": "introduction",
+        },
         questions=questions,
         current_index=0,
         model_id=model_id or "",
@@ -659,6 +682,12 @@ async def live_turn_stream(
     ).all()
 
     candidate_answer = (body.candidate_answer or "").strip() or None
+    candidate_intent = (body.candidate_intent or "answer").strip().lower()
+    if candidate_intent not in ("answer", "clarification", "candidate_question"):
+        raise HTTPException(
+            422,
+            "candidate_intent must be 'answer', 'clarification', or 'candidate_question'",
+        )
     existing_candidate = _turn_for_request(db, session_id, request_id, "candidate")
     if candidate_answer and not existing_candidate:
         db.add(
@@ -668,7 +697,10 @@ async def live_turn_stream(
                 role="candidate",
                 content=candidate_answer,
                 request_id=request_id,
-                scores={"delivery": body.delivery or {}} if body.delivery else {},
+                scores={
+                    **({"delivery": body.delivery or {}} if body.delivery else {}),
+                    "candidate_intent": candidate_intent,
+                },
             )
         )
         s.updated_at = datetime.now(timezone.utc)
@@ -693,11 +725,18 @@ async def live_turn_stream(
                 candidate_answer=candidate_answer,
                 model_id=model_id,
                 routing_out=routing,
+                candidate_intent=candidate_intent,
             ):
                 accumulated += token
                 yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
 
             speech, meta = parse_interviewer_response(accumulated)
+            meta = govern_live_meta(
+                s,
+                meta,
+                candidate_answer=candidate_answer,
+                candidate_intent=candidate_intent,
+            )
             end_interview = should_end_live_interview(s, meta)
 
             from app.db import engine
@@ -805,7 +844,11 @@ def complete_session(
         .order_by(InterviewTurn.id.asc())
     ).all()
     candidate_answers = [
-        turn for turn in turns if turn.role == "candidate" and turn.content.strip()
+        turn
+        for turn in turns
+        if turn.role == "candidate"
+        and turn.content.strip()
+        and (turn.scores or {}).get("candidate_intent", "answer") == "answer"
     ]
     if not candidate_answers:
         raise HTTPException(

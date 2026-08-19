@@ -218,6 +218,9 @@ class InterviewSessionCreate(BaseModel):
     model: str | None = None
     curriculum_topic: str = ""  # AI/ML track: "" | all | ml_classics | ...
     mode: str = "text"  # text | live
+    behavior_mode: str = "simulation"  # simulation | coach
+    interviewer_persona: str = "hiring_manager"
+    captions: str = "progressive"  # progressive | hidden
 
 
 class InterviewSessionUpdate(BaseModel):
@@ -230,6 +233,7 @@ class InterviewLiveTurnIn(BaseModel):
     model: str | None = None
     request_id: str | None = None
     delivery: dict[str, Any] | None = None
+    candidate_intent: str = "answer"  # answer | clarification | candidate_question
 
 
 class InterviewLiveTtsIn(BaseModel):

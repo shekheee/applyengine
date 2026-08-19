@@ -89,7 +89,7 @@ function InterviewerAvatar({ state }: { state: RoomState }) {
   );
 }
 
-function TranscriptLine({ turn }: { turn: InterviewTurn }) {
+function TranscriptLine({ turn, showDelivery }: { turn: InterviewTurn; showDelivery: boolean }) {
   const isInterviewer = turn.role === "interviewer";
   const delivery = turn.scores?.delivery as DeliveryMetrics | undefined;
   const routing = turn.scores?._routing as
@@ -108,7 +108,7 @@ function TranscriptLine({ turn }: { turn: InterviewTurn }) {
         {isInterviewer ? "Interviewer" : "You"}
       </p>
       <p>{turn.content}</p>
-      {delivery && !isInterviewer && (
+      {delivery && !isInterviewer && showDelivery && (
         <p className="mt-2 text-[11px] text-[var(--muted)]">
           {delivery.words_per_minute} wpm · {delivery.filler_count} filler word
           {delivery.filler_count === 1 ? "" : "s"} · {delivery.pause_count} pause
@@ -144,6 +144,10 @@ export function LiveInterviewRoom({
   const hasConversation = initialSession.turns.some(
     (turn) => turn.role === "candidate" || turn.role === "interviewer"
   );
+  const initialLiveState = initialSession.live_state ?? {};
+  const behaviorMode =
+    initialLiveState.behavior_mode === "coach" ? "coach" : "simulation";
+  const persona = String(initialLiveState.interviewer_persona || "hiring_manager");
   const [session, setSession] = useState(initialSession);
   const [roomState, setRoomState] = useState<RoomState>(
     initialSession.status === "completed"
@@ -163,8 +167,16 @@ export function LiveInterviewRoom({
   const [readinessBusy, setReadinessBusy] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [canRetry, setCanRetry] = useState(false);
+  const [captionsVisible, setCaptionsVisible] = useState(
+    initialLiveState.captions !== "hidden"
+  );
+  const [autoEndEnabled, setAutoEndEnabled] = useState(true);
+  const [pendingDelivery, setPendingDelivery] = useState<DeliveryMetrics | undefined>();
 
-  const voice = useVoiceRecorder(processRecordedAudio);
+  const voice = useVoiceRecorder(processRecordedAudio, {
+    autoStopSilenceMs: autoEndEnabled ? 2500 : undefined,
+    minAutoStopMs: 4000,
+  });
   const interviewerAudio = useInterviewerAudio();
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -177,6 +189,7 @@ export function LiveInterviewRoom({
     answer?: string;
     delivery?: DeliveryMetrics;
     requestId: string;
+    candidateIntent?: "answer" | "clarification" | "candidate_question";
   } | null>(null);
 
   useEffect(() => {
@@ -271,10 +284,16 @@ export function LiveInterviewRoom({
     async (
       candidateAnswer?: string,
       delivery?: DeliveryMetrics,
-      existingRequestId?: string
+      existingRequestId?: string,
+      candidateIntent: "answer" | "clarification" | "candidate_question" = "answer"
     ) => {
       const requestId = existingRequestId || crypto.randomUUID();
-      pendingTurnRef.current = { answer: candidateAnswer, delivery, requestId };
+      pendingTurnRef.current = {
+        answer: candidateAnswer,
+        delivery,
+        requestId,
+        candidateIntent,
+      };
       setCanRetry(false);
       const requestVersion = requestVersionRef.current + 1;
       requestVersionRef.current = requestVersion;
@@ -303,6 +322,7 @@ export function LiveInterviewRoom({
             model: selectedModel || undefined,
             request_id: requestId,
             delivery,
+            candidate_intent: candidateIntent,
             signal: abortRef.current.signal,
           }
         );
@@ -376,7 +396,11 @@ export function LiveInterviewRoom({
       return;
     }
     setTextAnswer("");
-    await requestInterviewerTurn(trimmed, delivery);
+    setPendingDelivery(undefined);
+    const intent = session.live_state?.stage === "candidate_questions"
+      ? "candidate_question"
+      : "answer";
+    await requestInterviewerTurn(trimmed, delivery, undefined, intent);
   }
 
   async function processRecordedAudio(recorded: RecordedAudio | null) {
@@ -392,7 +416,17 @@ export function LiveInterviewRoom({
         recorded.mime,
         recorded.duration
       );
-      await submitAnswer(result.text, result.delivery);
+      const transcript = result.text.trim();
+      if (transcript.split(/\s+/).filter(Boolean).length < 2) {
+        voice.setError("I could not hear a complete answer. Please try again or type it.");
+        return;
+      }
+      if (behaviorMode === "coach") {
+        setTextAnswer(transcript);
+        setPendingDelivery(result.delivery);
+      } else {
+        await submitAnswer(transcript, result.delivery);
+      }
     } catch (e) {
       voice.setError(e instanceof Error ? e.message : "Transcription failed.");
     } finally {
@@ -408,7 +442,42 @@ export function LiveInterviewRoom({
       return;
     }
     if (voice.state === "processing" || transcribing) return;
+    setPendingDelivery(undefined);
+    if (behaviorMode === "coach") setTextAnswer("");
     await voice.startRecording();
+  }
+
+  async function repeatQuestion() {
+    const lastQuestion = [...session.turns]
+      .reverse()
+      .find((turn) => turn.role === "interviewer")?.content;
+    if (!lastQuestion || roomState !== "listening") return;
+    setError("");
+    setRoomState("speaking");
+    if (captionsVisible) setCaption(lastQuestion);
+    try {
+      const blob = await api.liveInterviewTts(session.id, lastQuestion);
+      await interviewerAudio.play(blob);
+    } catch {
+      const spoken = await speakWithBrowser(lastQuestion);
+      setTtsFallbackUsed(spoken);
+      setTtsFailed(!spoken);
+    } finally {
+      setCaption("");
+      setRoomState("listening");
+    }
+  }
+
+  async function askForClarification() {
+    if (roomState !== "listening") return;
+    setTextAnswer("");
+    setPendingDelivery(undefined);
+    await requestInterviewerTurn(
+      "Could you clarify or rephrase that question?",
+      undefined,
+      undefined,
+      "clarification"
+    );
   }
 
   async function endInterviewEarly() {
@@ -444,6 +513,15 @@ export function LiveInterviewRoom({
   const canRespond =
     roomState === "listening" && !ending && !transcribing && voice.state !== "processing";
   const liveCaption = stripMeta(caption);
+  const personaLabels: Record<string, string> = {
+    hiring_manager: "Hiring manager",
+    recruiter: "Recruiter screen",
+    technical_panel: "Technical panel",
+    skeptical_stakeholder: "Senior stakeholder",
+    change_leader: "Change leader",
+  };
+  const stageLabel = String(session.live_state?.stage || "introduction")
+    .replace(/_/g, " ");
 
   return (
     <div className="min-w-0 space-y-4">
@@ -466,6 +544,9 @@ export function LiveInterviewRoom({
               difficulty={session.difficulty}
               company={companyLabel}
             />
+            <p className="text-xs text-[var(--muted)]">
+              {behaviorMode === "coach" ? "Coach mode" : "Simulation mode"} · {personaLabels[persona] ?? "Hiring manager"} · <span className="capitalize">{stageLabel}</span>
+            </p>
             {session.curriculum_topic ? (
               <p className="text-xs text-[var(--muted)]">
                 {curriculumTopicLabel(session.curriculum_topic)} ·{" "}
@@ -501,7 +582,7 @@ export function LiveInterviewRoom({
           </div>
 
           <div className="min-w-0 space-y-4">
-            {roomState === "speaking" && liveCaption && (
+            {roomState === "speaking" && liveCaption && captionsVisible && (
               <div
                 className="rounded-[var(--radius-md)] border border-[var(--primary)]/25 bg-[var(--primary)]/5 px-4 py-3"
                 aria-live="polite"
@@ -555,7 +636,11 @@ export function LiveInterviewRoom({
               {session.turns
                 .filter((t) => t.role === "interviewer" || t.role === "candidate")
                 .map((t) => (
-                  <TranscriptLine key={t.id} turn={t} />
+                  <TranscriptLine
+                    key={t.id}
+                    turn={t}
+                    showDelivery={behaviorMode === "coach"}
+                  />
                 ))}
             </div>
 
@@ -568,7 +653,12 @@ export function LiveInterviewRoom({
                     size="sm"
                     onClick={() => {
                       const pending = pendingTurnRef.current;
-                      if (pending) void requestInterviewerTurn(pending.answer, pending.delivery, pending.requestId);
+                      if (pending) void requestInterviewerTurn(
+                        pending.answer,
+                        pending.delivery,
+                        pending.requestId,
+                        pending.candidateIntent
+                      );
                     }}
                   >
                     Retry safely
@@ -589,6 +679,20 @@ export function LiveInterviewRoom({
               </p>
             ) : (
               <div className="space-y-3 border-t border-[var(--border)] pt-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => void repeatQuestion()} disabled={!canRespond}>
+                    Repeat question
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => void askForClarification()} disabled={!canRespond}>
+                    Clarify
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setCaptionsVisible((value) => !value)}>
+                    {captionsVisible ? "Hide captions" : "Show captions"}
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setAutoEndEnabled((value) => !value)}>
+                    Auto-end {autoEndEnabled ? "on" : "off"}
+                  </Button>
+                </div>
                 <p className="text-xs text-[var(--muted)]">
                   {canRespond
                     ? "Speak your answer or type below. Press the mic again when finished, or ⌘/Ctrl+Enter to send text."
@@ -625,7 +729,7 @@ export function LiveInterviewRoom({
                     className="min-h-[48px] min-w-0 flex-1 resize-y rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--muted)] disabled:opacity-50"
                   />
                   <Button
-                    onClick={() => void submitAnswer(textAnswer)}
+                    onClick={() => void submitAnswer(textAnswer, pendingDelivery)}
                     disabled={!canRespond || !textAnswer.trim()}
                     variant="gradient"
                     size="sm"
@@ -634,8 +738,20 @@ export function LiveInterviewRoom({
                   </Button>
                 </div>
                 {voice.state === "recording" && (
-                  <p className="text-xs text-emerald-300/90">
-                    Recording… tap mic again when finished ({voice.seconds}s)
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-emerald-300/90">
+                    <span>
+                      Recording… {autoEndEnabled ? "auto-stops after a natural pause" : "tap mic when finished"} ({voice.seconds}s)
+                    </span>
+                    {autoEndEnabled && (
+                      <button type="button" className="underline underline-offset-2" onClick={voice.keepListening}>
+                        I’m still thinking
+                      </button>
+                    )}
+                  </div>
+                )}
+                {behaviorMode === "coach" && pendingDelivery && textAnswer.trim() && (
+                  <p className="text-xs text-[var(--primary-2)]">
+                    Review the transcript before sending. Editing it will not change the recorded delivery measurements.
                   </p>
                 )}
               </div>

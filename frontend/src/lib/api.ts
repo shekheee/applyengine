@@ -804,6 +804,9 @@ export const api = {
     model?: string;
     curriculum_topic?: string;
     mode?: "text" | "live";
+    behavior_mode?: "simulation" | "coach";
+    interviewer_persona?: string;
+    captions?: "progressive" | "hidden";
   }) =>
     req<InterviewSession>("/api/interview/sessions", {
       method: "POST",
@@ -1042,6 +1045,7 @@ export const api = {
       signal?: AbortSignal;
       request_id?: string;
       delivery?: DeliveryMetrics;
+      candidate_intent?: "answer" | "clarification" | "candidate_question";
     }
   ): Promise<{
     speech: string;
@@ -1063,6 +1067,7 @@ export const api = {
           model: opts?.model,
           request_id: opts?.request_id,
           delivery: opts?.delivery,
+          candidate_intent: opts?.candidate_intent,
         }),
         signal: opts?.signal,
       }

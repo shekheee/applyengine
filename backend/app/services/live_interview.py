@@ -25,6 +25,14 @@ MAX_PROFILE_CONTEXT_CHARS = 8_000
 MAX_JOB_CONTEXT_CHARS = 6_000
 MAX_CONVERSATION_CONTEXT_CHARS = 8_000
 
+PERSONA_GUIDES = {
+    "hiring_manager": "Warm, commercially aware hiring manager. Test ownership, judgement, collaboration, and measurable impact.",
+    "recruiter": "Concise recruiter screen. Test motivation, role fit, communication, availability themes, and credible career narrative.",
+    "technical_panel": "Evidence-focused technical panel. Test depth, trade-offs, failure modes, decisions, and the candidate's exact contribution.",
+    "skeptical_stakeholder": "Respectfully sceptical senior stakeholder. Challenge assumptions, influence, risk management, and unsupported impact claims.",
+    "change_leader": "Senior change-management leader. Test adoption strategy, sponsorship, resistance, communications, benefits realisation, and human impact.",
+}
+
 
 def _chain(model_id: str | None):
     chain = build_coach_provider(model_id)
@@ -57,6 +65,62 @@ def followups_at_index(session: InterviewSession, index: int) -> int:
     state = session.live_state or {}
     raw = state.get("followups_at_index") or {}
     return int(raw.get(str(index), 0))
+
+
+def interview_stage(session: InterviewSession, turns: list[InterviewTurn]) -> str:
+    state = session.live_state or {}
+    stored = str(state.get("stage", ""))
+    if stored in (
+        "introduction",
+        "warmup",
+        "competency",
+        "challenge",
+        "candidate_questions",
+        "closing",
+    ):
+        return stored
+    interviewer_turns = [turn for turn in turns if turn.role == "interviewer"]
+    answers = [
+        turn
+        for turn in turns
+        if turn.role == "candidate"
+        and (turn.scores or {}).get("candidate_intent", "answer") == "answer"
+    ]
+    if not interviewer_turns:
+        return "introduction"
+    if not answers:
+        return "warmup"
+    questions = session.questions or []
+    if questions and session.current_index >= len(questions) - 1:
+        return "challenge"
+    return "competency"
+
+
+def behavior_context(session: InterviewSession, turns: list[InterviewTurn]) -> str:
+    state = session.live_state or {}
+    mode = str(state.get("behavior_mode", "simulation"))
+    persona = str(state.get("interviewer_persona", "hiring_manager"))
+    stage = interview_stage(session, turns)
+    recent_signal = ""
+    for turn in reversed(turns):
+        if turn.role == "interviewer" and (turn.scores or {}).get("answer_signal"):
+            recent_signal = str((turn.scores or {}).get("answer_signal"))
+            break
+    evidence_gaps = [str(item) for item in (state.get("evidence_gaps") or []) if item]
+    questions = session.questions or []
+    final_theme = bool(questions) and session.current_index >= len(questions) - 1
+    return (
+        f"BEHAVIOUR MODE: {mode}\n"
+        f"PERSONA: {persona} — {PERSONA_GUIDES.get(persona, PERSONA_GUIDES['hiring_manager'])}\n"
+        f"CURRENT STAGE: {stage}\n"
+        f"MOST RECENT ANSWER SIGNAL: {recent_signal or '(none yet)'}\n"
+        f"UNRESOLVED EVIDENCE GAPS: {evidence_gaps[-3:] or '(none)'}\n"
+        f"CANDIDATE-QUESTIONS STAGE ALREADY ASKED: {bool(state.get('candidate_questions_asked'))}\n"
+        f"CURRENT THEME IS FINAL PLANNED THEME: {final_theme}\n"
+        "Follow the stage and mode policies exactly. Keep the spoken turn natural and brief. "
+        "If useful, retest one unresolved gap later using different wording; do not repeat the same question. "
+        "After the final theme and any one justified follow-up, ask for the candidate's questions before closing."
+    )
 
 
 def _bounded_context(value: str, limit: int) -> str:
@@ -105,6 +169,7 @@ async def stream_interviewer_turn_async(
     candidate_answer: str | None = None,
     model_id: str | None = None,
     routing_out: dict[str, Any] | None = None,
+    candidate_intent: str = "answer",
 ) -> AsyncIterator[str]:
     focus = normalize_focus(session.focus)
     curriculum_topic = normalize_curriculum_topic(getattr(session, "curriculum_topic", "") or "")
@@ -126,6 +191,8 @@ async def stream_interviewer_turn_async(
         candidate_answer=candidate_answer,
         current_index=idx,
         followups_at_index=str(followups),
+        behavior_context=behavior_context(session, turns),
+        candidate_intent=candidate_intent,
     )
 
     chain = _chain(model_id)
@@ -140,6 +207,48 @@ async def stream_interviewer_turn_async(
     logger.info("Live interviewer turn served by %s/%s", chain.last_served, chain.last_model)
 
 
+def govern_live_meta(
+    session: InterviewSession,
+    meta: dict[str, Any],
+    *,
+    candidate_answer: str | None,
+    candidate_intent: str,
+) -> dict[str, Any]:
+    """Keep model-generated language inside a predictable interview flow."""
+    governed = dict(meta or {})
+    state = session.live_state or {}
+    questions = session.questions or []
+    action = str(governed.get("action", "next_question"))
+
+    governed["question_index"] = session.current_index
+    governed["end_interview"] = False
+    if candidate_intent == "clarification":
+        governed.update(action="clarification", stage=state.get("stage", "competency"))
+        return governed
+
+    if state.get("candidate_questions_asked") and candidate_answer:
+        governed.update(action="closing", stage="closing", end_interview=True)
+        return governed
+
+    is_last_theme = bool(questions) and session.current_index >= len(questions) - 1
+    if candidate_answer and is_last_theme and action in ("next_question", "closing"):
+        governed.update(action="candidate_questions", stage="candidate_questions")
+        return governed
+
+    if governed.get("action") == "closing" and not state.get("candidate_questions_asked"):
+        governed.update(action="candidate_questions", stage="candidate_questions")
+        return governed
+
+    governed.setdefault(
+        "stage",
+        str(
+            state.get("stage")
+            or ("introduction" if not candidate_answer else "competency")
+        ),
+    )
+    return governed
+
+
 def apply_live_meta(session: InterviewSession, meta: dict[str, Any]) -> None:
     action = str(meta.get("action", "next_question"))
     idx = int(meta.get("question_index", session.current_index))
@@ -152,6 +261,9 @@ def apply_live_meta(session: InterviewSession, meta: dict[str, Any]) -> None:
     if action == "followup":
         key = str(session.current_index)
         followups[key] = int(followups.get(key, 0)) + 1
+        state["stage"] = "challenge"
+    elif action == "clarification":
+        state["stage"] = str(state.get("stage", "competency"))
     elif action in ("next_question", "opening"):
         if session.current_index not in themes:
             themes.append(session.current_index)
@@ -163,10 +275,24 @@ def apply_live_meta(session: InterviewSession, meta: dict[str, Any]) -> None:
     elif action == "closing" or end:
         if session.current_index not in themes:
             themes.append(session.current_index)
+        state["stage"] = "closing"
+    elif action == "candidate_questions":
+        if session.current_index not in themes:
+            themes.append(session.current_index)
+        state["candidate_questions_asked"] = True
+        state["stage"] = "candidate_questions"
 
     state["followups_at_index"] = followups
     state["themes_covered"] = themes
     state["turn_count"] = int(state.get("turn_count", 0)) + 1
+    signal = str(meta.get("answer_signal", ""))
+    evidence_gap = str(meta.get("evidence_gap", "")).strip()
+    gaps = list(state.get("evidence_gaps") or [])
+    if signal in ("thin", "unclear") and evidence_gap and evidence_gap not in gaps:
+        gaps.append(evidence_gap)
+    state["evidence_gaps"] = gaps[-6:]
+    if meta.get("stage"):
+        state["stage"] = str(meta["stage"])
     session.live_state = state
 
 
@@ -187,10 +313,20 @@ def build_live_transcript(session: InterviewSession, turns: list[InterviewTurn])
     for t in turns:
         if t.role == "interviewer":
             action = (t.scores or {}).get("action", "")
-            suffix = f" [{action}]" if action else ""
+            signal = (t.scores or {}).get("answer_signal", "")
+            suffix_parts = [str(value) for value in (action, signal) if value]
+            suffix = f" [{' | '.join(suffix_parts)}]" if suffix_parts else ""
             lines.append(f"Interviewer{suffix}: {t.content.strip()}")
+            evidence_gap = (t.scores or {}).get("evidence_gap")
+            if evidence_gap:
+                lines.append(f"Observed evidence gap: {evidence_gap}")
         elif t.role == "candidate":
-            lines.append(f"Candidate: {t.content.strip()}")
+            intent = (t.scores or {}).get("candidate_intent", "answer")
+            label = {
+                "clarification": "Candidate clarification request",
+                "candidate_question": "Candidate question for interviewer",
+            }.get(str(intent), "Candidate")
+            lines.append(f"{label}: {t.content.strip()}")
             delivery = (t.scores or {}).get("delivery")
             if delivery:
                 lines.append(f"Delivery evidence: {json.dumps(delivery)}")
@@ -229,6 +365,8 @@ def generate_live_summary(
 
 
 def should_end_live_interview(session: InterviewSession, meta: dict[str, Any]) -> bool:
+    if meta.get("action") == "candidate_questions":
+        return False
     if meta.get("end_interview"):
         return True
     if meta.get("action") == "closing":
@@ -237,7 +375,12 @@ def should_end_live_interview(session: InterviewSession, meta: dict[str, Any]) -
     themes = state.get("themes_covered") or []
     questions = session.questions or []
     turn_count = int(state.get("turn_count", 0))
-    if questions and len(themes) >= len(questions) and turn_count >= len(questions):
+    if (
+        questions
+        and len(themes) >= len(questions)
+        and state.get("candidate_questions_asked")
+        and turn_count >= len(questions) + 1
+    ):
         return True
     if turn_count >= max(len(questions) * 2, 12):
         return True

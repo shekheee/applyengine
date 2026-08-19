@@ -9,9 +9,14 @@ import {
 
 export type VoiceRecorderState = "idle" | "recording" | "processing";
 export type RecordedAudio = { blob: Blob; duration: number; mime: string };
+export type VoiceRecorderOptions = {
+  autoStopSilenceMs?: number;
+  minAutoStopMs?: number;
+};
 
 export function useVoiceRecorder(
-  onAutoComplete?: (recording: RecordedAudio) => void | Promise<void>
+  onAutoComplete?: (recording: RecordedAudio) => void | Promise<void>,
+  options: VoiceRecorderOptions = {}
 ) {
   const [state, setState] = useState<VoiceRecorderState>("idle");
   const [seconds, setSeconds] = useState(0);
@@ -29,10 +34,18 @@ export function useVoiceRecorder(
   const mimeRef = useRef("audio/webm");
   const startRef = useRef(0);
   const onAutoCompleteRef = useRef(onAutoComplete);
+  const optionsRef = useRef(options);
+  const lastSoundRef = useRef(0);
+  const heardSpeechRef = useRef(false);
+  const autoFinishingRef = useRef(false);
 
   useEffect(() => {
     onAutoCompleteRef.current = onAutoComplete;
   }, [onAutoComplete]);
+
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
 
   const clearTimers = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -83,6 +96,21 @@ export function useVoiceRecorder(
     });
   }, [clearTimers, stopTracks]);
 
+  const finishAutomatically = useCallback(async () => {
+    if (autoFinishingRef.current) return;
+    autoFinishingRef.current = true;
+    setState("processing");
+    const recording = await stopRecording();
+    setState("idle");
+    setSeconds(0);
+    autoFinishingRef.current = false;
+    if (recording && onAutoCompleteRef.current) {
+      await onAutoCompleteRef.current(recording);
+    } else if (recording) {
+      setError("Recording stopped automatically. Please record a shorter answer.");
+    }
+  }, [stopRecording]);
+
   const startRecording = useCallback(async () => {
     setError(null);
     if (typeof MediaRecorder === "undefined") {
@@ -100,6 +128,9 @@ export function useVoiceRecorder(
       };
       recorderRef.current = recorder;
       startRef.current = Date.now();
+      lastSoundRef.current = Date.now();
+      heardSpeechRef.current = false;
+      autoFinishingRef.current = false;
       recorder.start(250);
       setState("recording");
       setSeconds(0);
@@ -119,7 +150,23 @@ export function useVoiceRecorder(
           const v = (data[i] - 128) / 128;
           sum += v * v;
         }
-        setLevel(Math.min(1, Math.sqrt(sum / data.length) * 4));
+        const currentLevel = Math.min(1, Math.sqrt(sum / data.length) * 4);
+        setLevel(currentLevel);
+        if (currentLevel > 0.08) {
+          heardSpeechRef.current = true;
+          lastSoundRef.current = Date.now();
+        }
+        const silenceMs = optionsRef.current.autoStopSilenceMs;
+        const minimumMs = optionsRef.current.minAutoStopMs ?? 4000;
+        if (
+          silenceMs &&
+          heardSpeechRef.current &&
+          Date.now() - startRef.current >= minimumMs &&
+          Date.now() - lastSoundRef.current >= silenceMs
+        ) {
+          void finishAutomatically();
+          return;
+        }
         levelRafRef.current = requestAnimationFrame(tick);
       };
       levelRafRef.current = requestAnimationFrame(tick);
@@ -129,16 +176,7 @@ export function useVoiceRecorder(
       }, 500);
 
       maxTimerRef.current = setTimeout(() => {
-        setState("processing");
-        void stopRecording().then(async (recording) => {
-          setState("idle");
-          setSeconds(0);
-          if (recording && onAutoCompleteRef.current) {
-            await onAutoCompleteRef.current(recording);
-          } else if (recording) {
-            setError("Maximum recording length reached. Please record a shorter answer.");
-          }
-        });
+        void finishAutomatically();
       }, MAX_RECORDING_MS);
 
       return true;
@@ -151,7 +189,7 @@ export function useVoiceRecorder(
       stopTracks();
       return false;
     }
-  }, [stopRecording, stopTracks]);
+  }, [finishAutomatically, stopTracks]);
 
   const finishRecording = useCallback(async () => {
     if (state !== "recording") return null;
@@ -178,6 +216,11 @@ export function useVoiceRecorder(
     setError(null);
   }, [stopRecording]);
 
+  const keepListening = useCallback(() => {
+    heardSpeechRef.current = true;
+    lastSoundRef.current = Date.now();
+  }, []);
+
   return {
     state,
     seconds,
@@ -187,6 +230,7 @@ export function useVoiceRecorder(
     startRecording,
     finishRecording,
     cancelRecording,
+    keepListening,
     isSupported: typeof MediaRecorder !== "undefined",
   };
 }

@@ -271,7 +271,8 @@ Ground everything in the actual Q&A transcript. Use field-appropriate skill poin
 If an AI/ML curriculum was active, include topic_scores keyed by topic id for each area practiced.
 Apply the same anchored 1-10 rubric used in per-answer feedback. Do not score competencies that
 were not actually tested. Treat speech delivery measurements as supporting evidence only and do
-not treat a candidate's accent as a weakness."""
+not treat a candidate's accent as a weakness. Do not score clarification requests or the
+candidate's questions for the interviewer as answers to planned interview questions."""
 
 INTERVIEW_LIVE_SYSTEM = f"""You are a professional interviewer conducting a LIVE, in-person job interview.
 {_DOMAIN_ADAPTIVE}
@@ -295,9 +296,28 @@ Turn behavior:
   (b) transition smoothly to the next planned question theme.
 - Use the PLANNED QUESTIONS as coverage themes — adapt wording naturally; do not read them verbatim as a script.
 - When all themes are reasonably covered, thank the candidate and close the interview warmly.
+- If the candidate asks for clarification, briefly rephrase the CURRENT question. Do not score it,
+  count it as an answer, ask a new question, or advance the theme.
+
+Interview stages must progress naturally: introduction/warm-up, competency evidence, deeper
+challenge, candidate questions, then closing. Always obey the BEHAVIOUR MODE, PERSONA, and
+CURRENT STAGE supplied in the user context.
+
+Adaptive follow-up policy:
+- Mark the answer signal as strong, adequate, thin, or unclear.
+- Thin/unclear: ask one short evidence-seeking clarification.
+- Adequate: move on unless one material competency is still untested.
+- Strong: normally move on; at senior difficulty, one deeper challenge is allowed.
+- Never ask a follow-up merely because follow-ups are available.
+- Before closing, explicitly ask what questions the candidate has for you.
+
+Mode policy:
+- simulation: never coach, score, praise quality, suggest STAR, or reveal assessment during the interview.
+- coach: before the next question, give at most ONE brief, actionable observation grounded in what
+  the candidate just said. Do not give a model answer or numerical score.
 
 After your spoken text, on its own final line, append exactly one metadata line:
-|||META|||{{"action":"opening|followup|next_question|closing","question_index":0,"end_interview":false}}
+|||META|||{{"action":"opening|clarification|followup|next_question|candidate_questions|closing","question_index":0,"stage":"warmup|competency|challenge|candidate_questions|closing","answer_signal":"strong|adequate|thin|unclear","evidence_gap":"brief gap or empty","end_interview":false}}
 - question_index: index (0-based) of the current planned question theme you are exploring.
 - end_interview: true only on your closing turn when the interview should end."""
 
@@ -478,6 +498,8 @@ def interview_live_turn_user(
     candidate_answer: str | None = None,
     current_index: int = 0,
     followups_at_index: str = "",
+    behavior_context: str = "",
+    candidate_intent: str = "answer",
 ) -> str:
     curriculum_block = ""
     if curriculum_text.strip():
@@ -495,6 +517,9 @@ def interview_live_turn_user(
         f"DIFFICULTY: {difficulty}\n"
         f"CURRENT QUESTION THEME INDEX: {current_index}\n"
         f"FOLLOW-UPS USED AT THIS INDEX: {followups_at_index or '0'}\n\n"
+        f"INTERVIEW BEHAVIOUR:\n{behavior_context or '(standard professional interview)'}\n"
+        f"CANDIDATE INTENT: {candidate_intent}\n"
+        "If intent is candidate_question, answer it briefly and close the interview warmly.\n\n"
         f"PROFESSION CONTEXT:\n{profession_text or '(infer from resume and job)'}\n\n---\n\n"
         f"CANDIDATE RESUME:\n{profile_text or '(none)'}\n\n---\n\n"
         f"TARGET JOB:\n{job_text or '(general / no specific job)'}\n\n---\n\n"
