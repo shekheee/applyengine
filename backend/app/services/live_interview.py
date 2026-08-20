@@ -17,6 +17,7 @@ from app.services.ml_interview_curriculum import (
 )
 from app.services.profession import focus_guide, normalize_focus, profession_context
 from app.services.serialize import job_to_text, profile_to_text
+from app.services.privacy import IdentifierPrivacy, PRIVACY_INSTRUCTION
 
 logger = logging.getLogger(__name__)
 
@@ -147,6 +148,7 @@ def build_realtime_interview_instructions(
     mode = str(state.get("behavior_mode", "simulation"))
     persona = str(state.get("interviewer_persona", "hiring_manager"))
     existing = _bounded_context(conversation_block(turns[-10:]), 3_500)
+    privacy = IdentifierPrivacy.from_profile(profile)
     curriculum_topic = normalize_curriculum_topic(
         getattr(session, "curriculum_topic", "") or ""
     )
@@ -196,7 +198,9 @@ TARGET ROLE / JOB DESCRIPTION
             "\n\nEXISTING TRANSCRIPT\n"
             f"{existing}\nResume from this point without repeating covered questions."
         )
-    return instructions.strip()
+    return privacy.mask_text(instructions.strip()) + (
+        f"\n\n{PRIVACY_INSTRUCTION}" if privacy.replacements else ""
+    )
 
 
 def parse_interviewer_response(full_text: str) -> tuple[str, dict[str, Any]]:
@@ -239,6 +243,7 @@ async def stream_interviewer_turn_async(
     routing_out: dict[str, Any] | None = None,
     candidate_intent: str = "answer",
 ) -> AsyncIterator[str]:
+    privacy = IdentifierPrivacy.from_profile(profile)
     focus = normalize_focus(session.focus)
     curriculum_topic = normalize_curriculum_topic(getattr(session, "curriculum_topic", "") or "")
     prof_ctx = profession_context(profile, job)
@@ -246,7 +251,7 @@ async def stream_interviewer_turn_async(
     idx = session.current_index
     followups = followups_at_index(session, idx)
 
-    user_msg = prompts.interview_live_turn_user(
+    user_msg = privacy.mask_text(prompts.interview_live_turn_user(
         _bounded_context(profile_to_text(profile) if profile else "", MAX_PROFILE_CONTEXT_CHARS),
         _bounded_context(job_to_text(job) if job else "", MAX_JOB_CONTEXT_CHARS),
         focus,
@@ -261,13 +266,13 @@ async def stream_interviewer_turn_async(
         followups_at_index=str(followups),
         behavior_context=behavior_context(session, turns),
         candidate_intent=candidate_intent,
-    )
+    ))
 
     chain = _chain(model_id)
-    messages = [
+    messages = privacy.protect_messages([
         {"role": "system", "content": prompts.INTERVIEW_LIVE_SYSTEM},
         {"role": "user", "content": user_msg},
-    ]
+    ])
     started = perf_counter()
     first_token_ms: int | None = None
     async for token in chain.chat_stream_async(
@@ -427,22 +432,23 @@ def generate_live_summary(
     *,
     model_id: str | None = None,
 ) -> dict[str, Any]:
+    privacy = IdentifierPrivacy.from_profile(profile)
     chain = build_coach_provider(model_id)
     chain.reset()
     prof_ctx = profession_context(profile, job)
     curriculum_topic = normalize_curriculum_topic(getattr(session, "curriculum_topic", "") or "")
     curriculum_text = curriculum_prompt_block(curriculum_topic) if curriculum_topic else ""
     transcript = build_live_transcript(session, turns)
-    data = chain.chat_json(
-        prompts.INTERVIEW_SUMMARY_SYSTEM,
-        prompts.interview_summary_user(
+    data = privacy.restore(chain.chat_json(
+        privacy.protect_system(prompts.INTERVIEW_SUMMARY_SYSTEM),
+        privacy.mask_text(prompts.interview_summary_user(
             profile_to_text(profile) if profile else "",
             job_to_text(job) if job else "",
             transcript,
             profession_text=prof_ctx,
             curriculum_text=curriculum_text,
-        ),
-    )
+        )),
+    ))
     if not isinstance(data, dict):
         data = {}
     data["_routing"] = routing_metadata(chain)

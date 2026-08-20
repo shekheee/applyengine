@@ -69,7 +69,8 @@ class SocialStudioTests(unittest.TestCase):
         )
         system = messages[0]["content"]
         self.assertIn("BEGIN VERIFIED RESUME", system)
-        self.assertIn("Verified Co", system)
+        self.assertNotIn("Verified Co", system)
+        self.assertIn("[FORMER_EMPLOYER_1]", system)
         self.assertIn("Never invent or embellish", system)
         self.assertIn("unsupported by the resume", system)
 

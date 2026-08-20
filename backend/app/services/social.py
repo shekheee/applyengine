@@ -7,6 +7,7 @@ from app.llm import build_coach_provider
 from app.models import Profile, SocialMessage, SocialProject
 from app.services.profession import profession_context
 from app.services.serialize import profile_to_text
+from app.services.privacy import IdentifierPrivacy
 
 HISTORY_LIMIT = 30
 
@@ -20,7 +21,8 @@ def build_social_messages(
     """Build a resume-grounded prompt for a dedicated social drafting thread."""
     platform = project.platform.lower()
     settings = project.settings or {}
-    profile_text = profile_to_text(profile)
+    privacy = IdentifierPrivacy.from_profile(profile)
+    profile_text = privacy.mask_text(profile_to_text(profile))
     profession = profession_context(profile, None)
     mode_rules = (
         """
@@ -75,7 +77,7 @@ BASE RESUME (verified facts):
             }
         )
     messages.append({"role": "user", "content": message})
-    return messages
+    return privacy.protect_messages(messages)
 
 
 async def social_reply_stream(

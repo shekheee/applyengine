@@ -13,6 +13,7 @@ from app.services.doc_export import text_to_docx
 from app.services.matching import compute_fit, gap_analysis
 from app.services.profiles import get_base_profile, normalize_profile
 from app.services.serialize import job_to_text, profile_to_text
+from app.services.privacy import IdentifierPrivacy
 
 router = APIRouter(prefix="/api/applications", tags=["applications"])
 
@@ -29,12 +30,13 @@ def _owned_application(app_id: int, user: User, session: Session) -> Application
 
 
 def _compute_application_fit(profile: Profile, job: Job) -> dict:
-    profile_text = profile_to_text(profile)
+    privacy = IdentifierPrivacy.from_profile(profile)
+    profile_text = privacy.mask_text(profile_to_text(profile))
     job_text = job_to_text(job)
     skills = profile.skills or []
     keywords = job.keywords or []
     fit = compute_fit(profile_text, job_text, keywords, skills)
-    analysis = gap_analysis(profile_text, job_text, fit)
+    analysis = privacy.restore_text(gap_analysis(profile_text, job_text, fit))
     return {
         "fit_score": fit["fit_score"],
         "keyword_coverage": fit["keyword_coverage"],

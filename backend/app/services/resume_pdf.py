@@ -18,6 +18,7 @@ from app import prompts
 from app.llm.factory import build_memory_provider
 from app.models import Memory, Profile
 from app.services.serialize import profile_to_text
+from app.services.privacy import private_profile_to_text
 
 logger = logging.getLogger(__name__)
 
@@ -94,14 +95,14 @@ def _merge_memories(doc: dict[str, Any], memories: list[Memory]) -> dict[str, An
 
 
 def _polish_with_llm(profile: Profile | None, memories: list[Memory]) -> dict[str, Any]:
-    profile_text = profile_to_text(profile) if profile else ""
-    memory_text = "\n".join(f"- ({m.kind}) {m.content}" for m in memories)
+    profile_text, privacy = private_profile_to_text(profile)
+    memory_text = privacy.mask_text("\n".join(f"- ({m.kind}) {m.content}" for m in memories))
     chain = build_memory_provider()
     chain.reset()
-    data = chain.chat_json(
-        prompts.RESUME_PDF_SYSTEM,
+    data = privacy.restore(chain.chat_json(
+        privacy.protect_system(prompts.RESUME_PDF_SYSTEM),
         prompts.resume_pdf_user(profile_text, memory_text),
-    )
+    ))
     if chain.last_served:
         logger.info(
             "Resume PDF polish served by %s/%s",

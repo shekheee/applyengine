@@ -13,6 +13,7 @@ from app.llm import build_coach_provider, build_memory_provider, get_provider
 from app.llm.answer_length import answer_length_instruction
 from app.models import Application, ChatMessage, Job, Memory, Profile
 from app.services.profession import profession_context
+from app.services.privacy import IdentifierPrivacy, private_profile_to_text
 from app.services.attachments import ProcessedAttachment, build_user_content
 from app.services.web_research import (
     inject_research,
@@ -97,7 +98,8 @@ def build_coach_messages(
     conversation_summary: str = "",
 ) -> list[dict[str, Any]]:
     settings = get_settings()
-    profile_text = _profile_text(profile)[:10000]
+    profile_text, privacy = private_profile_to_text(profile)
+    profile_text = profile_text[:10000]
     selected_memories = _relevant_memories(
         message, memories, max(1, settings.coach_relevant_memory_limit)
     )
@@ -132,7 +134,7 @@ def build_coach_messages(
 
     user_content = build_user_content(message, attachments or [])
     messages.append({"role": "user", "content": user_content})
-    return messages
+    return privacy.protect_messages(messages)
 
 
 def coach_reply(
@@ -263,6 +265,7 @@ async def coach_reply_stream_async(
 ) -> AsyncIterator[str]:
     chain = build_coach_provider(model_id, reasoning_effort)
     chain.reset()
+    privacy = IdentifierPrivacy.from_profile(profile)
     messages = build_coach_messages(
         message,
         profile,
@@ -282,10 +285,10 @@ async def coach_reply_stream_async(
     search_started = monotonic()
     try:
         research = await run_web_research(
-            message,
+            privacy.mask_text(message),
             model_id=model_id,
             mode=web_search_mode,
-            context_hint=conversation_jd_text,
+            context_hint=privacy.mask_text(conversation_jd_text),
         )
     except Exception as exc:
         logger.warning("Live web research failed; continuing without it: %s", exc)
@@ -357,12 +360,14 @@ def extract_memories(
     user_message: str,
     assistant_reply: str,
     existing: list[Memory],
+    profile: Profile | None = None,
 ) -> list[dict[str, str]]:
     """Ask the LLM for new durable facts stated by the user this turn."""
     if not should_extract_memories(user_message):
         return []
-    exchange = f"User: {user_message}\nCoach: {assistant_reply}"
-    existing_text = _memory_text(existing)
+    privacy = IdentifierPrivacy.from_profile(profile)
+    exchange = privacy.mask_text(f"User: {user_message}\nCoach: {assistant_reply}")
+    existing_text = privacy.mask_text(_memory_text(existing))
     try:
         chain = build_memory_provider()
         chain.reset()
@@ -394,25 +399,27 @@ def extract_memories(
         if content and content.lower() not in seen:
             seen.add(content.lower())
             out.append({"kind": kind, "content": content})
-    return out
+    return privacy.restore(out)
 
 
 def summarize_conversation_context(
     existing_summary: str,
     messages: list[ChatMessage],
+    profile: Profile | None = None,
 ) -> str:
     """Compact older turns for provider-neutral long-conversation continuity."""
     if not messages:
         return existing_summary
-    transcript = "\n".join(
+    privacy = IdentifierPrivacy.from_profile(profile)
+    transcript = privacy.mask_text("\n".join(
         f"{m.role.upper()}: {' '.join(m.content.split())[:1200]}" for m in messages
-    )
+    ))
     system = """Compact an older career-coaching conversation into durable working context.
 Return plain text under 500 words. Preserve: candidate facts and metrics, goals and preferences,
 decisions, examples already used, advice accepted or rejected, and unresolved follow-ups.
 Remove pleasantries, repetition, model wording, and anything unsupported. Do not invent facts."""
     user = f"""EXISTING SUMMARY:
-{existing_summary or '(none)'}
+{privacy.mask_text(existing_summary) or '(none)'}
 
 NEW OLDER TURNS TO MERGE:
 {transcript}"""
@@ -423,7 +430,7 @@ NEW OLDER TURNS TO MERGE:
             [{"role": "system", "content": system}, {"role": "user", "content": user}],
             max_tokens=700,
         ).strip()
-        return summary[:6000] or existing_summary
+        return privacy.restore_text(summary[:6000]) or existing_summary
     except Exception as exc:
         logger.warning("Conversation summary failed (non-fatal): %s", exc)
         return existing_summary
@@ -432,17 +439,17 @@ NEW OLDER TURNS TO MERGE:
 def build_updated_resume_text(profile: Profile | None, memories: list[Memory]) -> str:
     """Produce an improved plain-text resume from the profile + learned facts."""
     provider = get_provider()
-    profile_text = _profile_text(profile)
-    memory_text = _memory_text(memories)
+    profile_text, privacy = private_profile_to_text(profile)
+    memory_text = privacy.mask_text(_memory_text(memories))
     out = provider.chat(
         prompts.RESUME_UPDATE_SYSTEM,
         prompts.resume_update_user(profile_text, memory_text),
     ).strip()
     if out:
-        return out
+        return privacy.restore_text(out)
 
     extra = "\n".join(f"- {m.content}" for m in memories)
-    base = profile_text or ""
+    base = privacy.restore_text(profile_text) if profile_text else ""
     if extra:
         return f"{base}\n\nADDITIONAL HIGHLIGHTS\n{extra}".strip()
     return base

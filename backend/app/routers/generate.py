@@ -11,6 +11,7 @@ from app.models import Application, Job, Profile, User
 from app.schemas import GenerateRequest
 from app.services.generation import cover_letter, interview_prep, tailor_resume
 from app.services.serialize import job_to_text, profile_to_text
+from app.services.privacy import IdentifierPrivacy
 
 router = APIRouter(prefix="/api/generate", tags=["generate"])
 
@@ -29,17 +30,18 @@ def generate(
     if not job or not profile:
         raise HTTPException(404, "Linked job or profile missing")
 
-    profile_text = profile_to_text(profile)
+    privacy = IdentifierPrivacy.from_profile(profile)
+    profile_text = privacy.mask_text(profile_to_text(profile))
     job_text = job_to_text(job)
 
     if "resume" in body.what:
-        app_row.tailored_resume = tailor_resume(profile_text, job_text, job.keywords)
+        app_row.tailored_resume = privacy.restore_text(tailor_resume(profile_text, job_text, job.keywords))
     if "cover_letter" in body.what:
-        app_row.cover_letter = cover_letter(
+        app_row.cover_letter = privacy.restore_text(cover_letter(
             profile_text, job_text, job.company, job.title
-        )
+        ))
     if "interview_prep" in body.what:
-        app_row.interview_prep = interview_prep(profile_text, job_text)
+        app_row.interview_prep = privacy.restore_text(interview_prep(profile_text, job_text))
 
     app_row.updated_at = datetime.now(timezone.utc)
     session.add(app_row)

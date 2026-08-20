@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+from html import unescape as html_unescape
 import logging
 import re
 from typing import Any
@@ -9,6 +10,7 @@ from app import prompts
 from app.llm.factory import build_coach_provider
 from app.models import Job, Memory, Profile
 from app.services.serialize import job_to_text, profile_to_text
+from app.services.privacy import IdentifierPrivacy, private_profile_to_text
 
 logger = logging.getLogger(__name__)
 
@@ -57,14 +59,14 @@ def design_resume_html(
         )
 
     style_key = style if style in VALID_STYLES else "editorial"
-    profile_text = profile_to_text(profile) if profile else ""
-    memory_text = _memory_text(memories)
+    profile_text, privacy = private_profile_to_text(profile)
+    memory_text = privacy.mask_text(_memory_text(memories))
     job_text = job_to_text(job) if job else ""
 
     chain = build_coach_provider()
     chain.reset()
     out = chain.chat_messages(
-        [
+        privacy.protect_messages([
             {"role": "system", "content": prompts.RESUME_HTML_SYSTEM},
             {
                 "role": "user",
@@ -72,10 +74,10 @@ def design_resume_html(
                     profile_text, memory_text, job_text, style=style_key
                 ),
             },
-        ],
+        ]),
         max_tokens=RESUME_HTML_MAX_TOKENS,
     )
-    document = extract_html_document(out)
+    document = privacy.restore_text(extract_html_document(out))
     if chain.last_served:
         logger.info(
             "HTML resume served by %s/%s (job=%s, bytes=%d)",
@@ -89,30 +91,36 @@ def design_resume_html(
 
 def refit_html_for_one_page(html: str, page_count: int) -> str:
     """Ask the configured design model to refit overflowing HTML to one page."""
+    visible = re.sub(r"<(style|script)\b[^>]*>.*?</\1>", "", html, flags=re.I | re.S)
+    visible = html_unescape(re.sub(r"<[^>]+>", "\n", visible))
+    privacy = IdentifierPrivacy.from_resume_source(visible)
     chain = build_coach_provider()
     chain.reset()
     out = chain.chat_messages(
-        [
+        privacy.protect_messages([
             {"role": "system", "content": prompts.RESUME_HTML_SYSTEM},
-            {"role": "user", "content": prompts.resume_html_fit_user(html, page_count)},
-        ],
+            {"role": "user", "content": prompts.resume_html_fit_user(privacy.mask_text(html), page_count)},
+        ]),
         max_tokens=RESUME_HTML_MAX_TOKENS,
     )
-    return extract_html_document(out)
+    return privacy.restore_text(extract_html_document(out))
 
 
 def _refit_html_with_llm(html: str, page_count: int) -> tuple[str, str | None, str | None]:
     """Legacy alias — refit for one page."""
+    visible = re.sub(r"<(style|script)\b[^>]*>.*?</\1>", "", html, flags=re.I | re.S)
+    visible = html_unescape(re.sub(r"<[^>]+>", "\n", visible))
+    privacy = IdentifierPrivacy.from_resume_source(visible)
     chain = build_coach_provider()
     chain.reset()
     out = chain.chat_messages(
-        [
+        privacy.protect_messages([
             {"role": "system", "content": prompts.RESUME_HTML_SYSTEM},
-            {"role": "user", "content": prompts.resume_html_fit_user(html, page_count)},
-        ],
+            {"role": "user", "content": prompts.resume_html_fit_user(privacy.mask_text(html), page_count)},
+        ]),
         max_tokens=RESUME_HTML_MAX_TOKENS,
     )
-    return extract_html_document(out), chain.last_served, chain.last_model
+    return privacy.restore_text(extract_html_document(out)), chain.last_served, chain.last_model
 
 
 def design_resume_html_fitted(

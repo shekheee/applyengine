@@ -22,6 +22,7 @@ from app.services.profession import (
     profession_context,
 )
 from app.services.serialize import job_to_text, profile_to_text
+from app.services.privacy import IdentifierPrivacy
 
 logger = logging.getLogger(__name__)
 
@@ -80,23 +81,24 @@ def generate_questions(
             q.setdefault("id", i)
         return questions
 
-    prof_ctx = profession_context(profile, job)
+    privacy = IdentifierPrivacy.from_profile(profile)
+    prof_ctx = privacy.mask_text(profession_context(profile, job))
     curriculum_text = curriculum_prompt_block(curriculum_topic) if curriculum_topic else ""
     chain = _chain(model_id)
-    data = chain.chat_json(
-        prompts.INTERVIEW_QUESTIONS_SYSTEM,
-        prompts.interview_questions_user(
+    data = privacy.restore(chain.chat_json(
+        privacy.protect_system(prompts.INTERVIEW_QUESTIONS_SYSTEM),
+        privacy.mask_text(prompts.interview_questions_user(
             profile_to_text(profile) if profile else "",
             job_to_text(job) if job else "",
             focus,
             difficulty,
-            _memories_text(memories),
+            privacy.mask_text(_memories_text(memories)),
             profession_text=prof_ctx,
             focus_guide_text=focus_guide(focus),
             curriculum_text=curriculum_text,
             question_count=question_count,
-        ),
-    )
+        )),
+    ))
     raw = data.get("questions", []) if isinstance(data, dict) else []
     questions: list[dict[str, Any]] = []
     for i, q in enumerate(raw[:question_count]):
@@ -223,14 +225,15 @@ def evaluate_answer(
         for t in prior_turns
         if t.question_index == question_index and t.role == "followup"
     )
-    prof_ctx = profession_context(profile, job)
+    privacy = IdentifierPrivacy.from_profile(profile)
+    prof_ctx = privacy.mask_text(profession_context(profile, job))
     curriculum_topic = normalize_curriculum_topic(curriculum_topic)
     rubric = ""
     if curriculum_topic:
         rubric = feedback_rubric_block(curriculum_topic, question_category or curriculum_topic)
-    data = chain.chat_json(
-        prompts.INTERVIEW_FEEDBACK_SYSTEM,
-        prompts.interview_feedback_user(
+    data = privacy.restore(chain.chat_json(
+        privacy.protect_system(prompts.INTERVIEW_FEEDBACK_SYSTEM),
+        privacy.mask_text(prompts.interview_feedback_user(
             question,
             answer,
             profile_to_text(profile) if profile else "",
@@ -238,8 +241,8 @@ def evaluate_answer(
             prior,
             profession_text=prof_ctx,
             curriculum_rubric=rubric,
-        ),
-    )
+        )),
+    ))
     if not isinstance(data, dict):
         data = {}
     data["_routing"] = routing_metadata(chain)
@@ -292,6 +295,7 @@ def stream_followup(
     model_id: str | None = None,
 ) -> Iterator[str]:
     chain = _chain(model_id)
+    privacy = IdentifierPrivacy.from_profile(profile)
     messages = [
         {
             "role": "system",
@@ -305,7 +309,7 @@ def stream_followup(
     ]
     for h in history[-8:]:
         messages.append({"role": h["role"], "content": h["content"]})
-    for token in chain.chat_stream(messages):
+    for token in chain.chat_stream(privacy.protect_messages(messages)):
         yield token
 
 
@@ -317,6 +321,7 @@ async def stream_followup_async(
     model_id: str | None = None,
 ) -> AsyncIterator[str]:
     chain = _chain(model_id)
+    privacy = IdentifierPrivacy.from_profile(profile)
     messages = [
         {
             "role": "system",
@@ -330,7 +335,7 @@ async def stream_followup_async(
     ]
     for h in history[-8:]:
         messages.append({"role": h["role"], "content": h["content"]})
-    async for token in chain.chat_stream_async(messages):
+    async for token in chain.chat_stream_async(privacy.protect_messages(messages)):
         yield token
 
 
@@ -361,19 +366,20 @@ def generate_summary(
     model_id: str | None = None,
 ) -> dict[str, Any]:
     chain = _chain(model_id)
-    prof_ctx = profession_context(profile, job)
+    privacy = IdentifierPrivacy.from_profile(profile)
+    prof_ctx = privacy.mask_text(profession_context(profile, job))
     curriculum_topic = normalize_curriculum_topic(getattr(session, "curriculum_topic", "") or "")
     curriculum_text = curriculum_prompt_block(curriculum_topic) if curriculum_topic else ""
-    data = chain.chat_json(
-        prompts.INTERVIEW_SUMMARY_SYSTEM,
-        prompts.interview_summary_user(
+    data = privacy.restore(chain.chat_json(
+        privacy.protect_system(prompts.INTERVIEW_SUMMARY_SYSTEM),
+        privacy.mask_text(prompts.interview_summary_user(
             profile_to_text(profile) if profile else "",
             job_to_text(job) if job else "",
             build_transcript(session, turns),
             profession_text=prof_ctx,
             curriculum_text=curriculum_text,
-        ),
-    )
+        )),
+    ))
     if not isinstance(data, dict):
         data = {}
     data["_routing"] = routing_metadata(chain)

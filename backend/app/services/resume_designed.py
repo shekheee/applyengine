@@ -7,6 +7,7 @@ from app import prompts
 from app.llm.factory import build_coach_provider
 from app.models import Job, Memory, Profile
 from app.services.resume_pdf import _merge_memories, _profile_has_content, _profile_to_doc, prepare_resume_document
+from app.services.privacy import private_profile_to_text
 from app.services.serialize import job_to_text, profile_to_text
 
 logger = logging.getLogger(__name__)
@@ -21,16 +22,16 @@ def design_resume_with_ai(
     job: Job | None = None,
 ) -> tuple[dict[str, Any], str | None, str | None]:
     """Use the configured primary model and fallback chain for structured resume JSON."""
-    profile_text = profile_to_text(profile) if profile else ""
-    memory_text = _memory_text(memories)
+    profile_text, privacy = private_profile_to_text(profile)
+    memory_text = privacy.mask_text(_memory_text(memories))
     job_text = job_to_text(job) if job else ""
 
     chain = build_coach_provider()
     chain.reset()
-    data = chain.chat_json(
-        prompts.RESUME_DESIGNED_SYSTEM,
+    data = privacy.restore(chain.chat_json(
+        privacy.protect_system(prompts.RESUME_DESIGNED_SYSTEM),
         prompts.resume_designed_user(profile_text, memory_text, job_text),
-    )
+    ))
     model = chain.last_model
     provider = chain.last_served
     if chain.last_served:

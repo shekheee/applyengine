@@ -11,6 +11,8 @@ from app.services.serialize import profile_to_text
 class ResumeContextTests(unittest.TestCase):
     @patch("app.services.resume_designed.build_coach_provider")
     def test_resume_design_uses_configured_primary_chain(self, build_provider):
+        captured = {}
+
         class FakeChain:
             last_model = "gpt-primary"
             last_served = "openai"
@@ -19,8 +21,9 @@ class ResumeContextTests(unittest.TestCase):
                 return None
 
             def chat_json(self, _system, _user):
+                captured["user"] = _user
                 return {
-                    "name": "Example Candidate",
+                    "name": "[CANDIDATE_NAME]",
                     "summary": "Data scientist.",
                     "skills": ["Python"],
                     "experience": [],
@@ -35,6 +38,8 @@ class ResumeContextTests(unittest.TestCase):
 
         build_provider.assert_called_once_with()
         self.assertEqual(doc["name"], "Example Candidate")
+        self.assertNotIn("Example Candidate", captured["user"])
+        self.assertIn("[CANDIDATE_NAME]", captured["user"])
         self.assertEqual(provider, "openai")
         self.assertEqual(model, "gpt-primary")
 

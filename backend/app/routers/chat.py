@@ -82,6 +82,8 @@ def _persist_background_learning(
             .where(Memory.user_id == user_id)
             .order_by(Memory.id.asc())
         ).all()
+        profile_user = db.get(User, user_id)
+        profile = get_base_profile(profile_user, db) if profile_user else None
         conv = db.get(Conversation, conversation_id)
         messages = db.exec(
             select(ChatMessage)
@@ -95,7 +97,7 @@ def _persist_background_learning(
         summary_through = conv.summary_through_message_id if conv else 0
 
     new_memories = coach.extract_memories(
-        user_message, assistant_reply[:3000], memories
+        user_message, assistant_reply[:3000], memories, profile
     )
 
     # Keep the latest ten turns verbatim. Merge older unsummarized turns in
@@ -109,7 +111,7 @@ def _persist_background_learning(
     new_summary = existing_summary
     if len(summary_batch) >= 6:
         new_summary = coach.summarize_conversation_context(
-            existing_summary, summary_batch
+            existing_summary, summary_batch, profile
         )
 
     if not new_memories and new_summary == existing_summary:

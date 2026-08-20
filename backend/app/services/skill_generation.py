@@ -7,6 +7,7 @@ from app.llm.factory import build_coach_provider
 from app.models import Job, Profile
 from app.services.serialize import job_to_text, profile_to_text
 from app.services.skill_registry import GENERATIVE_SKILL_IDS
+from app.services.privacy import IdentifierPrivacy
 
 DOCUMENT_TEMPLATES = {
     "cover-letter": "a persuasive, specific cover letter",
@@ -119,7 +120,8 @@ def generate_skill_content(
     if template not in template_map:
         raise ValueError("Unknown skill template")
 
-    profile_context = profile_to_text(profile) if profile else "No base resume is available."
+    privacy = IdentifierPrivacy.from_profile(profile)
+    profile_context = privacy.mask_text(profile_to_text(profile)) if profile else "No base resume is available."
     job_context = job_to_text(job) if job else "No target job was selected."
     if skill_id == "document-writer":
         schema = "Return JSON with title, subtitle, sections (objects with heading, paragraphs array, bullets array), and closing. Do not use markdown inside values."
@@ -143,7 +145,9 @@ Ground every claim in the supplied resume, job description, or user brief. Never
     try:
         chain = build_coach_provider(model_id, reasoning_effort)
         chain.reset()
-        raw = chain.chat_json(system, "\n\n".join(user_parts))
+        raw = privacy.restore(chain.chat_json(
+            privacy.protect_system(system), privacy.mask_text("\n\n".join(user_parts))
+        ))
         if not isinstance(raw, dict):
             raise ValueError("Model returned an invalid artifact")
         content = _normalize_document(raw, title, template) if skill_id == "document-writer" else _normalize_presentation(raw, title, template)

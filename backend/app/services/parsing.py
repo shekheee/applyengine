@@ -6,6 +6,7 @@ import re
 from app import prompts
 from app.llm import build_coach_provider
 from app.services.resume_normalize import normalize_resume_data
+from app.services.privacy import IdentifierPrivacy, PRIVACY_INSTRUCTION
 from app.services.skills_vocab import ALIASES, SKILLS_SORTED
 
 logger = logging.getLogger(__name__)
@@ -56,9 +57,13 @@ def _parse_json_with_fallback(system: str, user: str) -> dict:
 
 def parse_resume(raw_text: str) -> dict:
     """Parse a resume into structured fields (LLM first, heuristic fallback)."""
+    privacy = IdentifierPrivacy.from_resume_source(raw_text)
+    protected_text = privacy.mask_text(raw_text)
     data = _parse_json_with_fallback(
-        prompts.RESUME_PARSE_SYSTEM, prompts.resume_parse_user(raw_text)
+        f"{prompts.RESUME_PARSE_SYSTEM}\n\n{PRIVACY_INSTRUCTION}",
+        prompts.resume_parse_user(protected_text),
     )
+    data = privacy.restore(data)
 
     # Heuristic backfill for anything the LLM missed (or when using mock).
     lines = [ln.strip() for ln in raw_text.splitlines() if ln.strip()]
