@@ -171,8 +171,9 @@ class BuddyPracticeTests(unittest.TestCase):
             config["audio"]["input"]["noise_reduction"]["type"], "far_field"
         )
         self.assertEqual(config["audio"]["output"]["speed"], 1.15)
-        self.assertEqual(config["max_output_tokens"], 512)
+        self.assertEqual(config["max_output_tokens"], 4096)
         self.assertIn("at least 80% of the speaking", config["instructions"])
+        self.assertIn("roughly 60 to 180 words", config["instructions"])
 
 
 if __name__ == "__main__":

@@ -407,8 +407,11 @@ async def create_realtime_session(
     instructions += (
         "\n\nLIVE VOICE RULES\nThe user should do at least 80% of the speaking. "
         "Speak briskly at a natural professional pace. Default to one short prompt or "
-        "question of 10 to 25 words, then stop and listen. Never complete the topic, give "
-        "a mini-lecture, or provide the full answer unless the user explicitly asks. "
+        "question of 10 to 25 words, then stop and listen. When the user explicitly asks "
+        "for advice, an explanation, or your opinion, answer substantively in roughly 60 "
+        "to 180 words before returning the conversation to them; use more only when they "
+        "explicitly request a deep explanation. Never give an unsolicited mini-lecture or "
+        "provide the full answer unless the user asks. "
         "Ask one question at a time, tolerate natural pauses, and let the user finish. "
         "Give at most one communication pointer of 12 words after every two or three user "
         "turns. If the user becomes repetitive, ask them to restate the idea in one sentence."
@@ -417,9 +420,10 @@ async def create_realtime_session(
         "type": "realtime",
         "model": settings.openai_realtime_model,
         "instructions": instructions,
-        # This is a safety ceiling, not a target. The spoken-word prompt keeps
-        # turns short; enough headroom prevents audio ending mid-sentence.
-        "max_output_tokens": 512,
+        # This is a safety ceiling, not a target. Billing is based on tokens
+        # actually generated, while the prompt controls ordinary turn length.
+        # The larger ceiling leaves room for explicitly requested advice.
+        "max_output_tokens": 4096,
         "audio": {
             "input": {
                 "transcription": {
