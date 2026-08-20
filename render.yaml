@@ -35,6 +35,12 @@ services:
         value: gpt-4o-transcribe,whisper-1
       - key: SPEECH_TTS_MODEL
         value: tts-1
+      - key: OPENAI_REALTIME_MODEL
+        value: gpt-realtime-2.1-mini
+      - key: OPENAI_REALTIME_VOICE
+        value: marin
+      - key: OPENAI_REALTIME_ENABLED
+        value: "true"
       - key: GEMINI_AUDIO_MODEL
         value: gemini-3.1-flash-lite
       - key: GEMINI_AUDIO_ANALYSIS_ENABLED

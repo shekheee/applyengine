@@ -97,6 +97,46 @@ class CoachModelsOut(BaseModel):
     default_model: str
 
 
+class BuddySessionCreate(BaseModel):
+    conversation_id: int | None = None
+    topic: str = Field(default="Open technical conversation", max_length=160)
+    goal: str = Field(
+        default="Explain one idea clearly and concisely", max_length=300
+    )
+    target_minutes: int = Field(default=10, ge=1, le=30)
+
+
+class BuddySessionUpdate(BaseModel):
+    spoken_seconds_delta: float = Field(default=0, ge=0, le=1800)
+    words_spoken_delta: int = Field(default=0, ge=0, le=10000)
+    turn_count_delta: int = Field(default=0, ge=0, le=100)
+    status: str | None = None
+
+
+class BuddyTurnIn(BaseModel):
+    conversation_id: int
+    session_id: int | None = None
+    role: str
+    content: str = Field(min_length=1, max_length=50000)
+    duration_seconds: float = Field(default=0, ge=0, le=1800)
+    word_count: int = Field(default=0, ge=0, le=10000)
+
+
+class VocabularyCreate(BaseModel):
+    term: str = Field(min_length=1, max_length=120)
+    meaning: str = Field(default="", max_length=1000)
+    example: str = Field(default="", max_length=1500)
+    source: str = Field(default="manual", max_length=30)
+
+
+class VocabularyUpdate(BaseModel):
+    term: str | None = Field(default=None, min_length=1, max_length=120)
+    meaning: str | None = Field(default=None, max_length=1000)
+    example: str | None = Field(default=None, max_length=1500)
+    confidence: int | None = Field(default=None, ge=0, le=5)
+    practise: bool = False
+
+
 class SkillOut(BaseModel):
     id: str
     name: str

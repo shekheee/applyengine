@@ -11,6 +11,7 @@ from app.prompts import PROMPTS_VERSION
 from app.routers import (
     applications,
     auth,
+    buddy,
     chat,
     generate,
     interview,
@@ -42,6 +43,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(buddy.router)
 app.include_router(profiles.router)
 app.include_router(jobs.router)
 app.include_router(applications.router)

@@ -1,6 +1,8 @@
 import type {
   Application,
   AudioDeliveryAnalysis,
+  BuddyDashboard,
+  BuddySession,
   ChatMessage,
   CoachModel,
   CoachMode,
@@ -25,6 +27,7 @@ import type {
   Status,
   TranscribeResult,
   User,
+  VocabularyTerm,
   WebSearchMode,
 } from "./types";
 
@@ -153,6 +156,76 @@ export const api = {
         ? `/api/chat/conversations/${conversationId}/messages`
         : "/api/chat/messages"
     ),
+
+  // ---- Technical Buddy ----
+  getBuddyDashboard: () => req<BuddyDashboard>("/api/buddy/dashboard"),
+
+  startBuddySession: (body: {
+    conversation_id?: number | null;
+    topic: string;
+    goal?: string;
+    target_minutes?: number;
+  }) =>
+    req<BuddySession>("/api/buddy/sessions", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  updateBuddySession: (
+    id: number,
+    body: {
+      spoken_seconds_delta?: number;
+      words_spoken_delta?: number;
+      turn_count_delta?: number;
+      status?: "active" | "completed";
+    }
+  ) =>
+    req<BuddySession>(`/api/buddy/sessions/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
+  saveBuddyTurn: (body: {
+    conversation_id: number;
+    session_id?: number | null;
+    role: "user" | "assistant";
+    content: string;
+    duration_seconds?: number;
+    word_count?: number;
+  }) =>
+    req<{ id: number; session: BuddySession | null }>("/api/buddy/turns", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  addVocabulary: (body: {
+    term: string;
+    meaning?: string;
+    example?: string;
+    source?: string;
+  }) =>
+    req<VocabularyTerm>("/api/buddy/vocabulary", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  updateVocabulary: (
+    id: number,
+    body: {
+      term?: string;
+      meaning?: string;
+      example?: string;
+      confidence?: number;
+      practise?: boolean;
+    }
+  ) =>
+    req<VocabularyTerm>(`/api/buddy/vocabulary/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
+  deleteVocabulary: (id: number) =>
+    req<{ ok: boolean }>(`/api/buddy/vocabulary/${id}`, { method: "DELETE" }),
   sendMessage: (
     message: string,
     model?: string,

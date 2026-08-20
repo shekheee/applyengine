@@ -160,6 +160,42 @@ class Memory(SQLModel, table=True):
     created_at: datetime = Field(default_factory=_now)
 
 
+class BuddySession(SQLModel, table=True):
+    """A guided speaking session for the Technical Buddy."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    conversation_id: int | None = Field(
+        default=None, foreign_key="conversation.id", index=True
+    )
+    topic: str = "Open technical conversation"
+    goal: str = "Explain one idea clearly and concisely"
+    target_minutes: int = 10
+    spoken_seconds: float = 0
+    turn_count: int = 0
+    words_spoken: int = 0
+    status: str = Field(default="active", index=True)  # active | completed
+    started_at: datetime = Field(default_factory=_now)
+    completed_at: datetime | None = None
+    updated_at: datetime = Field(default_factory=_now)
+
+
+class VocabularyTerm(SQLModel, table=True):
+    """A word or phrase the user wants to make active in speech."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    term: str = Field(index=True)
+    meaning: str = Field(default="", sa_column=Column(Text))
+    example: str = Field(default="", sa_column=Column(Text))
+    source: str = "manual"
+    times_practised: int = 0
+    confidence: int = 0
+    last_practised_at: datetime | None = None
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
+
+
 class InterviewSession(SQLModel, table=True):
     """An interview practice session tailored to the user's resume and optional job."""
 

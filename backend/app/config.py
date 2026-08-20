@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     openai_embed_model: str = "text-embedding-3-small"
     speech_transcription_models: str = "gpt-4o-transcribe,whisper-1"
     speech_tts_model: str = "tts-1"
+    openai_realtime_model: str = "gpt-realtime-2.1-mini"
+    openai_realtime_voice: str = "marin"
+    openai_realtime_enabled: bool = True
 
     # Anthropic
     anthropic_api_key: str | None = None

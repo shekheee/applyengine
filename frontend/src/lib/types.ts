@@ -171,6 +171,46 @@ export interface CoachModel {
   is_default: boolean;
 }
 
+export interface BuddySession {
+  id: number;
+  conversation_id: number | null;
+  topic: string;
+  goal: string;
+  target_minutes: number;
+  spoken_seconds: number;
+  turn_count: number;
+  words_spoken: number;
+  status: "active" | "completed" | "abandoned";
+  started_at: string;
+  completed_at: string | null;
+}
+
+export interface VocabularyTerm {
+  id: number;
+  term: string;
+  meaning: string;
+  example: string;
+  source: string;
+  times_practised: number;
+  confidence: number;
+  last_practised_at: string | null;
+  created_at: string;
+}
+
+export interface BuddyDashboard {
+  active_session: BuddySession | null;
+  vocabulary: VocabularyTerm[];
+  stats: {
+    today_seconds: number;
+    today_minutes: number;
+    current_streak: number;
+    longest_streak: number;
+    total_minutes: number;
+    sessions_completed: number;
+    week: { date: string; minutes: number }[];
+  };
+}
+
 export interface SkillDefinition {
   id: "resume-builder" | "document-writer" | "presentation-builder" | string;
   name: string;

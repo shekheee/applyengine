@@ -10,6 +10,7 @@ import {
 import { api } from "@/lib/api";
 import type {
   AnswerLength,
+  BuddyDashboard,
   ChatMessage,
   CoachMode,
   CoachModel,
@@ -20,6 +21,7 @@ import type {
   PendingAttachment,
   ReasoningEffort,
   WebSearchMode,
+  VocabularyTerm,
 } from "@/lib/types";
 import {
   NewConversationDialog,
@@ -37,6 +39,7 @@ import { ConversationSidebar } from "@/components/coach/conversation-sidebar";
 import { MessageBubble } from "@/components/coach/message-bubble";
 import { getStoredModelId, storeModelId } from "@/components/model-selector";
 import { useVoiceRecorder, type RecordedAudio } from "@/hooks/use-voice-recorder";
+import { useRealtimeBuddy } from "@/hooks/use-realtime-buddy";
 import { mergeDeliveryAnalysis } from "@/lib/audio";
 
 const STARTERS = [
@@ -171,7 +174,17 @@ export function CoachChat({
   const [voiceDelivery, setVoiceDelivery] = useState<DeliveryMetrics | null>(null);
   const [transcribingVoice, setTranscribingVoice] = useState(false);
   const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
+  const [buddyDashboard, setBuddyDashboard] = useState<BuddyDashboard | null>(null);
+  const [buddyDashboardLoading, setBuddyDashboardLoading] = useState(true);
   const voiceAnalysisVersionRef = useRef(0);
+
+  const refreshBuddyDashboard = useCallback(async () => {
+    try {
+      setBuddyDashboard(await api.getBuddyDashboard());
+    } finally {
+      setBuddyDashboardLoading(false);
+    }
+  }, []);
 
   async function processRecordedAudio(recorded: RecordedAudio | null) {
     setTranscribingVoice(true);
@@ -189,6 +202,14 @@ export function CoachChat({
       );
       setInput(result.text);
       setVoiceDelivery(result.delivery);
+      if (coachMode === "buddy" && buddyDashboard?.active_session) {
+        await api.updateBuddySession(buddyDashboard.active_session.id, {
+          spoken_seconds_delta: recorded.duration,
+          words_spoken_delta: result.text.trim().split(/\s+/).filter(Boolean).length,
+          turn_count_delta: 1,
+        });
+        await refreshBuddyDashboard();
+      }
       const analysisVersion = voiceAnalysisVersionRef.current + 1;
       voiceAnalysisVersionRef.current = analysisVersion;
       void api
@@ -219,6 +240,44 @@ export function CoachChat({
   }
 
   const voice = useVoiceRecorder(processRecordedAudio);
+
+  const handleRealtimeTurn = useCallback(
+    (turn: { role: "user" | "assistant"; content: string; durationSeconds: number }) => {
+      if (activeConversationId == null) return;
+      const optimistic: ChatMessage = {
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        role: turn.role,
+        content: turn.content,
+        created_at: new Date().toISOString(),
+        model_served: turn.role === "assistant" ? "OpenAI Realtime" : undefined,
+        provider_served: turn.role === "assistant" ? "openai" : undefined,
+      };
+      setMessages((previous) => [...previous, optimistic]);
+      void api
+        .saveBuddyTurn({
+          conversation_id: activeConversationId,
+          session_id: buddyDashboard?.active_session?.id,
+          role: turn.role,
+          content: turn.content,
+          duration_seconds: turn.durationSeconds,
+          word_count: turn.content.trim().split(/\s+/).filter(Boolean).length,
+        })
+        .then(async () => {
+          await refreshBuddyDashboard();
+          setConversations(await api.listConversations());
+        })
+        .catch((cause) => {
+          setError(cause instanceof Error ? cause.message : "Could not save the live conversation.");
+        });
+    },
+    [activeConversationId, buddyDashboard?.active_session?.id, refreshBuddyDashboard]
+  );
+
+  const realtimeBuddy = useRealtimeBuddy({
+    conversationId: activeConversationId,
+    sessionId: buddyDashboard?.active_session?.id ?? null,
+    onTurn: handleRealtimeTurn,
+  });
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -264,16 +323,19 @@ export function CoachChat({
           resolvedConvId = roleConv.id;
         }
 
-        const [convs, mem, modelData, jobList] = await Promise.all([
+        const [convs, mem, modelData, jobList, buddyData] = await Promise.all([
           api.listConversations(),
           api.listMemories(),
           api.listCoachModels(),
           api.listJobs().catch(() => []),
+          api.getBuddyDashboard().catch(() => null),
         ]);
         setConversations(convs);
         setJobs(jobList);
         setMemories(mem);
         setModels(modelData.models);
+        setBuddyDashboard(buddyData);
+        setBuddyDashboardLoading(false);
         setWebSearchMode(getStoredWebSearchMode());
         setReasoningEffort(getStoredReasoningEffort());
         setAnswerLength(getStoredAnswerLength());
@@ -327,6 +389,10 @@ export function CoachChat({
     }
     load();
   }, [initialConversationId, initialCoachMode, embedded, applicationId]);
+
+  useEffect(() => {
+    if (coachMode === "buddy") void refreshBuddyDashboard();
+  }, [coachMode, refreshBuddyDashboard]);
 
   useEffect(() => {
     if (messages.length === 0 && !streaming) {
@@ -617,6 +683,41 @@ export function CoachChat({
     await voice.startRecording();
   }
 
+  async function startBuddyDaily(topic: string, prompt: string) {
+    if (activeConversationId == null) return;
+    setError("");
+    setBuddyDashboardLoading(true);
+    try {
+      await api.startBuddySession({
+        conversation_id: activeConversationId,
+        topic,
+        goal: "Speak freely, then make the main point precise and concise",
+        target_minutes: 10,
+      });
+      await refreshBuddyDashboard();
+      if (messages.length === 0) setInput(prompt);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not start today's session.");
+      setBuddyDashboardLoading(false);
+    }
+  }
+
+  async function addBuddyVocabulary(term: string, meaning: string) {
+    await api.addVocabulary({ term, meaning, source: "buddy" });
+    await refreshBuddyDashboard();
+  }
+
+  function practiseBuddyVocabulary(term: VocabularyTerm) {
+    void api.updateVocabulary(term.id, { practise: true }).then(refreshBuddyDashboard);
+    void send(
+      `Help me activate the phrase “${term.term}”. ${term.meaning ? `I understand it as: ${term.meaning}. ` : ""}Ask me one technical question where I can use it naturally, then correct only my usage.`
+    );
+  }
+
+  function deleteBuddyVocabulary(id: number) {
+    void api.deleteVocabulary(id).then(refreshBuddyDashboard);
+  }
+
   function changeCoachMode(mode: CoachMode) {
     setCoachMode(mode);
     window.localStorage.setItem(COACH_MODE_KEY, mode);
@@ -723,7 +824,19 @@ export function CoachChat({
         {!embedded && coachMode === "buddy" && (
           <BuddyBar
             onStartTopic={(prompt) => void send(prompt)}
+            onStartDaily={(topic, prompt) => void startBuddyDaily(topic, prompt)}
             disabled={streaming || savingEdit || activeConversationId == null}
+            dashboard={buddyDashboard}
+            dashboardLoading={buddyDashboardLoading}
+            realtime={{
+              state: realtimeBuddy.state,
+              error: realtimeBuddy.error,
+              isSupported: realtimeBuddy.isSupported,
+              isActive: realtimeBuddy.isActive,
+              onStart: (kickoff) => void realtimeBuddy.start(kickoff),
+              onStop: realtimeBuddy.stop,
+              onInterrupt: realtimeBuddy.interrupt,
+            }}
             voice={{ ...voice, error: transcriptionError || voice.error }}
             transcribing={transcribingVoice}
             onMicClick={() => void handleMicClick()}
@@ -741,6 +854,9 @@ export function CoachChat({
               window.localStorage.setItem(BUDDY_READ_REPLIES_KEY, String(value));
               if (!value) window.speechSynthesis?.cancel();
             }}
+            onAddVocabulary={addBuddyVocabulary}
+            onPracticeVocabulary={practiseBuddyVocabulary}
+            onDeleteVocabulary={deleteBuddyVocabulary}
           />
         )}
 

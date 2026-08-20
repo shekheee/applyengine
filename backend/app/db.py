@@ -38,6 +38,112 @@ def init_db() -> None:
     _migrate_interview_live_mode()
     _migrate_interview_reliability()
     _migrate_social_studio()
+    _migrate_buddy_practice()
+
+
+def _migrate_buddy_practice() -> None:
+    """Create persistent Buddy sessions and vocabulary for existing databases."""
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        if is_sqlite:
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS buddysession (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        conversation_id INTEGER,
+                        topic TEXT DEFAULT 'Open technical conversation',
+                        goal TEXT DEFAULT 'Explain one idea clearly and concisely',
+                        target_minutes INTEGER DEFAULT 10,
+                        spoken_seconds FLOAT DEFAULT 0,
+                        turn_count INTEGER DEFAULT 0,
+                        words_spoken INTEGER DEFAULT 0,
+                        status TEXT DEFAULT 'active',
+                        started_at TEXT,
+                        completed_at TEXT,
+                        updated_at TEXT,
+                        FOREIGN KEY(user_id) REFERENCES user(id),
+                        FOREIGN KEY(conversation_id) REFERENCES conversation(id)
+                    )
+                    """
+                )
+            )
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS vocabularyterm (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        term TEXT NOT NULL,
+                        meaning TEXT DEFAULT '',
+                        example TEXT DEFAULT '',
+                        source TEXT DEFAULT 'manual',
+                        times_practised INTEGER DEFAULT 0,
+                        confidence INTEGER DEFAULT 0,
+                        last_practised_at TEXT,
+                        created_at TEXT,
+                        updated_at TEXT,
+                        FOREIGN KEY(user_id) REFERENCES user(id)
+                    )
+                    """
+                )
+            )
+        else:
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS buddysession (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER NOT NULL REFERENCES "user"(id),
+                        conversation_id INTEGER REFERENCES conversation(id),
+                        topic TEXT DEFAULT 'Open technical conversation',
+                        goal TEXT DEFAULT 'Explain one idea clearly and concisely',
+                        target_minutes INTEGER DEFAULT 10,
+                        spoken_seconds DOUBLE PRECISION DEFAULT 0,
+                        turn_count INTEGER DEFAULT 0,
+                        words_spoken INTEGER DEFAULT 0,
+                        status TEXT DEFAULT 'active',
+                        started_at TIMESTAMPTZ,
+                        completed_at TIMESTAMPTZ,
+                        updated_at TIMESTAMPTZ
+                    )
+                    """
+                )
+            )
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS vocabularyterm (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER NOT NULL REFERENCES "user"(id),
+                        term TEXT NOT NULL,
+                        meaning TEXT DEFAULT '',
+                        example TEXT DEFAULT '',
+                        source TEXT DEFAULT 'manual',
+                        times_practised INTEGER DEFAULT 0,
+                        confidence INTEGER DEFAULT 0,
+                        last_practised_at TIMESTAMPTZ,
+                        created_at TIMESTAMPTZ,
+                        updated_at TIMESTAMPTZ
+                    )
+                    """
+                )
+            )
+        for table, column in (
+            ("buddysession", "user_id"),
+            ("buddysession", "conversation_id"),
+            ("buddysession", "status"),
+            ("vocabularyterm", "user_id"),
+            ("vocabularyterm", "term"),
+        ):
+            conn.execute(
+                text(
+                    f"CREATE INDEX IF NOT EXISTS ix_{table}_{column} "
+                    f"ON {table} ({column})"
+                )
+            )
 
 
 def _migrate_resume_versions() -> None:
