@@ -428,12 +428,10 @@ async def create_realtime_session(
                 },
                 "noise_reduction": {"type": "far_field"},
                 "turn_detection": {
-                    "type": "server_vad",
-                    # Require a clearer voice signal so keyboard and room noise
-                    # do not start or interrupt a turn.
-                    "threshold": 0.7,
-                    "prefix_padding_ms": 300,
-                    "silence_duration_ms": 900,
+                    # Adapt the pause to meaning: wait when the user's thought
+                    # sounds unfinished, but respond quickly to a clear ending.
+                    "type": "semantic_vad",
+                    "eagerness": "medium",
                     "create_response": True,
                     # The browser confirms sustained speech before cancelling
                     # output, preserving deliberate barge-in without noise cuts.

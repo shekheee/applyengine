@@ -490,12 +490,10 @@ async def create_realtime_interview(
                 },
                 "noise_reduction": {"type": "far_field"},
                 "turn_detection": {
-                    "type": "server_vad",
-                    "threshold": 0.7,
-                    "prefix_padding_ms": 300,
-                    # Long enough for a thinking pause, short enough to avoid the
-                    # stop/upload/transcribe delay of the legacy interview path.
-                    "silence_duration_ms": 900,
+                    # Meaning-aware pauses let the candidate collect a thought
+                    # without imposing the same delay after a completed answer.
+                    "type": "semantic_vad",
+                    "eagerness": "medium",
                     "create_response": True,
                     # Deliberate barge-in is confirmed in the browser. A brief
                     # noise event must not cancel the interviewer mid-sentence.
