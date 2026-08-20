@@ -17,6 +17,14 @@ type CompletedTurn = {
   durationSeconds: number;
 };
 
+function responseStopReason(message: Record<string, unknown>): string {
+  const response = (message.response || {}) as Record<string, unknown>;
+  const status = String(response.status || "");
+  if (!status || status === "completed" || status === "in_progress") return "";
+  const details = (response.status_details || {}) as Record<string, unknown>;
+  return String(details.reason || details.type || status);
+}
+
 export function useRealtimeBuddy({
   conversationId,
   sessionId,
@@ -36,6 +44,7 @@ export function useRealtimeBuddy({
   const assistantTextRef = useRef("");
   const speechStartedRef = useRef<number | null>(null);
   const audioPlayingRef = useRef(false);
+  const manualInterruptRef = useRef(false);
   const deliveredRef = useRef(new Set<string>());
 
   useEffect(() => {
@@ -58,6 +67,7 @@ export function useRealtimeBuddy({
     assistantTextRef.current = "";
     speechStartedRef.current = null;
     audioPlayingRef.current = false;
+    manualInterruptRef.current = false;
     deliveredRef.current.clear();
   }, []);
 
@@ -149,6 +159,7 @@ export function useRealtimeBuddy({
           );
           if (type === "input_audio_buffer.speech_started") {
             speechStartedRef.current = performance.now();
+            setError(null);
             setState("user_speaking");
           } else if (type === "input_audio_buffer.speech_stopped") {
             setState("listening");
@@ -195,6 +206,11 @@ export function useRealtimeBuddy({
               if (microphone) microphone.enabled = true;
               setState("listening");
             }
+            const stopReason = responseStopReason(message);
+            if (stopReason && !manualInterruptRef.current) {
+              setError(`The Coach response ended early (${stopReason}). Please try that turn again.`);
+            }
+            manualInterruptRef.current = false;
           } else if (type === "error") {
             setError("The live Buddy hit an error. You can stop and use Record one reply.");
           }
@@ -242,6 +258,7 @@ export function useRealtimeBuddy({
     if (!channel || channel.readyState !== "open") return;
     channel.send(JSON.stringify({ type: "response.cancel" }));
     channel.send(JSON.stringify({ type: "output_audio_buffer.clear" }));
+    manualInterruptRef.current = true;
     audioPlayingRef.current = false;
     const microphone = streamRef.current?.getAudioTracks()[0];
     if (microphone) microphone.enabled = true;

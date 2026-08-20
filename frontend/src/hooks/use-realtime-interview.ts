@@ -19,6 +19,14 @@ export type RealtimeInterviewTurn = {
   latencyMs?: number;
 };
 
+function responseStopReason(message: Record<string, unknown>): string {
+  const response = (message.response || {}) as Record<string, unknown>;
+  const status = String(response.status || "");
+  if (!status || status === "completed" || status === "in_progress") return "";
+  const details = (response.status_details || {}) as Record<string, unknown>;
+  return String(details.reason || details.type || status);
+}
+
 export function useRealtimeInterview({
   sessionId,
   onTurn,
@@ -45,6 +53,7 @@ export function useRealtimeInterview({
   const pendingEndRef = useRef(false);
   const audioPlayingRef = useRef(false);
   const manualMuteRef = useRef(false);
+  const manualInterruptRef = useRef(false);
   const pendingSavesRef = useRef<Promise<void>>(Promise.resolve());
   const onTurnRef = useRef(onTurn);
   const onEndRef = useRef(onEndRequested);
@@ -74,6 +83,7 @@ export function useRealtimeInterview({
     pendingEndRef.current = false;
     audioPlayingRef.current = false;
     manualMuteRef.current = false;
+    manualInterruptRef.current = false;
     deliveredRef.current.clear();
     setCaption("");
     setIsMuted(false);
@@ -203,6 +213,7 @@ export function useRealtimeInterview({
         );
         if (type === "input_audio_buffer.speech_started") {
           speechStartedRef.current = performance.now();
+          setError(null);
           setState("candidate_speaking");
         } else if (type === "input_audio_buffer.speech_stopped") {
           responseStartedRef.current = performance.now();
@@ -296,6 +307,11 @@ export function useRealtimeInterview({
             pendingEndRef.current = false;
             void pendingSavesRef.current.then(() => onEndRef.current());
           }
+          const stopReason = responseStopReason(message);
+          if (stopReason && !manualInterruptRef.current) {
+            setError(`The interviewer response ended early (${stopReason}). Please repeat the turn.`);
+          }
+          manualInterruptRef.current = false;
         } else if (type === "error") {
           setError("The realtime interviewer hit an error. Switch to recorded-answer mode.");
         }
@@ -342,6 +358,7 @@ export function useRealtimeInterview({
     if (!channel || channel.readyState !== "open") return;
     channel.send(JSON.stringify({ type: "response.cancel" }));
     channel.send(JSON.stringify({ type: "output_audio_buffer.clear" }));
+    manualInterruptRef.current = true;
     audioPlayingRef.current = false;
     const microphone = streamRef.current?.getAudioTracks()[0];
     if (microphone) microphone.enabled = !manualMuteRef.current;

@@ -467,7 +467,9 @@ async def create_realtime_interview(
         "instructions": instructions,
         # Spoken interview turns should be short; a frontier text model is used
         # later for the detailed post-session assessment.
-        "max_output_tokens": 140,
+        # Keep enough headroom for a complete spoken sentence and the optional
+        # end_interview tool call. Prompt rules control audible response length.
+        "max_output_tokens": 512,
         "tools": [
             {
                 "type": "function",

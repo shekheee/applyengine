@@ -417,7 +417,9 @@ async def create_realtime_session(
         "type": "realtime",
         "model": settings.openai_realtime_model,
         "instructions": instructions,
-        "max_output_tokens": 100,
+        # This is a safety ceiling, not a target. The spoken-word prompt keeps
+        # turns short; enough headroom prevents audio ending mid-sentence.
+        "max_output_tokens": 512,
         "audio": {
             "input": {
                 "transcription": {
