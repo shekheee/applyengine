@@ -6,7 +6,7 @@ import re
 from app.models import Job
 from app.services.resume_html import refit_html_for_one_page
 from app.services.resume_html_fit import condense_html, pdf_page_count
-from app.services.resume_templates import render_resume_template
+from app.services.resume_templates import prepare_one_page_resume_doc, render_resume_template
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,10 @@ def html_to_pdf_one_page(
             logger.info("Resume PDF is %d pages (%s) — refit attempt %d", pages, engine, attempt + 1)
             if structured:
                 current = render_resume_template(
-                    structured, style=style, job=job_obj, compact=True
+                    prepare_one_page_resume_doc(structured),
+                    style=style,
+                    job=job_obj,
+                    compact=True,
                 )
             else:
                 current = refit_html_for_one_page(current, pages)
@@ -65,7 +68,10 @@ def html_to_pdf_one_page(
     for level in range(1, _MAX_LIGHT_CONDENSE + 1):
         if structured:
             candidate = render_resume_template(
-                structured, style=style, job=job_obj, compact=True
+                prepare_one_page_resume_doc(structured),
+                style=style,
+                job=job_obj,
+                compact=True,
             )
             candidate = condense_html(candidate, level)
         else:

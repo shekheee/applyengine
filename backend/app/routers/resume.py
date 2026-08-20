@@ -92,7 +92,7 @@ def _structured_for_version(
     session: Session,
 ) -> dict:
     if version and version.structured_json:
-        return version.structured_json
+        return enrich_designed_doc(version.structured_json, profile)
     doc, _, _ = design_resume_with_ai(profile, memories, job)
     if version:
         version.structured_json = doc
@@ -123,13 +123,26 @@ def get_version(
     version = get_user_version(user, version_id, session)
     if not version:
         raise HTTPException(404, "Resume version not found")
-    return ResumeVersionOut(**version_to_api(version, include_html=True))
+    payload = version_to_api(version, include_html=True)
+    profile = _latest_profile(user, session)
+    if (
+        version.kind == ResumeVersionKind.designed.value
+        and version.structured_json
+    ):
+        job = session.get(Job, version.job_id) if version.job_id else None
+        doc = enrich_designed_doc(version.structured_json, profile)
+        style = doc.get("_template_style", "signature")
+        payload["html_content"] = design_and_render_resume(
+            doc, style=style, job=job
+        )
+    return ResumeVersionOut(**payload)
 
 
 @router.post("/design", response_model=ResumeDesignOut)
 def generate_designed_resume(
     job_id: int | None = None,
     style: str = "signature",
+    model: str | None = None,
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ):
@@ -137,9 +150,15 @@ def generate_designed_resume(
     profile = _latest_profile(user, session)
     memories = _user_memories(user, session)
     job = _optional_job(user, session, job_id)
-    style_key = style if style in ("signature", "editorial", "executive", "minimal") else "signature"
+    style_key = (
+        style
+        if style in ("signature", "editorial", "executive", "minimal")
+        else "signature"
+    )
     try:
-        doc, provider, model = design_resume_with_ai(profile, memories, job)
+        doc, provider, model_served = design_resume_with_ai(
+            profile, memories, job, model_id=model
+        )
         doc = enrich_designed_doc(doc, profile)
         doc["_template_style"] = style_key
         html_doc = design_and_render_resume(doc, style=style_key, job=job)
@@ -149,7 +168,7 @@ def generate_designed_resume(
             html_content=html_doc,
             profile=profile,
             job=job,
-            model_served=model,
+            model_served=model_served,
             provider_served=provider,
             structured_json=doc,
         )
@@ -157,7 +176,7 @@ def generate_designed_resume(
             version_id=version.id or 0,
             html_content="",  # client loads preview via GET /versions/{id}
             name=profile.name if profile else "",
-            model_served=model,
+            model_served=model_served,
             provider_served=provider,
             tailored_to_job=bool(job),
             job_title=job.title if job else "",
@@ -205,13 +224,24 @@ def download_resume_pdf(
                 pdf_bytes, filename = build_resume_pdf_from_profile(profile, memories)
             else:
                 pdf_bytes, filename = build_resume_pdf(profile, memories, job)
-        elif version and version.html_content.strip():
-            export_html = version.html_content
-            style_guess = (version.structured_json or {}).get("_template_style", "signature")
+        elif version and (
+            version.html_content.strip() or version.structured_json
+        ):
+            structured = (
+                enrich_designed_doc(version.structured_json, profile)
+                if version.structured_json
+                else None
+            )
+            style_guess = (structured or {}).get("_template_style", "signature")
+            export_html = (
+                design_and_render_resume(structured, style=style_guess, job=job)
+                if structured
+                else version.html_content
+            )
             try:
                 pdf_bytes, engine, export_html, _level = html_to_pdf_one_page(
                     export_html,
-                    structured=version.structured_json or None,
+                    structured=structured,
                     style=style_guess,
                     job=job,
                 )

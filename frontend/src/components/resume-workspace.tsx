@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import type { Job, ResumeVersion } from "@/lib/types";
+import type { CoachModel, Job, ResumeVersion } from "@/lib/types";
+import { getStoredModelId, storeModelId } from "@/components/model-selector";
 import type { ResumeDesignStyle } from "@/components/resume/style-picker";
 import { ResumeLetterPreview } from "@/components/resume-letter-preview";
 import { ControlsRail } from "@/components/resume/controls-rail";
@@ -40,6 +41,8 @@ export function ResumeWorkspace({
   variant?: "default" | "application";
 }) {
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [models, setModels] = useState<CoachModel[]>([]);
+  const [resumeModel, setResumeModel] = useState("");
   const [resumeVersions, setResumeVersions] = useState<ResumeVersion[]>([]);
   const [selectedVersionId, setSelectedVersionId] = useState<number | "">("");
   const [previewHtml, setPreviewHtml] = useState("");
@@ -80,12 +83,20 @@ export function ResumeWorkspace({
   useEffect(() => {
     async function init() {
       try {
-        const [jobList, versions] = await Promise.all([
+        const [jobList, versions, modelData] = await Promise.all([
           api.listJobs().catch(() => []),
           api.listResumeVersions().catch(() => []),
+          api.listCoachModels().catch(() => ({ models: [], default_model: "" })),
         ]);
         setJobs(jobList);
         setResumeVersions(versions);
+        setModels(modelData.models);
+        const storedModel = getStoredModelId();
+        setResumeModel(
+          storedModel && modelData.models.some((item) => item.id === storedModel)
+            ? storedModel
+            : modelData.default_model
+        );
         const defaultVersion =
           versions.find((v) => v.kind === "designed")?.id ??
           versions.find((v) => v.kind === "base")?.id ??
@@ -118,7 +129,11 @@ export function ResumeWorkspace({
     setError("");
     try {
       const jobId = effectiveJobId;
-      const result = await api.generateDesignedResume(jobId, designStyle);
+      const result = await api.generateDesignedResume(
+        jobId,
+        designStyle,
+        resumeModel || undefined
+      );
       await loadResumeVersions(result.version_id);
       setSelectedVersionId(result.version_id);
       await loadVersionPreview(result.version_id);
@@ -221,6 +236,12 @@ export function ResumeWorkspace({
       onJobChange={setResumeJobId}
       designStyle={designStyle}
       onStyleChange={setDesignStyle}
+      models={models}
+      resumeModel={resumeModel}
+      onModelChange={(modelId) => {
+        setResumeModel(modelId);
+        storeModelId(modelId);
+      }}
       designState={designState}
       onGenerate={generateDesignedResume}
       generateDisabled={designState === "working" || pdfState === "working" || docxState === "working"}

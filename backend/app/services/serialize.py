@@ -30,6 +30,20 @@ def profile_to_text(p: Profile) -> str:
     name = getattr(p, "name", "") or ""
     if name:
         parts.append(name)
+    contact = [
+        str(value).strip()
+        for value in (
+            getattr(p, "email", ""),
+            getattr(p, "phone", ""),
+            getattr(p, "location", ""),
+        )
+        if str(value or "").strip()
+    ]
+    if contact:
+        parts.append("Contact: " + " | ".join(contact))
+    links = getattr(p, "links", None) or []
+    if links:
+        parts.append("Links: " + " | ".join(str(link) for link in links if link))
     summary = getattr(p, "summary", "") or ""
     if summary:
         parts.append(summary)
@@ -75,6 +89,19 @@ def profile_to_text(p: Profile) -> str:
         if project_index in matched_projects:
             continue
         parts.append(f"{proj.get('name', '')}: {proj.get('description', '')}")
+    education = getattr(p, "education", None) or []
+    if education:
+        parts.append("Education:")
+        for item in education:
+            if not isinstance(item, dict):
+                continue
+            line = " | ".join(
+                str(item.get(key, "")).strip()
+                for key in ("degree", "school", "dates")
+                if str(item.get(key, "")).strip()
+            )
+            if line:
+                parts.append(f"- {line}")
     # If parsing was thin, fall back to the raw resume text.
     text = "\n".join(x for x in parts if x).strip()
     raw_text = getattr(p, "raw_text", "") or ""

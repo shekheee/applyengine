@@ -20,13 +20,14 @@ def design_resume_with_ai(
     profile: Profile | None,
     memories: list[Memory],
     job: Job | None = None,
+    model_id: str | None = None,
 ) -> tuple[dict[str, Any], str | None, str | None]:
     """Use the configured primary model and fallback chain for structured resume JSON."""
     profile_text, privacy = private_profile_to_text(profile)
     memory_text = privacy.mask_text(_memory_text(memories))
     job_text = job_to_text(job) if job else ""
 
-    chain = build_coach_provider()
+    chain = build_coach_provider(model_id)
     chain.reset()
     data = privacy.restore(chain.chat_json(
         privacy.protect_system(prompts.RESUME_DESIGNED_SYSTEM),

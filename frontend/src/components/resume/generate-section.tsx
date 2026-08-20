@@ -1,11 +1,15 @@
 "use client";
 
-import { Button, cn } from "@/components/ui";
+import { Button, Label, Select, cn } from "@/components/ui";
 import type { ResumeDesignStyle } from "@/components/resume/style-picker";
+import type { CoachModel } from "@/lib/types";
 
 export function GenerateSection({
   designState,
   designStyle,
+  models,
+  resumeModel,
+  onModelChange,
   onGenerate,
   disabled,
   isApplication,
@@ -13,6 +17,9 @@ export function GenerateSection({
 }: {
   designState: "idle" | "working" | "done";
   designStyle: ResumeDesignStyle;
+  models: CoachModel[];
+  resumeModel: string;
+  onModelChange: (modelId: string) => void;
   onGenerate: () => void;
   disabled?: boolean;
   isApplication?: boolean;
@@ -23,6 +30,23 @@ export function GenerateSection({
 
   return (
     <div className="space-y-3">
+      {models.length > 0 && (
+        <div>
+          <Label htmlFor="resume-content-model">Content model</Label>
+          <Select
+            id="resume-content-model"
+            value={resumeModel}
+            onChange={(event) => onModelChange(event.target.value)}
+            disabled={working}
+          >
+            {models.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.label} · {item.provider_label}
+              </option>
+            ))}
+          </Select>
+        </div>
+      )}
       <div
         className={cn(
           "rounded-[var(--radius-md)] border px-3 py-3 text-xs leading-relaxed",
@@ -46,8 +70,8 @@ export function GenerateSection({
             </>
           ) : (
             <>
-              The selected primary model extracts your real experience into structured content, rendered in a
-              hand-crafted professional A4 template — typography, layout, and skill chips included.
+              The selected model tightens and prioritises your verified experience. ApplyEngine then renders it
+              with fixed A4 typography, factual contact details, bounded skills, and a three-bullet-per-role budget.
             </>
           )}
         </p>

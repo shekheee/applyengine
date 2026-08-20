@@ -1,5 +1,6 @@
 import io
 import unittest
+from unittest.mock import patch
 
 from docx import Document
 from pptx import Presentation
@@ -13,6 +14,7 @@ from app.services.skill_generation import (
     _fallback_content,
     _normalize_document,
     _normalize_presentation,
+    generate_skill_content,
 )
 from app.services.skill_registry import list_skills
 
@@ -71,6 +73,31 @@ class SkillsTests(unittest.TestCase):
         parsed = Presentation(io.BytesIO(pptx_data))
         self.assertEqual(len(parsed.slides), 4)
         self.assertGreater(parsed.slide_width, parsed.slide_height)
+
+    @patch("app.services.skill_generation.build_coach_provider")
+    def test_generation_surfaces_provider_failure_instead_of_saving_placeholder(self, build):
+        class BrokenChain:
+            requested_model = "broken-model"
+
+            def reset(self):
+                return None
+
+            def chat_json(self, _system, _user):
+                raise RuntimeError("provider unavailable")
+
+        build.return_value = BrokenChain()
+
+        with self.assertRaisesRegex(RuntimeError, "provider unavailable"):
+            generate_skill_content(
+                skill_id="document-writer",
+                template="executive-brief",
+                title="Brief",
+                brief="Create a decision brief.",
+                profile=None,
+                job=None,
+                model_id="broken-model",
+                reasoning_effort="high",
+            )
 
 
 if __name__ == "__main__":

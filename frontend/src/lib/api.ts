@@ -655,10 +655,11 @@ export const api = {
 
   getResumeVersion: (id: number) => req<ResumeVersion>(`/api/resume/versions/${id}`),
 
-  generateDesignedResume: async (jobId?: number, style?: string) => {
+  generateDesignedResume: async (jobId?: number, style?: string, model?: string) => {
     const params = new URLSearchParams();
     if (jobId) params.set("job_id", String(jobId));
     if (style) params.set("style", style);
+    if (model) params.set("model", model);
     const qs = params.toString() ? `?${params.toString()}` : "";
     const result = await req<ResumeDesignResult>(`/api/resume/design${qs}`, {
       method: "POST",

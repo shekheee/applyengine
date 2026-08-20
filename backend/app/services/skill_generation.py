@@ -141,24 +141,22 @@ Ground every claim in the supplied resume, job description, or user brief. Never
         user_parts.append("CURRENT ARTIFACT:\n" + json.dumps(existing, ensure_ascii=False))
         user_parts.append(f"REVISION REQUEST:\n{revision_instruction}")
 
-    chain = None
-    try:
-        chain = build_coach_provider(model_id, reasoning_effort)
-        chain.reset()
-        raw = privacy.restore(chain.chat_json(
-            privacy.protect_system(system), privacy.mask_text("\n\n".join(user_parts))
-        ))
-        if not isinstance(raw, dict):
-            raise ValueError("Model returned an invalid artifact")
-        content = _normalize_document(raw, title, template) if skill_id == "document-writer" else _normalize_presentation(raw, title, template)
-    except Exception:
-        if existing:
-            raise
-        content = _fallback_content(skill_id, template, title or "New artifact", brief)
+    chain = build_coach_provider(model_id, reasoning_effort)
+    chain.reset()
+    raw = privacy.restore(chain.chat_json(
+        privacy.protect_system(system), privacy.mask_text("\n\n".join(user_parts))
+    ))
+    if not isinstance(raw, dict):
+        raise ValueError("The model returned an invalid artifact. Try another model.")
+    content = (
+        _normalize_document(raw, title, template)
+        if skill_id == "document-writer"
+        else _normalize_presentation(raw, title, template)
+    )
 
     return (
         content,
-        chain.last_served if chain else None,
-        chain.last_model if chain else None,
-        chain.requested_model if chain else (model_id or ""),
+        chain.last_served,
+        chain.last_model,
+        chain.requested_model,
     )

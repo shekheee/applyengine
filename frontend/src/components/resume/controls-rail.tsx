@@ -1,6 +1,6 @@
 "use client";
 
-import type { Job, ResumeVersion } from "@/lib/types";
+import type { CoachModel, Job, ResumeVersion } from "@/lib/types";
 import { ResumeUpload } from "@/components/resume-upload";
 import { SectionShell } from "./section-shell";
 import { VersionPicker } from "./version-picker";
@@ -22,6 +22,9 @@ export function ControlsRail({
   onJobChange,
   designStyle,
   onStyleChange,
+  models,
+  resumeModel,
+  onModelChange,
   designState,
   onGenerate,
   generateDisabled,
@@ -45,6 +48,9 @@ export function ControlsRail({
   onJobChange: (id: number | "") => void;
   designStyle: ResumeDesignStyle;
   onStyleChange: (style: ResumeDesignStyle) => void;
+  models: CoachModel[];
+  resumeModel: string;
+  onModelChange: (modelId: string) => void;
   designState: "idle" | "working" | "done";
   onGenerate: () => void;
   generateDisabled?: boolean;
@@ -124,7 +130,7 @@ export function ControlsRail({
 
       <SectionShell
         title="Generate"
-        description="The primary AI model builds a professional HTML resume, with automatic provider fallback."
+        description="The model polishes and prioritises verified content; ApplyEngine controls the A4 layout."
         icon="✦"
         accent="primary"
       >
@@ -133,6 +139,9 @@ export function ControlsRail({
           <GenerateSection
             designState={designState}
             designStyle={designStyle}
+            models={models}
+            resumeModel={resumeModel}
+            onModelChange={onModelChange}
             onGenerate={onGenerate}
             disabled={generateDisabled}
             isApplication={isApplication}

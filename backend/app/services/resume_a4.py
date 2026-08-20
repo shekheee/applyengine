@@ -16,6 +16,6 @@ A4_HEIGHT_PT = 841.89
 A4_PAGE_CSS = """
 @page {
   size: A4;
-  margin: 14mm 16mm;
+  margin: 0;
 }
 """

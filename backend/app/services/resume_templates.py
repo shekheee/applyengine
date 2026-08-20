@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import html
 import re
+from copy import deepcopy
 from typing import Any
 
 from app.models import Job, Profile
@@ -170,17 +171,70 @@ def _format_bullet(text: Any) -> str:
 
 
 def enrich_designed_doc(doc: dict[str, Any], profile: Profile | None) -> dict[str, Any]:
-    """Fill contact/education from base profile when Claude omits sidebar fields."""
+    """Make the base profile authoritative for identity and factual sidebar data."""
     if not profile:
         return doc
     out = dict(doc)
     for key in ("name", "email", "phone", "location"):
-        if not out.get(key) and getattr(profile, key, None):
-            out[key] = getattr(profile, key)
-    if not out.get("links") and profile.links:
-        out["links"] = list(profile.links)
-    if not out.get("education") and profile.education:
-        out["education"] = profile.education
+        canonical = getattr(profile, key, None)
+        if canonical:
+            out[key] = canonical
+        else:
+            out.pop(key, None)
+    out["links"] = list(profile.links or [])
+    out["education"] = deepcopy(profile.education or [])
+
+    canonical_skills = [
+        str(skill).strip()
+        for skill in (profile.skills or [])
+        if str(skill).strip()
+    ]
+    canonical_by_key = {skill.casefold(): skill for skill in canonical_skills}
+    ordered: list[str] = []
+    seen: set[str] = set()
+    for candidate in [*(out.get("skills") or []), *canonical_skills]:
+        key = str(candidate).strip().casefold()
+        canonical = canonical_by_key.get(key)
+        if canonical and key not in seen:
+            seen.add(key)
+            ordered.append(canonical)
+    out["skills"] = ordered[:18]
+    # Grouping is a presentation concern. Rebuild it deterministically from the
+    # verified skill list instead of trusting inconsistent model categories.
+    out.pop("skill_groups", None)
+
+    raw_text = (profile.raw_text or "").casefold()
+    out["certifications"] = [
+        str(item).strip()
+        for item in (out.get("certifications") or [])
+        if str(item).strip() and str(item).strip().casefold() in raw_text
+    ][:6]
+    return out
+
+
+def prepare_one_page_resume_doc(doc: dict[str, Any]) -> dict[str, Any]:
+    """Apply transparent content budgets before preview and PDF rendering."""
+    out = deepcopy(doc)
+    summary_words = str(out.get("summary") or "").split()
+    if len(summary_words) > 58:
+        out["summary"] = " ".join(summary_words[:58]).rstrip(" ,;:") + "."
+    out["skills"] = list(out.get("skills") or [])[:18]
+    out.pop("skill_groups", None)
+
+    experience: list[dict[str, Any]] = []
+    for raw in (out.get("experience") or [])[:4]:
+        if not isinstance(raw, dict):
+            continue
+        item = deepcopy(raw)
+        item["highlights"] = [
+            str(value).strip()
+            for value in (item.get("highlights") or [])
+            if str(value).strip()
+        ][:3]
+        experience.append(item)
+    out["experience"] = experience
+    out["projects"] = list(out.get("projects") or [])[:1]
+    out["education"] = list(out.get("education") or [])[:3]
     return out
 
 
@@ -200,12 +254,36 @@ def _signature_headline(doc: dict[str, Any], job: Job | None) -> str:
 
 
 _SKILL_CATEGORY_HINTS: list[tuple[str, tuple[str, ...]]] = [
-    ("Languages", ("python", "sql", "pyspark", "java", "scala", "r", "javascript", "typescript")),
-    ("GenAI / LLM", ("rag", "llm", "langchain", "llamaindex", "openai", "anthropic", "cohere", "prompt", "agentic", "genai", "generative", "gpt", "claude", "gemini")),
-    ("Vector / Retrieval", ("pinecone", "weaviate", "chroma", "kendra", "embedding", "vector", "retrieval")),
-    ("ML & Modeling", ("scikit", "xgboost", "random forest", "nlp", "spacy", "keras", "tensorflow", "pytorch", "shap", "forecast", "time-series", "machine learning")),
-    ("Data & Cloud", ("azure", "aws", "gcp", "databricks", "bigquery", "fastapi", "pandas", "numpy", "spark", "etl")),
-    ("Databases & BI", ("mysql", "sql server", "mongodb", "supabase", "postgres", "power bi", "tableau", "looker")),
+    (
+        "Languages & Core",
+        ("python", "sql", "pyspark", "java", "scala", "r", "javascript", "typescript"),
+    ),
+    (
+        "GenAI & Retrieval",
+        (
+            "rag", "llm", "langchain", "llamaindex", "openai", "anthropic",
+            "cohere", "prompt", "agentic", "genai", "generative", "gpt",
+            "claude", "gemini", "pinecone", "weaviate", "chroma", "kendra",
+            "embedding", "vector", "retrieval",
+        ),
+    ),
+    (
+        "ML & Statistics",
+        (
+            "scikit", "xgboost", "random forest", "nlp", "spacy", "keras",
+            "tensorflow", "pytorch", "shap", "forecast", "time-series",
+            "machine learning", "statistical", "experiment", "a/b",
+        ),
+    ),
+    (
+        "Data, Cloud & MLOps",
+        (
+            "azure", "aws", "gcp", "databricks", "bigquery", "fastapi",
+            "pandas", "numpy", "spark", "etl", "mysql", "sql server",
+            "mongodb", "supabase", "postgres", "power bi", "tableau",
+            "looker", "mlops", "docker", "kubernetes",
+        ),
+    ),
 ]
 
 
@@ -219,7 +297,12 @@ def _auto_skill_groups(skills: list[Any]) -> list[dict[str, Any]]:
         low = skill.lower()
         matched = False
         for name, hints in _SKILL_CATEGORY_HINTS:
-            if any(h in low for h in hints):
+            if any(
+                re.search(rf"(?<![a-z0-9]){re.escape(h)}(?![a-z0-9])", low)
+                if len(h) <= 2
+                else h in low
+                for h in hints
+            ):
                 buckets[name].append(skill)
                 matched = True
                 break
@@ -230,8 +313,8 @@ def _auto_skill_groups(skills: list[Any]) -> list[dict[str, Any]]:
         if buckets[name]:
             groups.append({"name": name, "items": buckets[name]})
     if other:
-        groups.append({"name": "Other", "items": other})
-    return groups[:6]
+        groups.append({"name": "Product & Delivery", "items": other})
+    return groups[:5]
 
 
 def _signature_contact(doc: dict[str, Any]) -> str:
@@ -270,17 +353,11 @@ def _signature_education(education: list[Any]) -> str:
 
 
 def _signature_skill_groups(doc: dict[str, Any]) -> str:
-    raw_groups = doc.get("skill_groups") or []
-    groups: list[dict[str, Any]] = []
-    for g in raw_groups:
-        if isinstance(g, dict) and g.get("name") and g.get("items"):
-            groups.append(g)
-    if not groups:
-        groups = _auto_skill_groups(doc.get("skills") or [])
+    groups = _auto_skill_groups(doc.get("skills") or [])
     if not groups:
         return ""
     blocks: list[str] = []
-    for g in groups[:6]:
+    for g in groups[:5]:
         name = _esc(g.get("name"))
         items = [str(i).strip() for i in (g.get("items") or []) if str(i).strip()]
         if not items:
@@ -395,7 +472,7 @@ html, body {{
 }}
 a {{ color: var(--link); text-decoration: none; }}
 .page {{
-  width: 210mm; min-height: 297mm; display: flex; min-height: 100%;
+  width: 210mm; height: 297mm; display: flex;
 }}
 .sidebar {{
   width: 27%; background: var(--sidebar-bg); color: var(--sidebar-text);
@@ -797,4 +874,5 @@ def design_and_render_resume(
     style: str = "signature",
     job: Job | None = None,
 ) -> str:
-    return render_resume_template(doc, style=style, job=job, compact=False)
+    fitted = prepare_one_page_resume_doc(doc)
+    return render_resume_template(fitted, style=style, job=job, compact=False)

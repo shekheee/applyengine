@@ -5,6 +5,12 @@ from app.models import Profile
 from app.services.coach import build_coach_messages
 from app.services.resume_designed import design_resume_with_ai
 from app.services.resume_normalize import normalize_resume_data
+from app.services.resume_templates import (
+    _auto_skill_groups,
+    enrich_designed_doc,
+    prepare_one_page_resume_doc,
+    render_resume_template,
+)
 from app.services.serialize import profile_to_text
 
 
@@ -36,12 +42,121 @@ class ResumeContextTests(unittest.TestCase):
             Profile(user_id=1, name="Example Candidate"), []
         )
 
-        build_provider.assert_called_once_with()
+        build_provider.assert_called_once_with(None)
         self.assertEqual(doc["name"], "Example Candidate")
         self.assertNotIn("Example Candidate", captured["user"])
         self.assertIn("[CANDIDATE_NAME]", captured["user"])
         self.assertEqual(provider, "openai")
         self.assertEqual(model, "gpt-primary")
+
+    @patch("app.services.resume_designed.build_coach_provider")
+    def test_resume_design_honours_selected_model(self, build_provider):
+        class FakeChain:
+            last_model = "selected-model"
+            last_served = "openai"
+
+            def reset(self):
+                return None
+
+            def chat_json(self, _system, _user):
+                return {"name": "[CANDIDATE_NAME]", "experience": []}
+
+        build_provider.return_value = FakeChain()
+
+        design_resume_with_ai(
+            Profile(user_id=1, name="Example Candidate"), [], model_id="selected-model"
+        )
+
+        build_provider.assert_called_once_with("selected-model")
+
+    def test_canonical_profile_overrides_model_sidebar_fabrications(self):
+        profile = Profile(
+            user_id=1,
+            name="Verified Candidate",
+            email="verified@example.com",
+            phone="+44 1234 567890",
+            location="Belfast, UK",
+            links=["linkedin.com/in/verified"],
+            skills=[f"Skill {index}" for index in range(24)],
+            education=[{"degree": "MSc AI", "school": "Verified University"}],
+        )
+        model_doc = {
+            "name": "Invented Name",
+            "email": "fake@example.com",
+            "phone": "+44 7000 000000",
+            "location": "London",
+            "links": ["github.com/fake"],
+            "skills": ["Invented Framework", "Skill 3", "Skill 1"],
+            "skill_groups": [{"name": "Everything", "items": ["Invented Framework"]}],
+            "education": [{"degree": "PhD", "school": "University Name"}],
+            "certifications": ["Invented Certification"],
+        }
+
+        enriched = enrich_designed_doc(model_doc, profile)
+
+        self.assertEqual(enriched["name"], profile.name)
+        self.assertEqual(enriched["email"], profile.email)
+        self.assertEqual(enriched["phone"], profile.phone)
+        self.assertEqual(enriched["education"], profile.education)
+        self.assertNotIn("Invented Framework", enriched["skills"])
+        self.assertNotIn("skill_groups", enriched)
+        self.assertEqual(len(enriched["skills"]), 18)
+        self.assertEqual(enriched["certifications"], [])
+
+    def test_one_page_budget_limits_density_before_preview(self):
+        doc = {
+            "name": "Example Candidate",
+            "summary": " ".join(["word"] * 80),
+            "skills": [f"Skill {index}" for index in range(30)],
+            "experience": [
+                {
+                    "title": f"Role {role}",
+                    "company": f"Company {role}",
+                    "highlights": [f"Impact {index}" for index in range(6)],
+                }
+                for role in range(6)
+            ],
+        }
+
+        fitted = prepare_one_page_resume_doc(doc)
+        rendered = render_resume_template(fitted, style="signature", compact=False)
+
+        self.assertLessEqual(len(fitted["summary"].split()), 58)
+        self.assertEqual(len(fitted["skills"]), 18)
+        self.assertEqual(len(fitted["experience"]), 4)
+        self.assertTrue(all(len(item["highlights"]) == 3 for item in fitted["experience"]))
+        self.assertIn("margin: 0", rendered)
+        self.assertIn("height: 297mm", rendered)
+        self.assertNotIn("min-height: 100%", rendered)
+        self.assertNotIn("Impact 5", rendered)
+
+    def test_profile_serialization_includes_contact_links_and_education(self):
+        profile = Profile(
+            user_id=1,
+            name="Example Candidate",
+            email="candidate@example.com",
+            phone="+44 1234 567890",
+            location="Belfast, UK",
+            links=["linkedin.com/in/example"],
+            education=[{"degree": "MSc AI", "school": "Example University", "dates": "2020"}],
+        )
+
+        text = profile_to_text(profile)
+
+        self.assertIn("candidate@example.com", text)
+        self.assertIn("Belfast, UK", text)
+        self.assertIn("linkedin.com/in/example", text)
+        self.assertIn("MSc AI | Example University | 2020", text)
+
+    def test_skill_groups_keep_rag_out_of_single_letter_r_language(self):
+        groups = _auto_skill_groups(
+            ["R", "Python", "RAG & reranking", "Prompt engineering", "GCP"]
+        )
+        by_name = {group["name"]: group["items"] for group in groups}
+
+        self.assertIn("R", by_name["Languages & Core"])
+        self.assertNotIn("RAG & reranking", by_name["Languages & Core"])
+        self.assertIn("RAG & reranking", by_name["GenAI & Retrieval"])
 
     def test_coach_context_serializes_overlapping_projects_once(self):
         first = (
