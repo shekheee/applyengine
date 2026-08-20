@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from time import perf_counter
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -21,9 +22,11 @@ logger = logging.getLogger(__name__)
 
 META_DELIMITER = "|||META|||"
 MAX_FOLLOWUPS_PER_QUESTION = 1
-MAX_PROFILE_CONTEXT_CHARS = 8_000
-MAX_JOB_CONTEXT_CHARS = 6_000
-MAX_CONVERSATION_CONTEXT_CHARS = 8_000
+MAX_PROFILE_CONTEXT_CHARS = 4_500
+MAX_JOB_CONTEXT_CHARS = 4_000
+MAX_CONVERSATION_CONTEXT_CHARS = 4_000
+MAX_LIVE_OUTPUT_TOKENS = 384
+LIVE_FIRST_TOKEN_TIMEOUT_SECONDS = 5.0
 
 PERSONA_GUIDES = {
     "hiring_manager": "Warm, commercially aware hiring manager. Test ownership, judgement, collaboration, and measurable impact.",
@@ -35,7 +38,9 @@ PERSONA_GUIDES = {
 
 
 def _chain(model_id: str | None):
-    chain = build_coach_provider(model_id)
+    # A spoken interviewer turn is short. Low reasoning avoids spending live
+    # conversation time on unnecessary hidden work.
+    chain = build_coach_provider(model_id, reasoning_effort="low")
     chain.reset()
     return chain
 
@@ -184,7 +189,7 @@ async def stream_interviewer_turn_async(
         focus,
         session.difficulty,
         planned_questions_block(session),
-        _bounded_context(conversation_block(turns[-12:]), MAX_CONVERSATION_CONTEXT_CHARS),
+        _bounded_context(conversation_block(turns[-8:]), MAX_CONVERSATION_CONTEXT_CHARS),
         profession_text=prof_ctx,
         focus_guide_text=focus_guide(focus),
         curriculum_text=curriculum_text,
@@ -200,11 +205,29 @@ async def stream_interviewer_turn_async(
         {"role": "system", "content": prompts.INTERVIEW_LIVE_SYSTEM},
         {"role": "user", "content": user_msg},
     ]
-    async for token in chain.chat_stream_async(messages):
+    started = perf_counter()
+    first_token_ms: int | None = None
+    async for token in chain.chat_stream_async(
+        messages,
+        max_tokens=MAX_LIVE_OUTPUT_TOKENS,
+        first_token_timeout=LIVE_FIRST_TOKEN_TIMEOUT_SECONDS,
+    ):
+        if first_token_ms is None:
+            first_token_ms = round((perf_counter() - started) * 1000)
         yield token
     if routing_out is not None:
-        routing_out.update(routing_metadata(chain))
-    logger.info("Live interviewer turn served by %s/%s", chain.last_served, chain.last_model)
+        routing_out.update(
+            routing_metadata(chain),
+            first_token_ms=first_token_ms,
+            generation_ms=round((perf_counter() - started) * 1000),
+        )
+    logger.info(
+        "Live interviewer turn served by %s/%s (first_token_ms=%s total_ms=%s)",
+        chain.last_served,
+        chain.last_model,
+        first_token_ms,
+        round((perf_counter() - started) * 1000),
+    )
 
 
 def govern_live_meta(

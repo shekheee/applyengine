@@ -5,17 +5,17 @@ import { Button } from "@/components/ui";
 
 export default function ResumePage() {
   return (
-    <div className="resume-studio page-enter mx-auto max-w-[1440px] space-y-8 pb-8">
-      <header className="space-y-4 border-b pb-8" style={{ borderColor: "var(--border)" }}>
+    <div className="resume-studio page-shell page-enter mx-auto max-w-[1480px] space-y-6 pb-8">
+      <header className="space-y-4 border-b pb-6" style={{ borderColor: "var(--border)" }}>
         <div className="flex flex-wrap items-center gap-3">
           <span className="inline-flex items-center rounded-full border bg-[var(--panel-2)] px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-[var(--primary-2)]" style={{ borderColor: "color-mix(in srgb, var(--primary) 30%, var(--border))" }}>
             ApplyEngine skill
           </span>
-          <span className="text-[11px] text-[var(--muted-2)]">Claude Opus · Professional A4 templates</span>
+          <span className="text-xs text-[var(--muted-2)]">GPT-powered · Professional A4 templates</span>
         </div>
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div className="min-w-0 max-w-2xl">
-            <h1 className="text-2xl font-semibold tracking-tight text-[var(--text)] sm:text-3xl">
+            <h1 className="page-title">
               Resume
             </h1>
             <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">

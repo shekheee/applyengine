@@ -25,7 +25,7 @@ export function Card({
         "rounded-[var(--radius-lg)] border p-5",
         glass ? "glass-panel" : gradient ? "surface-gradient" : "bg-[var(--panel)]",
         !glass && !gradient && "shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]",
-        interactive && "card-interactive",
+        interactive && "card-interactive cursor-pointer",
         className
       )}
       style={{ borderColor: glass ? undefined : "var(--border)" }}
@@ -51,9 +51,9 @@ export function PageHeader({
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
         {badge && <div className="mb-2">{badge}</div>}
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
+        <h1 className="page-title">{title}</h1>
         {description && (
-          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-[var(--muted)]">
+          <p className="page-description mt-2">
             {description}
           </p>
         )}
@@ -295,7 +295,7 @@ export function Button({
   };
   const variants = {
     primary:
-      "bg-[var(--primary)] text-white shadow-[0_4px_24px_-6px_var(--glow)] hover:bg-[var(--primary-2)]",
+      "bg-[var(--primary)] text-white shadow-[0_4px_24px_-6px_var(--glow)] hover:bg-[var(--primary-dim)]",
     gradient:
       "bg-[length:200%_200%] text-white shadow-[0_4px_24px_-6px_var(--glow)] hover:opacity-95 [background-image:var(--gradient-brand)]",
     ghost:

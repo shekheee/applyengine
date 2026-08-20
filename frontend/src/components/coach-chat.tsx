@@ -32,10 +32,12 @@ import { CoachHeader } from "@/components/coach/coach-header";
 import { CoachToolsPanel } from "@/components/coach/coach-tools-panel";
 import { CoachTypingIndicator } from "@/components/coach/coach-typing-indicator";
 import { CommunicationPracticeBar } from "@/components/coach/communication-practice-bar";
+import { BuddyBar } from "@/components/coach/buddy-bar";
 import { ConversationSidebar } from "@/components/coach/conversation-sidebar";
 import { MessageBubble } from "@/components/coach/message-bubble";
 import { getStoredModelId, storeModelId } from "@/components/model-selector";
 import { useVoiceRecorder, type RecordedAudio } from "@/hooks/use-voice-recorder";
+import { mergeDeliveryAnalysis } from "@/lib/audio";
 
 const STARTERS = [
   "Help me sharpen my resume summary.",
@@ -58,10 +60,19 @@ const COMMUNICATION_STARTERS = [
   "Help me activate stronger technical and business vocabulary.",
 ];
 
+const BUDDY_STARTERS = [
+  "Ask me to explain a technical concept I use at work.",
+  "Talk through an architecture trade-off with me as a peer.",
+  "Give me a production incident to diagnose aloud.",
+  "Help me tell one project story with clearer ownership and impact.",
+];
+
 const WEB_SEARCH_MODE_KEY = "applyengine_web_search_mode";
 const REASONING_EFFORT_KEY = "applyengine_reasoning_effort";
 const ANSWER_LENGTH_KEY = "applyengine_answer_length";
 const COACH_MODE_KEY = "applyengine_coach_mode";
+const BUDDY_AUTO_SEND_KEY = "applyengine_buddy_auto_send";
+const BUDDY_READ_REPLIES_KEY = "applyengine_buddy_read_replies";
 
 function getStoredWebSearchMode(): WebSearchMode {
   if (typeof window === "undefined") return "auto";
@@ -83,19 +94,44 @@ function getStoredAnswerLength(): AnswerLength {
 
 function getStoredCoachMode(): CoachMode {
   if (typeof window === "undefined") return "career";
-  return window.localStorage.getItem(COACH_MODE_KEY) === "communication"
-    ? "communication"
-    : "career";
+  const value = window.localStorage.getItem(COACH_MODE_KEY);
+  return value === "communication" || value === "buddy" ? value : "career";
+}
+
+function getStoredBoolean(key: string, fallback: boolean): boolean {
+  if (typeof window === "undefined") return fallback;
+  const value = window.localStorage.getItem(key);
+  return value == null ? fallback : value === "true";
+}
+
+function speakBuddyReply(markdown: string) {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  const spoken = markdown
+    .replace(/```[\s\S]*?```/g, " Code example omitted. ")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/[*_#>|~-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!spoken) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(spoken);
+  utterance.rate = 1.04;
+  utterance.pitch = 1;
+  window.speechSynthesis.speak(utterance);
 }
 
 export function CoachChat({
   initialConversationId,
+  initialCoachMode,
   embedded = false,
   applicationId,
   fullscreen = false,
   onToggleFullscreen,
 }: {
   initialConversationId?: number;
+  initialCoachMode?: CoachMode;
   embedded?: boolean;
   applicationId?: number;
   fullscreen?: boolean;
@@ -129,10 +165,13 @@ export function CoachChat({
     useState<ReasoningEffort>("medium");
   const [answerLength, setAnswerLength] = useState<AnswerLength>("normal");
   const [searchingWeb, setSearchingWeb] = useState(false);
-  const [coachMode, setCoachMode] = useState<CoachMode>("career");
+  const [coachMode, setCoachMode] = useState<CoachMode>(initialCoachMode ?? "career");
+  const [autoSendVoice, setAutoSendVoice] = useState(true);
+  const [readBuddyReplies, setReadBuddyReplies] = useState(true);
   const [voiceDelivery, setVoiceDelivery] = useState<DeliveryMetrics | null>(null);
   const [transcribingVoice, setTranscribingVoice] = useState(false);
   const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
+  const voiceAnalysisVersionRef = useRef(0);
 
   async function processRecordedAudio(recorded: RecordedAudio | null) {
     setTranscribingVoice(true);
@@ -145,11 +184,33 @@ export function CoachChat({
       const result = await api.transcribeInterviewAudio(
         recorded.blob,
         recorded.mime,
-        recorded.duration
+        recorded.duration,
+        recorded.metrics
       );
       setInput(result.text);
       setVoiceDelivery(result.delivery);
-      requestAnimationFrame(() => textareaRef.current?.focus());
+      const analysisVersion = voiceAnalysisVersionRef.current + 1;
+      voiceAnalysisVersionRef.current = analysisVersion;
+      void api
+        .analyzeInterviewAudio(
+          recorded.blob,
+          recorded.mime,
+          recorded.duration,
+          result.text,
+          recorded.metrics
+        )
+        .then((analysis) => {
+          if (voiceAnalysisVersionRef.current !== analysisVersion) return;
+          setVoiceDelivery((current) =>
+            current ? mergeDeliveryAnalysis(current, analysis) : current
+          );
+        })
+        .catch(() => undefined);
+      if (coachMode === "buddy" && autoSendVoice) {
+        await send(result.text, result.delivery);
+      } else {
+        requestAnimationFrame(() => textareaRef.current?.focus());
+      }
     } catch (e) {
       setTranscriptionError(e instanceof Error ? e.message : "Transcription failed.");
     } finally {
@@ -216,7 +277,13 @@ export function CoachChat({
         setWebSearchMode(getStoredWebSearchMode());
         setReasoningEffort(getStoredReasoningEffort());
         setAnswerLength(getStoredAnswerLength());
-        setCoachMode(getStoredCoachMode());
+        const preferredMode =
+          embedded || applicationId != null
+            ? "career"
+            : initialCoachMode ?? getStoredCoachMode();
+        setCoachMode(preferredMode);
+        setAutoSendVoice(getStoredBoolean(BUDDY_AUTO_SEND_KEY, true));
+        setReadBuddyReplies(getStoredBoolean(BUDDY_READ_REPLIES_KEY, true));
         const stored = getStoredModelId();
         const valid =
           stored && modelData.models.some((x) => x.id === stored)
@@ -259,17 +326,20 @@ export function CoachChat({
       }
     }
     load();
-  }, [initialConversationId, embedded, applicationId]);
+  }, [initialConversationId, initialCoachMode, embedded, applicationId]);
 
   useEffect(() => {
+    if (messages.length === 0 && !streaming) {
+      scrollRef.current?.scrollTo({ top: 0 });
+      return;
+    }
     scrollToBottom();
   }, [messages, streamText, streaming, scrollToBottom]);
 
   useEffect(() => {
     const ta = textareaRef.current;
     if (!ta) return;
-    // Imperative textarea autosizing is an intentional DOM synchronization.
-    // eslint-disable-next-line react-hooks/immutability
+    // Imperative textarea autosizing keeps the composer compact while typing.
     ta.style.height = "auto";
     ta.style.height = `${Math.min(ta.scrollHeight, 200)}px`;
   }, [input]);
@@ -427,7 +497,7 @@ export function CoachChat({
     }
   }
 
-  async function send(textOverride?: string) {
+  async function send(textOverride?: string, deliveryOverride?: DeliveryMetrics) {
     const content = (textOverride ?? input).trim();
     if ((!content && pendingFiles.length === 0) || streaming) return;
     if (activeConversationId == null) {
@@ -437,7 +507,8 @@ export function CoachChat({
 
     setError("");
     const files = pendingFiles.map((p) => p.file);
-    const delivery = textOverride == null ? voiceDelivery ?? undefined : undefined;
+    const delivery =
+      deliveryOverride ?? (textOverride == null ? voiceDelivery ?? undefined : undefined);
     const attMeta = files.map((f) => ({
       name: f.name,
       kind: f.type.startsWith("image/") ? ("image" as const) : ("document" as const),
@@ -485,6 +556,9 @@ export function CoachChat({
         result.user_message,
         result.assistant_message,
       ]);
+      if (coachMode === "buddy" && readBuddyReplies) {
+        speakBuddyReply(result.assistant_message.content);
+      }
       setMemories(await api.listMemories());
       setVoiceDelivery(null);
       const convs = await api.listConversations();
@@ -537,6 +611,7 @@ export function CoachChat({
       return;
     }
     if (voice.state === "processing" || transcribingVoice) return;
+    if (typeof window !== "undefined") window.speechSynthesis?.cancel();
     setVoiceDelivery(null);
     setTranscriptionError(null);
     await voice.startRecording();
@@ -591,6 +666,8 @@ export function CoachChat({
   const starters =
     coachMode === "communication"
       ? COMMUNICATION_STARTERS
+      : coachMode === "buddy"
+        ? BUDDY_STARTERS
       : activeConversation?.has_jd
         ? JD_STARTERS
         : STARTERS;
@@ -640,6 +717,30 @@ export function CoachChat({
             onCancelRecording={() => void voice.cancelRecording()}
             delivery={voiceDelivery}
             onClearDelivery={() => setVoiceDelivery(null)}
+          />
+        )}
+
+        {!embedded && coachMode === "buddy" && (
+          <BuddyBar
+            onStartTopic={(prompt) => void send(prompt)}
+            disabled={streaming || savingEdit || activeConversationId == null}
+            voice={{ ...voice, error: transcriptionError || voice.error }}
+            transcribing={transcribingVoice}
+            onMicClick={() => void handleMicClick()}
+            onCancelRecording={() => void voice.cancelRecording()}
+            delivery={voiceDelivery}
+            onClearDelivery={() => setVoiceDelivery(null)}
+            autoSendVoice={autoSendVoice}
+            onAutoSendVoiceChange={(value) => {
+              setAutoSendVoice(value);
+              window.localStorage.setItem(BUDDY_AUTO_SEND_KEY, String(value));
+            }}
+            readReplies={readBuddyReplies}
+            onReadRepliesChange={(value) => {
+              setReadBuddyReplies(value);
+              window.localStorage.setItem(BUDDY_READ_REPLIES_KEY, String(value));
+              if (!value) window.speechSynthesis?.cancel();
+            }}
           />
         )}
 
@@ -774,13 +875,20 @@ export function CoachChat({
             }}
             searchingWeb={searchingWeb}
             textareaRef={textareaRef}
+            placeholder={
+              coachMode === "buddy"
+                ? "Talk to your technical buddy…"
+                : coachMode === "communication"
+                  ? "Practise an answer…"
+                  : "Message your coach…"
+            }
           />
         </div>
       </div>
 
-      {!embedded && !fullscreen && (
+      {!embedded && !fullscreen && toolsOpen && (
         <div
-          className="hidden w-64 shrink-0 overflow-y-auto border-l lg:block"
+          className="hidden w-72 shrink-0 overflow-y-auto border-l lg:block"
           style={{ borderColor: "var(--border)", background: "var(--panel)" }}
         >
           <CoachToolsPanel

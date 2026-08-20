@@ -13,8 +13,10 @@ import { interviewFocusLabel, curriculumTopicLabel } from "@/lib/types";
 import { Button, cn } from "@/components/ui";
 import { useVoiceRecorder } from "@/hooks/use-voice-recorder";
 import type { RecordedAudio } from "@/hooks/use-voice-recorder";
+import { mergeDeliveryAnalysis } from "@/lib/audio";
 import { useInterviewerAudio } from "@/hooks/use-interviewer-audio";
 import { SessionMetaBadges } from "@/components/interview/question-card";
+import { DeliveryMetricsPanel } from "@/components/interview/answer-composer";
 
 type RoomState = "starting" | "speaking" | "listening" | "thinking" | "ended";
 
@@ -109,11 +111,18 @@ function TranscriptLine({ turn, showDelivery }: { turn: InterviewTurn; showDeliv
       </p>
       <p>{turn.content}</p>
       {delivery && !isInterviewer && showDelivery && (
-        <p className="mt-2 text-[11px] text-[var(--muted)]">
-          {delivery.words_per_minute} wpm · {delivery.filler_count} filler word
-          {delivery.filler_count === 1 ? "" : "s"} · {delivery.pause_count} pause
-          {delivery.pause_count === 1 ? "" : "s"}
-        </p>
+        <div className="mt-2 text-[11px] text-[var(--muted)]">
+          <p>
+            {delivery.words_per_minute} wpm · {delivery.filler_count} filler word
+            {delivery.filler_count === 1 ? "" : "s"} · {delivery.pause_count} pause
+            {delivery.pause_count === 1 ? "" : "s"}
+          </p>
+          {delivery.audio_analysis?.status === "complete" && delivery.audio_analysis.summary && (
+            <p className="mt-1 text-[var(--text-secondary)]">
+              {delivery.audio_analysis.summary}
+            </p>
+          )}
+        </div>
       )}
       {routing?.fallback_used && isInterviewer && (
         <p className="mt-2 text-[11px] text-amber-300/90">
@@ -174,8 +183,8 @@ export function LiveInterviewRoom({
   const [pendingDelivery, setPendingDelivery] = useState<DeliveryMetrics | undefined>();
 
   const voice = useVoiceRecorder(processRecordedAudio, {
-    autoStopSilenceMs: autoEndEnabled ? 2500 : undefined,
-    minAutoStopMs: 4000,
+    autoStopSilenceMs: autoEndEnabled ? 1800 : undefined,
+    minAutoStopMs: 1800,
   });
   const interviewerAudio = useInterviewerAudio();
   const abortRef = useRef<AbortController | null>(null);
@@ -329,10 +338,13 @@ export function LiveInterviewRoom({
         const speech = stripMeta(result.speech);
         generationDoneRef.current = true;
         queueReadySentences(requestVersion, true, speech);
+        // The server has committed the turn before this event. Refresh while
+        // audio plays instead of adding a network wait after the question.
+        const sessionRefresh = refreshSession();
         await playbackRef.current;
         if (requestVersion !== requestVersionRef.current) return;
         setCaption("");
-        const updated = await refreshSession();
+        const updated = await sessionRefresh;
         setRoomState(result.end_interview ? "ended" : "listening");
         pendingTurnRef.current = null;
         setCanRetry(false);
@@ -390,7 +402,11 @@ export function LiveInterviewRoom({
     }
   }
 
-  async function submitAnswer(answer: string, delivery?: DeliveryMetrics) {
+  async function submitAnswer(
+    answer: string,
+    delivery?: DeliveryMetrics,
+    requestId?: string
+  ) {
     const trimmed = answer.trim();
     if (!trimmed || roomState === "thinking" || roomState === "speaking" || roomState === "ended") {
       return;
@@ -400,7 +416,7 @@ export function LiveInterviewRoom({
     const intent = session.live_state?.stage === "candidate_questions"
       ? "candidate_question"
       : "answer";
-    await requestInterviewerTurn(trimmed, delivery, undefined, intent);
+    await requestInterviewerTurn(trimmed, delivery, requestId, intent);
   }
 
   async function processRecordedAudio(recorded: RecordedAudio | null) {
@@ -414,7 +430,8 @@ export function LiveInterviewRoom({
       const result = await api.transcribeInterviewAudio(
         recorded.blob,
         recorded.mime,
-        recorded.duration
+        recorded.duration,
+        recorded.metrics
       );
       const transcript = result.text.trim();
       if (transcript.split(/\s+/).filter(Boolean).length < 2) {
@@ -424,8 +441,48 @@ export function LiveInterviewRoom({
       if (behaviorMode === "coach") {
         setTextAnswer(transcript);
         setPendingDelivery(result.delivery);
+        void api
+          .analyzeInterviewAudio(
+            recorded.blob,
+            recorded.mime,
+            recorded.duration,
+            transcript,
+            recorded.metrics
+          )
+          .then((analysis) => {
+            setPendingDelivery((current) =>
+              current ? mergeDeliveryAnalysis(current, analysis) : current
+            );
+          })
+          .catch(() => undefined);
       } else {
-        await submitAnswer(transcript, result.delivery);
+        const requestId = crypto.randomUUID();
+        const analysisPromise = api
+          .analyzeInterviewAudio(
+            recorded.blob,
+            recorded.mime,
+            recorded.duration,
+            transcript,
+            recorded.metrics
+          )
+          .catch(() => null);
+        setTranscribing(false);
+        const interviewPromise = submitAnswer(transcript, result.delivery, requestId);
+        void analysisPromise.then(async (analysis) => {
+          if (!analysis || analysis.status !== "complete") return;
+          const enriched = mergeDeliveryAnalysis(result.delivery, analysis);
+          for (let attempt = 0; attempt < 3; attempt += 1) {
+            try {
+              await api.updateInterviewTurnDelivery(session.id, requestId, enriched);
+              break;
+            } catch {
+              if (attempt < 2) {
+                await new Promise((resolve) => window.setTimeout(resolve, 400));
+              }
+            }
+          }
+        });
+        await interviewPromise;
       }
     } catch (e) {
       voice.setError(e instanceof Error ? e.message : "Transcription failed.");
@@ -747,12 +804,24 @@ export function LiveInterviewRoom({
                         I’m still thinking
                       </button>
                     )}
+                    <span className="text-[var(--muted)]">
+                      {voice.inputQuality === "calibrating"
+                        ? "Calibrating mic…"
+                        : voice.inputQuality === "good"
+                          ? "Mic clear"
+                          : voice.inputQuality === "quiet"
+                            ? "Move closer"
+                            : "Background noise"}
+                    </span>
                   </div>
                 )}
                 {behaviorMode === "coach" && pendingDelivery && textAnswer.trim() && (
-                  <p className="text-xs text-[var(--primary-2)]">
-                    Review the transcript before sending. Editing it will not change the recorded delivery measurements.
-                  </p>
+                  <div className="space-y-2">
+                    <p className="text-xs text-[var(--primary-2)]">
+                      Review the transcript before sending. Editing it will not change the recorded delivery measurements.
+                    </p>
+                    <DeliveryMetricsPanel metrics={pendingDelivery} />
+                  </div>
                 )}
               </div>
             )}

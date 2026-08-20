@@ -50,6 +50,7 @@ export function CommunicationPracticeBar({
     seconds: number;
     level: number;
     error: string | null;
+    inputQuality?: "calibrating" | "good" | "quiet" | "noisy";
   };
   transcribing: boolean;
   onMicClick: () => void;

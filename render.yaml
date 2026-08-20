@@ -21,29 +21,31 @@ services:
         value: gpt-5.6-sol
       - key: OPENAI_COACH_MODELS
         value: gpt-5.6-sol,gpt-5.5
-      - key: ANTHROPIC_COACH_MODEL
-        value: claude-opus-5
-      - key: ANTHROPIC_COACH_MODELS
-        value: claude-opus-5,claude-fable-5,claude-opus-4-8
       - key: GEMINI_COACH_MODEL
         value: gemini-3.1-pro-preview
       - key: GEMINI_COACH_MODELS
         value: gemini-3.1-pro-preview
       - key: COACH_PROVIDER_CHAIN
-        value: openai,anthropic,gemini
+        value: openai,gemini
       - key: MEMORY_MODEL
-        value: claude-opus-4-8
+        value: gpt-5.6-sol
       - key: OPENAI_EMBED_MODEL
         value: text-embedding-3-small
+      - key: SPEECH_TRANSCRIPTION_MODELS
+        value: gpt-4o-transcribe,whisper-1
+      - key: SPEECH_TTS_MODEL
+        value: tts-1
+      - key: GEMINI_AUDIO_MODEL
+        value: gemini-3.1-flash-lite
+      - key: GEMINI_AUDIO_ANALYSIS_ENABLED
+        value: "true"
       - key: CORS_ORIGINS
         value: https://applyengine.ajayshekhawat.uk,https://www.applyengine.ajayshekhawat.uk,https://applyengine.vercel.app,http://localhost:3000
       - key: DATABASE_URL
         sync: false
       - key: OPENAI_API_KEY
         sync: false
-      - key: ANTHROPIC_API_KEY
+      - key: GEMINI_API_KEY
         sync: false
       - key: JWT_SECRET
-        sync: false
-      - key: SIGNUP_CODE
         sync: false

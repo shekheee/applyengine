@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from typing import Literal
 
-ReasoningEffort = Literal["medium", "high", "xhigh"]
+ReasoningEffort = Literal["low", "medium", "high", "xhigh"]
 
 _ALIASES = {
+    "low": "low",
     "medium": "medium",
     "hard": "high",
     "high": "high",
@@ -24,7 +25,7 @@ def normalize_reasoning_effort(
         return default
     normalized = _ALIASES.get(value.strip().lower())
     if normalized is None:
-        raise ValueError("Thinking depth must be medium, high, or xhigh")
+        raise ValueError("Thinking depth must be low, medium, high, or xhigh")
     return normalized  # type: ignore[return-value]
 
 

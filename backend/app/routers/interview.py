@@ -8,18 +8,21 @@ from types import SimpleNamespace
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response, StreamingResponse
 from sqlmodel import Session, select
+from starlette.concurrency import run_in_threadpool
 
 from app.auth import get_current_user
 from app.db import get_session
 from app.llm.coach_models import validate_coach_model
 from app.models import InterviewSession, InterviewTurn, Job, Memory, Profile, User
 from app.schemas import (
+    AudioDeliveryAnalysisOut,
     InterviewAnswerIn,
     InterviewCompleteIn,
     InterviewCurriculumOut,
     InterviewFollowupIn,
     InterviewLiveTtsIn,
     InterviewLiveTurnIn,
+    InterviewDeliveryUpdateIn,
     InterviewProgressOut,
     InterviewSessionCreate,
     InterviewSessionOut,
@@ -49,11 +52,25 @@ from app.services.ml_interview_curriculum import (
     is_ml_relevant_profile,
     normalize_curriculum_topic,
 )
-from app.services.speech import synthesize_speech, transcribe_audio
+from app.services.speech import (
+    analyze_audio_with_gemini,
+    synthesize_speech,
+    transcribe_audio,
+)
 from app.services.profiles import get_base_profile
 from app.services.serialize import profile_to_text
 
 router = APIRouter(prefix="/api/interview", tags=["interview"])
+
+
+def _parse_client_metrics(raw: str | None) -> dict:
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except (TypeError, json.JSONDecodeError):
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
 
 
 def _resolve_model(model: str | None) -> str | None:
@@ -219,6 +236,7 @@ def get_progress(
 async def transcribe_answer(
     file: UploadFile = File(...),
     duration: float | None = Form(default=None),
+    client_metrics: str | None = Form(default=None),
     user: User = Depends(get_current_user),
 ):
     _ = user  # auth gate
@@ -227,12 +245,68 @@ async def transcribe_answer(
         raise HTTPException(400, "Upload must be an audio file.")
     try:
         audio_bytes = await file.read()
-        result = transcribe_audio(audio_bytes, mime, duration_hint=duration)
+        result = await run_in_threadpool(
+            transcribe_audio,
+            audio_bytes,
+            mime,
+            duration,
+            _parse_client_metrics(client_metrics),
+        )
         return TranscribeOut(**result)
     except ValueError as e:
         raise HTTPException(422, str(e)) from e
     except Exception as e:
         raise HTTPException(500, "Transcription failed. Try again or type your answer.") from e
+
+
+@router.post("/analyze-audio", response_model=AudioDeliveryAnalysisOut)
+async def analyze_delivery_audio(
+    file: UploadFile = File(...),
+    transcript: str = Form(default=""),
+    duration: float = Form(default=0),
+    client_metrics: str | None = Form(default=None),
+    user: User = Depends(get_current_user),
+):
+    _ = user
+    mime = file.content_type or "audio/webm"
+    if not mime.startswith("audio/"):
+        raise HTTPException(400, "Upload must be an audio file.")
+    audio_bytes = await file.read()
+    result = await run_in_threadpool(
+        analyze_audio_with_gemini,
+        audio_bytes,
+        mime,
+        transcript,
+        duration,
+        _parse_client_metrics(client_metrics),
+    )
+    return AudioDeliveryAnalysisOut(**result)
+
+
+@router.patch(
+    "/sessions/{session_id}/turns/{request_id}/delivery",
+    response_model=InterviewTurnOut,
+)
+def update_turn_delivery(
+    session_id: int,
+    request_id: str,
+    body: InterviewDeliveryUpdateIn,
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    _owned_session(session_id, user, db)
+    turn = _turn_for_request(db, session_id, _request_id(request_id), "candidate")
+    if not turn:
+        raise HTTPException(404, "Candidate answer is not available yet.")
+    scores = dict(turn.scores or {})
+    delivery = dict(scores.get("delivery") or {})
+    delivery.update(body.delivery or {})
+    scores["delivery"] = delivery
+    turn.scores = scores
+    db.add(turn)
+    db.commit()
+    db.refresh(turn)
+    return _turn_out(turn)
 
 
 @router.post("/sessions", response_model=InterviewSessionOut)

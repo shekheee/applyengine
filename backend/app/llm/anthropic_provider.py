@@ -72,11 +72,13 @@ class AnthropicProvider(LLMProvider):
         )
         return "".join(block.text for block in resp.content if block.type == "text")
 
-    def chat_stream(self, messages: list[dict[str, Any]]) -> Iterator[str]:
+    def chat_stream(
+        self, messages: list[dict[str, Any]], max_tokens: int = 4096
+    ) -> Iterator[str]:
         system, api_messages = to_anthropic(messages)
         with self._client.messages.stream(
             model=self._chat_model,
-            max_tokens=output_tokens_for_effort(self._reasoning_effort, 4096),
+            max_tokens=output_tokens_for_effort(self._reasoning_effort, max_tokens),
             system=system,
             messages=api_messages,
             extra_body=self._reasoning_body(),
@@ -86,12 +88,12 @@ class AnthropicProvider(LLMProvider):
                     yield text
 
     async def chat_stream_async(
-        self, messages: list[dict[str, Any]]
+        self, messages: list[dict[str, Any]], max_tokens: int = 4096
     ) -> AsyncIterator[str]:
         system, api_messages = to_anthropic(messages)
         async with self._async_client.messages.stream(
             model=self._chat_model,
-            max_tokens=output_tokens_for_effort(self._reasoning_effort, 4096),
+            max_tokens=output_tokens_for_effort(self._reasoning_effort, max_tokens),
             system=system,
             messages=api_messages,
             extra_body=self._reasoning_body(),

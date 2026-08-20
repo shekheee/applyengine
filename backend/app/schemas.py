@@ -8,13 +8,6 @@ from pydantic import BaseModel, Field
 from app.models import ApplicationStatus
 
 
-class RegisterIn(BaseModel):
-    email: str
-    password: str
-    name: str = ""
-    signup_code: str = ""
-
-
 class LoginIn(BaseModel):
     email: str
     password: str
@@ -307,13 +300,31 @@ class DeliveryMetricsOut(BaseModel):
     pauses: list[dict] = []
     duration_seconds: float = 0
     observations: list[str] = []
+    capture_quality: dict[str, Any] = {}
+    audio_analysis: dict[str, Any] = {}
 
 
 class TranscribeOut(BaseModel):
     text: str
     duration_seconds: float = 0
     delivery: DeliveryMetricsOut
-    model: str = "whisper-1"
+    model: str = "gpt-4o-transcribe"
+    fallback_used: bool = False
+
+
+class AudioDeliveryAnalysisOut(BaseModel):
+    status: str = "unavailable"
+    provider: str = "gemini"
+    model: str = ""
+    summary: str = ""
+    scores: dict[str, int] = {}
+    strengths: list[str] = []
+    improvements: list[str] = []
+    concise_tip: str = ""
+
+
+class InterviewDeliveryUpdateIn(BaseModel):
+    delivery: dict[str, Any]
 
 
 class ProgressScorePoint(BaseModel):

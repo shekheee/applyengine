@@ -1,10 +1,12 @@
 import type {
   Application,
+  AudioDeliveryAnalysis,
   ChatMessage,
   CoachModel,
   CoachMode,
   Conversation,
   DeliveryMetrics,
+  ClientAudioMetrics,
   ResumeDesignResult,
   ResumeVersion,
   InterviewCurriculum,
@@ -108,16 +110,6 @@ export const api = {
     ),
 
   // ---- Auth ----
-  register: (body: {
-    email: string;
-    password: string;
-    name?: string;
-    signup_code?: string;
-  }) =>
-    req<{ access_token: string }>("/api/auth/register", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
   login: (email: string, password: string) =>
     req<{ access_token: string }>("/api/auth/login", {
       method: "POST",
@@ -1021,11 +1013,13 @@ export const api = {
   transcribeInterviewAudio: async (
     blob: Blob,
     mime: string,
-    durationSeconds: number
+    durationSeconds: number,
+    clientMetrics?: ClientAudioMetrics
   ): Promise<TranscribeResult> => {
     const form = new FormData();
     form.append("file", blob, `recording.${mime.includes("mp4") ? "m4a" : "webm"}`);
     form.append("duration", String(durationSeconds));
+    form.append("client_metrics", JSON.stringify(clientMetrics ?? {}));
     const res = await fetch(`${BASE}/api/interview/transcribe`, {
       method: "POST",
       headers: { ...authHeaders() },
@@ -1044,6 +1038,40 @@ export const api = {
     }
     return res.json() as Promise<TranscribeResult>;
   },
+
+  analyzeInterviewAudio: async (
+    blob: Blob,
+    mime: string,
+    durationSeconds: number,
+    transcript: string,
+    clientMetrics?: ClientAudioMetrics
+  ): Promise<AudioDeliveryAnalysis> => {
+    const form = new FormData();
+    form.append("file", blob, `recording.${mime.includes("mp4") ? "m4a" : "webm"}`);
+    form.append("duration", String(durationSeconds));
+    form.append("transcript", transcript);
+    form.append("client_metrics", JSON.stringify(clientMetrics ?? {}));
+    const res = await fetch(`${BASE}/api/interview/analyze-audio`, {
+      method: "POST",
+      headers: { ...authHeaders() },
+      body: form,
+    });
+    if (!res.ok) {
+      if (res.status === 401) setToken(null);
+      throw new ApiError(res.status, `Audio analysis failed (${res.status})`);
+    }
+    return res.json() as Promise<AudioDeliveryAnalysis>;
+  },
+
+  updateInterviewTurnDelivery: (
+    sessionId: number,
+    requestId: string,
+    delivery: DeliveryMetrics
+  ) =>
+    req<InterviewTurn>(
+      `/api/interview/sessions/${sessionId}/turns/${encodeURIComponent(requestId)}/delivery`,
+      { method: "PATCH", body: JSON.stringify({ delivery }) }
+    ),
 
   liveInterviewTurnStream: async (
     sessionId: number,

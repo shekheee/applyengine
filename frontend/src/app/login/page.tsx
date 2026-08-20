@@ -8,12 +8,9 @@ import { LoginMobileHeader } from "@/components/login/login-mobile-header";
 import { LoginStyles } from "@/components/login/login-styles";
 
 export default function LoginPage() {
-  const { login, register } = useAuth();
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [signupCode, setSignupCode] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -22,21 +19,12 @@ export default function LoginPage() {
     setError("");
     setBusy(true);
     try {
-      if (mode === "login") {
-        await login(email, password);
-      } else {
-        await register({ email, password, name, signup_code: signupCode });
-      }
+      await login(email, password);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setBusy(false);
     }
-  }
-
-  function handleModeChange(next: "login" | "register") {
-    setMode(next);
-    setError("");
   }
 
   return (
@@ -52,16 +40,10 @@ export default function LoginPage() {
           <div className="w-full min-w-0 max-w-[400px]">
             <LoginMobileHeader />
             <LoginAuthForm
-              mode={mode}
-              onModeChange={handleModeChange}
               email={email}
               onEmailChange={setEmail}
               password={password}
               onPasswordChange={setPassword}
-              name={name}
-              onNameChange={setName}
-              signupCode={signupCode}
-              onSignupCodeChange={setSignupCode}
               error={error}
               busy={busy}
               onSubmit={submit}

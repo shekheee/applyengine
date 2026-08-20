@@ -21,3 +21,20 @@ export function extensionForMime(mime: string): string {
 
 export const MIN_RECORDING_MS = 400;
 export const MAX_RECORDING_MS = 120_000;
+
+export function mergeDeliveryAnalysis(
+  metrics: DeliveryMetrics,
+  analysis: AudioDeliveryAnalysis
+): DeliveryMetrics {
+  if (analysis.status !== "complete") return metrics;
+  return { ...metrics, audio_analysis: analysis };
+}
+
+export function serializeClientAudioMetrics(metrics?: ClientAudioMetrics): string {
+  return JSON.stringify(metrics ?? {});
+}
+import type {
+  AudioDeliveryAnalysis,
+  ClientAudioMetrics,
+  DeliveryMetrics,
+} from "@/lib/types";

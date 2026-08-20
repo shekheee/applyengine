@@ -345,13 +345,13 @@ export function SocialStudio() {
   }
 
   return (
-    <div className="min-w-0">
+    <div className="page-shell min-w-0">
       <PageHeader
         title="Social Studio"
         description="Turn verified resume experience into thoughtful LinkedIn content and publication-ready Medium drafts."
         badge={<Badge tone="primary">Resume-grounded writing</Badge>}
         action={
-          <Button onClick={createProject} disabled={busy} variant="gradient">
+          <Button onClick={createProject} disabled={busy}>
             + New {platform === "linkedin" ? "post" : "article"}
           </Button>
         }
@@ -389,7 +389,7 @@ export function SocialStudio() {
       )}
 
       <div className="grid min-w-0 gap-4 xl:grid-cols-[14rem_minmax(0,1fr)_minmax(19rem,0.8fr)]">
-        <Card className="min-w-0 p-3 xl:max-h-[calc(100dvh-13rem)] xl:overflow-y-auto">
+        <Card className="workspace-panel min-w-0 p-3 xl:max-h-[calc(100dvh-13rem)] xl:overflow-y-auto">
           <div className="mb-3 flex items-center justify-between px-1">
             <p className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
               Drafts
@@ -424,8 +424,13 @@ export function SocialStudio() {
         </Card>
 
         <div className="min-w-0 space-y-4">
-          <Card gradient className="min-w-0 p-4">
-            <div className="grid gap-3 sm:grid-cols-2">
+          <details className="group workspace-panel min-w-0" open={!active}>
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 text-sm font-semibold text-[var(--text-secondary)]">
+              Creative direction
+              <span className="text-xs font-normal text-[var(--muted)] group-open:hidden">Show controls</span>
+              <span className="hidden text-xs font-normal text-[var(--muted)] group-open:inline">Hide controls</span>
+            </summary>
+            <div className="grid gap-3 border-t border-[var(--border)] p-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <Label>Content type</Label>
                 <div className="flex flex-wrap gap-2">
@@ -518,7 +523,7 @@ export function SocialStudio() {
                 />
               </div>
             </div>
-          </Card>
+          </details>
 
           <Card className="flex min-h-[32rem] min-w-0 flex-col overflow-hidden p-0">
             <div className="flex items-center justify-between border-b px-4 py-3">

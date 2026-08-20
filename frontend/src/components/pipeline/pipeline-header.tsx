@@ -1,4 +1,4 @@
-import { Badge, Button } from "@/components/ui";
+import { Button } from "@/components/ui";
 
 type PipelineHeaderProps = {
   provider: string;
@@ -7,28 +7,19 @@ type PipelineHeaderProps = {
 
 export function PipelineHeader({ provider, totalCount }: PipelineHeaderProps) {
   return (
-    <header className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-      <div className="min-w-0 space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
-            Pipeline
-          </span>
-          <span className="h-1 w-1 rounded-full bg-[var(--muted-2)]" aria-hidden />
-          <Badge tone="primary">LLM · {provider}</Badge>
-        </div>
-        <div>
-          <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.025em] text-[var(--text)] sm:text-[2rem]">
-            Application pipeline
-          </h1>
-          <p className="mt-2 max-w-xl text-sm leading-relaxed text-[var(--muted)]">
+    <header className="flex flex-col gap-5 border-b border-[var(--border)] pb-6 sm:flex-row sm:items-end sm:justify-between">
+      <div className="min-w-0">
+        <p className="eyebrow">Your job search</p>
+        <h1 className="page-title mt-1">Applications</h1>
+          <p className="page-description mt-2">
             {totalCount > 0
-              ? `${totalCount} role${totalCount === 1 ? "" : "s"} tracked — open any card for chat, resume tailoring, and interview prep.`
-              : "Track every role from saved to offer — open any card for chat, resume, and interview prep."}
+              ? `${totalCount} role${totalCount === 1 ? "" : "s"} tracked from first review to offer.`
+              : "Track each role, tailor your material and prepare for interviews in one place."}
           </p>
-        </div>
+        <p className="mt-2 text-xs text-[var(--muted-2)]">AI services: {provider || "checking"}</p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <Button href="/new" variant="gradient" size="md">
+        <Button href="/new" variant="primary" size="md">
           <PlusIcon />
           New application
         </Button>

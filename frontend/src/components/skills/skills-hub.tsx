@@ -26,9 +26,9 @@ export function SkillsHub() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-7xl pb-12">
+    <div className="page-shell mx-auto max-w-[1480px] pb-12">
       <header className="border-b pb-8" style={{ borderColor: "var(--border)" }}>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--primary-2)]">ApplyEngine Skills</p>
+        <p className="eyebrow">ApplyEngine Skills</p>
         <div className="mt-4 grid gap-6 lg:grid-cols-[1fr_360px] lg:items-end">
           <h1 className="max-w-3xl text-3xl font-semibold tracking-[-0.035em] text-[var(--text)] sm:text-5xl">
             Turn career context into finished work.

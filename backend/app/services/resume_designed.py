@@ -11,24 +11,21 @@ from app.services.serialize import job_to_text, profile_to_text
 
 logger = logging.getLogger(__name__)
 
-DESIGN_MODEL_ID = "claude-opus-4-8"
-
-
 def _memory_text(memories: list[Memory]) -> str:
     return "\n".join(f"- ({m.kind}) {m.content}" for m in memories)
 
 
-def design_resume_with_claude(
+def design_resume_with_ai(
     profile: Profile | None,
     memories: list[Memory],
     job: Job | None = None,
 ) -> tuple[dict[str, Any], str | None, str | None]:
-    """Use Claude Opus 4.8 (with fallback chain) to produce structured resume JSON."""
+    """Use the configured primary model and fallback chain for structured resume JSON."""
     profile_text = profile_to_text(profile) if profile else ""
     memory_text = _memory_text(memories)
     job_text = job_to_text(job) if job else ""
 
-    chain = build_coach_provider(DESIGN_MODEL_ID)
+    chain = build_coach_provider()
     chain.reset()
     data = chain.chat_json(
         prompts.RESUME_DESIGNED_SYSTEM,
@@ -44,7 +41,7 @@ def design_resume_with_claude(
             job.id if job else None,
         )
     if not isinstance(data, dict) or not data.get("name"):
-        raise ValueError("Claude returned unusable resume structure")
+        raise ValueError("The AI model returned an unusable resume structure")
     return data, provider, model
 
 
@@ -53,17 +50,17 @@ def prepare_designed_resume_document(
     memories: list[Memory],
     job: Job | None = None,
 ) -> dict[str, Any]:
-    """Canonical profile + memories → Claude-designed structured resume (with fallback)."""
+    """Canonical profile + memories → AI-designed structured resume (with fallback)."""
     if not _profile_has_content(profile) and not memories:
         raise ValueError(
             "No resume data yet — upload a resume or chat with the coach first."
         )
 
     try:
-        doc, _, _ = design_resume_with_claude(profile, memories, job)
+        doc, _, _ = design_resume_with_ai(profile, memories, job)
         return doc
     except Exception as exc:
-        logger.warning("Claude resume design failed, falling back to profile doc: %s", exc)
+        logger.warning("AI resume design failed, falling back to profile doc: %s", exc)
         if profile and _profile_has_content(profile):
             doc = _profile_to_doc(profile)
             return _merge_memories(doc, memories)
@@ -75,8 +72,8 @@ def design_resume_preview(
     memories: list[Memory],
     job: Job | None = None,
 ) -> dict[str, Any]:
-    """Return metadata after Claude design for UI confirmation."""
-    doc, provider, model = design_resume_with_claude(profile, memories, job)
+    """Return metadata after AI design for UI confirmation."""
+    doc, provider, model = design_resume_with_ai(profile, memories, job)
     return {
         "name": doc.get("name", ""),
         "summary_preview": (doc.get("summary") or "")[:240],

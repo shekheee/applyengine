@@ -74,7 +74,7 @@ export function ControlsRail({
         description={
           isApplication
             ? "Pick which version to preview and download."
-            : "Switch between your original upload and Claude-designed versions."
+            : "Switch between your original upload and AI-designed versions."
         }
         icon="◇"
         accent="primary"
@@ -124,7 +124,7 @@ export function ControlsRail({
 
       <SectionShell
         title="Generate"
-        description="Claude Opus builds a Design Lab–quality HTML resume from your base upload."
+        description="The primary AI model builds a professional HTML resume, with automatic provider fallback."
         icon="✦"
         accent="primary"
       >

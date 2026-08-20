@@ -48,7 +48,9 @@ export default function ApplicationDetailPage() {
   }
 
   useEffect(() => {
-    if (!Number.isNaN(id)) load();
+    // Route changes require a fresh application workspace snapshot.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!Number.isNaN(id)) void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -85,7 +87,7 @@ export default function ApplicationDetailPage() {
   const jobLabel = `${job.title} @ ${job.company}`;
 
   return (
-    <div className="page-enter mx-auto max-w-6xl space-y-8 pb-8">
+    <div className="page-shell page-enter mx-auto max-w-[1480px] space-y-6 pb-8">
       <ApplicationHero job={job} app={app} onStatusChange={changeStatus} />
 
       <FitSnapshot
@@ -130,7 +132,7 @@ export default function ApplicationDetailPage() {
           ]}
         />
 
-        <div className="mt-6">
+        <div className="mt-4">
           <HubTabPanel
             tabId="chat"
             activeTab={tab}
@@ -149,7 +151,7 @@ export default function ApplicationDetailPage() {
             }
             flush
           >
-            <div className="p-4 sm:p-6">
+            <div className="p-2 sm:p-3">
               <CoachChat embedded applicationId={app.id} />
             </div>
           </HubTabPanel>

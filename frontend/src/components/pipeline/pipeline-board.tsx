@@ -12,14 +12,13 @@ type PipelineBoardProps = {
 
 export function PipelineBoard({ apps, jobs, onStatusChange }: PipelineBoardProps) {
   return (
-    <div className="relative -mx-4 sm:-mx-6 xl:mx-0">
+    <div className="relative">
       <div
-        className="overflow-x-auto overscroll-x-contain px-4 pb-2 sm:px-6 xl:overflow-visible xl:px-0"
+        className="min-w-0"
         role="region"
         aria-label="Application kanban board"
-        tabIndex={0}
       >
-        <div className="flex min-w-min gap-4 xl:grid xl:min-w-0 xl:grid-cols-5 xl:gap-4">
+        <div className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-5">
           {STATUSES.map((status, i) => {
             const col = apps.filter((a) => a.status === status);
             return (
@@ -35,9 +34,6 @@ export function PipelineBoard({ apps, jobs, onStatusChange }: PipelineBoardProps
           })}
         </div>
       </div>
-      <p className="mt-2 px-4 text-center text-[11px] text-[var(--muted-2)] xl:hidden">
-        Swipe to view all stages
-      </p>
     </div>
   );
 }

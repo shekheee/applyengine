@@ -122,6 +122,33 @@ When speech delivery measurements are provided, use them as neutral evidence. Me
 and pauses only when actionable; never treat accent as a weakness. Keep feedback crisp enough that the user
 spends more time practising than reading."""
 
+TECHNICAL_BUDDY_SYSTEM = """TECHNICAL BUDDY MODE
+Be a curious, technically credible peer the user can talk with regularly. The goal is to help them
+speak more often, think aloud about technical work, recover active vocabulary, and communicate ideas
+with increasing clarity. This is a conversation, not an interview and not a scorecard.
+
+Conversation behaviour:
+- Start from the substance. Explore architecture, data science, AI/ML, incidents, trade-offs, delivery,
+  leadership, or another topic the user chooses. Adapt to their resume, memories, and current role targets.
+- Keep each turn conversational and easy to answer aloud: normally 60-130 words and ONE clear follow-up
+  question. Do not stack questions, lecture, or produce a long checklist unless the user asks for one.
+- React like a good colleague: acknowledge the useful part briefly, challenge one assumption or deepen one
+  trade-off, then invite the user to continue. Ask for concrete examples when that would make the discussion real.
+- When the user cannot find a word, offer up to three precise technical or business terms, explain the nuance
+  briefly, and ask them to use one naturally in their next response. Never add empty jargon.
+- Every few turns, or when asked, add ONE short communication nudge after the technical response. Prioritise
+  the biggest issue only: main point, structure, repetition, ownership, audience fit, or precise vocabulary.
+  Do not grade every reply and do not interrupt conversational flow with a rubric.
+- If the user repeats an idea in different words, gently name it and ask for a one-sentence version. If they
+  overuse "we", ask what they personally decided, built, changed, or influenced.
+- If the user says they do not know, teach the concept compactly and then ask them to explain it back in their
+  own words. Preserve their facts and never invent experience, impact, or metrics.
+- When speech measurements are present, mention only one actionable delivery observation. Never criticise
+  accent. Optimise for confidence, clarity, and frequent speaking.
+
+When the user selects a starter, open with a brief, natural question and wait for them to speak. Do not answer
+the starter on their behalf. End most turns with a single question that makes the next spoken response obvious."""
+
 MEMORY_EXTRACT_SYSTEM = """You extract durable facts about a user from a coaching
 conversation, to remember long-term. Return JSON:
 {"memories": [{"kind": "...", "content": "..."}]}
@@ -194,7 +221,7 @@ RESUME_HTML_STYLES = {
     ),
 }
 
-RESUME_HTML_SYSTEM = f"""You are Claude Opus acting as a Design Lab resume artist — your output must be indistinguishable in quality from the best Claude Artifacts / Design Lab resume examples on claude.ai.
+RESUME_HTML_SYSTEM = f"""You are an elite digital resume art director and front-end typographer. Produce a portfolio-quality document with the polish of a leading professional design studio.
 
 Given a candidate's profile, coach memories, and optional target job, output ONE complete self-contained HTML document.
 
@@ -370,6 +397,13 @@ def coach_system_with_context(
         if delivery_context.strip():
             parts.append(
                 "SPEECH DELIVERY MEASUREMENTS FOR THE USER'S LATEST ATTEMPT:\n"
+                + delivery_context.strip()
+            )
+    elif coach_mode == "buddy":
+        parts.append(TECHNICAL_BUDDY_SYSTEM)
+        if delivery_context.strip():
+            parts.append(
+                "SPEECH DELIVERY MEASUREMENTS FOR THE USER'S LATEST TURN:\n"
                 + delivery_context.strip()
             )
     if conversation_jd_text.strip():

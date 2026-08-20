@@ -1,12 +1,43 @@
 import unittest
+from unittest.mock import patch
 
 from app.models import Profile
 from app.services.coach import build_coach_messages
+from app.services.resume_designed import design_resume_with_ai
 from app.services.resume_normalize import normalize_resume_data
 from app.services.serialize import profile_to_text
 
 
 class ResumeContextTests(unittest.TestCase):
+    @patch("app.services.resume_designed.build_coach_provider")
+    def test_resume_design_uses_configured_primary_chain(self, build_provider):
+        class FakeChain:
+            last_model = "gpt-primary"
+            last_served = "openai"
+
+            def reset(self):
+                return None
+
+            def chat_json(self, _system, _user):
+                return {
+                    "name": "Example Candidate",
+                    "summary": "Data scientist.",
+                    "skills": ["Python"],
+                    "experience": [],
+                    "projects": [],
+                    "education": [],
+                }
+
+        build_provider.return_value = FakeChain()
+        doc, provider, model = design_resume_with_ai(
+            Profile(user_id=1, name="Example Candidate"), []
+        )
+
+        build_provider.assert_called_once_with()
+        self.assertEqual(doc["name"], "Example Candidate")
+        self.assertEqual(provider, "openai")
+        self.assertEqual(model, "gpt-primary")
+
     def test_coach_context_serializes_overlapping_projects_once(self):
         first = (
             "Built a demand forecasting model for packaging assets, improving "

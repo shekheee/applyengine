@@ -12,7 +12,6 @@ from app.services.serialize import job_to_text, profile_to_text
 
 logger = logging.getLogger(__name__)
 
-DESIGN_MODEL_ID = "claude-opus-4-8"
 RESUME_HTML_MAX_TOKENS = 16384
 VALID_STYLES = frozenset({"editorial", "executive"})
 
@@ -62,7 +61,7 @@ def design_resume_html(
     memory_text = _memory_text(memories)
     job_text = job_to_text(job) if job else ""
 
-    chain = build_coach_provider(DESIGN_MODEL_ID)
+    chain = build_coach_provider()
     chain.reset()
     out = chain.chat_messages(
         [
@@ -89,8 +88,8 @@ def design_resume_html(
 
 
 def refit_html_for_one_page(html: str, page_count: int) -> str:
-    """Ask Claude to redesign overflowing HTML for one page (PDF export path)."""
-    chain = build_coach_provider(DESIGN_MODEL_ID)
+    """Ask the configured design model to refit overflowing HTML to one page."""
+    chain = build_coach_provider()
     chain.reset()
     out = chain.chat_messages(
         [
@@ -104,7 +103,7 @@ def refit_html_for_one_page(html: str, page_count: int) -> str:
 
 def _refit_html_with_llm(html: str, page_count: int) -> tuple[str, str | None, str | None]:
     """Legacy alias — refit for one page."""
-    chain = build_coach_provider(DESIGN_MODEL_ID)
+    chain = build_coach_provider()
     chain.reset()
     out = chain.chat_messages(
         [

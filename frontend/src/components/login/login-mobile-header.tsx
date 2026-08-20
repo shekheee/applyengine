@@ -7,7 +7,7 @@ export function LoginMobileHeader() {
         className="mb-4 grid h-11 w-11 place-items-center rounded-[var(--radius-md)] shadow-[0_8px_32px_-8px_var(--glow)] [background-image:var(--gradient-brand)]"
         aria-hidden
       >
-        <Image src="/icons/spark.svg" alt="" width={22} height={22} />
+        <Image src="/icons/spark.svg" alt="" width={22} height={22} priority />
       </span>
       <p className="text-xs font-medium uppercase tracking-[0.12em] text-[var(--muted)]">
         ApplyEngine

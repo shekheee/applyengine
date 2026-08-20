@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:ui": "playwright test",
+    "test:a11y": "playwright test tests/ui/accessibility.spec.ts"
   },
   "dependencies": {
     "katex": "^0.18.4",
@@ -19,6 +21,8 @@
     "remark-math": "^6.0.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

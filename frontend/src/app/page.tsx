@@ -37,7 +37,9 @@ export default function PipelinePage() {
   }
 
   useEffect(() => {
-    load();
+    // Initial client-side hydration from the authenticated API.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load();
   }, []);
 
   async function move(id: number, status: Status) {
@@ -48,7 +50,7 @@ export default function PipelinePage() {
   if (loading) return <PipelineSkeleton />;
 
   return (
-    <div className="page-enter mx-auto max-w-[1400px] space-y-8 motion-reduce:animate-none">
+    <div className="page-shell page-enter mx-auto max-w-[1480px] space-y-6 motion-reduce:animate-none">
       <PipelineHeader provider={provider} totalCount={apps.length} />
 
       {error && <PipelineError message={error} />}

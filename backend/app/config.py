@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     openai_chat_model: str = "gpt-5.6-sol"
     openai_coach_models: str = "gpt-5.6-sol,gpt-5.5"
     openai_embed_model: str = "text-embedding-3-small"
+    speech_transcription_models: str = "gpt-4o-transcribe,whisper-1"
+    speech_tts_model: str = "tts-1"
 
     # Anthropic
     anthropic_api_key: str | None = None
@@ -37,12 +39,15 @@ class Settings(BaseSettings):
     )
     gemini_coach_model: str = "gemini-3.1-pro-preview"
     gemini_coach_models: str = "gemini-3.1-pro-preview"
+    gemini_audio_model: str = "gemini-3.1-flash-lite"
+    gemini_audio_analysis_enabled: bool = True
 
-    # Coach fallback order: comma-separated provider names
-    coach_provider_chain: str = "anthropic,gemini,openai"
+    # Coach fallback order: comma-separated provider names. Claude remains
+    # supported, but is opt-in while Anthropic access is unavailable.
+    coach_provider_chain: str = "openai,gemini"
 
     # Memory extraction — uses coach fallback chain with this model first
-    memory_model: str = "claude-opus-4-8"
+    memory_model: str = "gpt-5.6-sol"
 
     # App
     database_url: str = "sqlite:///./applyengine.db"
@@ -57,7 +62,6 @@ class Settings(BaseSettings):
     jwt_secret: str = "dev-insecure-change-me"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24 * 14  # 14 days
-    signup_code: str = ""
 
     @property
     def cors_origin_list(self) -> list[str]:
@@ -77,6 +81,10 @@ class Settings(BaseSettings):
     @property
     def openai_coach_model_list(self) -> list[str]:
         return self._model_list(self.openai_coach_models, self.openai_chat_model)
+
+    @property
+    def speech_transcription_model_list(self) -> list[str]:
+        return self._model_list(self.speech_transcription_models, "")
 
     @property
     def anthropic_coach_model_list(self) -> list[str]:

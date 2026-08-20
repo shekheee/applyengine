@@ -81,14 +81,14 @@ class OpenAIProvider(LLMProvider):
         return resp.choices[0].message.content or ""
 
     def chat_stream(
-        self, messages: list[dict[str, Any]]
+        self, messages: list[dict[str, Any]], max_tokens: int = 4096
     ) -> Iterator[str]:
         kwargs = _completion_kwargs(
             self._chat_model,
             messages=messages,
             stream=True,
             max_completion_tokens=(
-                output_tokens_for_effort(self._reasoning_effort, 4096)
+                output_tokens_for_effort(self._reasoning_effort, max_tokens)
                 if _is_gpt5_family(self._chat_model)
                 else None
             ),
@@ -104,14 +104,14 @@ class OpenAIProvider(LLMProvider):
                 yield delta
 
     async def chat_stream_async(
-        self, messages: list[dict[str, Any]]
+        self, messages: list[dict[str, Any]], max_tokens: int = 4096
     ) -> AsyncIterator[str]:
         kwargs = _completion_kwargs(
             self._chat_model,
             messages=messages,
             stream=True,
             max_completion_tokens=(
-                output_tokens_for_effort(self._reasoning_effort, 4096)
+                output_tokens_for_effort(self._reasoning_effort, max_tokens)
                 if _is_gpt5_family(self._chat_model)
                 else None
             ),

@@ -18,6 +18,25 @@ from app.llm.coach_models import (
 logger = logging.getLogger(__name__)
 
 
+@lru_cache(maxsize=32)
+def _cached_provider(
+    name: str,
+    model: str | None,
+    reasoning_effort: ReasoningEffort | None,
+):
+    """Reuse SDK clients and their HTTP connection pools across requests."""
+    s = get_settings()
+    if name == "openai" and s.openai_api_key:
+        return _build_openai(s, model=model, reasoning_effort=reasoning_effort)
+    if name == "anthropic" and s.anthropic_api_key:
+        return _build_anthropic(
+            s, coach=True, model=model, reasoning_effort=reasoning_effort
+        )
+    if name == "gemini":
+        return _build_gemini(s, model=model, reasoning_effort=reasoning_effort)
+    return None
+
+
 def _build_openai(
     s, *, model: str | None = None, reasoning_effort: ReasoningEffort | None = None
 ):
@@ -72,15 +91,9 @@ def _provider_builder(
     model: str | None = None,
     reasoning_effort: ReasoningEffort | None = None,
 ):
-    if name == "openai" and s.openai_api_key:
-        return _build_openai(s, model=model, reasoning_effort=reasoning_effort)
-    if name == "anthropic" and s.anthropic_api_key:
-        return _build_anthropic(
-            s, coach=True, model=model, reasoning_effort=reasoning_effort
-        )
-    if name == "gemini":
-        return _build_gemini(s, model=model, reasoning_effort=reasoning_effort)
-    return None
+    # `s` is retained in this signature because callers use it for routing
+    # configuration. Provider instances themselves use the cached Settings.
+    return _cached_provider(name, model, reasoning_effort)
 
 
 def _coach_providers_for_chain(

@@ -87,9 +87,11 @@ class GeminiProvider(LLMProvider):
         resp.raise_for_status()
         return self._extract_text(resp.json())
 
-    def chat_stream(self, messages: list[dict[str, Any]]) -> Iterator[str]:
+    def chat_stream(
+        self, messages: list[dict[str, Any]], max_tokens: int = 4096
+    ) -> Iterator[str]:
         body = self._payload(messages)
-        body["generationConfig"] = self._generation_config()
+        body["generationConfig"] = self._generation_config(max_tokens)
         url = f"{_GEMINI_BASE}/models/{self._chat_model}:streamGenerateContent"
         with self._client.stream(
             "POST", url, params={"key": self._api_key, "alt": "sse"}, json=body
@@ -104,10 +106,10 @@ class GeminiProvider(LLMProvider):
                     yield text
 
     async def chat_stream_async(
-        self, messages: list[dict[str, Any]]
+        self, messages: list[dict[str, Any]], max_tokens: int = 4096
     ) -> AsyncIterator[str]:
         body = self._payload(messages)
-        body["generationConfig"] = self._generation_config()
+        body["generationConfig"] = self._generation_config(max_tokens)
         url = f"{_GEMINI_BASE}/models/{self._chat_model}:streamGenerateContent"
         async with self._async_client.stream(
             "POST", url, params={"key": self._api_key, "alt": "sse"}, json=body

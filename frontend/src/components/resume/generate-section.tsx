@@ -35,7 +35,7 @@ export function GenerateSection({
         <p className="mt-1.5 text-[var(--muted)]">
           {isApplication ? (
             <>
-              Claude Opus redesigns your <strong className="font-medium text-[var(--text)]">base upload</strong>{" "}
+              ApplyEngine redesigns your <strong className="font-medium text-[var(--text)]">base upload</strong>{" "}
               for{" "}
               {lockedJobLabel ? (
                 <strong className="font-medium text-[var(--primary-2)]">{lockedJobLabel}</strong>
@@ -46,7 +46,7 @@ export function GenerateSection({
             </>
           ) : (
             <>
-              Claude Opus extracts your real experience into structured content, rendered in a
+              The selected primary model extracts your real experience into structured content, rendered in a
               hand-crafted professional A4 template — typography, layout, and skill chips included.
             </>
           )}
@@ -79,7 +79,7 @@ export function GenerateSection({
               className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white motion-reduce:animate-none"
               aria-hidden
             />
-            Claude is designing your resume…
+            Designing your resume…
           </span>
         ) : done ? (
           "✓ New version saved — preview updated"

@@ -45,7 +45,7 @@ export default function NewApplicationPage() {
   }
 
   return (
-    <div className="page-enter mx-auto min-w-0 max-w-3xl pb-8 lg:max-w-4xl">
+    <div className="page-shell page-enter mx-auto min-w-0 max-w-5xl pb-8">
       <NewFlowHeader />
       <StepIndicator steps={steps} />
 

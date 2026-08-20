@@ -30,22 +30,10 @@ export function ApplicationHero({
   }
 
   return (
-    <header
-      className={cn(
-        "relative overflow-hidden rounded-[var(--radius-xl)] border bg-[var(--panel)]",
-        "shadow-[var(--shadow-sm),inset_0_1px_0_rgba(255,255,255,0.04)]"
-      )}
-      style={{ borderColor: "var(--border)" }}
-    >
-      {/* Top accent rail */}
-      <div
-        className="h-[3px] w-full [background-image:var(--gradient-brand)]"
-        aria-hidden
-      />
-
-      <div className="p-6 sm:p-8">
+    <header className="border-b border-[var(--border)] pb-6">
+      <div>
         {/* Breadcrumb */}
-        <nav aria-label="Breadcrumb" className="mb-6">
+        <nav aria-label="Breadcrumb" className="mb-5">
           <ol className="flex items-center gap-2 text-sm">
             <li>
               <Button href="/" variant="ghost" size="sm" className="!px-2 !py-1">
@@ -68,8 +56,8 @@ export function ApplicationHero({
           <div className="flex min-w-0 gap-4 sm:gap-5">
             <div
               className={cn(
-                "grid h-14 w-14 shrink-0 place-items-center rounded-2xl border text-xl font-semibold tracking-tight sm:h-16 sm:w-16 sm:text-2xl",
-                "bg-[var(--panel-2)] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]",
+                "grid h-14 w-14 shrink-0 place-items-center rounded-xl border text-xl font-semibold tracking-tight sm:h-16 sm:w-16 sm:text-2xl",
+                "bg-[var(--panel-2)]",
                 statusStyle.ring,
                 "ring-2 ring-offset-2 ring-offset-[var(--panel)]"
               )}

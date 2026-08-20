@@ -46,7 +46,7 @@ export function LoginBrandPanel() {
               className="grid h-10 w-10 place-items-center rounded-[var(--radius-md)] shadow-[0_8px_32px_-8px_var(--glow)] [background-image:var(--gradient-brand)]"
               aria-hidden
             >
-              <Image src="/icons/spark.svg" alt="" width={20} height={20} />
+              <Image src="/icons/spark.svg" alt="" width={20} height={20} priority />
             </span>
             <span className="text-lg font-semibold tracking-tight text-[var(--text)]">
               ApplyEngine

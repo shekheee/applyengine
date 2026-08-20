@@ -29,6 +29,7 @@ import { InterviewProgressPanel } from "@/components/interview-progress";
 import { ModelSelector, getStoredModelId, storeModelId } from "@/components/model-selector";
 import { useVoiceRecorder } from "@/hooks/use-voice-recorder";
 import type { RecordedAudio } from "@/hooks/use-voice-recorder";
+import { mergeDeliveryAnalysis } from "@/lib/audio";
 import { PhaseStepper } from "@/components/interview/phase-stepper";
 import { OptionGrid, SegmentControl } from "@/components/interview/option-grid";
 import { QuestionCard, SessionMetaBadges } from "@/components/interview/question-card";
@@ -97,6 +98,7 @@ export function InterviewPractice({
   const [liveFeedback, setLiveFeedback] = useState("");
   const [deliveryMetrics, setDeliveryMetrics] = useState<DeliveryMetrics | null>(null);
   const [transcribing, setTranscribing] = useState(false);
+  const audioAnalysisVersionRef = useRef(0);
 
   const voice = useVoiceRecorder(processRecordedAudio);
   const abortRef = useRef<AbortController | null>(null);
@@ -375,10 +377,28 @@ export function InterviewPractice({
       const result = await api.transcribeInterviewAudio(
         recorded.blob,
         recorded.mime,
-        recorded.duration
+        recorded.duration,
+        recorded.metrics
       );
       setAnswer(result.text);
       setDeliveryMetrics(result.delivery);
+      const analysisVersion = audioAnalysisVersionRef.current + 1;
+      audioAnalysisVersionRef.current = analysisVersion;
+      void api
+        .analyzeInterviewAudio(
+          recorded.blob,
+          recorded.mime,
+          recorded.duration,
+          result.text,
+          recorded.metrics
+        )
+        .then((analysis) => {
+          if (audioAnalysisVersionRef.current !== analysisVersion) return;
+          setDeliveryMetrics((current) =>
+            current ? mergeDeliveryAnalysis(current, analysis) : current
+          );
+        })
+        .catch(() => undefined);
     } catch (e) {
       voice.setError(e instanceof Error ? e.message : "Transcription failed.");
     } finally {
@@ -424,32 +444,24 @@ export function InterviewPractice({
     <div
       className={cn(
         "min-w-0",
-        embedded ? "space-y-4" : "page-enter mx-auto max-w-6xl space-y-8 px-0 sm:px-1"
+        embedded ? "space-y-4" : "page-shell page-enter mx-auto max-w-[1480px] space-y-6 px-0 sm:px-1"
       )}
     >
       {!embedded && (
-        <header className="space-y-6">
+        <header className="space-y-5 border-b border-[var(--border)] pb-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--primary-2)]">
+              <p className="eyebrow">
                 Interview prep
               </p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
+              <h1 className="page-title mt-1">
                 Interview Practice
               </h1>
-              <p className="mt-2 max-w-xl text-sm leading-relaxed text-[var(--muted)]">
+              <p className="page-description mt-2">
                 Tailored questions from your resume
                 {jobId !== "" ? " and target role" : ""} with actionable feedback from your AI coach.
               </p>
             </div>
-            {models.length > 0 && (
-              <ModelSelector
-                models={models}
-                selectedId={selectedModel}
-                onChange={setSelectedModel}
-                disabled={busy || streaming}
-              />
-            )}
           </div>
           <PhaseStepper phase={phase === "live" ? "practice" : phase} liveMode={phase === "live"} />
         </header>
@@ -494,15 +506,10 @@ export function InterviewPractice({
 
       {error && <AlertBanner tone="error">{error}</AlertBanner>}
 
-      {(phase === "setup" || progress?.completed_sessions) && !embedded ? (
-        <InterviewProgressPanel progress={progress} />
-      ) : null}
-
       {phase === "setup" && (
-        <div className={embedded ? "space-y-4" : "grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]"}>
+        <div className={embedded ? "space-y-4" : "grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]"}>
           <Card
-            className="space-y-8 border-[var(--border)] p-6 sm:p-8"
-            gradient
+            className="workspace-panel space-y-7 p-5 sm:p-7"
           >
             <OptionGrid
               label="Focus area"
@@ -523,7 +530,22 @@ export function InterviewPractice({
               onChange={setDifficulty}
             />
 
-            <div className="space-y-5 rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--panel-2)]/35 p-5">
+            {models.length > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] pt-5">
+                <div>
+                  <p className="text-sm font-medium text-[var(--text-secondary)]">Interview model</p>
+                  <p className="mt-0.5 text-xs text-[var(--muted)]">Fallback is automatic if this provider is unavailable.</p>
+                </div>
+                <ModelSelector
+                  models={models}
+                  selectedId={selectedModel}
+                  onChange={setSelectedModel}
+                  disabled={busy || streaming}
+                />
+              </div>
+            )}
+
+            <div className="space-y-5 border-y border-[var(--border)] py-6">
               <SegmentControl
                 label="Live interview behaviour"
                 options={[
@@ -564,7 +586,7 @@ export function InterviewPractice({
 
             {curriculum && (
               <div
-                className="rounded-[var(--radius-xl)] border bg-[var(--panel-2)]/40 p-5"
+                className="border-l-2 bg-[var(--panel-2)]/40 p-5"
                 style={{ borderColor: "var(--border)" }}
               >
                 {!showMlTrack && !curriculum.ml_profile_detected ? (
@@ -613,8 +635,7 @@ export function InterviewPractice({
                   type="button"
                   onClick={() => void startSession("live")}
                   disabled={!profile || busy}
-                  className="group rounded-[var(--radius-xl)] border p-5 text-left transition-[border-color,box-shadow] hover:border-[var(--primary)]/50 hover:shadow-[0_0_32px_-8px_var(--glow-soft)] disabled:opacity-50 motion-reduce:transition-none"
-                  style={{ borderColor: "var(--border-strong)" }}
+                  className="group rounded-xl border border-[var(--primary)]/50 bg-[color-mix(in_srgb,var(--primary)_8%,var(--panel))] p-5 text-left transition-colors hover:border-[var(--primary)] disabled:opacity-50 motion-reduce:transition-none"
                 >
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--primary-2)]">
                     Recommended
@@ -630,7 +651,7 @@ export function InterviewPractice({
                   type="button"
                   onClick={() => void startSession("text")}
                   disabled={!profile || busy}
-                  className="rounded-[var(--radius-xl)] border p-5 text-left transition-colors hover:border-[var(--border-strong)] disabled:opacity-50 motion-reduce:transition-none"
+                  className="rounded-xl border p-5 text-left transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--panel-2)] disabled:opacity-50 motion-reduce:transition-none"
                   style={{ borderColor: "var(--border)" }}
                 >
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
@@ -666,6 +687,19 @@ export function InterviewPractice({
             />
           )}
         </div>
+      )}
+
+      {phase === "setup" && !embedded && Boolean(progress?.completed_sessions) && (
+        <details className="workspace-panel group overflow-hidden">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-sm font-medium text-[var(--text-secondary)] sm:px-6">
+            View interview progress
+            <span className="text-xs font-normal text-[var(--muted)] group-open:hidden">Show scores and history</span>
+            <span className="hidden text-xs font-normal text-[var(--muted)] group-open:inline">Hide progress</span>
+          </summary>
+          <div className="border-t border-[var(--border)] p-4 sm:p-5">
+            <InterviewProgressPanel progress={progress} />
+          </div>
+        </details>
       )}
 
       {phase === "live" && session && (

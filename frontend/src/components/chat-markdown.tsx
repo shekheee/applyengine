@@ -13,10 +13,10 @@ type Density = "default" | "compact";
 
 const DENSITY = {
   default: {
-    p: "mb-3 last:mb-0 text-[15px] leading-[1.65] text-[var(--text-secondary)]",
+    p: "mb-2 last:mb-0 text-[15px] leading-[1.55] text-[var(--text-secondary)]",
     ul: "mb-3 list-disc space-y-1 pl-5 last:mb-0",
     ol: "mb-3 list-decimal space-y-1 pl-5 last:mb-0",
-    li: "text-[15px] leading-[1.65] text-[var(--text-secondary)]",
+    li: "text-[15px] leading-[1.55] text-[var(--text-secondary)]",
     pre: "mb-3 max-w-full overflow-x-auto last:mb-0",
     codeBlock:
       "block max-w-full overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-[#0d0d12] p-3 text-[13px] leading-relaxed text-[#e8e8f0] sm:whitespace-pre",

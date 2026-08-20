@@ -35,14 +35,13 @@ export function CollapsibleContent({
       : "text-[var(--primary-2)] hover:underline";
 
   useEffect(() => {
+    // Reset when this component is reused for a newly latest message.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setExpanded(defaultExpanded);
   }, [defaultExpanded]);
 
   useEffect(() => {
-    if (disabled) {
-      setOverflows(false);
-      return;
-    }
+    if (disabled) return;
     const el = innerRef.current;
     if (!el) return;
     const check = () => setOverflows(el.scrollHeight > COLLAPSED_MAX_PX + 8);

@@ -26,13 +26,13 @@ export function PipelineColumn({
     <section
       aria-label={`${config.label} column, ${applications.length} applications`}
       className={cn(
-        "flex w-[min(100%,280px)] shrink-0 flex-col sm:w-[min(100%,260px)] xl:w-auto xl:min-w-0",
+        "flex min-w-0 flex-col",
         "animate-fade-up motion-reduce:animate-none"
       )}
       style={{ animationDelay: `${columnIndex * 60}ms` }}
     >
       <header
-        className="sticky top-0 z-10 mb-3 flex items-center gap-2 rounded-[var(--radius-md)] border bg-[var(--panel)]/95 px-3 py-2.5 backdrop-blur-sm"
+        className="mb-3 flex items-center gap-2 border-b border-[var(--border)] px-1 pb-3 pt-1"
         style={{ borderColor: "var(--border)" }}
       >
         <span
@@ -47,7 +47,7 @@ export function PipelineColumn({
           <h2 className="text-sm font-semibold tracking-tight text-[var(--text)]">
             {config.label}
           </h2>
-          <p className="truncate text-[11px] text-[var(--muted-2)]">{config.description}</p>
+          <p className="truncate text-xs text-[var(--muted-2)]">{config.description}</p>
         </div>
         <span
           className="inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-semibold tabular-nums"
@@ -78,7 +78,7 @@ export function PipelineColumn({
             style={{ borderColor: "var(--border)", minHeight: "88px" }}
           >
             <p className="text-xs font-medium text-[var(--muted-2)]">No roles here</p>
-            <p className="mt-1 text-[11px] text-[var(--muted-2)]/80">
+            <p className="mt-1 text-xs text-[var(--muted-2)]/80">
               Move applications via status
             </p>
           </div>

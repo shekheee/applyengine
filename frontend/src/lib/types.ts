@@ -1,7 +1,7 @@
 export type Status = "saved" | "applied" | "interview" | "offer" | "rejected";
 export type ReasoningEffort = "medium" | "high" | "xhigh";
 export type AnswerLength = "concise" | "normal" | "detailed";
-export type CoachMode = "career" | "communication";
+export type CoachMode = "career" | "communication" | "buddy";
 
 export interface User {
   id: number;
@@ -360,6 +360,29 @@ export interface DeliveryMetrics {
   pauses: Array<{ duration_ms: number; after_word?: string; type?: string }>;
   duration_seconds: number;
   observations: string[];
+  capture_quality?: ClientAudioMetrics;
+  audio_analysis?: AudioDeliveryAnalysis;
+}
+
+export interface ClientAudioMetrics {
+  input_quality?: "good" | "quiet" | "noisy";
+  noise_floor?: number;
+  mean_level?: number;
+  peak_level?: number;
+  silence_ratio?: number;
+  voiced_ratio?: number;
+  pauses?: Array<{ duration_ms: number; after_word?: string }>;
+}
+
+export interface AudioDeliveryAnalysis {
+  status: "complete" | "unavailable";
+  provider: "gemini";
+  model: string;
+  summary: string;
+  scores: Record<string, number>;
+  strengths: string[];
+  improvements: string[];
+  concise_tip: string;
 }
 
 export interface TranscribeResult {
@@ -367,6 +390,7 @@ export interface TranscribeResult {
   duration_seconds: number;
   delivery: DeliveryMetrics;
   model: string;
+  fallback_used: boolean;
 }
 
 export interface ProgressTheme {

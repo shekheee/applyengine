@@ -151,7 +151,7 @@ export function MessageBubble({
           <div
             className={`coach-message-body block max-w-full overflow-hidden text-left [overflow-wrap:anywhere] [word-break:break-word] ${
               isUser
-                ? "rounded-2xl rounded-br-md px-4 py-3 text-[15px] leading-[1.65] text-white"
+                ? "rounded-2xl rounded-br-md px-4 py-3 text-[15px] leading-[1.5] text-white"
                 : "rounded-2xl rounded-tl-md border px-3 py-2.5 text-[15px] leading-[1.48] text-[var(--text)]"
             }`}
             style={

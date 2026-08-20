@@ -24,6 +24,28 @@ def test_communication_mode_adds_rehearsal_contract():
 def test_career_mode_does_not_add_communication_contract():
     messages = build_coach_messages("Review my resume.", None, [], [])
     assert "COMMUNICATION GYM MODE" not in messages[0]["content"]
+    assert "TECHNICAL BUDDY MODE" not in messages[0]["content"]
+
+
+def test_buddy_mode_adds_conversational_practice_contract():
+    messages = build_coach_messages(
+        "Let's talk about a stale production run.",
+        None,
+        [],
+        [],
+        coach_mode="buddy",
+    )
+    system = messages[0]["content"]
+
+    assert "TECHNICAL BUDDY MODE" in system
+    assert "not an interview and not a scorecard" in system
+    assert "ONE clear follow-up" in system
+    assert "up to three precise technical or business terms" in system
+    assert "Never criticise" in system
+
+
+def test_buddy_mode_is_accepted():
+    assert _resolve_coach_mode("buddy") == "buddy"
 
 
 def test_delivery_context_only_exposes_supported_numeric_signals():

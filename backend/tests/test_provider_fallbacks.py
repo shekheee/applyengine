@@ -1,3 +1,4 @@
+import asyncio
 import unittest
 
 from app.llm.coach_chain import CoachFallbackChain
@@ -23,6 +24,22 @@ class FailingEmbeddingProvider:
 
     def embed(self, texts):
         raise PermissionError("invalid test key")
+
+
+class AsyncChatProvider:
+    def __init__(self, name: str, model: str, tokens: list[str], delay: float = 0):
+        self.name = name
+        self.chat_model = model
+        self.tokens = tokens
+        self.delay = delay
+        self.max_tokens = None
+
+    async def chat_stream_async(self, messages, max_tokens=4096):
+        self.max_tokens = max_tokens
+        if self.delay:
+            await asyncio.sleep(self.delay)
+        for token in self.tokens:
+            yield token
 
 
 class ProviderFallbackTests(unittest.TestCase):
@@ -56,6 +73,30 @@ class ProviderFallbackTests(unittest.TestCase):
         self.assertEqual(chain.last_model, "local-hashing-512")
         self.assertTrue(chain.fallback_used)
         self.assertEqual(chain.failures[0]["provider"], "openai")
+
+    def test_live_stream_times_out_and_uses_backup_with_token_cap(self):
+        slow = AsyncChatProvider("openai", "slow", ["late"], delay=0.03)
+        backup = AsyncChatProvider("gemini", "backup", ["hello"])
+        chain = CoachFallbackChain(
+            [slow, backup],
+            requested_model="slow",
+            requested_provider="openai",
+        )
+
+        async def collect():
+            return [
+                token
+                async for token in chain.chat_stream_async(
+                    [{"role": "user", "content": "hi"}],
+                    max_tokens=384,
+                    first_token_timeout=0.01,
+                )
+            ]
+
+        self.assertEqual(asyncio.run(collect()), ["hello"])
+        self.assertEqual(backup.max_tokens, 384)
+        self.assertEqual(chain.last_served, "gemini")
+        self.assertTrue(chain.fallback_used)
 
 
 if __name__ == "__main__":

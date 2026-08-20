@@ -100,15 +100,13 @@ export function ResumeWorkspace({
     void init();
   }, []);
 
-  useEffect(() => {
-    if (lockedJobId != null) setResumeJobId(lockedJobId);
-  }, [lockedJobId]);
-
   const isApplication = variant === "application";
   const effectiveJobId = lockedJobId ?? (resumeJobId === "" ? undefined : resumeJobId);
 
   useEffect(() => {
     if (selectedVersionId === "") {
+      // Clearing the picker must also clear a stale preview.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPreviewHtml("");
       return;
     }

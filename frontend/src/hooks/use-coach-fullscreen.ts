@@ -13,6 +13,8 @@ export function useCoachFullscreen(enabled = true) {
   const [fullscreen, setFullscreen] = useState(false);
 
   useEffect(() => {
+    // Restore the persisted user preference after localStorage is available.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (enabled) setFullscreen(readStored());
   }, [enabled]);
 

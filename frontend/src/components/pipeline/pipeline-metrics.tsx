@@ -1,6 +1,5 @@
 import type { Application, Status } from "@/lib/types";
 import { STATUSES } from "@/lib/types";
-import { cn } from "@/components/ui";
 import { STATUS_CONFIG, fitTone } from "./constants";
 
 type PipelineMetricsProps = {

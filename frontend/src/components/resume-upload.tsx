@@ -61,7 +61,9 @@ export function ResumeUpload({
   }, [onLoaded]);
 
   useEffect(() => {
-    refresh().finally(() => setLoaded(true));
+    // Hydrate from the authenticated profile API on mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void refresh().finally(() => setLoaded(true));
   }, [refresh]);
 
   function done(p: Profile, replaced: boolean) {

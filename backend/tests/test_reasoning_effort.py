@@ -12,6 +12,7 @@ from app.llm.openai_provider import OpenAIProvider
 
 class ReasoningEffortTests(unittest.TestCase):
     def test_ui_aliases_normalize_to_native_effort(self):
+        self.assertEqual(normalize_reasoning_effort("low"), "low")
         self.assertEqual(normalize_reasoning_effort("medium"), "medium")
         self.assertEqual(normalize_reasoning_effort("hard"), "high")
         self.assertEqual(normalize_reasoning_effort("very hard"), "xhigh")
@@ -21,6 +22,7 @@ class ReasoningEffortTests(unittest.TestCase):
             normalize_reasoning_effort("unlimited")
 
     def test_token_allowance_scales_with_effort(self):
+        self.assertEqual(output_tokens_for_effort("low", 384), 384)
         self.assertEqual(output_tokens_for_effort("medium", 4096), 8192)
         self.assertEqual(output_tokens_for_effort("high", 4096), 16384)
         self.assertEqual(output_tokens_for_effort("xhigh", 4096), 32768)

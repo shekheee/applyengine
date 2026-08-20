@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator, Iterator
 from typing import Any, Protocol
@@ -18,10 +19,12 @@ class CoachCapable(Protocol):
         self, messages: list[dict[str, Any]], json_mode: bool = False
     ) -> str: ...
 
-    def chat_stream(self, messages: list[dict[str, Any]]) -> Iterator[str]: ...
+    def chat_stream(
+        self, messages: list[dict[str, Any]], max_tokens: int = 4096
+    ) -> Iterator[str]: ...
 
     def chat_stream_async(
-        self, messages: list[dict[str, Any]]
+        self, messages: list[dict[str, Any]], max_tokens: int = 4096
     ) -> AsyncIterator[str]: ...
 
 
@@ -153,13 +156,15 @@ class CoachFallbackChain:
             raise last_err
         raise RuntimeError("All coach providers returned empty responses")
 
-    def chat_stream(self, messages: list[dict[str, Any]]) -> Iterator[str]:
+    def chat_stream(
+        self, messages: list[dict[str, Any]], max_tokens: int = 4096
+    ) -> Iterator[str]:
         last_err: Exception | None = None
         for provider in self._providers:
             label = f"{provider.name}/{provider.chat_model}"
             try:
                 got = False
-                for token in provider.chat_stream(messages):
+                for token in provider.chat_stream(messages, max_tokens=max_tokens):
                     got = True
                     if not self._last_served:
                         self._mark_served(provider)
@@ -182,14 +187,25 @@ class CoachFallbackChain:
         raise RuntimeError("All coach providers returned empty streams")
 
     async def chat_stream_async(
-        self, messages: list[dict[str, Any]]
+        self,
+        messages: list[dict[str, Any]],
+        max_tokens: int = 4096,
+        first_token_timeout: float | None = None,
     ) -> AsyncIterator[str]:
         last_err: Exception | None = None
         for provider in self._providers:
             label = f"{provider.name}/{provider.chat_model}"
             try:
                 got = False
-                async for token in provider.chat_stream_async(messages):
+                stream = provider.chat_stream_async(messages, max_tokens=max_tokens)
+                if first_token_timeout:
+                    async with asyncio.timeout(first_token_timeout):
+                        first_token = await anext(stream)
+                    got = True
+                    self._mark_served(provider)
+                    logger.info("Coach stream started on %s", label)
+                    yield first_token
+                async for token in stream:
                     got = True
                     if not self._last_served:
                         self._mark_served(provider)
@@ -199,6 +215,16 @@ class CoachFallbackChain:
                     return
                 logger.warning("Coach empty stream from %s — trying next", label)
                 self._record_failure(provider)
+            except (StopAsyncIteration, TimeoutError) as exc:
+                last_err = exc
+                self._last_served = None
+                self._last_model = None
+                self._record_failure(provider, exc)
+                logger.warning(
+                    "Coach produced no first token on %s within %ss — trying next",
+                    label,
+                    first_token_timeout,
+                )
             except Exception as exc:
                 if self._last_served == provider.name:
                     raise

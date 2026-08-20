@@ -142,8 +142,10 @@ def _resolve_answer_length(value: str | None) -> str:
 
 def _resolve_coach_mode(value: str | None) -> str:
     mode = (value or "career").strip().lower()
-    if mode not in {"career", "communication"}:
-        raise HTTPException(422, "coach_mode must be 'career' or 'communication'")
+    if mode not in {"career", "communication", "buddy"}:
+        raise HTTPException(
+            422, "coach_mode must be 'career', 'communication', or 'buddy'"
+        )
     return mode
 
 

@@ -19,6 +19,7 @@ export function VoiceControl({
     seconds: number;
     level: number;
     error: string | null;
+    inputQuality?: "calibrating" | "good" | "quiet" | "noisy";
   };
   transcribing: boolean;
   onMicClick: () => void;
@@ -53,6 +54,25 @@ export function VoiceControl({
           </div>
         </div>
       )}
+      {recording && voice.inputQuality && (
+        <span
+          className={cn(
+            "text-[11px] font-medium",
+            voice.inputQuality === "good" && "text-emerald-300",
+            voice.inputQuality === "quiet" && "text-amber-300",
+            voice.inputQuality === "noisy" && "text-amber-300",
+            voice.inputQuality === "calibrating" && "text-[var(--muted)]"
+          )}
+        >
+          {voice.inputQuality === "calibrating"
+            ? "Calibrating mic…"
+            : voice.inputQuality === "good"
+              ? "Mic clear"
+              : voice.inputQuality === "quiet"
+                ? "Move closer"
+                : "Background noise"}
+        </span>
+      )}
       <button
         type="button"
         onClick={onMicClick}
@@ -86,6 +106,7 @@ export function VoiceControl({
 }
 
 export function DeliveryMetricsPanel({ metrics }: { metrics: DeliveryMetrics }) {
+  const audio = metrics.audio_analysis;
   return (
     <div
       className="rounded-[var(--radius-md)] border border-[color-mix(in_srgb,var(--accent-teal)_25%,var(--border))] bg-[color-mix(in_srgb,var(--accent-teal)_6%,var(--panel-2))] px-4 py-3"
@@ -116,6 +137,36 @@ export function DeliveryMetricsPanel({ metrics }: { metrics: DeliveryMetrics }) 
           {o}
         </p>
       ))}
+      {audio?.status === "complete" && (
+        <div className="mt-3 border-t border-[var(--border)] pt-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-semibold text-[var(--text)]">Gemini delivery review</p>
+            <div className="flex flex-wrap gap-1.5">
+              {Object.entries(audio.scores).map(([name, score]) => (
+                <span
+                  key={name}
+                  className="rounded-full border border-[var(--border)] bg-[var(--panel)] px-2 py-0.5 text-[10px] text-[var(--muted)]"
+                >
+                  {name.replace("_", " ")} <strong className="text-[var(--text)]">{score}</strong>
+                </span>
+              ))}
+            </div>
+          </div>
+          {audio.summary && (
+            <p className="mt-2 text-xs leading-relaxed text-[var(--text-secondary)]">{audio.summary}</p>
+          )}
+          {audio.improvements.map((item) => (
+            <p key={item} className="mt-1.5 text-xs leading-relaxed text-[var(--text-secondary)]">
+              <span className="mr-1 text-amber-300">→</span>{item}
+            </p>
+          ))}
+          {audio.concise_tip && (
+            <p className="mt-2 rounded-md bg-[var(--panel-3)] px-2.5 py-2 text-xs font-medium text-[var(--text)]">
+              Next attempt: {audio.concise_tip}
+            </p>
+          )}
+        </div>
+      )}
       <p className="mt-2 text-[10px] text-[var(--muted-2)]">
         Review and edit the transcript below before submitting.
       </p>
@@ -148,6 +199,7 @@ export function AnswerComposer({
     seconds: number;
     level: number;
     error: string | null;
+    inputQuality?: "calibrating" | "good" | "quiet" | "noisy";
   };
   transcribing: boolean;
   deliveryMetrics: DeliveryMetrics | null;

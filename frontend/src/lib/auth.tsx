@@ -15,12 +15,6 @@ interface AuthState {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (body: {
-    email: string;
-    password: string;
-    name?: string;
-    signup_code?: string;
-  }) => Promise<void>;
   logout: () => void;
 }
 
@@ -47,7 +41,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    loadMe();
+    // Auth state is intentionally hydrated after the browser token store is available.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadMe();
   }, [loadMe]);
 
   const login = useCallback(async (email: string, password: string) => {
@@ -56,27 +52,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(await api.me());
   }, []);
 
-  const register = useCallback(
-    async (body: {
-      email: string;
-      password: string;
-      name?: string;
-      signup_code?: string;
-    }) => {
-      const { access_token } = await api.register(body);
-      setToken(access_token);
-      setUser(await api.me());
-    },
-    []
-  );
-
   const logout = useCallback(() => {
     setToken(null);
     setUser(null);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

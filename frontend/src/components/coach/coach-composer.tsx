@@ -3,6 +3,7 @@
 import {
   useRef,
   type KeyboardEvent,
+  type ReactNode,
   type RefObject,
 } from "react";
 import type {
@@ -40,6 +41,7 @@ export function CoachComposer({
   onWebSearchModeChange,
   searchingWeb,
   textareaRef,
+  placeholder = "Message your coach…",
 }: {
   input: string;
   onInputChange: (v: string) => void;
@@ -62,6 +64,7 @@ export function CoachComposer({
   onWebSearchModeChange: (mode: WebSearchMode) => void;
   searchingWeb: boolean;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
+  placeholder?: string;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const canSend = Boolean(input.trim() || pendingFiles.length);
@@ -149,7 +152,7 @@ export function CoachComposer({
             onChange={(e) => onInputChange(e.target.value)}
             onKeyDown={onKeyDown}
             rows={1}
-            placeholder="Message your coach…"
+            placeholder={placeholder}
             disabled={streaming || savingEdit}
             aria-label="Message"
             className="max-h-[200px] min-h-[44px] flex-1 resize-none bg-transparent px-2 py-2.5 text-[15px] leading-relaxed text-[var(--text)] outline-none placeholder:text-[var(--muted-2)]"
@@ -185,144 +188,57 @@ export function CoachComposer({
           )}
         </div>
 
-        <div
-          className="flex items-center justify-between gap-2 border-t px-3 py-1.5"
-          style={{ borderColor: "var(--border)" }}
-        >
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-h-10 items-center gap-2 border-t px-3 py-2" style={{ borderColor: "var(--border)" }}>
             <ModelSelector
               models={models}
               selectedId={selectedModel}
               onChange={onModelChange}
               disabled={streaming || models.length === 0}
             />
-            <label className="relative inline-flex items-center">
-              <span className="sr-only">Thinking depth</span>
-              <select
-                value={reasoningEffort}
-                onChange={(event) =>
-                  onReasoningEffortChange(event.target.value as ReasoningEffort)
-                }
-                disabled={streaming}
-                title="Higher thinking depth can improve difficult answers but takes longer and costs more"
-                className="h-[30px] appearance-none rounded-lg border bg-[var(--panel)] py-1 pl-7 pr-7 text-xs font-medium text-[var(--muted)] outline-none transition-colors hover:bg-[var(--panel-2)] disabled:opacity-50"
-                style={{ borderColor: "var(--border)" }}
-              >
-                <option value="medium">Think: Medium</option>
-                <option value="high">Think: Hard</option>
-                <option value="xhigh">Think: Very hard</option>
-              </select>
-              <svg
-                aria-hidden
-                className="pointer-events-none absolute left-2 h-3.5 w-3.5 text-[var(--muted)]"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-              >
-                <path d="M9.5 4.5a3 3 0 0 1 5 2.2A3.5 3.5 0 0 1 17 13a3 3 0 0 1-3 5.2M9.5 4.5A3 3 0 0 0 5 8a3.5 3.5 0 0 0 2 6.3A3 3 0 0 0 10 19V5.5M14 6v12" />
-              </svg>
-              <svg
-                aria-hidden
-                className="pointer-events-none absolute right-2 h-3 w-3 text-[var(--muted-2)]"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="m7 10 5 5 5-5" />
-              </svg>
-            </label>
-            <label className="relative inline-flex items-center">
-              <span className="sr-only">Answer length</span>
-              <select
-                value={answerLength}
-                onChange={(event) =>
-                  onAnswerLengthChange(event.target.value as AnswerLength)
-                }
-                disabled={streaming}
-                title="Control visible answer detail independently of thinking depth"
-                className="h-[30px] appearance-none rounded-lg border bg-[var(--panel)] py-1 pl-7 pr-7 text-xs font-medium text-[var(--muted)] outline-none transition-colors hover:bg-[var(--panel-2)] disabled:opacity-50"
-                style={{ borderColor: "var(--border)" }}
-              >
-                <option value="concise">Answer: Concise</option>
-                <option value="normal">Answer: Normal</option>
-                <option value="detailed">Answer: Detailed</option>
-              </select>
-              <svg
-                aria-hidden
-                className="pointer-events-none absolute left-2 h-3.5 w-3.5 text-[var(--muted)]"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-              >
-                <path d="M5 6h14M5 12h10M5 18h7" />
-              </svg>
-              <svg
-                aria-hidden
-                className="pointer-events-none absolute right-2 h-3 w-3 text-[var(--muted-2)]"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="m7 10 5 5 5-5" />
-              </svg>
-            </label>
-            <label className="relative inline-flex items-center">
-              <span className="sr-only">Web search mode</span>
-              <select
-                value={webSearchMode}
-                onChange={(event) =>
-                  onWebSearchModeChange(event.target.value as WebSearchMode)
-                }
-                disabled={streaming}
-                title="Control live web search"
-                className="h-[30px] appearance-none rounded-lg border bg-[var(--panel)] py-1 pl-7 pr-7 text-xs font-medium text-[var(--muted)] outline-none transition-colors hover:bg-[var(--panel-2)] disabled:opacity-50"
-                style={{ borderColor: "var(--border)" }}
-              >
-                <option value="auto">Web: Auto</option>
-                <option value="on">Web: On</option>
-                <option value="off">Web: Off</option>
-              </select>
-              <svg
-                aria-hidden
-                className="pointer-events-none absolute left-2 h-3.5 w-3.5 text-[var(--muted)]"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-              >
-                <circle cx="12" cy="12" r="9" />
-                <path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18" />
-              </svg>
-              <svg
-                aria-hidden
-                className="pointer-events-none absolute right-2 h-3 w-3 text-[var(--muted-2)]"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="m7 10 5 5 5-5" />
-              </svg>
-            </label>
+            <details className="group relative">
+              <summary className="flex h-[30px] cursor-pointer list-none items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--panel)] px-2.5 text-xs font-medium text-[var(--muted)] hover:bg-[var(--panel-2)] hover:text-[var(--text)]">
+                Controls
+                <span aria-hidden className="transition-transform group-open:rotate-180">⌃</span>
+              </summary>
+              <div className="absolute bottom-full left-0 z-50 mb-2 w-[min(19rem,calc(100vw-2rem))] space-y-4 rounded-xl border border-[var(--border-strong)] bg-[var(--panel)] p-4 shadow-[var(--shadow-lg)]">
+                <ComposerSetting label="Thinking depth" hint="Higher depth is slower">
+                  <select value={reasoningEffort} onChange={(event) => onReasoningEffortChange(event.target.value as ReasoningEffort)} disabled={streaming} className="input-field w-full rounded-lg border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-sm text-[var(--text)]">
+                    <option value="medium">Medium</option><option value="high">Hard</option><option value="xhigh">Very hard</option>
+                  </select>
+                </ComposerSetting>
+                <ComposerSetting label="Answer length" hint="Controls visible detail">
+                  <select value={answerLength} onChange={(event) => onAnswerLengthChange(event.target.value as AnswerLength)} disabled={streaming} className="input-field w-full rounded-lg border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-sm text-[var(--text)]">
+                    <option value="concise">Concise</option><option value="normal">Normal</option><option value="detailed">Detailed</option>
+                  </select>
+                </ComposerSetting>
+                <ComposerSetting label="Web search" hint="Use current sources when needed">
+                  <select value={webSearchMode} onChange={(event) => onWebSearchModeChange(event.target.value as WebSearchMode)} disabled={streaming} className="input-field w-full rounded-lg border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-sm text-[var(--text)]">
+                    <option value="auto">Automatic</option><option value="on">Always on</option><option value="off">Off</option>
+                  </select>
+                </ComposerSetting>
+              </div>
+            </details>
             {searchingWeb && (
-              <span className="hidden animate-pulse text-[10px] text-[var(--primary-2)] md:inline">
+              <span className="animate-pulse text-xs text-[var(--primary-2)]">
                 Searching live…
               </span>
             )}
-          </div>
-          <span className="hidden text-[10px] text-[var(--muted-2)] sm:inline">
+          <span className="ml-auto hidden text-xs text-[var(--muted-2)] sm:inline">
             Enter to send · Shift+Enter for newline
           </span>
         </div>
       </div>
-
-      <p className="mt-2 text-center text-[10px] text-[var(--muted-2)] sm:hidden">
-        Enter to send · Shift+Enter for newline
-      </p>
     </div>
+  );
+}
+
+function ComposerSetting({ label, hint, children }: { label: string; hint: string; children: ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1 flex items-center justify-between gap-3 text-xs font-medium text-[var(--text-secondary)]">
+        {label}<span className="font-normal text-[var(--muted-2)]">{hint}</span>
+      </span>
+      {children}
+    </label>
   );
 }

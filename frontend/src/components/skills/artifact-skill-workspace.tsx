@@ -60,7 +60,11 @@ function PresentationPreview({ artifact }: { artifact: SkillArtifact }) {
   const [selected, setSelected] = useState(0);
   const isTitle = selected === 0;
   const slide = slides[selected - 1];
-  useEffect(() => setSelected(0), [artifact.id]);
+  useEffect(() => {
+    // A newly generated deck always opens on its title slide.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSelected(0);
+  }, [artifact.id]);
   return (
     <div className="grid min-w-0 gap-3 xl:grid-cols-[110px_1fr]">
       <div className="order-2 flex gap-2 overflow-x-auto xl:order-1 xl:block xl:space-y-2 xl:overflow-visible">

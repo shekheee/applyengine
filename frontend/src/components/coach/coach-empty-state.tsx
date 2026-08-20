@@ -21,12 +21,16 @@ export function CoachEmptyState({
   const title =
     coachMode === "communication"
       ? "Say it once. Make it land."
+      : coachMode === "buddy"
+      ? "What shall we talk through?"
       : embedded && hasJd
       ? "Ask anything about this role"
       : "How can I help with your career?";
   const subtitle =
     coachMode === "communication"
       ? "Practise aloud or type an answer. The coach will find repetition, sharpen your vocabulary, compress the message, and ask you to retry."
+      : coachMode === "buddy"
+      ? "Speak freely about technical work, ideas, incidents, or trade-offs. Your buddy will keep the conversation moving and offer one useful communication nudge at a time."
       : embedded && hasJd
       ? "This thread is scoped to the job description. Prep, gaps, and talking points stay role-specific."
       : "Ask about resume bullets, interview prep, or attach a PDF or screenshot for feedback.";

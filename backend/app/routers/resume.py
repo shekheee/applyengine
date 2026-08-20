@@ -11,7 +11,7 @@ from app.db import get_session
 from app.models import Job, Memory, Profile, ResumeVersionKind, User
 from app.schemas import ResumeDesignOut, ResumeVersionOut
 from app.services.profiles import get_base_profile
-from app.services.resume_designed import design_resume_with_claude
+from app.services.resume_designed import design_resume_with_ai
 from app.services.resume_docx import build_resume_docx_from_doc, render_resume_docx
 from app.services.resume_templates import design_and_render_resume, enrich_designed_doc, render_resume_template
 from app.services.resume_html_pdf import html_to_pdf_one_page
@@ -93,7 +93,7 @@ def _structured_for_version(
 ) -> dict:
     if version and version.structured_json:
         return version.structured_json
-    doc, _, _ = design_resume_with_claude(profile, memories, job)
+    doc, _, _ = design_resume_with_ai(profile, memories, job)
     if version:
         version.structured_json = doc
         session.add(version)
@@ -133,13 +133,13 @@ def generate_designed_resume(
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ):
-    """Generate Claude Design Lab–style HTML resume and save as a new version."""
+    """Generate a professional HTML resume and save it as a new version."""
     profile = _latest_profile(user, session)
     memories = _user_memories(user, session)
     job = _optional_job(user, session, job_id)
     style_key = style if style in ("signature", "editorial", "executive", "minimal") else "signature"
     try:
-        doc, provider, model = design_resume_with_claude(profile, memories, job)
+        doc, provider, model = design_resume_with_ai(profile, memories, job)
         doc = enrich_designed_doc(doc, profile)
         doc["_template_style"] = style_key
         html_doc = design_and_render_resume(doc, style=style_key, job=job)

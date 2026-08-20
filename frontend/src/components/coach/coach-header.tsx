@@ -62,7 +62,8 @@ export function CoachHeader({
 
         <div className="min-w-0">
           <h1 className="truncate text-[15px] font-semibold tracking-tight text-[var(--text)]">
-            {activeConversation?.title ?? "Career coach"}
+            {activeConversation?.title ??
+              (coachMode === "buddy" ? "Technical Buddy" : "Career coach")}
           </h1>
           {activeConversation && (
             <p className="truncate text-xs text-[var(--muted)]">
@@ -109,6 +110,18 @@ export function CoachHeader({
               <span className="sm:hidden">Gym</span>
               <span className="hidden sm:inline">Communication Gym</span>
             </button>
+            <button
+              type="button"
+              onClick={() => onCoachModeChange("buddy")}
+              aria-pressed={coachMode === "buddy"}
+              className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                coachMode === "buddy"
+                  ? "bg-sky-400/15 text-sky-300 shadow-sm"
+                  : "text-[var(--muted)] hover:text-[var(--text)]"
+              }`}
+            >
+              Buddy
+            </button>
           </div>
         )}
         {embedded ? (
@@ -135,7 +148,7 @@ export function CoachHeader({
               <button
                 type="button"
                 onClick={onToggleTools}
-                className="btn-interactive flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium text-[var(--muted)] transition-colors hover:bg-[var(--panel-2)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 lg:hidden"
+                className="btn-interactive flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium text-[var(--muted)] transition-colors hover:bg-[var(--panel-2)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                 style={{
                   borderColor: "var(--border-strong)",
                   outlineColor: "color-mix(in srgb, var(--primary) 60%, transparent)",
