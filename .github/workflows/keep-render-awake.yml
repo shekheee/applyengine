@@ -1,0 +1,29 @@
+name: Keep Render backend warm
+
+on:
+  schedule:
+    # Render free services sleep after 15 minutes without inbound traffic.
+    # Offset from the top of the hour to reduce GitHub Actions scheduling delays.
+    - cron: "3,13,23,33,43,53 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keep-render-backend-warm
+  cancel-in-progress: true
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check ApplyEngine API health
+        run: |
+          curl --fail --show-error --silent \
+            --max-time 90 \
+            --retry 2 \
+            --retry-delay 5 \
+            --retry-all-errors \
+            https://applyengine-api.onrender.com/api/health
