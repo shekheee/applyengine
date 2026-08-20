@@ -1154,6 +1154,21 @@ export const api = {
       { method: "PATCH", body: JSON.stringify({ delivery }) }
     ),
 
+  saveRealtimeInterviewTurn: (
+    sessionId: number,
+    body: {
+      role: "candidate" | "interviewer";
+      content: string;
+      request_id: string;
+      duration_seconds?: number;
+      latency_ms?: number;
+    }
+  ) =>
+    req<InterviewTurn>(`/api/interview/sessions/${sessionId}/realtime/turns`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
   liveInterviewTurnStream: async (
     sessionId: number,
     onToken: (token: string) => void,

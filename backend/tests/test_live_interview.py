@@ -4,6 +4,7 @@ from app.services.live_interview import (
     _bounded_context,
     apply_live_meta,
     behavior_context,
+    build_realtime_interview_instructions,
     govern_live_meta,
     should_end_live_interview,
 )
@@ -123,3 +124,12 @@ def test_behavior_context_exposes_mode_persona_and_stage():
     assert "BEHAVIOUR MODE: coach" in context
     assert "PERSONA: change_leader" in context
     assert "CURRENT STAGE: warmup" in context
+
+
+def test_realtime_instructions_keep_live_turns_short_and_assessment_separate():
+    instructions = build_realtime_interview_instructions(_session(), None, None, [])
+
+    assert "under 25 words" in instructions
+    assert "Ask exactly one direct question" in instructions
+    assert "Do not coach, score" in instructions
+    assert "call the end_interview tool" in instructions

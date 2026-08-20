@@ -38,7 +38,13 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept", "Origin"],
-    expose_headers=["Content-Type", "Cache-Control", "X-PDF-Engine", "X-PDF-Pages"],
+    expose_headers=[
+        "Content-Type",
+        "Cache-Control",
+        "X-PDF-Engine",
+        "X-PDF-Pages",
+        "X-Realtime-Model",
+    ],
     max_age=600,
 )
 

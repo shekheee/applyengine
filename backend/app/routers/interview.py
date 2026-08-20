@@ -1,16 +1,20 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 from types import SimpleNamespace
+from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+import httpx
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import Response, StreamingResponse
 from sqlmodel import Session, select
 from starlette.concurrency import run_in_threadpool
 
 from app.auth import get_current_user
+from app.config import get_settings
 from app.db import get_session
 from app.llm.coach_models import validate_coach_model
 from app.models import InterviewSession, InterviewTurn, Job, Memory, Profile, User
@@ -22,6 +26,7 @@ from app.schemas import (
     InterviewFollowupIn,
     InterviewLiveTtsIn,
     InterviewLiveTurnIn,
+    InterviewRealtimeTurnIn,
     InterviewDeliveryUpdateIn,
     InterviewProgressOut,
     InterviewSessionCreate,
@@ -41,6 +46,7 @@ from app.services.interview_practice import (
 from app.services.interview_progress import build_interview_progress
 from app.services.live_interview import (
     apply_live_meta,
+    build_realtime_interview_instructions,
     generate_live_summary,
     govern_live_meta,
     parse_interviewer_response,
@@ -61,6 +67,7 @@ from app.services.profiles import get_base_profile
 from app.services.serialize import profile_to_text
 
 router = APIRouter(prefix="/api/interview", tags=["interview"])
+settings = get_settings()
 
 
 def _parse_client_metrics(raw: str | None) -> dict:
@@ -417,6 +424,212 @@ def get_session_detail(
         .order_by(InterviewTurn.id.asc())
     ).all()
     return _session_out(s, turns)
+
+
+@router.post("/sessions/{session_id}/realtime")
+async def create_realtime_interview(
+    session_id: int,
+    request: Request,
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Proxy the WebRTC offer so the browser never receives the OpenAI API key."""
+    if not settings.openai_realtime_enabled or not settings.openai_api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="Realtime voice is unavailable; use the recorded-answer fallback.",
+        )
+    interview = _owned_session(session_id, user, db)
+    if interview.status == "completed":
+        raise HTTPException(status_code=400, detail="Interview session already completed")
+    if interview.mode != "live":
+        raise HTTPException(status_code=400, detail="Realtime voice requires a live interview")
+    raw_sdp = await request.body()
+    if not raw_sdp or len(raw_sdp) > 200_000:
+        raise HTTPException(status_code=422, detail="Invalid WebRTC offer")
+
+    profile = get_base_profile(user, db)
+    job = db.get(Job, interview.job_id) if interview.job_id else None
+    turns = db.exec(
+        select(InterviewTurn)
+        .where(InterviewTurn.session_id == session_id)
+        .order_by(InterviewTurn.id.asc())
+    ).all()
+    instructions = build_realtime_interview_instructions(
+        interview,
+        profile,
+        job,
+        turns,
+    )
+    realtime_config = {
+        "type": "realtime",
+        "model": settings.openai_realtime_model,
+        "instructions": instructions,
+        # Spoken interview turns should be short; a frontier text model is used
+        # later for the detailed post-session assessment.
+        "max_output_tokens": 220,
+        "tools": [
+            {
+                "type": "function",
+                "name": "end_interview",
+                "description": (
+                    "End the interview after asking for candidate questions and "
+                    "speaking a brief closing sentence."
+                ),
+                "parameters": {"type": "object", "properties": {}},
+            }
+        ],
+        "tool_choice": "auto",
+        "audio": {
+            "input": {
+                "transcription": {
+                    "model": settings.speech_transcription_model_list[0]
+                    if settings.speech_transcription_model_list
+                    else "gpt-4o-transcribe"
+                },
+                "turn_detection": {
+                    "type": "server_vad",
+                    "threshold": 0.5,
+                    "prefix_padding_ms": 300,
+                    # Long enough for a thinking pause, short enough to avoid the
+                    # stop/upload/transcribe delay of the legacy interview path.
+                    "silence_duration_ms": 900,
+                    "create_response": True,
+                    "interrupt_response": True,
+                },
+            },
+            "output": {"voice": settings.openai_realtime_voice},
+        },
+    }
+    safety_id = hashlib.sha256(
+        f"applyengine-interview:{user.id}:{settings.jwt_secret}".encode()
+    ).hexdigest()[:64]
+    try:
+        async with httpx.AsyncClient(timeout=25) as client:
+            upstream = await client.post(
+                "https://api.openai.com/v1/realtime/calls",
+                headers={
+                    "Authorization": f"Bearer {settings.openai_api_key}",
+                    "OpenAI-Safety-Identifier": safety_id,
+                },
+                files={
+                    "sdp": (None, raw_sdp.decode("utf-8"), "application/sdp"),
+                    "session": (
+                        None,
+                        json.dumps(realtime_config),
+                        "application/json",
+                    ),
+                },
+            )
+    except (httpx.HTTPError, UnicodeDecodeError) as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Realtime interview could not connect; use recorded-answer mode.",
+        ) from exc
+    if upstream.status_code >= 400:
+        raise HTTPException(
+            status_code=503,
+            detail="Realtime interview is temporarily unavailable; use recorded-answer mode.",
+        )
+
+    state = dict(interview.live_state or {})
+    state.update(
+        realtime_enabled=True,
+        realtime_model=settings.openai_realtime_model,
+        transport="webrtc",
+    )
+    interview.live_state = state
+    interview.updated_at = datetime.now(timezone.utc)
+    db.add(interview)
+    db.commit()
+    return Response(
+        content=upstream.content,
+        media_type="application/sdp",
+        headers={"X-Realtime-Model": settings.openai_realtime_model},
+    )
+
+
+@router.post(
+    "/sessions/{session_id}/realtime/turns",
+    response_model=InterviewTurnOut,
+)
+def save_realtime_interview_turn(
+    session_id: int,
+    body: InterviewRealtimeTurnIn,
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    interview = _owned_session(session_id, user, db)
+    if interview.status == "completed":
+        raise HTTPException(status_code=400, detail="Interview session already completed")
+    role = body.role.strip().lower()
+    if role not in {"candidate", "interviewer"}:
+        raise HTTPException(status_code=422, detail="Role must be candidate or interviewer")
+    content = body.content.strip()
+    if not content:
+        raise HTTPException(status_code=422, detail="Turn content is empty")
+    if len(content) > 20_000:
+        raise HTTPException(status_code=422, detail="Turn content is too long")
+    request_id = _request_id(body.request_id) or f"realtime-{uuid4()}"
+    existing = _turn_for_request(db, session_id, request_id, role)
+    if existing:
+        return _turn_out(existing)
+
+    candidate_count = len(
+        db.exec(
+            select(InterviewTurn).where(
+                InterviewTurn.session_id == session_id,
+                InterviewTurn.role == "candidate",
+            )
+        ).all()
+    )
+    question_count = max(1, len(interview.questions or []))
+    question_index = min(candidate_count, question_count - 1)
+    scores: dict = {"transport": "webrtc", "realtime": True}
+    if role == "candidate":
+        duration = max(0.0, float(body.duration_seconds or 0))
+        word_count = len(content.split())
+        scores.update(
+            candidate_intent="answer",
+            delivery={
+                "duration_seconds": round(duration, 2),
+                "word_count": word_count,
+                "words_per_minute": (
+                    round(word_count * 60 / duration) if duration >= 1 else 0
+                ),
+            },
+        )
+    else:
+        scores["_routing"] = {
+            "provider_served": "openai",
+            "model_served": settings.openai_realtime_model,
+            "fallback_used": False,
+        }
+        if body.latency_ms is not None:
+            scores["latency_ms"] = max(0, int(body.latency_ms))
+
+    turn = InterviewTurn(
+        session_id=session_id,
+        request_id=request_id,
+        question_index=question_index,
+        role=role,
+        content=content,
+        scores=scores,
+    )
+    db.add(turn)
+    state = dict(interview.live_state or {})
+    state["transport"] = "webrtc"
+    state["realtime_model"] = settings.openai_realtime_model
+    state["turn_count"] = int(state.get("turn_count", 0)) + 1
+    if role == "interviewer" and body.latency_ms is not None:
+        state["last_latency_ms"] = max(0, int(body.latency_ms))
+    interview.live_state = state
+    interview.current_index = question_index
+    interview.updated_at = datetime.now(timezone.utc)
+    db.add(interview)
+    db.commit()
+    db.refresh(turn)
+    return _turn_out(turn)
 
 
 @router.patch("/sessions/{session_id}", response_model=InterviewSessionOut)

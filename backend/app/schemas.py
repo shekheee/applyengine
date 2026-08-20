@@ -276,6 +276,14 @@ class InterviewLiveTtsIn(BaseModel):
     voice: str | None = None
 
 
+class InterviewRealtimeTurnIn(BaseModel):
+    role: str  # candidate | interviewer
+    content: str
+    request_id: str = ""
+    duration_seconds: float = 0
+    latency_ms: int | None = None
+
+
 class InterviewAnswerIn(BaseModel):
     answer: str
     question_index: int | None = None

@@ -15,6 +15,10 @@ import { useVoiceRecorder } from "@/hooks/use-voice-recorder";
 import type { RecordedAudio } from "@/hooks/use-voice-recorder";
 import { mergeDeliveryAnalysis } from "@/lib/audio";
 import { useInterviewerAudio } from "@/hooks/use-interviewer-audio";
+import {
+  useRealtimeInterview,
+  type RealtimeInterviewTurn,
+} from "@/hooks/use-realtime-interview";
 import { SessionMetaBadges } from "@/components/interview/question-card";
 import { DeliveryMetricsPanel } from "@/components/interview/answer-composer";
 
@@ -180,6 +184,7 @@ export function LiveInterviewRoom({
     initialLiveState.captions !== "hidden"
   );
   const [autoEndEnabled, setAutoEndEnabled] = useState(true);
+  const [legacyMode, setLegacyMode] = useState(false);
   const [pendingDelivery, setPendingDelivery] = useState<DeliveryMetrics | undefined>();
 
   const voice = useVoiceRecorder(processRecordedAudio, {
@@ -201,15 +206,64 @@ export function LiveInterviewRoom({
     candidateIntent?: "answer" | "clarification" | "candidate_question";
   } | null>(null);
 
+  const saveRealtimeTurn = useCallback(
+    async (turn: RealtimeInterviewTurn) => {
+      const saved = await api.saveRealtimeInterviewTurn(session.id, {
+        role: turn.role,
+        content: turn.content,
+        request_id: turn.requestId,
+        duration_seconds: turn.durationSeconds,
+        latency_ms: turn.latencyMs,
+      });
+      setSession((current) => {
+        if (current.turns.some((item) => item.id === saved.id)) return current;
+        return { ...current, turns: [...current.turns, saved] };
+      });
+    },
+    [session.id]
+  );
+
+  const completeRealtimeInterview = useCallback(async () => {
+    setEnding(true);
+    setError("");
+    try {
+      const completed = await api.completeInterviewSession(
+        session.id,
+        selectedModel || undefined
+      );
+      setSession(completed);
+      setRoomState("ended");
+      onComplete(completed);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not generate summary.");
+    } finally {
+      setEnding(false);
+    }
+  }, [onComplete, selectedModel, session.id]);
+
+  const realtime = useRealtimeInterview({
+    sessionId: session.id,
+    onTurn: saveRealtimeTurn,
+    onEndRequested: completeRealtimeInterview,
+  });
+  const activeRoomState: RoomState =
+    realtime.isActive && !legacyMode
+      ? realtime.state === "connecting"
+        ? "starting"
+        : realtime.state === "interviewer_speaking"
+          ? "speaking"
+          : "listening"
+      : roomState;
+
   useEffect(() => {
-    if (roomState === "starting" || roomState === "ended") return;
+    if (activeRoomState === "starting" || activeRoomState === "ended") return;
     const t = setInterval(() => setElapsed((s) => s + 1), 1000);
     return () => clearInterval(t);
-  }, [roomState]);
+  }, [activeRoomState]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [session.turns, caption, roomState]);
+  }, [session.turns, caption, activeRoomState]);
 
   const refreshSession = useCallback(async () => {
     const updated = await api.getInterviewSession(session.id);
@@ -380,6 +434,10 @@ export function LiveInterviewRoom({
     setReadinessBusy(true);
     setError("");
     try {
+      if (!legacyMode && realtime.isSupported) {
+        await realtime.start();
+        return;
+      }
       const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
       mic.getTracks().forEach((track) => track.stop());
       for (let value = 3; value > 0; value -= 1) {
@@ -408,7 +466,11 @@ export function LiveInterviewRoom({
     requestId?: string
   ) {
     const trimmed = answer.trim();
-    if (!trimmed || roomState === "thinking" || roomState === "speaking" || roomState === "ended") {
+    if (!trimmed || activeRoomState === "thinking" || activeRoomState === "speaking" || activeRoomState === "ended") {
+      return;
+    }
+    if (realtime.isActive && !legacyMode) {
+      if (realtime.sendText(trimmed)) setTextAnswer("");
       return;
     }
     setTextAnswer("");
@@ -492,7 +554,11 @@ export function LiveInterviewRoom({
   }
 
   async function handleMicClick() {
-    if (roomState === "speaking" || roomState === "thinking" || roomState === "ended") return;
+    if (realtime.isActive && !legacyMode) {
+      realtime.toggleMute();
+      return;
+    }
+    if (activeRoomState === "speaking" || activeRoomState === "thinking" || activeRoomState === "ended") return;
 
     if (voice.state === "recording") {
       await processRecordedAudio(await voice.finishRecording());
@@ -505,10 +571,14 @@ export function LiveInterviewRoom({
   }
 
   async function repeatQuestion() {
+    if (realtime.isActive && !legacyMode) {
+      realtime.sendText("Please repeat the last question exactly once.", false);
+      return;
+    }
     const lastQuestion = [...session.turns]
       .reverse()
       .find((turn) => turn.role === "interviewer")?.content;
-    if (!lastQuestion || roomState !== "listening") return;
+    if (!lastQuestion || activeRoomState !== "listening") return;
     setError("");
     setRoomState("speaking");
     if (captionsVisible) setCaption(lastQuestion);
@@ -526,7 +596,11 @@ export function LiveInterviewRoom({
   }
 
   async function askForClarification() {
-    if (roomState !== "listening") return;
+    if (activeRoomState !== "listening") return;
+    if (realtime.isActive && !legacyMode) {
+      realtime.sendText("Please clarify or rephrase your current question briefly.", false);
+      return;
+    }
     setTextAnswer("");
     setPendingDelivery(undefined);
     await requestInterviewerTurn(
@@ -541,6 +615,7 @@ export function LiveInterviewRoom({
     if (ending) return;
     setEnding(true);
     setError("");
+    if (realtime.isActive) realtime.stop();
     requestVersionRef.current += 1;
     interviewerAudio.stop();
     if (typeof window !== "undefined") window.speechSynthesis?.cancel();
@@ -568,8 +643,8 @@ export function LiveInterviewRoom({
   }
 
   const canRespond =
-    roomState === "listening" && !ending && !transcribing && voice.state !== "processing";
-  const liveCaption = stripMeta(caption);
+    activeRoomState === "listening" && !ending && !transcribing && voice.state !== "processing";
+  const liveCaption = realtime.isActive && !legacyMode ? realtime.caption : stripMeta(caption);
   const personaLabels: Record<string, string> = {
     hiring_manager: "Hiring manager",
     recruiter: "Recruiter screen",
@@ -604,6 +679,11 @@ export function LiveInterviewRoom({
             <p className="text-xs text-[var(--muted)]">
               {behaviorMode === "coach" ? "Coach mode" : "Simulation mode"} · {personaLabels[persona] ?? "Hiring manager"} · <span className="capitalize">{stageLabel}</span>
             </p>
+            {realtime.isActive && !legacyMode && (
+              <p className="text-xs text-emerald-300/90">
+                Live WebRTC · {realtime.model || "OpenAI Realtime"} · continuous listening
+              </p>
+            )}
             {session.curriculum_topic ? (
               <p className="text-xs text-[var(--muted)]">
                 {curriculumTopicLabel(session.curriculum_topic)} ·{" "}
@@ -626,7 +706,7 @@ export function LiveInterviewRoom({
               variant="outline"
               size="sm"
               onClick={() => void endInterviewEarly()}
-              disabled={ending || roomState === "starting"}
+              disabled={ending || activeRoomState === "starting"}
             >
               {ending ? "Wrapping up…" : "End interview"}
             </Button>
@@ -635,11 +715,11 @@ export function LiveInterviewRoom({
 
         <div className="grid min-w-0 gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
           <div className="flex justify-center lg:justify-start">
-            <InterviewerAvatar state={roomState} />
+            <InterviewerAvatar state={activeRoomState} />
           </div>
 
           <div className="min-w-0 space-y-4">
-            {roomState === "speaking" && liveCaption && captionsVisible && (
+            {activeRoomState === "speaking" && liveCaption && captionsVisible && (
               <div
                 className="rounded-[var(--radius-md)] border border-[var(--primary)]/25 bg-[var(--primary)]/5 px-4 py-3"
                 aria-live="polite"
@@ -651,13 +731,13 @@ export function LiveInterviewRoom({
               </div>
             )}
 
-            {ttsFailed && roomState === "listening" && (
+            {ttsFailed && activeRoomState === "listening" && (
               <p className="text-xs text-amber-300/90">
                 Audio unavailable — read the transcript below. Text answers still work.
               </p>
             )}
 
-            {ttsFallbackUsed && roomState === "listening" && (
+            {ttsFallbackUsed && activeRoomState === "listening" && (
               <p className="text-xs text-amber-300/90">
                 Cloud voice was unavailable, so the browser voice completed this turn.
               </p>
@@ -669,11 +749,11 @@ export function LiveInterviewRoom({
               aria-label="Interview transcript"
             >
               {session.turns.filter((t) => t.role === "interviewer" || t.role === "candidate").length === 0 &&
-                !liveCaption && (
+                !liveCaption && !realtime.isActive && (
                   <div className="mx-auto max-w-md py-5 text-center">
                     <p className="text-sm font-medium text-[var(--text)]">Ready for a realistic interview?</p>
                     <p className="mt-2 text-xs leading-relaxed text-[var(--muted)]">
-                      We will test microphone access, then the interviewer will speak first. Use headphones for the clearest turn-taking.
+                      Realtime voice keeps one continuous connection, detects when you finish speaking, and lets you interrupt naturally. Use headphones for the clearest turn-taking.
                     </p>
                     <Button
                       className="mt-4"
@@ -685,8 +765,10 @@ export function LiveInterviewRoom({
                       {countdown > 0
                         ? `Starting in ${countdown}…`
                         : readinessBusy
-                          ? "Preparing room…"
-                          : "Check mic & start"}
+                          ? "Connecting…"
+                          : legacyMode
+                            ? "Start recorded-answer mode"
+                            : "Start realtime interview"}
                     </Button>
                   </div>
                 )}
@@ -724,13 +806,31 @@ export function LiveInterviewRoom({
               </div>
             )}
 
+            {realtime.error && !legacyMode && (
+              <div className="flex flex-wrap items-center gap-2" role="alert">
+                <p className="text-sm text-amber-300/90">{realtime.error}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    realtime.stop();
+                    setLegacyMode(true);
+                    setRoomState("starting");
+                    setError("");
+                  }}
+                >
+                  Use recorded-answer mode
+                </Button>
+              </div>
+            )}
+
             {voice.error && (
               <p className="text-sm text-amber-300/90" role="alert">
                 {voice.error}
               </p>
             )}
 
-            {roomState === "ended" ? (
+            {activeRoomState === "ended" ? (
               <p className="text-sm text-[var(--muted)]">
                 Interview complete — review your summary below.
               </p>
@@ -746,16 +846,30 @@ export function LiveInterviewRoom({
                   <Button variant="ghost" size="sm" onClick={() => setCaptionsVisible((value) => !value)}>
                     {captionsVisible ? "Hide captions" : "Show captions"}
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setAutoEndEnabled((value) => !value)}>
-                    Auto-end {autoEndEnabled ? "on" : "off"}
-                  </Button>
+                  {realtime.isActive && !legacyMode ? (
+                    activeRoomState === "speaking" && (
+                      <Button variant="ghost" size="sm" onClick={realtime.interrupt}>
+                        Interrupt
+                      </Button>
+                    )
+                  ) : (
+                    <Button variant="ghost" size="sm" onClick={() => setAutoEndEnabled((value) => !value)}>
+                      Auto-end {autoEndEnabled ? "on" : "off"}
+                    </Button>
+                  )}
                 </div>
                 <p className="text-xs text-[var(--muted)]">
                   {canRespond
-                    ? "Speak your answer or type below. Press the mic again when finished, or ⌘/Ctrl+Enter to send text."
-                    : roomState === "speaking"
-                      ? "Listen to the interviewer…"
-                      : roomState === "thinking"
+                    ? realtime.isActive && !legacyMode
+                      ? realtime.isMuted
+                        ? "Microphone muted. Unmute to continue, or type an answer."
+                        : "The interviewer is listening continuously. Speak naturally or type an answer."
+                      : "Speak your answer or type below. Press the mic again when finished, or ⌘/Ctrl+Enter to send text."
+                    : activeRoomState === "speaking"
+                      ? realtime.isActive && !legacyMode
+                        ? "Listen, or interrupt naturally by speaking."
+                        : "Listen to the interviewer…"
+                      : activeRoomState === "thinking"
                         ? "Interviewer is preparing the next question…"
                         : "Connecting to your interviewer…"}
                 </p>
@@ -766,15 +880,31 @@ export function LiveInterviewRoom({
                     disabled={!canRespond && voice.state !== "recording"}
                     className={cn(
                       "grid h-12 w-12 shrink-0 place-items-center rounded-full border transition-colors motion-reduce:transition-none",
-                      voice.state === "recording"
+                      realtime.isActive && !legacyMode
+                        ? realtime.isMuted
+                          ? "border-amber-400/60 bg-amber-500/15 text-amber-200"
+                          : "border-emerald-400/60 bg-emerald-500/15 text-emerald-200"
+                        : voice.state === "recording"
                         ? "border-red-400/60 bg-red-500/15 text-red-200 motion-safe:animate-pulse motion-reduce:animate-none"
                         : "border-[var(--border)] bg-[var(--panel-2)] text-[var(--text)] hover:border-[var(--primary)]/40 disabled:opacity-40"
                     )}
                     aria-label={
-                      voice.state === "recording" ? "Stop recording" : "Start recording answer"
+                      realtime.isActive && !legacyMode
+                        ? realtime.isMuted
+                          ? "Unmute microphone"
+                          : "Mute microphone"
+                        : voice.state === "recording"
+                          ? "Stop recording"
+                          : "Start recording answer"
                     }
                   >
-                    {transcribing || voice.state === "processing" ? "…" : "🎤"}
+                    {realtime.isActive && !legacyMode
+                      ? realtime.isMuted
+                        ? "🔇"
+                        : "🎙"
+                      : transcribing || voice.state === "processing"
+                        ? "…"
+                        : "🎤"}
                   </button>
                   <textarea
                     value={textAnswer}

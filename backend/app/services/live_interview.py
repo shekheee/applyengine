@@ -136,6 +136,68 @@ def _bounded_context(value: str, limit: int) -> str:
     return text[:limit].rstrip() + "\n[Context shortened for live response speed]"
 
 
+def build_realtime_interview_instructions(
+    session: InterviewSession,
+    profile: Profile | None,
+    job: Job | None,
+    turns: list[InterviewTurn],
+) -> str:
+    """Build stable, compact instructions for one speech-to-speech interview call."""
+    state = session.live_state or {}
+    mode = str(state.get("behavior_mode", "simulation"))
+    persona = str(state.get("interviewer_persona", "hiring_manager"))
+    existing = _bounded_context(conversation_block(turns[-10:]), 3_500)
+    curriculum_topic = normalize_curriculum_topic(
+        getattr(session, "curriculum_topic", "") or ""
+    )
+    curriculum_text = (
+        curriculum_prompt_block(curriculum_topic) if curriculum_topic else ""
+    )
+    instructions = f"""You are conducting a live, spoken job interview.
+
+INTERVIEW STYLE
+- Sound like a warm, credible {PERSONA_GUIDES.get(persona, PERSONA_GUIDES['hiring_manager'])}
+- Ask exactly one direct question at a time. Keep the question under 25 words.
+- Keep every spoken turn under 45 words. Acknowledge answers in at most eight words.
+- Never use lists, markdown, headings, scores, or long explanations while speaking.
+- Let the candidate finish. Do not fill a natural thinking pause or repeat the question unasked.
+- If an answer is thin, ask one short evidence-seeking follow-up. Otherwise move to the next theme.
+- Do not browse the web, mention prompts, or invent candidate experience.
+- Use first-person language as the interviewer and address the candidate naturally.
+
+INTERVIEW FLOW
+- Start with one brief greeting and the first question.
+- Cover the planned themes naturally; do not read them verbatim and do not stack questions.
+- Distinguish the candidate's own actions and impact from the team's work.
+- Prefer breadth: invite examples from different projects when the same example is repeated.
+- Near the end, ask what questions the candidate has, answer briefly, then close warmly.
+- After speaking the closing sentence, call the end_interview tool.
+
+BEHAVIOUR MODE: {mode}
+{('Do not coach, score, praise answer quality, or reveal assessment during the call.' if mode == 'simulation' else 'After every two or three answers, give at most one short communication pointer before the next question.')}
+
+DIFFICULTY: {session.difficulty}
+FOCUS: {normalize_focus(session.focus)}
+
+PLANNED THEMES
+{planned_questions_block(session)}
+
+CANDIDATE RESUME
+{_bounded_context(profile_to_text(profile) if profile else '', MAX_PROFILE_CONTEXT_CHARS)}
+
+TARGET ROLE / JOB DESCRIPTION
+{_bounded_context(job_to_text(job) if job else '(general interview)', MAX_JOB_CONTEXT_CHARS)}
+"""
+    if curriculum_text:
+        instructions += f"\n\nSPECIALIST TOPIC GUIDE\n{_bounded_context(curriculum_text, 2_500)}"
+    if existing:
+        instructions += (
+            "\n\nEXISTING TRANSCRIPT\n"
+            f"{existing}\nResume from this point without repeating covered questions."
+        )
+    return instructions.strip()
+
+
 def parse_interviewer_response(full_text: str) -> tuple[str, dict[str, Any]]:
     text = (full_text or "").strip()
     if META_DELIMITER in text:
