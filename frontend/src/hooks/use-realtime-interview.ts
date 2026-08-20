@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, getToken } from "@/lib/api";
 
+const BARGE_IN_CONFIRMATION_MS = 400;
+
 export type RealtimeInterviewState =
   | "idle"
   | "connecting"
@@ -44,6 +46,9 @@ export function useRealtimeInterview({
   const deliveredRef = useRef(new Set<string>());
   const pendingEndRef = useRef(false);
   const audioPlayingRef = useRef(false);
+  const responseSpeakingRef = useRef(false);
+  const userSpeechActiveRef = useRef(false);
+  const bargeInTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSavesRef = useRef<Promise<void>>(Promise.resolve());
   const onTurnRef = useRef(onTurn);
   const onEndRef = useRef(onEndRequested);
@@ -53,7 +58,13 @@ export function useRealtimeInterview({
     onEndRef.current = onEndRequested;
   }, [onEndRequested, onTurn]);
 
+  const clearBargeInTimer = useCallback(() => {
+    if (bargeInTimerRef.current) clearTimeout(bargeInTimerRef.current);
+    bargeInTimerRef.current = null;
+  }, []);
+
   const cleanup = useCallback(() => {
+    clearBargeInTimer();
     channelRef.current?.close();
     peerRef.current?.close();
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -72,10 +83,12 @@ export function useRealtimeInterview({
     lastLatencyRef.current = undefined;
     pendingEndRef.current = false;
     audioPlayingRef.current = false;
+    responseSpeakingRef.current = false;
+    userSpeechActiveRef.current = false;
     deliveredRef.current.clear();
     setCaption("");
     setIsMuted(false);
-  }, []);
+  }, [clearBargeInTimer]);
 
   const stop = useCallback(() => {
     cleanup();
@@ -201,8 +214,29 @@ export function useRealtimeInterview({
         );
         if (type === "input_audio_buffer.speech_started") {
           speechStartedRef.current = performance.now();
+          userSpeechActiveRef.current = true;
+          clearBargeInTimer();
+          if (responseSpeakingRef.current || audioPlayingRef.current) {
+            bargeInTimerRef.current = setTimeout(() => {
+              const activeChannel = channelRef.current;
+              if (
+                !userSpeechActiveRef.current ||
+                (!responseSpeakingRef.current && !audioPlayingRef.current) ||
+                !activeChannel ||
+                activeChannel.readyState !== "open"
+              ) return;
+              activeChannel.send(JSON.stringify({ type: "response.cancel" }));
+              activeChannel.send(JSON.stringify({ type: "output_audio_buffer.clear" }));
+              responseSpeakingRef.current = false;
+              audioPlayingRef.current = false;
+              setCaption("");
+              setState("candidate_speaking");
+            }, BARGE_IN_CONFIRMATION_MS);
+          }
           setState("candidate_speaking");
         } else if (type === "input_audio_buffer.speech_stopped") {
+          userSpeechActiveRef.current = false;
+          clearBargeInTimer();
           responseStartedRef.current = performance.now();
           setState("listening");
         } else if (type === "conversation.item.input_audio_transcription.completed") {
@@ -229,6 +263,7 @@ export function useRealtimeInterview({
             );
           }
           assistantTextRef.current += delta;
+          responseSpeakingRef.current = true;
           setCaption(assistantTextRef.current);
           setState("interviewer_speaking");
         } else if (
@@ -263,9 +298,11 @@ export function useRealtimeInterview({
           }
         } else if (type === "output_audio_buffer.started") {
           audioPlayingRef.current = true;
+          responseSpeakingRef.current = true;
           setState("interviewer_speaking");
         } else if (type === "output_audio_buffer.stopped") {
           audioPlayingRef.current = false;
+          responseSpeakingRef.current = false;
           setState("listening");
         } else if (type === "response.done") {
           if (assistantTextRef.current.trim()) {
@@ -279,7 +316,10 @@ export function useRealtimeInterview({
             assistantTextRef.current = "";
           }
           setCaption("");
-          if (!audioPlayingRef.current) setState("listening");
+          if (!audioPlayingRef.current) {
+            responseSpeakingRef.current = false;
+            setState("listening");
+          }
           if (pendingEndRef.current) {
             pendingEndRef.current = false;
             void pendingSavesRef.current.then(() => onEndRef.current());
@@ -323,16 +363,19 @@ export function useRealtimeInterview({
       setState("error");
       return false;
     }
-  }, [cleanup, deliver, sessionId, state]);
+  }, [cleanup, clearBargeInTimer, deliver, sessionId, state]);
 
   const interrupt = useCallback(() => {
     const channel = channelRef.current;
     if (!channel || channel.readyState !== "open") return;
     channel.send(JSON.stringify({ type: "response.cancel" }));
     channel.send(JSON.stringify({ type: "output_audio_buffer.clear" }));
+    clearBargeInTimer();
+    responseSpeakingRef.current = false;
+    audioPlayingRef.current = false;
     setCaption("");
     setState("listening");
-  }, []);
+  }, [clearBargeInTimer]);
 
   const toggleMute = useCallback(() => {
     const track = streamRef.current?.getAudioTracks()[0];

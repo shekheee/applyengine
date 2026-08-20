@@ -467,7 +467,7 @@ async def create_realtime_interview(
         "instructions": instructions,
         # Spoken interview turns should be short; a frontier text model is used
         # later for the detailed post-session assessment.
-        "max_output_tokens": 220,
+        "max_output_tokens": 140,
         "tools": [
             {
                 "type": "function",
@@ -485,20 +485,27 @@ async def create_realtime_interview(
                 "transcription": {
                     "model": settings.speech_transcription_model_list[0]
                     if settings.speech_transcription_model_list
-                    else "gpt-4o-transcribe"
+                    else "gpt-4o-transcribe",
+                    "language": "en",
                 },
+                "noise_reduction": {"type": "far_field"},
                 "turn_detection": {
                     "type": "server_vad",
-                    "threshold": 0.5,
+                    "threshold": 0.7,
                     "prefix_padding_ms": 300,
                     # Long enough for a thinking pause, short enough to avoid the
                     # stop/upload/transcribe delay of the legacy interview path.
                     "silence_duration_ms": 900,
                     "create_response": True,
-                    "interrupt_response": True,
+                    # Deliberate barge-in is confirmed in the browser. A brief
+                    # noise event must not cancel the interviewer mid-sentence.
+                    "interrupt_response": False,
                 },
             },
-            "output": {"voice": settings.openai_realtime_voice},
+            "output": {
+                "voice": settings.openai_realtime_voice,
+                "speed": 1.15,
+            },
         },
     }
     safety_id = hashlib.sha256(

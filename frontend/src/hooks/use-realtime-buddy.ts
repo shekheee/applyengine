@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, getToken } from "@/lib/api";
 
+const BARGE_IN_CONFIRMATION_MS = 400;
+
 export type RealtimeBuddyState =
   | "idle"
   | "connecting"
@@ -35,13 +37,22 @@ export function useRealtimeBuddy({
   const onTurnRef = useRef(onTurn);
   const assistantTextRef = useRef("");
   const speechStartedRef = useRef<number | null>(null);
+  const userSpeechActiveRef = useRef(false);
+  const responseSpeakingRef = useRef(false);
+  const bargeInTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const deliveredRef = useRef(new Set<string>());
 
   useEffect(() => {
     onTurnRef.current = onTurn;
   }, [onTurn]);
 
+  const clearBargeInTimer = useCallback(() => {
+    if (bargeInTimerRef.current) clearTimeout(bargeInTimerRef.current);
+    bargeInTimerRef.current = null;
+  }, []);
+
   const cleanup = useCallback(() => {
+    clearBargeInTimer();
     channelRef.current?.close();
     peerRef.current?.close();
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -56,8 +67,10 @@ export function useRealtimeBuddy({
     audioRef.current = null;
     assistantTextRef.current = "";
     speechStartedRef.current = null;
+    userSpeechActiveRef.current = false;
+    responseSpeakingRef.current = false;
     deliveredRef.current.clear();
-  }, []);
+  }, [clearBargeInTimer]);
 
   const stop = useCallback(() => {
     cleanup();
@@ -147,8 +160,27 @@ export function useRealtimeBuddy({
           );
           if (type === "input_audio_buffer.speech_started") {
             speechStartedRef.current = performance.now();
+            userSpeechActiveRef.current = true;
+            clearBargeInTimer();
+            if (responseSpeakingRef.current) {
+              bargeInTimerRef.current = setTimeout(() => {
+                const activeChannel = channelRef.current;
+                if (
+                  !userSpeechActiveRef.current ||
+                  !responseSpeakingRef.current ||
+                  !activeChannel ||
+                  activeChannel.readyState !== "open"
+                ) return;
+                activeChannel.send(JSON.stringify({ type: "response.cancel" }));
+                activeChannel.send(JSON.stringify({ type: "output_audio_buffer.clear" }));
+                responseSpeakingRef.current = false;
+                setState("user_speaking");
+              }, BARGE_IN_CONFIRMATION_MS);
+            }
             setState("user_speaking");
           } else if (type === "input_audio_buffer.speech_stopped") {
+            userSpeechActiveRef.current = false;
+            clearBargeInTimer();
             setState("listening");
           } else if (type === "conversation.item.input_audio_transcription.completed") {
             const duration = speechStartedRef.current
@@ -162,6 +194,7 @@ export function useRealtimeBuddy({
             type === "response.output_text.delta"
           ) {
             assistantTextRef.current += String(message.delta || "");
+            responseSpeakingRef.current = true;
             setState("buddy_speaking");
           } else if (
             type === "response.output_audio_transcript.done" ||
@@ -171,13 +204,18 @@ export function useRealtimeBuddy({
             const transcript = String(message.transcript || message.text || assistantTextRef.current);
             deliver("assistant", transcript, eventId);
             assistantTextRef.current = "";
+          } else if (type === "output_audio_buffer.started") {
+            responseSpeakingRef.current = true;
+            setState("buddy_speaking");
+          } else if (type === "output_audio_buffer.stopped") {
+            responseSpeakingRef.current = false;
             setState("listening");
           } else if (type === "response.done") {
             if (assistantTextRef.current.trim()) {
               deliver("assistant", assistantTextRef.current, eventId);
               assistantTextRef.current = "";
             }
-            setState("listening");
+            if (!responseSpeakingRef.current) setState("listening");
           } else if (type === "error") {
             setError("The live Buddy hit an error. You can stop and use Record one reply.");
           }
@@ -217,7 +255,7 @@ export function useRealtimeBuddy({
         setState("error");
       }
     },
-    [cleanup, conversationId, deliver, sessionId, state]
+    [cleanup, clearBargeInTimer, conversationId, deliver, sessionId, state]
   );
 
   const interrupt = useCallback(() => {
@@ -225,8 +263,10 @@ export function useRealtimeBuddy({
     if (!channel || channel.readyState !== "open") return;
     channel.send(JSON.stringify({ type: "response.cancel" }));
     channel.send(JSON.stringify({ type: "output_audio_buffer.clear" }));
+    clearBargeInTimer();
+    responseSpeakingRef.current = false;
     setState("listening");
-  }, []);
+  }, [clearBargeInTimer]);
 
   return {
     state,

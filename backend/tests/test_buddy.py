@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -161,6 +162,17 @@ class BuddyPracticeTests(unittest.TestCase):
             captured["request"]["headers"]["Authorization"],
             "Bearer test-server-key",
         )
+        config = json.loads(captured["request"]["files"]["session"][1])
+        turn_detection = config["audio"]["input"]["turn_detection"]
+        self.assertEqual(turn_detection["threshold"], 0.7)
+        self.assertEqual(turn_detection["silence_duration_ms"], 900)
+        self.assertFalse(turn_detection["interrupt_response"])
+        self.assertEqual(
+            config["audio"]["input"]["noise_reduction"]["type"], "far_field"
+        )
+        self.assertEqual(config["audio"]["output"]["speed"], 1.15)
+        self.assertEqual(config["max_output_tokens"], 100)
+        self.assertIn("at least 80% of the speaking", config["instructions"])
 
 
 if __name__ == "__main__":

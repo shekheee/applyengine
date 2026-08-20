@@ -103,7 +103,11 @@ class RealtimeInterviewTests(unittest.TestCase):
             config["audio"]["input"]["turn_detection"]["silence_duration_ms"],
             900,
         )
-        self.assertTrue(config["audio"]["input"]["turn_detection"]["interrupt_response"])
+        self.assertEqual(config["audio"]["input"]["turn_detection"]["threshold"], 0.7)
+        self.assertFalse(config["audio"]["input"]["turn_detection"]["interrupt_response"])
+        self.assertEqual(config["audio"]["input"]["noise_reduction"]["type"], "far_field")
+        self.assertEqual(config["audio"]["output"]["speed"], 1.15)
+        self.assertEqual(config["max_output_tokens"], 140)
         self.assertEqual(config["tools"][0]["name"], "end_interview")
 
     def test_realtime_turns_are_saved_idempotently(self):

@@ -405,34 +405,45 @@ async def create_realtime_session(
             f"without forcing them: {vocabulary}."
         )
     instructions += (
-        "\n\nLIVE VOICE RULES\nKeep each turn under 45 seconds. Ask one question at a time. "
-        "Let the user finish, tolerate natural pauses, and do not interrupt. "
-        "Prefer a flowing technical conversation. Give only one concise communication "
-        "pointer after every two or three user turns. If the user becomes repetitive, "
-        "help them restate the idea in one sentence."
+        "\n\nLIVE VOICE RULES\nThe user should do at least 80% of the speaking. "
+        "Speak briskly at a natural professional pace. Default to one short prompt or "
+        "question of 10 to 25 words, then stop and listen. Never complete the topic, give "
+        "a mini-lecture, or provide the full answer unless the user explicitly asks. "
+        "Ask one question at a time, tolerate natural pauses, and let the user finish. "
+        "Give at most one communication pointer of 12 words after every two or three user "
+        "turns. If the user becomes repetitive, ask them to restate the idea in one sentence."
     )
     realtime_config = {
         "type": "realtime",
         "model": settings.openai_realtime_model,
         "instructions": instructions,
-        "max_output_tokens": 450,
+        "max_output_tokens": 100,
         "audio": {
             "input": {
                 "transcription": {
                     "model": settings.speech_transcription_model_list[0]
                     if settings.speech_transcription_model_list
-                    else "gpt-4o-transcribe"
+                    else "gpt-4o-transcribe",
+                    "language": "en",
                 },
+                "noise_reduction": {"type": "far_field"},
                 "turn_detection": {
                     "type": "server_vad",
-                    "threshold": 0.5,
+                    # Require a clearer voice signal so keyboard and room noise
+                    # do not start or interrupt a turn.
+                    "threshold": 0.7,
                     "prefix_padding_ms": 300,
-                    "silence_duration_ms": 700,
+                    "silence_duration_ms": 900,
                     "create_response": True,
-                    "interrupt_response": True,
+                    # The browser confirms sustained speech before cancelling
+                    # output, preserving deliberate barge-in without noise cuts.
+                    "interrupt_response": False,
                 },
             },
-            "output": {"voice": settings.openai_realtime_voice},
+            "output": {
+                "voice": settings.openai_realtime_voice,
+                "speed": 1.15,
+            },
         },
     }
     safety_id = hashlib.sha256(
