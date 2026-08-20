@@ -27,6 +27,24 @@ def test_career_mode_does_not_add_communication_contract():
     assert "TECHNICAL BUDDY MODE" not in messages[0]["content"]
 
 
+def test_all_coach_modes_require_honest_resume_claim_rehearsal():
+    for mode in ("career", "communication", "buddy"):
+        messages = build_coach_messages(
+            "Help me explain something on my resume that I have not done.",
+            None,
+            [],
+            [],
+            coach_mode=mode,
+        )
+        system = messages[0]["content"]
+
+        assert "do not coach them to present it as firsthand fact" in system
+        assert '"I worked alongside..."' in system
+        assert '"My approach would be..."' in system
+        assert "materially false" in system
+        assert "resume wording" in system
+
+
 def test_buddy_mode_adds_conversational_practice_contract():
     messages = build_coach_messages(
         "Let's talk about a stale production run.",
