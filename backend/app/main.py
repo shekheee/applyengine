@@ -68,4 +68,5 @@ def health():
         "status": "ok",
         "llm_provider": settings.llm_provider,
         "prompts_version": PROMPTS_VERSION,
+        "identity_privacy": "candidate_name_and_former_employers",
     }
