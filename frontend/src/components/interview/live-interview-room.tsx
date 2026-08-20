@@ -753,7 +753,7 @@ export function LiveInterviewRoom({
                   <div className="mx-auto max-w-md py-5 text-center">
                     <p className="text-sm font-medium text-[var(--text)]">Ready for a realistic interview?</p>
                     <p className="mt-2 text-xs leading-relaxed text-[var(--muted)]">
-                      Realtime voice keeps one continuous connection, detects when you finish speaking, and lets you interrupt naturally. Use headphones for the clearest turn-taking.
+                      Realtime voice detects when you finish speaking. Use the Interrupt button to stop the interviewer mid-turn.
                     </p>
                     <Button
                       className="mt-4"
@@ -867,7 +867,7 @@ export function LiveInterviewRoom({
                       : "Speak your answer or type below. Press the mic again when finished, or ⌘/Ctrl+Enter to send text."
                     : activeRoomState === "speaking"
                       ? realtime.isActive && !legacyMode
-                        ? "Listen, or interrupt naturally by speaking."
+                        ? "Listen, or use Interrupt to stop this turn."
                         : "Listen to the interviewer…"
                       : activeRoomState === "thinking"
                         ? "Interviewer is preparing the next question…"
