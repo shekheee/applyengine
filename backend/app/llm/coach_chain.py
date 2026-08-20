@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from time import monotonic
 from collections.abc import AsyncIterator, Iterator
 from typing import Any, Protocol
 
@@ -32,6 +33,7 @@ class CoachFallbackChain:
     """Try providers in order; fall through on error or empty response."""
 
     name = "coach-fallback"
+    _unhealthy_until: dict[tuple[str, str], float] = {}
 
     def __init__(
         self,
@@ -112,6 +114,46 @@ class CoachFallbackChain:
                 "error": type(exc).__name__ if exc else "EmptyResponse",
             }
         )
+        self._mark_temporarily_unhealthy(provider, exc)
+
+    @classmethod
+    def _provider_key(cls, provider: CoachCapable) -> tuple[str, str]:
+        return provider.name, provider.chat_model
+
+    @classmethod
+    def _is_temporarily_unhealthy(cls, provider: CoachCapable) -> bool:
+        key = cls._provider_key(provider)
+        provider_key = (provider.name, "*")
+        until = max(
+            cls._unhealthy_until.get(key, 0),
+            cls._unhealthy_until.get(provider_key, 0),
+        )
+        if until <= monotonic():
+            cls._unhealthy_until.pop(key, None)
+            cls._unhealthy_until.pop(provider_key, None)
+            return False
+        return True
+
+    @classmethod
+    def _mark_temporarily_unhealthy(
+        cls, provider: CoachCapable, exc: Exception | None
+    ) -> None:
+        status = getattr(exc, "status_code", None)
+        response = getattr(exc, "response", None)
+        status = status or getattr(response, "status_code", None)
+        provider_wide = status in {401, 403, 429}
+        if status in {401, 403}:
+            cooldown = 15 * 60
+        elif status == 429:
+            cooldown = 60
+        elif isinstance(exc, (TimeoutError, asyncio.TimeoutError)):
+            cooldown = 30
+        elif status and status >= 500:
+            cooldown = 30
+        else:
+            return
+        key = (provider.name, "*") if provider_wide else cls._provider_key(provider)
+        cls._unhealthy_until[key] = monotonic() + cooldown
 
     def _mark_served(self, provider: CoachCapable) -> None:
         self._last_served = provider.name
@@ -138,6 +180,9 @@ class CoachFallbackChain:
         last_err: Exception | None = None
         for provider in self._providers:
             label = f"{provider.name}/{provider.chat_model}"
+            if self._is_temporarily_unhealthy(provider):
+                logger.warning("Coach skipping temporarily unhealthy %s", label)
+                continue
             try:
                 out = provider.chat_messages(
                     messages, json_mode=json_mode, max_tokens=max_tokens
@@ -162,6 +207,9 @@ class CoachFallbackChain:
         last_err: Exception | None = None
         for provider in self._providers:
             label = f"{provider.name}/{provider.chat_model}"
+            if self._is_temporarily_unhealthy(provider):
+                logger.warning("Coach skipping temporarily unhealthy %s", label)
+                continue
             try:
                 got = False
                 for token in provider.chat_stream(messages, max_tokens=max_tokens):
@@ -195,6 +243,9 @@ class CoachFallbackChain:
         last_err: Exception | None = None
         for provider in self._providers:
             label = f"{provider.name}/{provider.chat_model}"
+            if self._is_temporarily_unhealthy(provider):
+                logger.warning("Coach skipping temporarily unhealthy %s", label)
+                continue
             try:
                 got = False
                 stream = provider.chat_stream_async(messages, max_tokens=max_tokens)

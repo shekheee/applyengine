@@ -283,6 +283,24 @@ export function CoachChat({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  const applyConversationUpdate = useCallback(
+    (updated?: Conversation) => {
+      if (!updated) return;
+      setConversations((previous) => [
+        updated,
+        ...previous.filter((conversation) => conversation.id !== updated.id),
+      ]);
+      if (activeConversationId === updated.id) setActiveConversation(updated);
+    },
+    [activeConversationId]
+  );
+
+  const refreshMemoriesInBackground = useCallback((delay = 0) => {
+    window.setTimeout(() => {
+      void api.listMemories().then(setMemories).catch(() => undefined);
+    }, delay);
+  }, []);
+
   const scrollToBottom = useCallback(() => {
     scrollRef.current?.scrollTo({
       top: scrollRef.current.scrollHeight,
@@ -395,6 +413,10 @@ export function CoachChat({
   }, [coachMode, refreshBuddyDashboard]);
 
   useEffect(() => {
+    if (toolsOpen) refreshMemoriesInBackground();
+  }, [toolsOpen, refreshMemoriesInBackground]);
+
+  useEffect(() => {
     if (messages.length === 0 && !streaming) {
       scrollRef.current?.scrollTo({ top: 0 });
       return;
@@ -488,14 +510,8 @@ export function CoachChat({
         const before = idx >= 0 ? prev.slice(0, idx) : prev;
         return [...before, result.user_message, result.assistant_message];
       });
-      setMemories(await api.listMemories());
-      const convs = await api.listConversations();
-      setConversations(convs);
-      if (activeConversationId) {
-        setActiveConversation(
-          convs.find((c) => c.id === activeConversationId) ?? null
-        );
-      }
+      applyConversationUpdate(result.conversation);
+      if (toolsOpen) refreshMemoriesInBackground(1400);
     } catch (e) {
       if ((e as Error).name !== "AbortError") {
         setError(e instanceof Error ? e.message : "Failed to regenerate.");
@@ -625,15 +641,9 @@ export function CoachChat({
       if (coachMode === "buddy" && readBuddyReplies) {
         speakBuddyReply(result.assistant_message.content);
       }
-      setMemories(await api.listMemories());
       setVoiceDelivery(null);
-      const convs = await api.listConversations();
-      setConversations(convs);
-      if (activeConversationId) {
-        setActiveConversation(
-          convs.find((c) => c.id === activeConversationId) ?? null
-        );
-      }
+      applyConversationUpdate(result.conversation);
+      if (toolsOpen) refreshMemoriesInBackground(1400);
     } catch (e) {
       if ((e as Error).name === "AbortError") {
         if (streamText.trim()) {

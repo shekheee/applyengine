@@ -101,7 +101,10 @@ def _coach_providers_for_chain(
 ) -> list:
     providers = []
     for name in s.coach_provider_chain_list:
-        provider = _provider_builder(s, name, reasoning_effort=reasoning_effort)
+        model = s.coach_default_model if name == "openai" else None
+        provider = _provider_builder(
+            s, name, model=model, reasoning_effort=reasoning_effort
+        )
         if provider is not None:
             providers.append(provider)
     return providers
@@ -131,7 +134,13 @@ def build_coach_provider(
         for name in s.coach_provider_chain_list:
             if name in seen:
                 continue
-            fallback = _provider_builder(s, name, reasoning_effort=effort)
+            fallback_model = s.coach_default_model if name == "openai" else None
+            fallback = _provider_builder(
+                s,
+                name,
+                model=fallback_model,
+                reasoning_effort=effort,
+            )
             if fallback is not None:
                 providers.append(fallback)
                 seen.add(name)
@@ -154,14 +163,14 @@ def resolved_memory_model_id() -> str | None:
     allowed = {m.id for m in available_coach_models(s)}
     if not allowed:
         return None
-    preferred = (s.memory_model or "").strip()
+    preferred = (s.background_model or s.memory_model or "").strip()
     if preferred and preferred in allowed:
         return preferred
     if preferred and preferred not in allowed:
         logger.warning(
             "MEMORY_MODEL '%s' is not available — falling back", preferred
         )
-    for mid in (s.anthropic_coach_model, s.openai_chat_model, s.gemini_coach_model):
+    for mid in (s.openai_chat_model, s.gemini_coach_model):
         if mid in allowed:
             return mid
     return next(iter(allowed), None)

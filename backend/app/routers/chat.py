@@ -1,11 +1,22 @@
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    UploadFile,
+)
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select
 
@@ -44,6 +55,8 @@ from app.services.parsing import parse_resume
 from app.services.profiles import get_base_profile
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
+_LEARNING_TASKS: set[asyncio.Task] = set()
+logger = logging.getLogger(__name__)
 
 
 def _latest_profile(user: User, session: Session) -> Profile | None:
@@ -54,6 +67,105 @@ def _user_memories(user: User, session: Session) -> list[Memory]:
     return session.exec(
         select(Memory).where(Memory.user_id == user.id).order_by(Memory.id.asc())
     ).all()
+
+
+def _persist_background_learning(
+    user_id: int,
+    conversation_id: int,
+    user_message: str,
+    assistant_reply: str,
+) -> None:
+    """Run memory extraction and long-thread compaction outside response latency."""
+    with Session(engine) as db:
+        memories = db.exec(
+            select(Memory)
+            .where(Memory.user_id == user_id)
+            .order_by(Memory.id.asc())
+        ).all()
+        conv = db.get(Conversation, conversation_id)
+        messages = db.exec(
+            select(ChatMessage)
+            .where(
+                ChatMessage.user_id == user_id,
+                ChatMessage.conversation_id == conversation_id,
+            )
+            .order_by(ChatMessage.id.asc())
+        ).all()
+        existing_summary = conv.context_summary if conv else ""
+        summary_through = conv.summary_through_message_id if conv else 0
+
+    new_memories = coach.extract_memories(
+        user_message, assistant_reply[:3000], memories
+    )
+
+    # Keep the latest ten turns verbatim. Merge older unsummarized turns in
+    # batches so long chats retain continuity without a 40-message payload.
+    older = messages[:-10] if len(messages) > 10 else []
+    summary_batch = [
+        message
+        for message in older
+        if (message.id or 0) > summary_through
+    ][:20]
+    new_summary = existing_summary
+    if len(summary_batch) >= 6:
+        new_summary = coach.summarize_conversation_context(
+            existing_summary, summary_batch
+        )
+
+    if not new_memories and new_summary == existing_summary:
+        return
+
+    with Session(engine) as db:
+        existing_contents = {
+            value.lower()
+            for value in db.exec(
+                select(Memory.content).where(Memory.user_id == user_id)
+            ).all()
+        }
+        for item in new_memories:
+            if item["content"].lower() not in existing_contents:
+                db.add(
+                    Memory(
+                        user_id=user_id,
+                        kind=item["kind"],
+                        content=item["content"],
+                    )
+                )
+                existing_contents.add(item["content"].lower())
+        if summary_batch and new_summary != existing_summary:
+            conv = db.get(Conversation, conversation_id)
+            if conv and conv.user_id == user_id:
+                conv.context_summary = new_summary
+                conv.summary_through_message_id = summary_batch[-1].id or 0
+                db.add(conv)
+        db.commit()
+
+
+def _schedule_background_learning(
+    user_id: int,
+    conversation_id: int,
+    user_message: str,
+    assistant_reply: str,
+) -> None:
+    task = asyncio.create_task(
+        asyncio.to_thread(
+            _persist_background_learning,
+            user_id,
+            conversation_id,
+            user_message,
+            assistant_reply,
+        )
+    )
+    _LEARNING_TASKS.add(task)
+
+    def finish(completed: asyncio.Task) -> None:
+        _LEARNING_TASKS.discard(completed)
+        try:
+            completed.result()
+        except Exception as exc:
+            logger.warning("Background Coach learning failed (non-fatal): %s", exc)
+
+    task.add_done_callback(finish)
 
 
 def _user_applications(user: User, session: Session) -> list[Application]:
@@ -426,6 +538,7 @@ def _process_uploads(files: list[UploadFile]):
 @router.post("/messages", response_model=ChatMessage)
 def send_message(
     body: ChatIn,
+    background_tasks: BackgroundTasks,
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ):
@@ -472,6 +585,7 @@ def send_message(
         coach_mode=coach_mode,
         conversation_jd_text=jd_text,
         conversation_job=job,
+        conversation_summary=conv.context_summary,
     )
     assistant_msg = ChatMessage(
         user_id=user.id,
@@ -491,14 +605,15 @@ def send_message(
     )
     session.add(assistant_msg)
 
-    new_memories = coach.extract_memories(text, reply, memories)
-    for item in new_memories:
-        session.add(
-            Memory(user_id=user.id, kind=item["kind"], content=item["content"])
-        )
-
     session.commit()
     session.refresh(assistant_msg)
+    background_tasks.add_task(
+        _persist_background_learning,
+        user.id,
+        conv_id,
+        text,
+        reply,
+    )
     return assistant_msg
 
 
@@ -564,6 +679,7 @@ async def send_message_stream(
     user_id = user.id
     coach_text = text or "Please review the attached file(s)."
     search_mode = normalize_search_mode(web_search_mode)
+    conversation_summary = conv.context_summary
 
     async def event_stream() -> AsyncIterator[str]:
         accumulated = ""
@@ -589,6 +705,7 @@ async def send_message_stream(
                 answer_length=resolved_answer_length,
                 coach_mode=resolved_coach_mode,
                 delivery_context=delivery_context,
+                conversation_summary=conversation_summary,
             ):
                 if served.get("fallback_used") and not route_sent:
                     route_sent = True
@@ -613,6 +730,7 @@ async def send_message_stream(
                     answer_length=resolved_answer_length,
                     coach_mode=resolved_coach_mode,
                     delivery_context=delivery_context,
+                    conversation_summary=conversation_summary,
                 )
                 served["provider"] = prov
                 served["model"] = mod
@@ -631,24 +749,18 @@ async def send_message_stream(
                     reasoning_effort=served.get("reasoning_effort") or effort,
                 )
                 db.add(assistant_msg)
-
-                new_memories = coach.extract_memories(
-                    text or "(attachment)", reply, memory_snap
-                )
-                for item in new_memories:
-                    db.add(
-                        Memory(
-                            user_id=user_id,
-                            kind=item["kind"],
-                            content=item["content"],
-                        )
-                    )
-
                 db.commit()
                 db.refresh(assistant_msg)
                 assistant_json = assistant_msg.model_dump(mode="json")
+                db_conv = db.get(Conversation, conv_id)
+                conversation_json = (
+                    build_conversation_out(db_conv, db) if db_conv else None
+                )
 
-            yield f"data: {json.dumps({'type': 'done', 'user_message': user_msg_json, 'assistant_message': assistant_json, 'provider_served': served.get('provider'), 'model_served': served.get('model'), 'requested_model': served.get('requested_model'), 'fallback_used': served.get('fallback_used', False), 'fallback_reason': served.get('fallback_reason'), 'reasoning_effort': served.get('reasoning_effort') or effort, 'conversation_id': conv_id, 'web_searched': served.get('web_searched', False), 'search_provider': served.get('search_provider'), 'sources': served.get('sources', []), 'web_search_error': served.get('web_search_error')})}\n\n"
+            _schedule_background_learning(
+                user_id, conv_id, text or "(attachment)", reply
+            )
+            yield f"data: {json.dumps({'type': 'done', 'user_message': user_msg_json, 'assistant_message': assistant_json, 'conversation': conversation_json, 'provider_served': served.get('provider'), 'model_served': served.get('model'), 'requested_model': served.get('requested_model'), 'fallback_used': served.get('fallback_used', False), 'fallback_reason': served.get('fallback_reason'), 'reasoning_effort': served.get('reasoning_effort') or effort, 'conversation_id': conv_id, 'web_searched': served.get('web_searched', False), 'search_provider': served.get('search_provider'), 'search_cache_hit': served.get('search_cache_hit', False), 'sources': served.get('sources', []), 'web_search_error': served.get('web_search_error'), 'latency': {'search_ms': served.get('search_duration_ms'), 'ttft_ms': served.get('time_to_first_token_ms'), 'generation_ms': served.get('generation_duration_ms'), 'total_ms': served.get('total_duration_ms')}, 'memory_update_pending': coach.should_extract_memories(text or '(attachment)')})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
 
@@ -689,6 +801,10 @@ async def edit_message_stream(
     user_msg.content = text
     session.add(user_msg)
     removed_ids = _delete_messages_after(session, conv_id, message_id)
+    # Editing an older turn invalidates the rolling summary; rebuild it in the
+    # background from the canonical message history.
+    conv.context_summary = ""
+    conv.summary_through_message_id = 0
     touch_conversation(conv)
     session.add(conv)
     session.commit()
@@ -735,6 +851,7 @@ async def edit_message_stream(
                 web_search_mode=search_mode,
                 answer_length=answer_length,
                 coach_mode=coach_mode,
+                conversation_summary="",
             ):
                 if served.get("fallback_used") and not route_sent:
                     route_sent = True
@@ -758,6 +875,7 @@ async def edit_message_stream(
                     conversation_job=job_snap,
                     answer_length=answer_length,
                     coach_mode=coach_mode,
+                    conversation_summary="",
                 )
                 served["provider"] = prov
                 served["model"] = mod
@@ -776,17 +894,6 @@ async def edit_message_stream(
                     reasoning_effort=served.get("reasoning_effort") or effort,
                 )
                 db.add(assistant_msg)
-
-                new_memories = coach.extract_memories(text, reply, memory_snap)
-                for item in new_memories:
-                    db.add(
-                        Memory(
-                            user_id=user_id,
-                            kind=item["kind"],
-                            content=item["content"],
-                        )
-                    )
-
                 db.commit()
                 db.refresh(assistant_msg)
                 assistant_json = assistant_msg.model_dump(mode="json")
@@ -794,8 +901,13 @@ async def edit_message_stream(
                     assistant_json["model_served"] = served.get("model")
                 if served.get("provider"):
                     assistant_json["provider_served"] = served.get("provider")
+                db_conv = db.get(Conversation, conv_id)
+                conversation_json = (
+                    build_conversation_out(db_conv, db) if db_conv else None
+                )
 
-            yield f"data: {json.dumps({'type': 'done', 'user_message': user_msg_json, 'assistant_message': assistant_json, 'removed_message_ids': removed_ids, 'provider_served': served.get('provider'), 'model_served': served.get('model'), 'requested_model': served.get('requested_model'), 'fallback_used': served.get('fallback_used', False), 'fallback_reason': served.get('fallback_reason'), 'reasoning_effort': served.get('reasoning_effort') or effort, 'conversation_id': conv_id, 'web_searched': served.get('web_searched', False), 'search_provider': served.get('search_provider'), 'sources': served.get('sources', []), 'web_search_error': served.get('web_search_error')})}\n\n"
+            _schedule_background_learning(user_id, conv_id, text, reply)
+            yield f"data: {json.dumps({'type': 'done', 'user_message': user_msg_json, 'assistant_message': assistant_json, 'conversation': conversation_json, 'removed_message_ids': removed_ids, 'provider_served': served.get('provider'), 'model_served': served.get('model'), 'requested_model': served.get('requested_model'), 'fallback_used': served.get('fallback_used', False), 'fallback_reason': served.get('fallback_reason'), 'reasoning_effort': served.get('reasoning_effort') or effort, 'conversation_id': conv_id, 'web_searched': served.get('web_searched', False), 'search_provider': served.get('search_provider'), 'search_cache_hit': served.get('search_cache_hit', False), 'sources': served.get('sources', []), 'web_search_error': served.get('web_search_error'), 'latency': {'search_ms': served.get('search_duration_ms'), 'ttft_ms': served.get('time_to_first_token_ms'), 'generation_ms': served.get('generation_duration_ms'), 'total_ms': served.get('total_duration_ms')}, 'memory_update_pending': coach.should_extract_memories(text)})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
 

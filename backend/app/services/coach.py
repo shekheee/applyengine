@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import logging
+import re
 
 from collections.abc import AsyncIterator, Iterator
+from time import monotonic
 from typing import Any
 
 from app import prompts
+from app.config import get_settings
 from app.llm import build_coach_provider, build_memory_provider, get_provider
 from app.llm.answer_length import answer_length_instruction
 from app.models import Application, ChatMessage, Job, Memory, Profile
@@ -19,18 +22,43 @@ from app.services.web_research import (
 
 logger = logging.getLogger(__name__)
 
-HISTORY_LIMIT = 40
+_TOKEN_RE = re.compile(r"[a-z0-9][a-z0-9+#.-]{2,}", re.IGNORECASE)
+_DURABLE_MEMORY_RE = re.compile(
+    r"\b(i|my)\b.{0,80}\b(led|built|created|delivered|managed|owned|worked|"
+    r"achieved|improved|reduced|increased|saved|launched|designed|implemented|"
+    r"prefer|want|goal|experience|responsible|skilled|learned)\b",
+    re.IGNORECASE | re.DOTALL,
+)
 
 
 def _memory_text(memories: list[Memory]) -> str:
     return "\n".join(f"- ({m.kind}) {m.content}" for m in memories)
 
 
+def _terms(value: str) -> set[str]:
+    return {token.lower() for token in _TOKEN_RE.findall(value)}
+
+
+def _relevant_memories(
+    message: str, memories: list[Memory], limit: int
+) -> list[Memory]:
+    if len(memories) <= limit:
+        return memories
+    query = _terms(message)
+    scored: list[tuple[int, int, Memory]] = []
+    for index, memory in enumerate(memories):
+        overlap = len(query & _terms(memory.content))
+        priority = 2 if memory.kind in {"achievement", "experience", "goal"} else 0
+        scored.append((overlap * 10 + priority, index, memory))
+    relevant = [item[2] for item in sorted(scored, reverse=True)[:limit]]
+    return list(reversed(relevant))
+
+
 def _applications_text(applications: list[Application], jobs: dict[int, Job]) -> str:
     if not applications:
         return ""
     lines: list[str] = []
-    for app in applications[-8:]:
+    for app in applications[-4:]:
         job = jobs.get(app.job_id)
         if not job:
             continue
@@ -66,9 +94,14 @@ def build_coach_messages(
     answer_length: str = "normal",
     coach_mode: str = "career",
     delivery_context: str = "",
+    conversation_summary: str = "",
 ) -> list[dict[str, Any]]:
-    profile_text = _profile_text(profile)
-    memory_text = _memory_text(memories)
+    settings = get_settings()
+    profile_text = _profile_text(profile)[:10000]
+    selected_memories = _relevant_memories(
+        message, memories, max(1, settings.coach_relevant_memory_limit)
+    )
+    memory_text = _memory_text(selected_memories)
     apps_text = _applications_text(applications or [], jobs or {})
     target = conversation_job or _target_job(applications, jobs)
     # The canonical serialized profile below already contains resume signals.
@@ -80,14 +113,20 @@ def build_coach_messages(
         memory_text,
         apps_text,
         profession_text,
-        conversation_jd_text=conversation_jd_text,
+        conversation_jd_text=conversation_jd_text[:8000],
         coach_mode=coach_mode,
         delivery_context=delivery_context,
     )
+    if conversation_summary.strip():
+        system += (
+            "\n\n---\n\nOLDER CONVERSATION SUMMARY:\n"
+            + conversation_summary.strip()[:5000]
+        )
     system += f"\n\nRESPONSE LENGTH FOR THIS TURN:\n{answer_length_instruction(answer_length)}"
     messages: list[dict[str, Any]] = [{"role": "system", "content": system}]
 
-    for msg in history[-HISTORY_LIMIT:]:
+    recent_limit = max(4, settings.coach_recent_message_limit)
+    for msg in history[-recent_limit:]:
         role = "assistant" if msg.role == "assistant" else "user"
         messages.append({"role": role, "content": msg.content})
 
@@ -111,6 +150,7 @@ def coach_reply(
     answer_length: str = "normal",
     coach_mode: str = "career",
     delivery_context: str = "",
+    conversation_summary: str = "",
 ) -> tuple[str, str | None, str | None]:
     chain = build_coach_provider(model_id, reasoning_effort)
     chain.reset()
@@ -127,6 +167,7 @@ def coach_reply(
         answer_length=answer_length,
         coach_mode=coach_mode,
         delivery_context=delivery_context,
+        conversation_summary=conversation_summary,
     )
     try:
         out = chain.chat_messages(messages).strip()
@@ -160,6 +201,7 @@ def coach_reply_stream(
     answer_length: str = "normal",
     coach_mode: str = "career",
     delivery_context: str = "",
+    conversation_summary: str = "",
 ) -> Iterator[str]:
     chain = build_coach_provider(model_id, reasoning_effort)
     chain.reset()
@@ -176,6 +218,7 @@ def coach_reply_stream(
         answer_length=answer_length,
         coach_mode=coach_mode,
         delivery_context=delivery_context,
+        conversation_summary=conversation_summary,
     )
     for token in chain.chat_stream(messages):
         if served is not None:
@@ -216,6 +259,7 @@ async def coach_reply_stream_async(
     answer_length: str = "normal",
     coach_mode: str = "career",
     delivery_context: str = "",
+    conversation_summary: str = "",
 ) -> AsyncIterator[str]:
     chain = build_coach_provider(model_id, reasoning_effort)
     chain.reset()
@@ -232,7 +276,10 @@ async def coach_reply_stream_async(
         answer_length=answer_length,
         coach_mode=coach_mode,
         delivery_context=delivery_context,
+        conversation_summary=conversation_summary,
     )
+    request_started = monotonic()
+    search_started = monotonic()
     try:
         research = await run_web_research(
             message,
@@ -245,16 +292,30 @@ async def coach_reply_stream_async(
         research = None
         if served is not None:
             served["web_search_error"] = str(exc)
+    if served is not None:
+        served["search_duration_ms"] = round((monotonic() - search_started) * 1000)
     if research is not None:
         messages = inject_research(messages, research)
         if served is not None:
             served["web_searched"] = True
             served["search_provider"] = research.provider
+            served["search_cache_hit"] = research.cached
             served["sources"] = [
                 {"title": source.title, "url": source.url}
                 for source in research.sources
             ]
-    async for token in chain.chat_stream_async(messages):
+    model_started = monotonic()
+    first_token_seen = False
+    async for token in chain.chat_stream_async(
+        messages,
+        first_token_timeout=get_settings().coach_first_token_timeout_seconds,
+    ):
+        if not first_token_seen:
+            first_token_seen = True
+            if served is not None:
+                served["time_to_first_token_ms"] = round(
+                    (monotonic() - request_started) * 1000
+                )
         if served is not None:
             served.update(
                 {
@@ -278,6 +339,18 @@ async def coach_reply_stream_async(
         served["fallback_used"] = chain.fallback_used
         served["fallback_reason"] = chain.fallback_reason
         served["reasoning_effort"] = chain.reasoning_effort
+        served["generation_duration_ms"] = round(
+            (monotonic() - model_started) * 1000
+        )
+        served["total_duration_ms"] = round((monotonic() - request_started) * 1000)
+
+
+def should_extract_memories(user_message: str) -> bool:
+    """Cheap gate: only durable first-person facts merit a memory model call."""
+    text = " ".join(user_message.split())
+    if len(text) < 35 or text in {"(attachment)", "Please review the attached file(s)."}:
+        return False
+    return bool(_DURABLE_MEMORY_RE.search(text))
 
 
 def extract_memories(
@@ -286,6 +359,8 @@ def extract_memories(
     existing: list[Memory],
 ) -> list[dict[str, str]]:
     """Ask the LLM for new durable facts stated by the user this turn."""
+    if not should_extract_memories(user_message):
+        return []
     exchange = f"User: {user_message}\nCoach: {assistant_reply}"
     existing_text = _memory_text(existing)
     try:
@@ -320,6 +395,38 @@ def extract_memories(
             seen.add(content.lower())
             out.append({"kind": kind, "content": content})
     return out
+
+
+def summarize_conversation_context(
+    existing_summary: str,
+    messages: list[ChatMessage],
+) -> str:
+    """Compact older turns for provider-neutral long-conversation continuity."""
+    if not messages:
+        return existing_summary
+    transcript = "\n".join(
+        f"{m.role.upper()}: {' '.join(m.content.split())[:1200]}" for m in messages
+    )
+    system = """Compact an older career-coaching conversation into durable working context.
+Return plain text under 500 words. Preserve: candidate facts and metrics, goals and preferences,
+decisions, examples already used, advice accepted or rejected, and unresolved follow-ups.
+Remove pleasantries, repetition, model wording, and anything unsupported. Do not invent facts."""
+    user = f"""EXISTING SUMMARY:
+{existing_summary or '(none)'}
+
+NEW OLDER TURNS TO MERGE:
+{transcript}"""
+    try:
+        chain = build_memory_provider()
+        chain.reset()
+        summary = chain.chat_messages(
+            [{"role": "system", "content": system}, {"role": "user", "content": user}],
+            max_tokens=700,
+        ).strip()
+        return summary[:6000] or existing_summary
+    except Exception as exc:
+        logger.warning("Conversation summary failed (non-fatal): %s", exc)
+        return existing_summary
 
 
 def build_updated_resume_text(profile: Profile | None, memories: list[Memory]) -> str:

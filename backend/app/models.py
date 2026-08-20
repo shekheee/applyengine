@@ -99,6 +99,8 @@ class Conversation(SQLModel, table=True):
     title: str = "New conversation"
     job_id: int | None = Field(default=None, foreign_key="job.id", index=True)
     jd_text: str = Field(default="", sa_column=Column(Text))
+    context_summary: str = Field(default="", sa_column=Column(Text))
+    summary_through_message_id: int = 0
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)
 

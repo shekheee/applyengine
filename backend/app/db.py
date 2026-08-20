@@ -34,6 +34,7 @@ def init_db() -> None:
     _migrate_interview_overall_score()
     _migrate_interview_curriculum_topic()
     _migrate_conversations()
+    _migrate_conversation_context()
     _migrate_resume_versions()
     _migrate_interview_live_mode()
     _migrate_interview_reliability()
@@ -423,6 +424,30 @@ def _migrate_conversations() -> None:
                 msg.conversation_id = general.id
                 session.add(msg)
             session.commit()
+
+
+def _migrate_conversation_context() -> None:
+    """Add provider-neutral rolling summaries for long Coach threads."""
+    from sqlalchemy import text
+
+    columns = (
+        "context_summary TEXT DEFAULT ''",
+        "summary_through_message_id INTEGER DEFAULT 0",
+    )
+    with engine.begin() as conn:
+        if is_sqlite:
+            existing = {
+                row[1] for row in conn.execute(text("PRAGMA table_info(conversation)"))
+            }
+            for definition in columns:
+                column_name = definition.split()[0]
+                if column_name not in existing:
+                    conn.execute(text(f"ALTER TABLE conversation ADD COLUMN {definition}"))
+            return
+        for definition in columns:
+            conn.execute(
+                text(f"ALTER TABLE conversation ADD COLUMN IF NOT EXISTS {definition}")
+            )
 
 
 def _migrate_interview_live_mode() -> None:

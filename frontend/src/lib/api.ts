@@ -266,6 +266,7 @@ export const api = {
   ): Promise<{
     user_message: ChatMessage;
     assistant_message: ChatMessage;
+    conversation?: Conversation;
     provider_served?: string;
     model_served?: string;
     conversation_id?: number;
@@ -306,6 +307,7 @@ export const api = {
     let result: {
       user_message: ChatMessage;
       assistant_message: ChatMessage;
+      conversation?: Conversation;
       provider_served?: string;
       model_served?: string;
       conversation_id?: number;
@@ -328,6 +330,7 @@ export const api = {
             detail?: string;
             user_message?: ChatMessage;
             assistant_message?: ChatMessage;
+            conversation?: Conversation;
             provider_served?: string;
             model_served?: string;
             conversation_id?: number;
@@ -353,6 +356,7 @@ export const api = {
                 fallback_reason: evt.fallback_reason,
                 reasoning_effort: evt.reasoning_effort,
               },
+              conversation: evt.conversation,
               provider_served: evt.provider_served,
               model_served: evt.model_served,
               conversation_id: evt.conversation_id,
@@ -385,6 +389,7 @@ export const api = {
   ): Promise<{
     user_message: ChatMessage;
     assistant_message: ChatMessage;
+    conversation?: Conversation;
     removed_message_ids: number[];
     provider_served?: string;
     model_served?: string;
@@ -424,6 +429,7 @@ export const api = {
     let result: {
       user_message: ChatMessage;
       assistant_message: ChatMessage;
+      conversation?: Conversation;
       removed_message_ids: number[];
       provider_served?: string;
       model_served?: string;
@@ -446,6 +452,7 @@ export const api = {
             detail?: string;
             user_message?: ChatMessage;
             assistant_message?: ChatMessage;
+            conversation?: Conversation;
             removed_message_ids?: number[];
             provider_served?: string;
             model_served?: string;
@@ -471,6 +478,7 @@ export const api = {
                 fallback_reason: evt.fallback_reason,
                 reasoning_effort: evt.reasoning_effort,
               },
+              conversation: evt.conversation,
               removed_message_ids: evt.removed_message_ids ?? [],
               provider_served: evt.provider_served,
               model_served: evt.model_served,

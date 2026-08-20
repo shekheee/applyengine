@@ -18,17 +18,31 @@ services:
       - key: LLM_PROVIDER
         value: openai
       - key: OPENAI_CHAT_MODEL
-        value: gpt-5.6-sol
+        value: gpt-5.6-terra
       - key: OPENAI_COACH_MODELS
-        value: gpt-5.6-sol,gpt-5.5
+        value: gpt-5.6-terra,gpt-5.6-sol,gpt-5.5,gpt-5.6-luna
       - key: GEMINI_COACH_MODEL
         value: gemini-3.1-pro-preview
       - key: GEMINI_COACH_MODELS
         value: gemini-3.1-pro-preview
       - key: COACH_PROVIDER_CHAIN
         value: openai,gemini
+      - key: COACH_DEFAULT_MODEL
+        value: gpt-5.6-terra
+      - key: BACKGROUND_MODEL
+        value: gpt-5.6-luna
       - key: MEMORY_MODEL
-        value: gpt-5.6-sol
+        value: gpt-5.6-luna
+      - key: SEARCH_PROVIDER
+        value: openai
+      - key: SEARCH_MODEL
+        value: gpt-5.6-luna
+      - key: SEARCH_TIMEOUT_SECONDS
+        value: "8"
+      - key: SEARCH_CACHE_TTL_SECONDS
+        value: "21600"
+      - key: COACH_FIRST_TOKEN_TIMEOUT_SECONDS
+        value: "10"
       - key: OPENAI_EMBED_MODEL
         value: text-embedding-3-small
       - key: SPEECH_TRANSCRIPTION_MODELS

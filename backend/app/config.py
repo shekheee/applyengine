@@ -14,8 +14,10 @@ class Settings(BaseSettings):
 
     # OpenAI
     openai_api_key: str | None = None
-    openai_chat_model: str = "gpt-5.6-sol"
-    openai_coach_models: str = "gpt-5.6-sol,gpt-5.5"
+    openai_chat_model: str = "gpt-5.6-terra"
+    openai_coach_models: str = (
+        "gpt-5.6-terra,gpt-5.6-sol,gpt-5.5,gpt-5.6-luna"
+    )
     openai_embed_model: str = "text-embedding-3-small"
     speech_transcription_models: str = "gpt-4o-transcribe,whisper-1"
     speech_tts_model: str = "tts-1"
@@ -45,12 +47,21 @@ class Settings(BaseSettings):
     gemini_audio_model: str = "gemini-3.1-flash-lite"
     gemini_audio_analysis_enabled: bool = True
 
-    # Coach fallback order: comma-separated provider names. Claude remains
-    # supported, but is opt-in while Anthropic access is unavailable.
+    # Coach fallback order. Anthropic is deliberately excluded from the active
+    # product path while that account is unavailable.
     coach_provider_chain: str = "openai,gemini"
+    coach_default_model: str = "gpt-5.6-terra"
 
-    # Memory extraction — uses coach fallback chain with this model first
-    memory_model: str = "gpt-5.6-sol"
+    # Cheap task-specific models keep auxiliary work off the frontier model.
+    background_model: str = "gpt-5.6-luna"
+    memory_model: str = "gpt-5.6-luna"
+    search_provider: str = "openai"
+    search_model: str = "gpt-5.6-luna"
+    search_timeout_seconds: float = 8.0
+    search_cache_ttl_seconds: int = 60 * 60 * 6
+    coach_first_token_timeout_seconds: float = 10.0
+    coach_recent_message_limit: int = 10
+    coach_relevant_memory_limit: int = 10
 
     # App
     database_url: str = "sqlite:///./applyengine.db"
@@ -72,7 +83,14 @@ class Settings(BaseSettings):
 
     @property
     def coach_provider_chain_list(self) -> list[str]:
-        return [p.strip().lower() for p in self.coach_provider_chain.split(",") if p.strip()]
+        # Filtering here also protects deployments that still have an older
+        # COACH_PROVIDER_CHAIN value such as "anthropic,gemini,openai".
+        supported = {"openai", "gemini"}
+        return [
+            provider
+            for raw in self.coach_provider_chain.split(",")
+            if (provider := raw.strip().lower()) in supported
+        ]
 
     @staticmethod
     def _model_list(value: str, default: str) -> list[str]:
@@ -83,7 +101,13 @@ class Settings(BaseSettings):
 
     @property
     def openai_coach_model_list(self) -> list[str]:
-        return self._model_list(self.openai_coach_models, self.openai_chat_model)
+        models = self._model_list(
+            self.openai_coach_models, self.coach_default_model
+        )
+        for model in (self.openai_chat_model, self.background_model):
+            if model and model not in models:
+                models.append(model)
+        return models
 
     @property
     def speech_transcription_model_list(self) -> list[str]:

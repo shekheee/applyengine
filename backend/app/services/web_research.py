@@ -1,28 +1,34 @@
 from __future__ import annotations
 
-import json
+import asyncio
+import hashlib
 import logging
 import re
 from dataclasses import dataclass
 from datetime import date
+from time import monotonic
 from typing import Any, Literal
 
 import httpx
 
 from app.config import Settings, get_settings
-from app.llm.coach_models import default_coach_model_id, provider_for_model
 
 logger = logging.getLogger(__name__)
 
 WebSearchMode = Literal["auto", "on", "off"]
 
+# Auto mode is deliberately conservative. The supplied resume, JD and normal
+# coaching knowledge do not need a second model request before every answer.
 _AUTO_SEARCH_PATTERNS = (
-    r"\b(search|browse|look up|research|find online|web)\b",
+    r"\b(search|browse|look up|find) (the )?(public )?(web|internet|online)\b",
     r"\b(latest|current|today|recent|this week|this month|202[5-9])\b",
     r"\b(glassdoor|reddit|blind|linkedin|news|salary|salaries)\b",
-    r"\b(interview experience|interview questions|company culture|company research)\b",
+    r"\b(company research|public interview (reports|experiences?))\b",
+    r"\bresearch\b.{0,50}\b(company|company culture)\b",
     r"https?://",
 )
+
+_SEARCH_CACHE: dict[str, tuple[float, "WebResearchResult"]] = {}
 
 
 @dataclass(frozen=True)
@@ -36,6 +42,7 @@ class WebResearchResult:
     text: str
     sources: list[WebSource]
     provider: str
+    cached: bool = False
 
 
 def normalize_search_mode(value: str | None) -> WebSearchMode:
@@ -49,11 +56,14 @@ def should_search(message: str, mode: str | None) -> bool:
         return False
     if resolved == "on":
         return True
-    return any(re.search(pattern, message, re.IGNORECASE) for pattern in _AUTO_SEARCH_PATTERNS)
+    return any(
+        re.search(pattern, message, re.IGNORECASE)
+        for pattern in _AUTO_SEARCH_PATTERNS
+    )
 
 
 def _research_prompt(message: str, context_hint: str = "") -> str:
-    context = context_hint.strip()[:3000]
+    context = context_hint.strip()[:1600]
     return f"""Search the public web for current, useful evidence for this career-coaching request.
 
 User request:
@@ -65,11 +75,11 @@ Relevant job/company context (may be empty):
 Prioritize official company pages, reputable recent reporting, public interview reports,
 and publicly accessible discussions such as Glassdoor, Reddit, Blind, or LinkedIn when
 useful. Never claim access to private, login-gated, or non-indexed discussions. Clearly
-separate verified facts from anecdotal reports. Return a concise research brief with
-source-backed facts that another coach model can use."""
+separate verified facts from anecdotal reports. Return at most 600 words and no more
+than five sources. Another coach model will use this brief."""
 
 
-def _dedupe_sources(sources: list[WebSource], limit: int = 8) -> list[WebSource]:
+def _dedupe_sources(sources: list[WebSource], limit: int = 5) -> list[WebSource]:
     out: list[WebSource] = []
     seen: set[str] = set()
     for source in sources:
@@ -111,17 +121,6 @@ def _openai_text_and_sources(data: dict[str, Any]) -> tuple[str, list[WebSource]
     return "\n".join(texts).strip(), _dedupe_sources(sources)
 
 
-def _anthropic_text_and_sources(data: dict[str, Any]) -> tuple[str, list[WebSource]]:
-    texts = [
-        str(block.get("text", ""))
-        for block in data.get("content", [])
-        if isinstance(block, dict) and block.get("type") == "text"
-    ]
-    sources: list[WebSource] = []
-    _walk_sources(data.get("content", []), sources)
-    return "\n".join(texts).strip(), _dedupe_sources(sources)
-
-
 def _gemini_text_and_sources(data: dict[str, Any]) -> tuple[str, list[WebSource]]:
     candidate = (data.get("candidates") or [{}])[0]
     parts = candidate.get("content", {}).get("parts", [])
@@ -144,6 +143,8 @@ async def _openai_search(
             "model": model,
             "tools": [{"type": "web_search"}],
             "input": prompt,
+            "max_output_tokens": 800,
+            "reasoning": {"effort": "none"},
         },
     )
     response.raise_for_status()
@@ -151,59 +152,6 @@ async def _openai_search(
     if not text:
         raise RuntimeError("OpenAI web search returned no research text")
     return WebResearchResult(text=text, sources=sources, provider="openai")
-
-
-async def _anthropic_search(
-    client: httpx.AsyncClient, settings: Settings, model: str, prompt: str
-) -> WebResearchResult:
-    headers = {
-        "x-api-key": settings.anthropic_api_key or "",
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-    }
-    tools = [
-        {
-            "type": "web_search_20250305",
-            "name": "web_search",
-            "max_uses": 5,
-        }
-    ]
-    messages: list[dict[str, Any]] = [{"role": "user", "content": prompt}]
-    response = await client.post(
-        "https://api.anthropic.com/v1/messages",
-        headers=headers,
-        json={
-            "model": model,
-            "max_tokens": 1800,
-            "messages": messages,
-            "tools": tools,
-        },
-    )
-    response.raise_for_status()
-    data = response.json()
-    if data.get("stop_reason") == "pause_turn":
-        messages.append({"role": "assistant", "content": data.get("content", [])})
-        response = await client.post(
-            "https://api.anthropic.com/v1/messages",
-            headers=headers,
-            json={
-                "model": model,
-                "max_tokens": 1800,
-                "messages": messages,
-                "tools": tools,
-            },
-        )
-        response.raise_for_status()
-        continuation = response.json()
-        continuation["content"] = [
-            *data.get("content", []),
-            *continuation.get("content", []),
-        ]
-        data = continuation
-    text, sources = _anthropic_text_and_sources(data)
-    if not text:
-        raise RuntimeError("Anthropic web search returned no research text")
-    return WebResearchResult(text=text, sources=sources, provider="anthropic")
 
 
 async def _gemini_search(
@@ -215,7 +163,7 @@ async def _gemini_search(
         json={
             "contents": [{"role": "user", "parts": [{"text": prompt}]}],
             "tools": [{"google_search": {}}],
-            "generationConfig": {"maxOutputTokens": 1800},
+            "generationConfig": {"maxOutputTokens": 800},
         },
     )
     response.raise_for_status()
@@ -225,14 +173,25 @@ async def _gemini_search(
     return WebResearchResult(text=text, sources=sources, provider="gemini")
 
 
-def _provider_model(provider: str, selected_model: str, settings: Settings) -> str:
-    if provider == provider_for_model(selected_model, settings):
-        return selected_model
-    if provider == "openai":
-        return settings.openai_chat_model
-    if provider == "anthropic":
-        return settings.anthropic_coach_model
-    return settings.gemini_coach_model
+def _cache_key(message: str, context_hint: str) -> str:
+    normalized = " ".join(f"{message}\n{context_hint[:1600]}".lower().split())
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def _cached_result(key: str, ttl_seconds: int) -> WebResearchResult | None:
+    cached = _SEARCH_CACHE.get(key)
+    if not cached:
+        return None
+    created_at, result = cached
+    if monotonic() - created_at > ttl_seconds:
+        _SEARCH_CACHE.pop(key, None)
+        return None
+    return WebResearchResult(
+        text=result.text,
+        sources=result.sources,
+        provider=result.provider,
+        cached=True,
+    )
 
 
 async def run_web_research(
@@ -247,38 +206,42 @@ async def run_web_research(
         return None
 
     s = settings or get_settings()
-    selected_model = model_id or default_coach_model_id(s)
-    selected_provider = provider_for_model(selected_model, s)
-    available = {
-        "openai": bool(s.openai_api_key),
-        "anthropic": bool(s.anthropic_api_key),
-        "gemini": bool(s.resolved_gemini_api_key),
-    }
-    order = [selected_provider] + [
-        provider
-        for provider in s.coach_provider_chain_list
-        if provider != selected_provider
-    ]
+    # Search routing is independent from the final Coach model. One bounded
+    # provider avoids a slow and expensive provider cascade.
+    del model_id
+    provider = s.search_provider.strip().lower()
+    model = s.search_model.strip()
+    if provider not in {"openai", "gemini"}:
+        raise RuntimeError(f"Unsupported SEARCH_PROVIDER '{provider}'")
+    if provider == "openai" and not s.openai_api_key:
+        raise RuntimeError("OpenAI search is not configured")
+    if provider == "gemini" and not s.resolved_gemini_api_key:
+        raise RuntimeError("Gemini search is not configured")
+
+    key = _cache_key(message, context_hint)
+    cached = _cached_result(key, s.search_cache_ttl_seconds)
+    if cached is not None:
+        return cached
+
     prompt = _research_prompt(message, context_hint)
-    errors: list[str] = []
-
-    async with httpx.AsyncClient(timeout=httpx.Timeout(75.0, connect=15.0)) as client:
-        for provider in order:
-            if not available.get(provider):
-                continue
-            model = _provider_model(provider, selected_model, s)
-            try:
+    timeout_seconds = max(2.0, s.search_timeout_seconds)
+    timeout = httpx.Timeout(timeout_seconds, connect=min(2.0, timeout_seconds))
+    try:
+        async with asyncio.timeout(timeout_seconds):
+            async with httpx.AsyncClient(timeout=timeout) as client:
                 if provider == "openai":
-                    return await _openai_search(client, s, model, prompt)
-                if provider == "anthropic":
-                    return await _anthropic_search(client, s, model, prompt)
-                if provider == "gemini":
-                    return await _gemini_search(client, s, model, prompt)
-            except Exception as exc:
-                logger.warning("%s web search failed on %s: %s", provider, model, exc)
-                errors.append(f"{provider}: {exc}")
+                    result = await _openai_search(client, s, model, prompt)
+                else:
+                    result = await _gemini_search(client, s, model, prompt)
+    except Exception as exc:
+        logger.warning("%s web search failed on %s: %s", provider, model, exc)
+        raise RuntimeError(f"Live web search failed on {provider}: {exc}") from exc
 
-    raise RuntimeError("Live web search failed across providers: " + "; ".join(errors))
+    _SEARCH_CACHE[key] = (monotonic(), result)
+    if len(_SEARCH_CACHE) > 128:
+        oldest = min(_SEARCH_CACHE, key=lambda item: _SEARCH_CACHE[item][0])
+        _SEARCH_CACHE.pop(oldest, None)
+    return result
 
 
 def inject_research(

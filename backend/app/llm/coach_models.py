@@ -16,16 +16,14 @@ class CoachModelOption:
 
 _PROVIDER_LABELS = {
     "openai": "OpenAI",
-    "anthropic": "Anthropic",
     "gemini": "Google",
 }
 
 _MODEL_LABELS = {
     "gpt-5.5": "GPT-5.5",
+    "gpt-5.6-terra": "GPT-5.6 Terra",
     "gpt-5.6-sol": "GPT-5.6 Sol",
-    "claude-opus-5": "Claude Opus 5",
-    "claude-fable-5": "Claude Fable 5",
-    "claude-opus-4-8": "Claude Opus 4.8",
+    "gpt-5.6-luna": "GPT-5.6 Luna",
     "gemini-3.1-pro-preview": "Gemini 3.1 Preview",
 }
 
@@ -42,7 +40,6 @@ def available_coach_models(settings: Settings | None = None) -> list[CoachModelO
 
     configured = {
         "openai": (bool(s.openai_api_key), s.openai_coach_model_list),
-        "anthropic": (bool(s.anthropic_api_key), s.anthropic_coach_model_list),
         "gemini": (bool(s.resolved_gemini_api_key), s.gemini_coach_model_list),
     }
     for provider in s.coach_provider_chain_list:
@@ -67,9 +64,7 @@ def default_coach_model_id(settings: Settings | None = None) -> str:
     s = settings or get_settings()
     for name in s.coach_provider_chain_list:
         if name == "openai" and s.openai_api_key:
-            return s.openai_chat_model
-        if name == "anthropic" and s.anthropic_api_key:
-            return s.anthropic_coach_model
+            return s.coach_default_model
         if name == "gemini" and s.resolved_gemini_api_key:
             return s.gemini_coach_model
     return s.openai_chat_model
