@@ -99,6 +99,10 @@ class RealtimeInterviewTests(unittest.TestCase):
         self.assertEqual(captured["url"], "https://api.openai.com/v1/realtime/calls")
         config = json.loads(captured["request"]["files"]["session"][1])
         self.assertEqual(config["model"], interview.settings.openai_realtime_model)
+        self.assertEqual(
+            config["audio"]["input"]["transcription"]["model"],
+            interview.settings.openai_realtime_transcription_model,
+        )
         turn_detection = config["audio"]["input"]["turn_detection"]
         self.assertEqual(turn_detection["type"], "semantic_vad")
         self.assertEqual(turn_detection["eagerness"], "medium")

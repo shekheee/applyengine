@@ -8,10 +8,12 @@ from app.services import speech
 class _FakeTranscriptions:
     def __init__(self):
         self.models: list[str] = []
+        self.files: list[object] = []
 
     def create(self, **kwargs):
         model = kwargs["model"]
         self.models.append(model)
+        self.files.append(kwargs["file"])
         if model == "gpt-4o-transcribe":
             raise RuntimeError("model temporarily unavailable")
         return SimpleNamespace(
@@ -53,6 +55,9 @@ class SpeechPipelineTests(unittest.TestCase):
             )
 
         self.assertEqual(transcriptions.models, ["gpt-4o-transcribe", "whisper-1"])
+        self.assertTrue(all(isinstance(file, tuple) for file in transcriptions.files))
+        self.assertTrue(all(isinstance(file[1], bytes) for file in transcriptions.files))
+        self.assertTrue(all(file[2] == "audio/webm" for file in transcriptions.files))
         self.assertEqual(result["model"], "whisper-1")
         self.assertTrue(result["fallback_used"])
         self.assertEqual(result["delivery"]["pause_count"], 1)

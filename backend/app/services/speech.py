@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import base64
-import io
 import json
 import logging
 import re
@@ -51,6 +50,10 @@ def _gemini_audio_client() -> httpx.Client:
 
 
 def _extension_for_mime(mime: str) -> str:
+    if "wav" in mime or "wave" in mime:
+        return "wav"
+    if "flac" in mime:
+        return "flac"
     if "mp4" in mime or "aac" in mime:
         return "m4a"
     if "ogg" in mime:
@@ -187,8 +190,7 @@ def transcribe_audio(
     client = _speech_client()
     ext = _extension_for_mime(mime_type or "audio/webm")
     safe_mime = mime_type if mime_type.startswith("audio/") else "audio/webm"
-    file_obj = io.BytesIO(audio_bytes)
-    file_obj.name = f"recording.{ext}"
+    filename = f"recording.{ext}"
 
     started = perf_counter()
     result = None
@@ -196,9 +198,11 @@ def transcribe_audio(
     failures: list[str] = []
     models = settings.speech_transcription_model_list or ["gpt-4o-transcribe", "whisper-1"]
     for model in models:
-        file_obj.seek(0)
         request: dict[str, Any] = {
-            "file": (file_obj.name, file_obj, safe_mime),
+            # Send raw bytes with an explicit media type. A nested tuple whose
+            # payload is another file object is tolerated by Whisper but newer
+            # transcription models can reject it as corrupt audio.
+            "file": (filename, audio_bytes, safe_mime),
             "model": model,
             "language": "en",
         }

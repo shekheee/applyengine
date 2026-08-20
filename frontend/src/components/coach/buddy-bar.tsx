@@ -71,6 +71,7 @@ export function BuddyBar({
   realtime: {
     state: RealtimeBuddyState;
     error: string | null;
+    userCaption: string;
     isSupported: boolean;
     isActive: boolean;
     onStart: (kickoff: string) => void;
@@ -211,6 +212,20 @@ export function BuddyBar({
           <p className="mt-2 text-xs text-[var(--red)]" role="alert">
             {realtime.error || voice.error}
           </p>
+        )}
+
+        {realtime.isActive && realtime.userCaption && (
+          <div
+            className="mt-2 rounded-xl border border-emerald-400/25 bg-emerald-500/5 px-3 py-2"
+            aria-live="polite"
+          >
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
+              You’re saying
+            </p>
+            <p className="mt-0.5 max-h-20 overflow-y-auto whitespace-pre-wrap break-words text-sm leading-snug text-[var(--text)]">
+              {realtime.userCaption}
+            </p>
+          </div>
         )}
 
         <div className="mt-2.5 flex flex-wrap items-center gap-2">

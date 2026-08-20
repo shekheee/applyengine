@@ -1097,15 +1097,22 @@ export const api = {
     durationSeconds: number,
     clientMetrics?: ClientAudioMetrics
   ): Promise<TranscribeResult> => {
-    const form = new FormData();
-    form.append("file", blob, `recording.${mime.includes("mp4") ? "m4a" : "webm"}`);
-    form.append("duration", String(durationSeconds));
-    form.append("client_metrics", JSON.stringify(clientMetrics ?? {}));
-    const res = await fetch(`${BASE}/api/interview/transcribe`, {
-      method: "POST",
-      headers: { ...authHeaders() },
-      body: form,
-    });
+    const request = () => {
+      const form = new FormData();
+      form.append("file", blob, `recording.${mime.includes("mp4") ? "m4a" : "webm"}`);
+      form.append("duration", String(durationSeconds));
+      form.append("client_metrics", JSON.stringify(clientMetrics ?? {}));
+      return fetch(`${BASE}/api/interview/transcribe`, {
+        method: "POST",
+        headers: { ...authHeaders() },
+        body: form,
+      });
+    };
+    let res = await request();
+    if ([502, 503, 504].includes(res.status)) {
+      await new Promise((resolve) => window.setTimeout(resolve, 700));
+      res = await request();
+    }
     if (!res.ok) {
       if (res.status === 401) setToken(null);
       let detail = "";

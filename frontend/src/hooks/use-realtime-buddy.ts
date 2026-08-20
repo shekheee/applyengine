@@ -36,12 +36,14 @@ export function useRealtimeBuddy({
 }) {
   const [state, setState] = useState<RealtimeBuddyState>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [userCaption, setUserCaption] = useState("");
   const peerRef = useRef<RTCPeerConnection | null>(null);
   const channelRef = useRef<RTCDataChannel | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const onTurnRef = useRef(onTurn);
   const assistantTextRef = useRef("");
+  const userTextRef = useRef("");
   const speechStartedRef = useRef<number | null>(null);
   const audioPlayingRef = useRef(false);
   const manualInterruptRef = useRef(false);
@@ -65,10 +67,12 @@ export function useRealtimeBuddy({
     streamRef.current = null;
     audioRef.current = null;
     assistantTextRef.current = "";
+    userTextRef.current = "";
     speechStartedRef.current = null;
     audioPlayingRef.current = false;
     manualInterruptRef.current = false;
     deliveredRef.current.clear();
+    setUserCaption("");
   }, []);
 
   const stop = useCallback(() => {
@@ -159,16 +163,28 @@ export function useRealtimeBuddy({
           );
           if (type === "input_audio_buffer.speech_started") {
             speechStartedRef.current = performance.now();
+            userTextRef.current = "";
+            setUserCaption("");
             setError(null);
             setState("user_speaking");
           } else if (type === "input_audio_buffer.speech_stopped") {
             setState("listening");
+          } else if (type === "conversation.item.input_audio_transcription.delta") {
+            userTextRef.current += String(message.delta || "");
+            setUserCaption(userTextRef.current);
           } else if (type === "conversation.item.input_audio_transcription.completed") {
             const duration = speechStartedRef.current
               ? Math.max(0, (performance.now() - speechStartedRef.current) / 1000)
               : 0;
             speechStartedRef.current = null;
-            deliver("user", String(message.transcript || ""), eventId, duration);
+            const transcript = String(message.transcript || userTextRef.current);
+            userTextRef.current = "";
+            setUserCaption(transcript);
+            deliver("user", transcript, eventId, duration);
+          } else if (type === "conversation.item.input_audio_transcription.failed") {
+            userTextRef.current = "";
+            setUserCaption("");
+            setError("Live captions could not transcribe that turn, but the Coach can still hear you.");
           } else if (
             type === "response.output_audio_transcript.delta" ||
             type === "response.audio_transcript.delta" ||
@@ -268,6 +284,7 @@ export function useRealtimeBuddy({
   return {
     state,
     error,
+    userCaption,
     isSupported:
       typeof window !== "undefined" &&
       "RTCPeerConnection" in window &&

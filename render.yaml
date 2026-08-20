@@ -46,11 +46,13 @@ services:
       - key: OPENAI_EMBED_MODEL
         value: text-embedding-3-small
       - key: SPEECH_TRANSCRIPTION_MODELS
-        value: gpt-4o-transcribe,whisper-1
+        value: gpt-4o-mini-transcribe,gpt-4o-transcribe,whisper-1
       - key: SPEECH_TTS_MODEL
         value: tts-1
       - key: OPENAI_REALTIME_MODEL
         value: gpt-realtime-2.1-mini
+      - key: OPENAI_REALTIME_TRANSCRIPTION_MODEL
+        value: gpt-realtime-whisper
       - key: OPENAI_REALTIME_VOICE
         value: marin
       - key: OPENAI_REALTIME_ENABLED

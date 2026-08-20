@@ -163,6 +163,10 @@ class BuddyPracticeTests(unittest.TestCase):
             "Bearer test-server-key",
         )
         config = json.loads(captured["request"]["files"]["session"][1])
+        self.assertEqual(
+            config["audio"]["input"]["transcription"]["model"],
+            buddy.settings.openai_realtime_transcription_model,
+        )
         turn_detection = config["audio"]["input"]["turn_detection"]
         self.assertEqual(turn_detection["type"], "semantic_vad")
         self.assertEqual(turn_detection["eagerness"], "medium")

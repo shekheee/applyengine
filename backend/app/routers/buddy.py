@@ -427,9 +427,9 @@ async def create_realtime_session(
         "audio": {
             "input": {
                 "transcription": {
-                    "model": settings.speech_transcription_model_list[0]
-                    if settings.speech_transcription_model_list
-                    else "gpt-4o-transcribe",
+                    # Streaming ASR emits incremental deltas while the user is
+                    # speaking; the file-upload models only begin after commit.
+                    "model": settings.openai_realtime_transcription_model,
                     "language": "en",
                 },
                 "noise_reduction": {"type": "far_field"},

@@ -719,6 +719,20 @@ export function LiveInterviewRoom({
           </div>
 
           <div className="min-w-0 space-y-4">
+            {realtime.isActive && !legacyMode && realtime.candidateCaption && captionsVisible && (
+              <div
+                className="rounded-[var(--radius-md)] border border-emerald-400/25 bg-emerald-500/5 px-4 py-3"
+                aria-live="polite"
+              >
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
+                  You’re saying
+                </p>
+                <p className="mt-1 max-h-28 overflow-y-auto whitespace-pre-wrap break-words text-sm leading-snug text-[var(--text)]">
+                  {realtime.candidateCaption}
+                </p>
+              </div>
+            )}
+
             {activeRoomState === "speaking" && liveCaption && captionsVisible && (
               <div
                 className="rounded-[var(--radius-md)] border border-[var(--primary)]/25 bg-[var(--primary)]/5 px-4 py-3"

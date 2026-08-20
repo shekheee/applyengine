@@ -19,9 +19,10 @@ class Settings(BaseSettings):
         "gpt-5.6-terra,gpt-5.6-sol,gpt-5.5,gpt-5.6-luna"
     )
     openai_embed_model: str = "text-embedding-3-small"
-    speech_transcription_models: str = "gpt-4o-transcribe,whisper-1"
+    speech_transcription_models: str = "gpt-4o-mini-transcribe,gpt-4o-transcribe,whisper-1"
     speech_tts_model: str = "tts-1"
     openai_realtime_model: str = "gpt-realtime-2.1-mini"
+    openai_realtime_transcription_model: str = "gpt-realtime-whisper"
     openai_realtime_voice: str = "marin"
     openai_realtime_enabled: bool = True
 

@@ -841,6 +841,7 @@ export function CoachChat({
             realtime={{
               state: realtimeBuddy.state,
               error: realtimeBuddy.error,
+              userCaption: realtimeBuddy.userCaption,
               isSupported: realtimeBuddy.isSupported,
               isActive: realtimeBuddy.isActive,
               onStart: (kickoff) => void realtimeBuddy.start(kickoff),

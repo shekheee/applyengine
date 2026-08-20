@@ -39,6 +39,7 @@ export function useRealtimeInterview({
   const [state, setState] = useState<RealtimeInterviewState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
+  const [candidateCaption, setCandidateCaption] = useState("");
   const [isMuted, setIsMuted] = useState(false);
   const [model, setModel] = useState("");
   const peerRef = useRef<RTCPeerConnection | null>(null);
@@ -46,6 +47,7 @@ export function useRealtimeInterview({
   const streamRef = useRef<MediaStream | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const assistantTextRef = useRef("");
+  const candidateTextRef = useRef("");
   const speechStartedRef = useRef<number | null>(null);
   const responseStartedRef = useRef<number | null>(null);
   const lastLatencyRef = useRef<number | undefined>(undefined);
@@ -77,6 +79,7 @@ export function useRealtimeInterview({
     streamRef.current = null;
     audioRef.current = null;
     assistantTextRef.current = "";
+    candidateTextRef.current = "";
     speechStartedRef.current = null;
     responseStartedRef.current = null;
     lastLatencyRef.current = undefined;
@@ -86,6 +89,7 @@ export function useRealtimeInterview({
     manualInterruptRef.current = false;
     deliveredRef.current.clear();
     setCaption("");
+    setCandidateCaption("");
     setIsMuted(false);
   }, []);
 
@@ -213,23 +217,35 @@ export function useRealtimeInterview({
         );
         if (type === "input_audio_buffer.speech_started") {
           speechStartedRef.current = performance.now();
+          candidateTextRef.current = "";
+          setCandidateCaption("");
           setError(null);
           setState("candidate_speaking");
         } else if (type === "input_audio_buffer.speech_stopped") {
           responseStartedRef.current = performance.now();
           setState("listening");
+        } else if (type === "conversation.item.input_audio_transcription.delta") {
+          candidateTextRef.current += String(message.delta || "");
+          setCandidateCaption(candidateTextRef.current);
         } else if (type === "conversation.item.input_audio_transcription.completed") {
           const started = speechStartedRef.current;
           const durationSeconds = started
             ? Math.max(0, (performance.now() - started) / 1000)
             : 0;
           speechStartedRef.current = null;
+          const transcript = String(message.transcript || candidateTextRef.current);
+          candidateTextRef.current = "";
+          setCandidateCaption(transcript);
           deliver({
             role: "candidate",
-            content: String(message.transcript || ""),
+            content: transcript,
             requestId: `candidate-${eventId}`,
             durationSeconds,
           });
+        } else if (type === "conversation.item.input_audio_transcription.failed") {
+          candidateTextRef.current = "";
+          setCandidateCaption("");
+          setError("Live captions could not transcribe that answer, but the interviewer can still hear you.");
         } else if (
           type === "response.output_audio_transcript.delta" ||
           type === "response.audio_transcript.delta" ||
@@ -242,6 +258,7 @@ export function useRealtimeInterview({
             );
           }
           assistantTextRef.current += delta;
+          setCandidateCaption("");
           const microphone = streamRef.current?.getAudioTracks()[0];
           if (microphone) microphone.enabled = false;
           setCaption(assistantTextRef.current);
@@ -378,6 +395,7 @@ export function useRealtimeInterview({
     state,
     error,
     caption,
+    candidateCaption,
     model,
     isMuted,
     isSupported:

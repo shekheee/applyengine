@@ -485,9 +485,8 @@ async def create_realtime_interview(
         "audio": {
             "input": {
                 "transcription": {
-                    "model": settings.speech_transcription_model_list[0]
-                    if settings.speech_transcription_model_list
-                    else "gpt-4o-transcribe",
+                    # Streaming ASR powers the candidate's live on-screen words.
+                    "model": settings.openai_realtime_transcription_model,
                     "language": "en",
                 },
                 "noise_reduction": {"type": "far_field"},
