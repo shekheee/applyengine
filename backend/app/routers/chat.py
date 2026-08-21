@@ -688,6 +688,9 @@ async def send_message_stream(
         served: dict = {}
         route_sent = False
         try:
+            # Flush response headers immediately. This keeps proxies and the UI
+            # aware that the request is alive while search/model setup runs.
+            yield f"data: {json.dumps({'type': 'status', 'status': 'preparing'})}\n\n"
             if should_search(coach_text, search_mode):
                 yield f"data: {json.dumps({'type': 'search', 'status': 'searching'})}\n\n"
             async for token in coach.coach_reply_stream_async(
@@ -764,7 +767,28 @@ async def send_message_stream(
             )
             yield f"data: {json.dumps({'type': 'done', 'user_message': user_msg_json, 'assistant_message': assistant_json, 'conversation': conversation_json, 'provider_served': served.get('provider'), 'model_served': served.get('model'), 'requested_model': served.get('requested_model'), 'fallback_used': served.get('fallback_used', False), 'fallback_reason': served.get('fallback_reason'), 'reasoning_effort': served.get('reasoning_effort') or effort, 'conversation_id': conv_id, 'web_searched': served.get('web_searched', False), 'search_provider': served.get('search_provider'), 'search_cache_hit': served.get('search_cache_hit', False), 'sources': served.get('sources', []), 'web_search_error': served.get('web_search_error'), 'latency': {'search_ms': served.get('search_duration_ms'), 'ttft_ms': served.get('time_to_first_token_ms'), 'generation_ms': served.get('generation_duration_ms'), 'total_ms': served.get('total_duration_ms')}, 'memory_update_pending': coach.should_extract_memories(text or '(attachment)')})}\n\n"
         except Exception as e:
-            yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
+            logger.exception(
+                "Coach message stream failed for conversation %s", conv_id
+            )
+            # The user message is committed before streaming so context is
+            # stable. Remove it when no answer was produced; otherwise a retry
+            # creates hidden duplicate user turns in the conversation.
+            if not accumulated.strip():
+                try:
+                    with Session(engine) as db:
+                        failed_user_message = db.get(ChatMessage, user_msg.id)
+                        if failed_user_message is not None:
+                            db.delete(failed_user_message)
+                            db.commit()
+                except Exception:
+                    logger.exception(
+                        "Could not clean up failed user message %s", user_msg.id
+                    )
+            detail = str(e).strip() or (
+                "The coach models did not start responding in time. "
+                "Please retry the message."
+            )
+            yield f"data: {json.dumps({'type': 'error', 'detail': detail})}\n\n"
 
     return StreamingResponse(
         event_stream(),

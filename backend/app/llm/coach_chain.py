@@ -147,7 +147,10 @@ class CoachFallbackChain:
         elif status == 429:
             cooldown = 60
         elif isinstance(exc, (TimeoutError, asyncio.TimeoutError)):
-            cooldown = 30
+            # A slow first token is not proof that the provider is unhealthy.
+            # Marking it unhealthy made an immediate user retry skip every
+            # configured model and fail without making an upstream request.
+            return
         elif status and status >= 500:
             cooldown = 30
         else:
@@ -284,6 +287,11 @@ class CoachFallbackChain:
                 self._last_model = None
                 self._record_failure(provider, exc)
                 logger.warning("Coach stream failed on %s: %s — trying next", label, exc)
+        if isinstance(last_err, (TimeoutError, asyncio.TimeoutError)):
+            raise RuntimeError(
+                "The configured coach models did not start responding in time. "
+                "Please retry the message."
+            ) from last_err
         if last_err:
             raise last_err
         raise RuntimeError("All coach providers returned empty streams")

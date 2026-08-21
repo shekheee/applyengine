@@ -60,7 +60,10 @@ class Settings(BaseSettings):
     search_model: str = "gpt-5.6-luna"
     search_timeout_seconds: float = 8.0
     search_cache_ttl_seconds: int = 60 * 60 * 6
-    coach_first_token_timeout_seconds: float = 10.0
+    # Reasoning models can legitimately spend more than ten seconds before
+    # their first visible token. This is only a first-token ceiling; fast
+    # responses are unaffected.
+    coach_first_token_timeout_seconds: float = 30.0
     coach_recent_message_limit: int = 10
     coach_relevant_memory_limit: int = 10
 

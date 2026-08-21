@@ -98,6 +98,29 @@ class ProviderFallbackTests(unittest.TestCase):
         self.assertEqual(chain.last_served, "gemini")
         self.assertTrue(chain.fallback_used)
 
+    def test_first_token_timeout_does_not_poison_immediate_retry(self):
+        slow = AsyncChatProvider("openai", "slow", ["late"], delay=0.03)
+        chain = CoachFallbackChain(
+            [slow],
+            requested_model="slow",
+            requested_provider="openai",
+        )
+
+        async def collect(timeout):
+            return [
+                token
+                async for token in chain.chat_stream_async(
+                    [{"role": "user", "content": "hi"}],
+                    first_token_timeout=timeout,
+                )
+            ]
+
+        with self.assertRaisesRegex(RuntimeError, "did not start responding"):
+            asyncio.run(collect(0.01))
+
+        chain.reset()
+        self.assertEqual(asyncio.run(collect(0.1)), ["late"])
+
 
 if __name__ == "__main__":
     unittest.main()
