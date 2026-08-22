@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import type { CoachModel, Job, ResumeVersion } from "@/lib/types";
 import { getStoredModelId, storeModelId } from "@/components/model-selector";
-import type { ResumeDesignStyle } from "@/components/resume/style-picker";
 import { ResumeLetterPreview } from "@/components/resume-letter-preview";
 import { ControlsRail } from "@/components/resume/controls-rail";
 import { ResumeCoachLink } from "@/components/resume/resume-coach-link";
@@ -49,7 +48,6 @@ export function ResumeWorkspace({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [resumeJobId, setResumeJobId] = useState<number | "">(lockedJobId ?? "");
   const [designState, setDesignState] = useState<"idle" | "working" | "done">("idle");
-  const [designStyle, setDesignStyle] = useState<ResumeDesignStyle>("signature");
   const [pdfState, setPdfState] = useState<"idle" | "working" | "done">("idle");
   const [docxState, setDocxState] = useState<"idle" | "working" | "done">("idle");
   const [error, setError] = useState("");
@@ -131,7 +129,7 @@ export function ResumeWorkspace({
       const jobId = effectiveJobId;
       const result = await api.generateDesignedResume(
         jobId,
-        designStyle,
+        "signature",
         resumeModel || undefined
       );
       await loadResumeVersions(result.version_id);
@@ -234,8 +232,6 @@ export function ResumeWorkspace({
       jobs={jobs}
       resumeJobId={resumeJobId}
       onJobChange={setResumeJobId}
-      designStyle={designStyle}
-      onStyleChange={setDesignStyle}
       models={models}
       resumeModel={resumeModel}
       onModelChange={(modelId) => {

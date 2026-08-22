@@ -198,7 +198,10 @@ def enrich_designed_doc(doc: dict[str, Any], profile: Profile | None) -> dict[st
         if canonical and key not in seen:
             seen.add(key)
             ordered.append(canonical)
-    out["skills"] = ordered[:18]
+    # The Claude baseline deliberately uses the sidebar for a broad but
+    # grouped skills inventory. Keep enough verified skills to preserve that
+    # structure while still imposing a deterministic one-page ceiling.
+    out["skills"] = ordered[:42]
     # Grouping is a presentation concern. Rebuild it deterministically from the
     # verified skill list instead of trusting inconsistent model categories.
     out.pop("skill_groups", None)
@@ -216,13 +219,14 @@ def prepare_one_page_resume_doc(doc: dict[str, Any]) -> dict[str, Any]:
     """Apply transparent content budgets before preview and PDF rendering."""
     out = deepcopy(doc)
     summary_words = str(out.get("summary") or "").split()
-    if len(summary_words) > 58:
-        out["summary"] = " ".join(summary_words[:58]).rstrip(" ,;:") + "."
-    out["skills"] = list(out.get("skills") or [])[:18]
+    if len(summary_words) > 52:
+        out["summary"] = " ".join(summary_words[:52]).rstrip(" ,;:") + "."
+    out["skills"] = list(out.get("skills") or [])[:42]
     out.pop("skill_groups", None)
 
     experience: list[dict[str, Any]] = []
-    for raw in (out.get("experience") or [])[:4]:
+    bullet_budgets = (5, 3, 3, 2)
+    for role_index, raw in enumerate((out.get("experience") or [])[:4]):
         if not isinstance(raw, dict):
             continue
         item = deepcopy(raw)
@@ -230,7 +234,7 @@ def prepare_one_page_resume_doc(doc: dict[str, Any]) -> dict[str, Any]:
             str(value).strip()
             for value in (item.get("highlights") or [])
             if str(value).strip()
-        ][:3]
+        ][: bullet_budgets[role_index]]
         experience.append(item)
     out["experience"] = experience
     out["projects"] = list(out.get("projects") or [])[:1]
@@ -255,33 +259,45 @@ def _signature_headline(doc: dict[str, Any], job: Job | None) -> str:
 
 _SKILL_CATEGORY_HINTS: list[tuple[str, tuple[str, ...]]] = [
     (
-        "Languages & Core",
-        ("python", "sql", "pyspark", "java", "scala", "r", "javascript", "typescript"),
-    ),
-    (
-        "GenAI & Retrieval",
+        "Data Science & ML",
         (
-            "rag", "llm", "langchain", "llamaindex", "openai", "anthropic",
-            "cohere", "prompt", "agentic", "genai", "generative", "gpt",
-            "claude", "gemini", "pinecone", "weaviate", "chroma", "kendra",
-            "embedding", "vector", "retrieval",
+            "python", "sql", "pyspark", "java", "scala", "r", "scikit",
+            "xgboost", "random forest", "feature engineering", "model evaluation",
+            "shap", "statistical", "machine learning", "nlp", "spacy", "keras",
+            "tensorflow", "pytorch",
         ),
     ),
     (
-        "ML & Statistics",
+        "Forecasting & Optimisation",
         (
-            "scikit", "xgboost", "random forest", "nlp", "spacy", "keras",
-            "tensorflow", "pytorch", "shap", "forecast", "time-series",
-            "machine learning", "statistical", "experiment", "a/b",
+            "arima", "prophet", "lstm", "forecast", "time-series", "time series",
+            "anomaly detection", "gurobi", "optimisation", "optimization",
+            "production planning",
         ),
     ),
     (
-        "Data, Cloud & MLOps",
+        "Experimentation & Measurement",
+        (
+            "test-control", "test control", "a/b", "uplift", "experiment",
+            "customer segmentation", "commercial analytics", "kpi",
+        ),
+    ),
+    (
+        "Data Platforms & Deployment",
         (
             "azure", "aws", "gcp", "databricks", "bigquery", "fastapi",
             "pandas", "numpy", "spark", "etl", "mysql", "sql server",
             "mongodb", "supabase", "postgres", "power bi", "tableau",
-            "looker", "mlops", "docker", "kubernetes",
+            "looker", "mlops", "docker", "kubernetes", "cloud run",
+        ),
+    ),
+    (
+        "AI / GenAI",
+        (
+            "rag", "llm", "langchain", "llamaindex", "openai", "anthropic",
+            "cohere", "prompt", "agentic", "genai", "generative", "gpt",
+            "claude", "gemini", "pinecone", "weaviate", "chroma", "kendra",
+            "embedding", "vector", "retrieval", "rerank",
         ),
     ),
 ]
@@ -298,8 +314,8 @@ def _auto_skill_groups(skills: list[Any]) -> list[dict[str, Any]]:
         matched = False
         for name, hints in _SKILL_CATEGORY_HINTS:
             if any(
-                re.search(rf"(?<![a-z0-9]){re.escape(h)}(?![a-z0-9])", low)
-                if len(h) <= 2
+                low == h
+                if h in {"r", "sql"}
                 else h in low
                 for h in hints
             ):
@@ -313,7 +329,13 @@ def _auto_skill_groups(skills: list[Any]) -> list[dict[str, Any]]:
         if buckets[name]:
             groups.append({"name": name, "items": buckets[name]})
     if other:
-        groups.append({"name": "Product & Delivery", "items": other})
+        buckets["Data Science & ML"].extend(other)
+        for group in groups:
+            if group["name"] == "Data Science & ML":
+                group["items"] = buckets["Data Science & ML"]
+                break
+        else:
+            groups.insert(0, {"name": "Data Science & ML", "items": other})
     return groups[:5]
 
 
@@ -380,10 +402,9 @@ def _signature_certifications(doc: dict[str, Any]) -> str:
 
 def _signature_experience(experience: list[Any], *, compact: bool) -> str:
     blocks: list[str] = []
-    max_roles = 4 if compact else 5
-    bullets_per = 3 if compact else 5
-    gap = "8px" if compact else "10px"
-    for exp in (experience or [])[:max_roles]:
+    max_roles = 4
+    bullet_budgets = (4, 3, 2, 2) if compact else (5, 3, 3, 2)
+    for role_index, exp in enumerate((experience or [])[:max_roles]):
         if not isinstance(exp, dict):
             continue
         title = _esc(exp.get("title"))
@@ -396,13 +417,13 @@ def _signature_experience(experience: list[Any], *, compact: bool) -> str:
         if highlights:
             lis = "".join(
                 f"<li>{_format_bullet(h)}</li>"
-                for h in highlights[:bullets_per]
+                for h in highlights[: bullet_budgets[role_index]]
                 if str(h).strip()
             )
             if lis:
                 bullets = f'<ul class="sig-bullets">{lis}</ul>'
         blocks.append(
-            f"""<div class="sig-role" style="margin-bottom:{gap}">
+            f"""<div class="sig-role">
   <div class="sig-role-top">
     <div class="sig-role-title">{title or company}</div>
     {f'<div class="sig-role-when">{dates}</div>' if dates else ''}
@@ -433,22 +454,21 @@ def _signature_html(doc: dict[str, Any], job: Job | None, compact: bool) -> str:
     certs = _signature_certifications(doc)
     experience = _signature_experience(doc.get("experience") or [], compact=compact)
 
-    # Reference Design Lab export: Poppins, 27/73 split, #1a2b3c sidebar, #2b6cb0 accent
-    name_size = "27px" if compact else "31px"
-    summary_size = "10.5px" if compact else "11.5px"
-    role_gap = "8px" if compact else "10px"
-    side_gap = "12px" if compact else "16px"
-    main_pad = "9mm 11mm 9mm" if compact else "10.668mm 12.7mm 10.668mm"
-    side_pad = "9mm 7mm 9mm 10.668mm" if compact else "10.668mm 8.128mm 10.668mm 10.668mm"
+    # Claude Design baseline (Ajay Resume.zip / Resume.dc.html): Calibri,
+    # 28/72 split, #1a2b3c sidebar and #2b6cb0 accent. A4 changes only the
+    # physical sheet; the template's visual proportions remain fixed.
+    name_size = "23px" if compact else "24px"
+    summary_size = "10.5px" if compact else "11px"
+    role_gap = "7px" if compact else "10px"
+    side_gap = "14px" if compact else "18px"
+    main_pad = "8mm 9mm 8mm" if compact else "8.89mm 9.65mm 9.65mm"
+    side_pad = "8mm 6.5mm" if compact else "8.89mm 7.11mm"
 
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
 <title>{name} — Resume</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
 {A4_PAGE_CSS}
 :root {{
@@ -467,7 +487,7 @@ def _signature_html(doc: dict[str, Any], job: Job | None, compact: bool) -> str:
 * {{ box-sizing: border-box; margin: 0; padding: 0; }}
 html, body {{
   width: 210mm; min-height: 297mm; background: #fff; color: var(--ink-body);
-  font-family: Poppins, system-ui, sans-serif;
+  font-family: Calibri, "Segoe UI", Arial, sans-serif;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }}
 a {{ color: var(--link); text-decoration: none; }}
@@ -475,63 +495,71 @@ a {{ color: var(--link); text-decoration: none; }}
   width: 210mm; height: 297mm; display: flex;
 }}
 .sidebar {{
-  width: 27%; background: var(--sidebar-bg); color: var(--sidebar-text);
-  padding: {side_pad}; display: flex; flex-direction: column; gap: {side_gap};
+  width: 28%; background: var(--sidebar-bg); color: var(--sidebar-text);
+  padding: {side_pad}; display: flex; flex-direction: column;
+  justify-content: space-between; gap: {side_gap};
 }}
 .side-label {{
-  font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--sidebar-label); margin-bottom: 9px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--sidebar-label); margin-bottom: 10px;
 }}
 .side-contact {{
-  display: flex; flex-direction: column; gap: 7px;
-  font-size: 11px; line-height: 1.4; color: var(--sidebar-text);
+  display: flex; flex-direction: column; gap: 8px;
+  font-size: 11.5px; line-height: 1.45; color: var(--sidebar-text);
 }}
-.side-edu {{ margin-bottom: 2px; }}
+.side-edu {{ margin-bottom: 9px; }}
+.side-edu:last-child {{ margin-bottom: 0; }}
 .side-edu-degree {{
-  font-size: 12px; font-weight: 600; color: var(--sidebar-heading); line-height: 1.35;
+  font-size: 12.5px; font-weight: 600; color: var(--sidebar-heading); line-height: 1.35;
 }}
-.side-edu-school {{ font-size: 10.5px; color: var(--sidebar-muted); margin-top: 2px; }}
-.skill-group {{ margin-bottom: 2px; }}
-.skill-cat {{ font-weight: 600; color: var(--sidebar-heading); margin-bottom: 3px; font-size: 10.5px; }}
-.skill-items {{ color: var(--sidebar-text); line-height: 1.4; font-size: 10.5px; }}
+.side-edu-school {{ font-size: 11px; color: var(--sidebar-muted); margin-top: 2px; }}
+.skill-group {{ margin-bottom: 10px; }}
+.skill-group:last-child {{ margin-bottom: 0; }}
+.skill-cat {{ font-weight: 600; color: var(--sidebar-heading); margin-bottom: 3px; font-size: 11px; }}
+.skill-items {{ color: var(--sidebar-text); line-height: 1.45; font-size: 11px; }}
 .side-certs {{
   display: flex; flex-direction: column; gap: 8px;
-  font-size: 11px; color: var(--sidebar-text); line-height: 1.45;
+  font-size: 11.5px; color: var(--sidebar-text); line-height: 1.455;
 }}
 .main {{
-  width: 73%; padding: {main_pad}; box-sizing: border-box;
+  width: 72%; padding: {main_pad}; box-sizing: border-box;
+  display: flex; flex-direction: column;
 }}
-.main-header {{ margin-bottom: {"14px" if compact else "18px"}; }}
+.main-header {{ margin-bottom: 7px; }}
 .main-name {{
   font-size: {name_size}; font-weight: 700; letter-spacing: 0.01em;
   margin: 0; color: var(--ink); line-height: 1.05;
 }}
 .main-tagline {{
   font-size: 12px; font-weight: 600; color: var(--accent);
-  letter-spacing: 0.06em; text-transform: uppercase; margin-top: 6px;
+  letter-spacing: 0.06em; text-transform: uppercase; margin-top: 4px;
 }}
 .main-summary {{
-  font-size: {summary_size}; line-height: 1.55; color: var(--body);
-  margin: 0 0 {"10px" if compact else "13px"}; text-wrap: pretty;
+  font-size: {summary_size}; line-height: 1.5; color: var(--body);
+  margin: 0 0 8px; text-wrap: pretty;
 }}
+.experience-section {{ flex: 1; display: flex; flex-direction: column; }}
 .exp-heading {{
   font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
   color: var(--ink); margin: 0 0 4px; padding-bottom: 6px;
   border-bottom: 2px solid var(--ink);
 }}
-.sig-roles {{ margin-top: {"8px" if compact else "10px"}; display: flex; flex-direction: column; gap: {role_gap}; }}
+.sig-roles {{
+  margin-top: 10px; flex: 1; display: flex; flex-direction: column;
+  justify-content: space-between; gap: {role_gap};
+}}
 .sig-role-top {{
   display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
 }}
-.sig-role-title {{ font-size: 13px; font-weight: 600; color: var(--ink-body); }}
-.sig-role-when {{ font-size: 10px; color: var(--muted); white-space: nowrap; font-weight: 500; }}
+.sig-role-title {{ font-size: 13.5px; font-weight: 600; color: var(--ink-body); }}
+.sig-role-when {{ font-size: 10.5px; color: var(--muted); white-space: nowrap; font-weight: 500; }}
 .sig-role-org {{
-  font-size: 11px; color: var(--accent); font-weight: 500;
-  margin: 2px 0 {"6px" if compact else "8px"};
+  font-size: 11.5px; color: var(--accent); font-weight: 500;
+  margin: 2px 0 8px;
 }}
 .sig-bullets {{
-  margin: 0; padding-left: 15px; font-size: 11px; line-height: {"1.45" if compact else "1.5"};
-  color: var(--body); display: flex; flex-direction: column; gap: {"4px" if compact else "5px"};
+  margin: 0; padding-left: 15px; font-size: {"11px" if compact else "11.5px"};
+  line-height: 1.4; color: var(--body); display: flex; flex-direction: column; gap: 3px;
 }}
 </style>
 </head>
@@ -549,7 +577,7 @@ a {{ color: var(--link); text-decoration: none; }}
       <div class="main-tagline">{headline}</div>
     </header>
     {f'<p class="main-summary">{summary}</p>' if summary else ""}
-    {f'<section><h2 class="exp-heading">Experience</h2><div class="sig-roles">{experience}</div></section>' if experience else ""}
+    {f'<section class="experience-section"><h2 class="exp-heading">Experience</h2><div class="sig-roles">{experience}</div></section>' if experience else ""}
   </main>
 </div>
 </body>

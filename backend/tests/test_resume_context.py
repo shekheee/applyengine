@@ -100,7 +100,7 @@ class ResumeContextTests(unittest.TestCase):
         self.assertEqual(enriched["education"], profile.education)
         self.assertNotIn("Invented Framework", enriched["skills"])
         self.assertNotIn("skill_groups", enriched)
-        self.assertEqual(len(enriched["skills"]), 18)
+        self.assertEqual(len(enriched["skills"]), 24)
         self.assertEqual(enriched["certifications"], [])
 
     def test_one_page_budget_limits_density_before_preview(self):
@@ -121,14 +121,20 @@ class ResumeContextTests(unittest.TestCase):
         fitted = prepare_one_page_resume_doc(doc)
         rendered = render_resume_template(fitted, style="signature", compact=False)
 
-        self.assertLessEqual(len(fitted["summary"].split()), 58)
-        self.assertEqual(len(fitted["skills"]), 18)
+        self.assertLessEqual(len(fitted["summary"].split()), 52)
+        self.assertEqual(len(fitted["skills"]), 30)
         self.assertEqual(len(fitted["experience"]), 4)
-        self.assertTrue(all(len(item["highlights"]) == 3 for item in fitted["experience"]))
+        self.assertEqual(
+            [len(item["highlights"]) for item in fitted["experience"]],
+            [5, 3, 3, 2],
+        )
         self.assertIn("margin: 0", rendered)
         self.assertIn("height: 297mm", rendered)
+        self.assertIn('font-family: Calibri, "Segoe UI", Arial, sans-serif', rendered)
+        self.assertIn("width: 28%", rendered)
+        self.assertIn("justify-content: space-between", rendered)
         self.assertNotIn("min-height: 100%", rendered)
-        self.assertNotIn("Impact 5", rendered)
+        self.assertEqual(rendered.count("Impact 5"), 0)
 
     def test_profile_serialization_includes_contact_links_and_education(self):
         profile = Profile(
@@ -150,13 +156,16 @@ class ResumeContextTests(unittest.TestCase):
 
     def test_skill_groups_keep_rag_out_of_single_letter_r_language(self):
         groups = _auto_skill_groups(
-            ["R", "Python", "RAG & reranking", "Prompt engineering", "GCP"]
+            ["R", "Python", "SQL", "SQL Server", "RAG & reranking", "Prompt engineering", "GCP"]
         )
         by_name = {group["name"]: group["items"] for group in groups}
 
-        self.assertIn("R", by_name["Languages & Core"])
-        self.assertNotIn("RAG & reranking", by_name["Languages & Core"])
-        self.assertIn("RAG & reranking", by_name["GenAI & Retrieval"])
+        self.assertIn("R", by_name["Data Science & ML"])
+        self.assertIn("SQL", by_name["Data Science & ML"])
+        self.assertNotIn("SQL Server", by_name["Data Science & ML"])
+        self.assertIn("SQL Server", by_name["Data Platforms & Deployment"])
+        self.assertNotIn("RAG & reranking", by_name["Data Science & ML"])
+        self.assertIn("RAG & reranking", by_name["AI / GenAI"])
 
     def test_coach_context_serializes_overlapping_projects_once(self):
         first = (

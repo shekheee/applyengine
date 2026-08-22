@@ -1,12 +1,10 @@
 "use client";
 
 import { Button, Label, Select, cn } from "@/components/ui";
-import type { ResumeDesignStyle } from "@/components/resume/style-picker";
 import type { CoachModel } from "@/lib/types";
 
 export function GenerateSection({
   designState,
-  designStyle,
   models,
   resumeModel,
   onModelChange,
@@ -16,7 +14,6 @@ export function GenerateSection({
   lockedJobLabel,
 }: {
   designState: "idle" | "working" | "done";
-  designStyle: ResumeDesignStyle;
   models: CoachModel[];
   resumeModel: string;
   onModelChange: (modelId: string) => void;
@@ -59,7 +56,7 @@ export function GenerateSection({
         <p className="mt-1.5 text-[var(--muted)]">
           {isApplication ? (
             <>
-              ApplyEngine redesigns your <strong className="font-medium text-[var(--text)]">base upload</strong>{" "}
+              ApplyEngine updates your <strong className="font-medium text-[var(--text)]">base upload</strong>{" "}
               for{" "}
               {lockedJobLabel ? (
                 <strong className="font-medium text-[var(--primary-2)]">{lockedJobLabel}</strong>
@@ -71,20 +68,12 @@ export function GenerateSection({
           ) : (
             <>
               The selected model tightens and prioritises your verified experience. ApplyEngine then renders it
-              with fixed A4 typography, factual contact details, bounded skills, and a three-bullet-per-role budget.
+              inside the fixed one-page Claude baseline, while preserving factual contact details and section order.
             </>
           )}
         </p>
         <p className="mt-2 text-[11px] text-[var(--muted-2)]">
-          Style:{" "}
-          {designStyle === "signature"
-            ? "Signature sidebar"
-            : designStyle === "editorial"
-              ? "Modern editorial"
-              : designStyle === "executive"
-                ? "Teal sidebar"
-                : "Refined minimal"}{" "}
-          · PDF uses Chromium print for pixel fidelity
+          Layout: Claude baseline · PDF uses Chromium print for pixel fidelity
         </p>
       </div>
 
@@ -122,7 +111,7 @@ export function GenerateSection({
 
       {working && (
         <p className="text-center text-[10px] text-[var(--primary-2)] motion-safe:animate-pulse motion-reduce:animate-none">
-          Applying {designStyle} layout · do not close this tab
+          Updating your Claude baseline · do not close this tab
         </p>
       )}
     </div>

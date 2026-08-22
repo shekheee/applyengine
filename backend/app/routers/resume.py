@@ -150,11 +150,11 @@ def generate_designed_resume(
     profile = _latest_profile(user, session)
     memories = _user_memories(user, session)
     job = _optional_job(user, session, job_id)
-    style_key = (
-        style
-        if style in ("signature", "editorial", "executive", "minimal")
-        else "signature"
-    )
+    # New versions always use the user-approved Claude baseline. Retain the
+    # style parameter only for API compatibility with older frontends; saved
+    # historical versions keep their original template metadata.
+    del style
+    style_key = "signature"
     try:
         doc, provider, model_served = design_resume_with_ai(
             profile, memories, job, model_id=model

@@ -4,7 +4,6 @@ import type { CoachModel, Job, ResumeVersion } from "@/lib/types";
 import { ResumeUpload } from "@/components/resume-upload";
 import { SectionShell } from "./section-shell";
 import { VersionPicker } from "./version-picker";
-import { StylePicker, type ResumeDesignStyle } from "./style-picker";
 import { GenerateSection } from "./generate-section";
 import { ExportSection } from "./export-section";
 import { Select } from "@/components/ui";
@@ -20,8 +19,6 @@ export function ControlsRail({
   jobs,
   resumeJobId,
   onJobChange,
-  designStyle,
-  onStyleChange,
   models,
   resumeModel,
   onModelChange,
@@ -46,8 +43,6 @@ export function ControlsRail({
   jobs: Job[];
   resumeJobId: number | "";
   onJobChange: (id: number | "") => void;
-  designStyle: ResumeDesignStyle;
-  onStyleChange: (style: ResumeDesignStyle) => void;
   models: CoachModel[];
   resumeModel: string;
   onModelChange: (modelId: string) => void;
@@ -130,15 +125,19 @@ export function ControlsRail({
 
       <SectionShell
         title="Generate"
-        description="The model polishes and prioritises verified content; ApplyEngine controls the A4 layout."
+        description="The model updates verified content inside your fixed Claude baseline."
         icon="✦"
         accent="primary"
       >
         <div className="space-y-4">
-          <StylePicker value={designStyle} onChange={onStyleChange} />
+          <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-2)] px-3 py-3">
+            <p className="text-xs font-semibold text-[var(--text)]">Claude baseline · locked</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-[var(--muted)]">
+              One-page A4 · navy sidebar · original section order. Generation changes content only.
+            </p>
+          </div>
           <GenerateSection
             designState={designState}
-            designStyle={designStyle}
             models={models}
             resumeModel={resumeModel}
             onModelChange={onModelChange}

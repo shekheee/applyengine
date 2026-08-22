@@ -11,7 +11,7 @@ export default function ResumePage() {
           <span className="inline-flex items-center rounded-full border bg-[var(--panel-2)] px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-[var(--primary-2)]" style={{ borderColor: "color-mix(in srgb, var(--primary) 30%, var(--border))" }}>
             ApplyEngine skill
           </span>
-          <span className="text-xs text-[var(--muted-2)]">GPT-powered · Professional A4 templates</span>
+          <span className="text-xs text-[var(--muted-2)]">AI-assisted · Fixed Claude baseline</span>
         </div>
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div className="min-w-0 max-w-2xl">
@@ -19,8 +19,8 @@ export default function ResumePage() {
               Resume
             </h1>
             <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
-              A preview-first workspace for your one-page resume. Upload your base document, generate a
-              premium design, inspect the full A4 canvas, then export a Chromium-rendered PDF or
+              A preview-first workspace for your one-page resume. Upload your base document, update
+              verified content inside your approved Claude design, then export a Chromium-rendered PDF or
               Google Docs–ready Word file.
             </p>
           </div>
@@ -29,7 +29,7 @@ export default function ResumePage() {
               {[
                 ["210×297", "A4 page"],
                 ["1 page", "PDF export"],
-                ["4 styles", "Signature · Editorial · Sidebar · Minimal"],
+                ["Locked", "Claude baseline"],
               ].map(([value, label]) => (
                 <div key={label} className="text-right">
                   <dt className="text-[10px] font-medium uppercase tracking-wider text-[var(--muted-2)]">
