@@ -10,7 +10,7 @@ from sqlmodel import Session, SQLModel, create_engine, select
 from app.auth import get_current_user
 from app.db import get_session
 from app.main import app
-from app.models import InterviewSession, InterviewTurn, User
+from app.models import InterviewSession, InterviewTurn, Profile, User
 from app.routers import interview
 
 
@@ -105,7 +105,7 @@ class RealtimeInterviewTests(unittest.TestCase):
         )
         turn_detection = config["audio"]["input"]["turn_detection"]
         self.assertEqual(turn_detection["type"], "semantic_vad")
-        self.assertEqual(turn_detection["eagerness"], "medium")
+        self.assertEqual(turn_detection["eagerness"], "low")
         self.assertFalse(turn_detection["interrupt_response"])
         self.assertEqual(config["audio"]["input"]["noise_reduction"]["type"], "far_field")
         self.assertEqual(config["audio"]["output"]["speed"], 1.15)
@@ -145,6 +145,43 @@ class RealtimeInterviewTests(unittest.TestCase):
             self.assertEqual(len(turns), 2)
             self.assertEqual(turns[0].scores["transport"], "webrtc")
             self.assertEqual(turns[1].scores["latency_ms"], 640)
+
+    def test_realtime_error_metadata_is_retained_for_diagnosis(self):
+        with Session(self.engine) as session:
+            session.add(
+                Profile(
+                    user_id=self.user_id,
+                    name="Interview Test",
+                    experience=[{"company": "Former Company"}],
+                    is_base=True,
+                )
+            )
+            session.commit()
+        response = self.client.post(
+            f"/api/interview/sessions/{self.session_id}/realtime/errors",
+            json={
+                "code": "conversation_already_has_active_response",
+                "message": (
+                    "  Interview Test received an error while discussing Former Company.\n"
+                    "Please retry.  "
+                ),
+                "param": "response",
+                "event_id": "event-123",
+                "event_type": "error",
+            },
+        )
+
+        self.assertEqual(response.status_code, 204)
+        with Session(self.engine) as session:
+            interview_session = session.get(InterviewSession, self.session_id)
+            self.assertIsNotNone(interview_session)
+            error = interview_session.live_state["last_realtime_error"]
+            self.assertEqual(error["code"], "conversation_already_has_active_response")
+            self.assertNotIn("Interview Test", error["message"])
+            self.assertNotIn("Former Company", error["message"])
+            self.assertIn("Please retry.", error["message"])
+            self.assertEqual(error["event_id"], "event-123")
+            self.assertEqual(len(interview_session.live_state["realtime_errors"]), 1)
 
 
 if __name__ == "__main__":

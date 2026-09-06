@@ -131,5 +131,7 @@ def test_realtime_instructions_keep_live_turns_short_and_assessment_separate():
 
     assert "under 25 words" in instructions
     assert "Ask exactly one direct question" in instructions
+    assert "ends mid-sentence or clearly mid-thought" in instructions
+    assert "Take your time — please continue." in instructions
     assert "Do not coach, score" in instructions
     assert "call the end_interview tool" in instructions

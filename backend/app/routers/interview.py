@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 from types import SimpleNamespace
@@ -29,6 +30,7 @@ from app.schemas import (
     InterviewRealtimeTurnIn,
     InterviewDeliveryUpdateIn,
     InterviewProgressOut,
+    InterviewRealtimeErrorIn,
     InterviewSessionCreate,
     InterviewSessionOut,
     InterviewSessionUpdate,
@@ -64,10 +66,12 @@ from app.services.speech import (
     transcribe_audio,
 )
 from app.services.profiles import get_base_profile
+from app.services.privacy import IdentifierPrivacy
 from app.services.serialize import profile_to_text
 
 router = APIRouter(prefix="/api/interview", tags=["interview"])
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 def _parse_client_metrics(raw: str | None) -> dict:
@@ -491,10 +495,11 @@ async def create_realtime_interview(
                 },
                 "noise_reduction": {"type": "far_field"},
                 "turn_detection": {
-                    # Meaning-aware pauses let the candidate collect a thought
-                    # without imposing the same delay after a completed answer.
+                    # Low-eagerness semantic VAD is deliberately patient with
+                    # thinking pauses. Its timeout remains dynamic, so an
+                    # answer that sounds complete can still close promptly.
                     "type": "semantic_vad",
-                    "eagerness": "medium",
+                    "eagerness": "low",
                     "create_response": True,
                     # Deliberate barge-in is confirmed in the browser. A brief
                     # noise event must not cancel the interviewer mid-sentence.
@@ -553,6 +558,46 @@ async def create_realtime_interview(
         media_type="application/sdp",
         headers={"X-Realtime-Model": settings.openai_realtime_model},
     )
+
+
+@router.post("/sessions/{session_id}/realtime/errors", status_code=204)
+def save_realtime_interview_error(
+    session_id: int,
+    body: InterviewRealtimeErrorIn,
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Persist safe WebRTC error metadata that otherwise exists only in-browser."""
+    interview = _owned_session(session_id, user, db)
+    privacy = IdentifierPrivacy.from_profile(get_base_profile(user, db))
+    safe_message = privacy.mask_text(" ".join(body.message.split()))[:1000]
+    record = {
+        "code": body.code.strip() or "realtime_error",
+        "message": safe_message or "Unknown realtime error",
+        "param": body.param.strip(),
+        "event_id": body.event_id.strip(),
+        "event_type": body.event_type.strip() or "error",
+        "occurred_at": datetime.now(timezone.utc).isoformat(),
+    }
+    state = dict(interview.live_state or {})
+    history = [
+        item for item in (state.get("realtime_errors") or []) if isinstance(item, dict)
+    ][-4:]
+    history.append(record)
+    state["last_realtime_error"] = record
+    state["realtime_errors"] = history
+    interview.live_state = state
+    interview.updated_at = datetime.now(timezone.utc)
+    db.add(interview)
+    db.commit()
+    logger.warning(
+        "Realtime interview error session=%s code=%s event_id=%s message=%s",
+        session_id,
+        record["code"],
+        record["event_id"] or "none",
+        record["message"],
+    )
+    return Response(status_code=204)
 
 
 @router.post(

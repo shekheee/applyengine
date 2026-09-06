@@ -19,6 +19,47 @@ export type RealtimeInterviewTurn = {
   latencyMs?: number;
 };
 
+type RealtimeErrorDetails = {
+  code: string;
+  message: string;
+  param: string;
+  eventId: string;
+  eventType: string;
+};
+
+function clippedText(value: unknown, fallback: string, maxLength: number): string {
+  const text = typeof value === "string" ? value.trim() : "";
+  return (text || fallback).slice(0, maxLength);
+}
+
+export function realtimeErrorDetails(
+  event: Record<string, unknown>
+): RealtimeErrorDetails {
+  const nested =
+    event.error && typeof event.error === "object"
+      ? (event.error as Record<string, unknown>)
+      : {};
+  return {
+    code: clippedText(
+      nested.code ?? nested.type ?? event.code,
+      "realtime_error",
+      120
+    ),
+    message: clippedText(
+      nested.message ?? event.message,
+      "The realtime service reported an unknown error.",
+      1000
+    ),
+    param: clippedText(nested.param ?? event.param, "", 240),
+    eventId: clippedText(nested.event_id ?? event.event_id, "", 160),
+    eventType: clippedText(event.type, "error", 120),
+  };
+}
+
+function realtimeErrorMessage(details: RealtimeErrorDetails): string {
+  return `Realtime issue (${details.code}): ${details.message} The live connection may still work; continue speaking or switch to recorded-answer mode if it repeats.`;
+}
+
 function responseStopReason(message: Record<string, unknown>): string {
   const response = (message.response || {}) as Record<string, unknown>;
   const status = String(response.status || "");
@@ -330,7 +371,18 @@ export function useRealtimeInterview({
           }
           manualInterruptRef.current = false;
         } else if (type === "error") {
-          setError("The realtime interviewer hit an error. Switch to recorded-answer mode.");
+          const details = realtimeErrorDetails(message);
+          console.warn("OpenAI Realtime interview error", details);
+          void api
+            .saveRealtimeInterviewError(sessionId, {
+              code: details.code,
+              message: details.message,
+              param: details.param,
+              event_id: details.eventId,
+              event_type: details.eventType,
+            })
+            .catch(() => undefined);
+          setError(realtimeErrorMessage(details));
         }
       };
 

@@ -1177,6 +1177,21 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
+  saveRealtimeInterviewError: (
+    sessionId: number,
+    body: {
+      code: string;
+      message: string;
+      param?: string;
+      event_id?: string;
+      event_type?: string;
+    }
+  ) =>
+    req<void>(`/api/interview/sessions/${sessionId}/realtime/errors`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
   liveInterviewTurnStream: async (
     sessionId: number,
     onToken: (token: string) => void,

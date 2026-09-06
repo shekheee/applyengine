@@ -284,6 +284,14 @@ class InterviewRealtimeTurnIn(BaseModel):
     latency_ms: int | None = None
 
 
+class InterviewRealtimeErrorIn(BaseModel):
+    code: str = Field(default="realtime_error", max_length=120)
+    message: str = Field(default="Unknown realtime error", max_length=1000)
+    param: str = Field(default="", max_length=240)
+    event_id: str = Field(default="", max_length=160)
+    event_type: str = Field(default="error", max_length=120)
+
+
 class InterviewAnswerIn(BaseModel):
     answer: str
     question_index: int | None = None

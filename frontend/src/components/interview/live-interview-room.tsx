@@ -681,7 +681,7 @@ export function LiveInterviewRoom({
             </p>
             {realtime.isActive && !legacyMode && (
               <p className="text-xs text-emerald-300/90">
-                Live WebRTC · {realtime.model || "OpenAI Realtime"} · continuous listening
+                Live WebRTC · {realtime.model || "OpenAI Realtime"} · pause-aware listening
               </p>
             )}
             {session.curriculum_topic ? (
