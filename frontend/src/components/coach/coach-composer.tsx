@@ -72,7 +72,7 @@ export function CoachComposer({
   return (
     <div className="coach-composer shrink-0 px-2 pb-2 pt-1 sm:px-3 sm:pb-3">
       <div
-        className="coach-composer-shell mx-auto w-full min-w-0 overflow-visible rounded-2xl border transition-shadow focus-within:shadow-[0_0_0_3px_var(--glow-soft)]"
+        className="coach-composer-shell relative mx-auto w-full min-w-0 overflow-visible rounded-2xl border transition-shadow focus-within:shadow-[0_0_0_3px_var(--glow-soft)]"
         style={{
           borderColor: "var(--border-strong)",
           background: "var(--panel-2)",
@@ -195,12 +195,12 @@ export function CoachComposer({
               onChange={onModelChange}
               disabled={streaming || models.length === 0}
             />
-            <details className="group relative">
+            <details className="group static sm:relative">
               <summary className="flex h-[30px] cursor-pointer list-none items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--panel)] px-2.5 text-xs font-medium text-[var(--muted)] hover:bg-[var(--panel-2)] hover:text-[var(--text)]">
                 Controls
                 <span aria-hidden className="transition-transform group-open:rotate-180">⌃</span>
               </summary>
-              <div className="absolute bottom-full left-0 z-50 mb-2 w-[min(19rem,calc(100vw-2rem))] space-y-4 rounded-xl border border-[var(--border-strong)] bg-[var(--panel)] p-4 shadow-[var(--shadow-lg)]">
+              <div className="absolute bottom-full left-2 right-2 z-50 mb-2 w-auto space-y-4 rounded-xl border border-[var(--border-strong)] bg-[var(--panel)] p-4 shadow-[var(--shadow-lg)] sm:left-0 sm:right-auto sm:w-76">
                 <ComposerSetting label="Thinking depth" hint="Higher depth is slower">
                   <select value={reasoningEffort} onChange={(event) => onReasoningEffortChange(event.target.value as ReasoningEffort)} disabled={streaming} className="input-field w-full rounded-lg border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-sm text-[var(--text)]">
                     <option value="medium">Medium</option><option value="high">Hard</option><option value="xhigh">Very hard</option>

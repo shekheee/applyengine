@@ -76,6 +76,8 @@ class Application(SQLModel, table=True):
     status: ApplicationStatus = Field(default=ApplicationStatus.saved, index=True)
 
     fit_score: float | None = None
+    fit_version: str = "1.0"
+    fit_breakdown: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     keyword_coverage: float | None = None
     matched_keywords: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     missing_keywords: list[str] = Field(default_factory=list, sa_column=Column(JSON))

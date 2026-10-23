@@ -31,14 +31,26 @@ def _owned_application(app_id: int, user: User, session: Session) -> Application
 
 def _compute_application_fit(profile: Profile, job: Job) -> dict:
     privacy = IdentifierPrivacy.from_profile(profile)
-    profile_text = privacy.mask_text(profile_to_text(profile))
-    job_text = job_to_text(job)
+    # Score the complete source documents when available. Parsed summaries can
+    # omit evidence that is relevant to an individual requirement.
+    profile_text = privacy.mask_text(profile.raw_text or profile_to_text(profile))
+    job_text = job.raw_text or job_to_text(job)
     skills = profile.skills or []
     keywords = job.keywords or []
-    fit = compute_fit(profile_text, job_text, keywords, skills)
+    fit = compute_fit(
+        profile_text,
+        job_text,
+        keywords,
+        skills,
+        job_requirements=job.requirements or [],
+        job_seniority=job.seniority or "",
+        profile_experience=profile.experience or [],
+    )
     analysis = privacy.restore_text(gap_analysis(profile_text, job_text, fit))
     return {
         "fit_score": fit["fit_score"],
+        "fit_version": fit["fit_version"],
+        "fit_breakdown": fit["fit_breakdown"],
         "keyword_coverage": fit["keyword_coverage"],
         "matched_keywords": fit["matched_keywords"],
         "missing_keywords": fit["missing_keywords"],
@@ -54,6 +66,8 @@ def _apply_fit_to_application(
     fit_fields = _compute_application_fit(profile, job)
     app_row.profile_id = profile.id
     app_row.fit_score = fit_fields["fit_score"]
+    app_row.fit_version = fit_fields["fit_version"]
+    app_row.fit_breakdown = fit_fields["fit_breakdown"]
     app_row.keyword_coverage = fit_fields["keyword_coverage"]
     app_row.matched_keywords = fit_fields["matched_keywords"]
     app_row.missing_keywords = fit_fields["missing_keywords"]
@@ -88,6 +102,8 @@ def create_application(
         profile_id=profile.id,
         status=ApplicationStatus.saved,
         fit_score=fit_fields["fit_score"],
+        fit_version=fit_fields["fit_version"],
+        fit_breakdown=fit_fields["fit_breakdown"],
         keyword_coverage=fit_fields["keyword_coverage"],
         matched_keywords=fit_fields["matched_keywords"],
         missing_keywords=fit_fields["missing_keywords"],

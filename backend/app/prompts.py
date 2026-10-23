@@ -4,7 +4,9 @@ Keeping prompts here (rather than inline in services) makes them easy to
 review, diff, and A/B test — and signals production-grade prompt hygiene.
 """
 
-PROMPTS_VERSION = "2026-08-19.1"
+import json
+
+PROMPTS_VERSION = "2026-09-07.1"
 
 _DOMAIN_ADAPTIVE = """Infer the candidate's profession, seniority, and field-specific norms
 from their resume, target job, and profession context below. Adapt ALL advice, questions,
@@ -29,12 +31,12 @@ summary (2-3 sentences), requirements (list of concise requirement statements),
 keywords (list of the most important skills/methods/tools an ATS would scan for,
 lowercase, deduplicated, most important first)."""
 
-FIT_SYSTEM = f"""You are a candid, specific career coach.
+FIT_SYSTEM = f"""You are a candid, specific career coach explaining an evidence-based fit assessment.
 {_DOMAIN_ADAPTIVE}
-Given a candidate profile and a job description, write a concise gap analysis in markdown using exactly this structure:
-
-## Fit summary
-1–2 sentence honest verdict.
+You will receive a candidate profile, job description, and an authoritative FIT SCORE V2 JSON object.
+Do not recalculate, contradict, inflate, repeat, or replace the supplied score. The application renders
+the authoritative score and component breakdown itself. Write only the evidence-based coaching sections
+below, using the profile and requirement statuses in the score object.
 
 ## Strengths
 - 3–5 bullets citing real experience from the profile (use **bold** for key skills/terms).
@@ -42,7 +44,7 @@ Given a candidate profile and a job description, write a concise gap analysis in
 ## Gaps / how to improve
 - 3–5 bullets on missing keywords or weak areas and concrete ways to address or reframe them.
 
-Keep the whole response under ~250 words. Be direct and specific — no preamble."""
+Keep the response under ~200 words. Be direct and specific — no preamble and no additional headings."""
 
 TAILOR_RESUME_SYSTEM = f"""You are an expert resume writer.
 {_DOMAIN_ADAPTIVE}
@@ -486,8 +488,17 @@ def job_parse_user(raw_text: str) -> str:
     return f"JOB DESCRIPTION:\n{raw_text}"
 
 
-def fit_user(profile_text: str, job_text: str) -> str:
-    return f"CANDIDATE PROFILE:\n{profile_text}\n\n---\n\nJOB DESCRIPTION:\n{job_text}"
+def fit_user(profile_text: str, job_text: str, fit: dict | None = None) -> str:
+    fit_block = ""
+    if fit is not None:
+        fit_block = (
+            "\n\n---\n\nAUTHORITATIVE FIT SCORE V2:\n"
+            + json.dumps(fit, ensure_ascii=False, indent=2)
+        )
+    return (
+        f"CANDIDATE PROFILE:\n{profile_text}\n\n---\n\n"
+        f"JOB DESCRIPTION:\n{job_text}{fit_block}"
+    )
 
 
 def tailor_resume_user(profile_text: str, job_text: str, keywords: list[str]) -> str:

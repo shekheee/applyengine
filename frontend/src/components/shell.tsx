@@ -74,7 +74,7 @@ function DesktopSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="app-chrome app-sidebar fixed inset-y-0 left-0 z-50 hidden w-60 flex-col border-r border-[var(--border)] bg-[var(--sidebar)] lg:flex">
+    <aside className="app-chrome app-sidebar fixed inset-y-0 left-0 z-50 hidden w-60 flex-col border-r border-[var(--border)] bg-[var(--sidebar)] xl:flex">
       <div className="flex h-16 items-center gap-3 border-b border-[var(--border)] px-5">
         <BrandMark />
         <div className="min-w-0">
@@ -137,7 +137,7 @@ function MobileChrome() {
 
   return (
     <>
-      <header className="app-chrome app-mobile-header sticky top-0 z-40 flex h-14 items-center justify-between border-b border-[var(--border)] bg-[var(--sidebar)]/95 px-4 backdrop-blur lg:hidden">
+      <header className="app-chrome app-mobile-header sticky top-0 z-40 flex h-[calc(3.5rem+env(safe-area-inset-top))] items-center justify-between border-b border-[var(--border)] bg-[var(--sidebar)]/95 px-4 pt-[env(safe-area-inset-top)] backdrop-blur xl:hidden">
         <Link href="/" className="flex items-center gap-2.5">
           <BrandMark />
           <span className="text-sm font-semibold tracking-tight">ApplyEngine</span>
@@ -146,17 +146,25 @@ function MobileChrome() {
       </header>
 
       {moreOpen && (
-        <div className="app-chrome fixed inset-x-3 bottom-[4.75rem] z-50 rounded-xl border border-[var(--border-strong)] bg-[var(--panel)] p-2 shadow-[var(--shadow-lg)] lg:hidden">
-          {MOBILE_MORE_NAV.map((item) => (
-            <Link key={item.href} href={item.href} onClick={() => setMoreOpen(false)} className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-[var(--text-secondary)] hover:bg-[var(--panel-2)]">
-              <NavIcon name={item.icon} className="text-[var(--muted)]" />{item.label}
-            </Link>
-          ))}
-          <button type="button" onClick={logout} className="flex min-h-11 w-full items-center rounded-lg px-3 text-sm text-[var(--muted)] hover:bg-[var(--panel-2)] hover:text-[var(--text)]">Log out</button>
-        </div>
+        <>
+          <button
+            type="button"
+            className="app-chrome fixed inset-0 z-40 bg-black/35 xl:hidden"
+            aria-label="Close more navigation"
+            onClick={() => setMoreOpen(false)}
+          />
+          <div className="app-chrome fixed inset-x-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-50 max-h-[min(70dvh,28rem)] overflow-y-auto rounded-xl border border-[var(--border-strong)] bg-[var(--panel)] p-2 shadow-[var(--shadow-lg)] xl:hidden">
+            {MOBILE_MORE_NAV.map((item) => (
+              <Link key={item.href} href={item.href} onClick={() => setMoreOpen(false)} className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-[var(--text-secondary)] hover:bg-[var(--panel-2)]">
+                <NavIcon name={item.icon} className="text-[var(--muted)]" />{item.label}
+              </Link>
+            ))}
+            <button type="button" onClick={logout} className="flex min-h-11 w-full items-center rounded-lg px-3 text-sm text-[var(--muted)] hover:bg-[var(--panel-2)] hover:text-[var(--text)]">Log out</button>
+          </div>
+        </>
       )}
 
-      <nav className="app-chrome app-mobile-nav fixed inset-x-0 bottom-0 z-50 grid h-[4.25rem] grid-cols-4 border-t border-[var(--border)] bg-[var(--sidebar)]/98 px-2 pb-[env(safe-area-inset-bottom)] lg:hidden" aria-label="Mobile navigation">
+      <nav className="app-chrome app-mobile-nav fixed inset-x-0 bottom-0 z-50 grid min-h-[calc(4.25rem+env(safe-area-inset-bottom))] grid-cols-4 border-t border-[var(--border)] bg-[var(--sidebar)]/98 px-2 pb-[env(safe-area-inset-bottom)] xl:hidden" aria-label="Mobile navigation">
         {MOBILE_NAV.map((item) => {
           const active = isActive(pathname, item.href);
           return (
@@ -200,10 +208,10 @@ function AuthenticatedShell({ children }: { children: ReactNode }) {
   return (
     <div className="relative min-h-screen overflow-x-hidden">
       {user && !isLogin && <><DesktopSidebar /><MobileChrome /></>}
-      <div className={cn(user && !isLogin && "lg:pl-60")}>
+      <div className={cn(user && !isLogin && "xl:pl-60")}>
         <main className={cn(
           "relative mx-auto min-w-0",
-          isLogin ? "max-w-none p-0" : wide ? "max-w-[1600px] px-3 py-3 pb-24 sm:px-5 lg:px-6 lg:py-5 lg:pb-6" : "max-w-7xl px-4 py-6 pb-24 sm:px-6 lg:px-8 lg:py-8 lg:pb-8"
+          isLogin ? "max-w-none p-0" : wide ? "max-w-[1600px] px-3 py-3 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-5 lg:px-6 lg:py-5 xl:pb-6" : "max-w-7xl px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 lg:px-8 lg:py-8 xl:pb-8"
         )}>
           <Gate>{children}</Gate>
         </main>

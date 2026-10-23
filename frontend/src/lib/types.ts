@@ -129,6 +129,8 @@ export interface Application {
   profile_id: number;
   status: Status;
   fit_score: number | null;
+  fit_version?: string;
+  fit_breakdown?: FitBreakdown;
   keyword_coverage: number | null;
   matched_keywords: string[];
   missing_keywords: string[];
@@ -140,6 +142,32 @@ export interface Application {
   applied_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface FitComponent {
+  label: string;
+  score: number | null;
+  base_weight: number;
+  weight: number;
+  available: boolean;
+  explanation: string;
+}
+
+export interface FitRequirement {
+  text: string;
+  priority: "must-have" | "preferred" | "standard";
+  status: "met" | "partial" | "gap";
+  score: number;
+  matched_terms: string[];
+  missing_terms: string[];
+}
+
+export interface FitBreakdown {
+  version: string;
+  confidence: "high" | "medium" | "low";
+  components: Record<string, FitComponent>;
+  requirements: FitRequirement[];
+  embedding?: { provider: string; model: string };
 }
 
 export const STATUSES: Status[] = [

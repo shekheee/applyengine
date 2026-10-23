@@ -27,15 +27,15 @@ export function ConversationSidebar({
       {open && (
         <button
           type="button"
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 xl:hidden"
           aria-label="Close conversation list"
           onClick={onClose}
         />
       )}
 
       <nav
-        className={`coach-conv-sidebar fixed inset-y-0 left-0 z-50 flex w-[min(100vw-3rem,17rem)] flex-col border-r transition-transform duration-200 ease-out lg:static lg:z-auto lg:w-60 lg:translate-x-0 lg:transition-none ${
-          open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        className={`coach-conv-sidebar fixed inset-y-0 left-0 z-50 flex w-[min(100vw-3rem,17rem)] flex-col border-r transition-transform duration-200 ease-out xl:static xl:z-auto xl:w-60 xl:translate-x-0 xl:transition-none ${
+          open ? "translate-x-0" : "-translate-x-full xl:translate-x-0"
         }`}
         style={{
           borderColor: "var(--border)",

@@ -35,7 +35,7 @@ function saveBlob(blob: Blob, filename: string) {
 function DocumentPreview({ artifact }: { artifact: SkillArtifact }) {
   const content = artifact.content;
   return (
-    <div className="mx-auto min-h-[760px] w-full max-w-[720px] bg-white px-[8%] py-[7%] text-slate-800 shadow-[0_24px_80px_rgba(0,0,0,.28)]" style={{ aspectRatio: "210 / 297" }}>
+    <div className="mx-auto w-full max-w-[720px] bg-white px-[8%] py-[7%] text-slate-800 shadow-[0_24px_80px_rgba(0,0,0,.28)]" style={{ aspectRatio: "210 / 297" }}>
       <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-teal-700">{artifact.template.replaceAll("-", " ")}</p>
       <h2 className="mt-4 text-3xl font-semibold leading-tight tracking-[-0.03em] text-slate-900">{content.title}</h2>
       {content.subtitle && <p className="mt-2 border-b border-slate-200 pb-5 text-sm leading-6 text-slate-500">{content.subtitle}</p>}
@@ -156,7 +156,7 @@ export function ArtifactSkillWorkspace({ kind }: { kind: SkillKind }) {
         <Button href="/skills" variant="outline" size="sm">All skills</Button>
       </header>
 
-      <div className="grid min-w-0 gap-5 xl:grid-cols-[290px_minmax(0,1fr)_240px]">
+      <div className="grid min-w-0 gap-5 xl:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[290px_minmax(0,1fr)_240px]">
         <aside className="h-fit space-y-4 rounded-xl border bg-[var(--panel)] p-4" style={{ borderColor: "var(--border)" }}>
           <div><Label htmlFor="skill-template">Format</Label><Select id="skill-template" value={template} onChange={(event) => setTemplate(event.target.value)}>{templates.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></div>
           <div><Label htmlFor="skill-title">Working title</Label><Input id="skill-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Let the skill choose, or add one" /></div>
@@ -176,7 +176,7 @@ export function ArtifactSkillWorkspace({ kind }: { kind: SkillKind }) {
           </> : <div className="flex min-h-[540px] items-center justify-center rounded-xl border border-dashed p-8 text-center" style={{ borderColor: "var(--border)" }}><div><Icon className="mx-auto h-10 w-10 text-[var(--muted)]"/><h2 className="mt-4 text-lg font-semibold">Create your first {kind}</h2><p className="mt-2 max-w-sm text-sm leading-6 text-[var(--muted)]">Choose a format, optionally anchor it to a job, then describe the outcome. Your editable preview will appear here.</p></div></div>}
         </section>
 
-        <aside className="h-fit rounded-xl border bg-[var(--panel)]" style={{ borderColor: "var(--border)" }}><div className="border-b px-4 py-3" style={{ borderColor: "var(--border)" }}><h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">Version history</h2></div><div className="max-h-[650px] divide-y overflow-y-auto" style={{ borderColor: "var(--border)" }}>{artifacts.length ? artifacts.map((artifact) => <button key={artifact.id} type="button" onClick={() => setActive(artifact)} className={`block w-full px-4 py-3 text-left transition-colors hover:bg-[var(--panel-2)] ${active?.id === artifact.id ? "bg-[var(--panel-2)]" : ""}`}><p className="line-clamp-2 text-xs font-medium leading-5 text-[var(--text-secondary)]">{artifact.title}</p><div className="mt-1 flex items-center justify-between gap-2 text-[9px] uppercase tracking-wider text-[var(--muted-2)]"><span>{artifact.parent_id ? "Revision" : artifact.template.replaceAll("-", " ")}</span><span>{new Date(artifact.created_at).toLocaleDateString()}</span></div></button>) : <p className="px-4 py-8 text-center text-xs leading-5 text-[var(--muted)]">Generated versions will be saved here.</p>}</div></aside>
+        <aside className="h-fit rounded-xl border bg-[var(--panel)] xl:col-span-2 2xl:col-span-1" style={{ borderColor: "var(--border)" }}><div className="border-b px-4 py-3" style={{ borderColor: "var(--border)" }}><h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">Version history</h2></div><div className="max-h-[650px] divide-y overflow-y-auto" style={{ borderColor: "var(--border)" }}>{artifacts.length ? artifacts.map((artifact) => <button key={artifact.id} type="button" onClick={() => setActive(artifact)} className={`block w-full px-4 py-3 text-left transition-colors hover:bg-[var(--panel-2)] ${active?.id === artifact.id ? "bg-[var(--panel-2)]" : ""}`}><p className="line-clamp-2 text-xs font-medium leading-5 text-[var(--text-secondary)]">{artifact.title}</p><div className="mt-1 flex items-center justify-between gap-2 text-[9px] uppercase tracking-wider text-[var(--muted-2)]"><span>{artifact.parent_id ? "Revision" : artifact.template.replaceAll("-", " ")}</span><span>{new Date(artifact.created_at).toLocaleDateString()}</span></div></button>) : <p className="px-4 py-8 text-center text-xs leading-5 text-[var(--muted)]">Generated versions will be saved here.</p>}</div></aside>
       </div>
     </div>
   );

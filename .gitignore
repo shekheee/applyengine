@@ -36,3 +36,4 @@ storage/
 .idea/
 .vscode/
 .vercel
+.env*

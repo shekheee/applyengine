@@ -786,7 +786,7 @@ export function CoachChat({
   return (
     <div
       className={`coach-shell flex min-h-0 flex-col overflow-hidden ${
-        embedded ? "h-[min(70vh,720px)]" : "h-full lg:flex-row"
+        embedded ? "h-[min(70vh,720px)]" : "h-full xl:flex-row"
       } ${fullscreen ? "coach-shell-fullscreen" : ""}`}
       style={{ background: embedded ? undefined : "var(--bg-elevated)" }}
     >
@@ -873,7 +873,7 @@ export function CoachChat({
 
         {!embedded && !fullscreen && toolsOpen && (
           <div
-            className="shrink-0 overflow-hidden border-b lg:hidden"
+            className="shrink-0 overflow-hidden border-b xl:hidden"
             style={{ borderColor: "var(--border)", maxHeight: "40vh" }}
           >
             <CoachToolsPanel
@@ -1015,7 +1015,7 @@ export function CoachChat({
 
       {!embedded && !fullscreen && toolsOpen && (
         <div
-          className="hidden w-72 shrink-0 overflow-y-auto border-l lg:block"
+          className="hidden w-72 shrink-0 overflow-y-auto border-l xl:block"
           style={{ borderColor: "var(--border)", background: "var(--panel)" }}
         >
           <CoachToolsPanel

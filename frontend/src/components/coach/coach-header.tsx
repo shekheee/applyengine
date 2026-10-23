@@ -37,7 +37,7 @@ export function CoachHeader({
 }) {
   return (
     <header
-      className="coach-header flex shrink-0 items-center justify-between gap-3 border-b px-2 py-2.5 sm:px-3"
+      className="coach-header flex shrink-0 items-center justify-between gap-1 border-b px-2 py-2.5 sm:gap-3 sm:px-3"
       style={{
         borderColor: "var(--border)",
         background: "color-mix(in srgb, var(--panel) 92%, transparent)",
@@ -48,7 +48,7 @@ export function CoachHeader({
           <button
             type="button"
             onClick={onToggleConvList}
-            className="btn-interactive flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border text-[var(--muted)] transition-colors hover:bg-[var(--panel-2)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 lg:hidden"
+            className="btn-interactive flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border text-[var(--muted)] transition-colors hover:bg-[var(--panel-2)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 xl:hidden"
             style={{
               borderColor: "var(--border-strong)",
               outlineColor: "color-mix(in srgb, var(--primary) 60%, transparent)",
@@ -60,7 +60,7 @@ export function CoachHeader({
           </button>
         )}
 
-        <div className="min-w-0">
+        <div className="hidden min-w-0 sm:block">
           <h1 className="truncate text-[15px] font-semibold tracking-tight text-[var(--text)]">
             {activeConversation?.title ??
               (coachMode === "buddy" ? "Technical Buddy" : "Career coach")}
@@ -136,7 +136,7 @@ export function CoachHeader({
               title={fullscreen ? "Exit full screen (Esc)" : "Full screen (F)"}
               aria-label={fullscreen ? "Exit full screen" : "Enter full screen"}
               aria-pressed={fullscreen}
-              className="btn-interactive flex h-9 w-9 items-center justify-center rounded-lg border text-[var(--muted)] transition-colors hover:bg-[var(--panel-2)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+              className="btn-interactive flex h-9 w-9 items-center justify-center rounded-lg border text-[var(--muted)] transition-colors hover:bg-[var(--panel-2)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 max-[359px]:hidden"
               style={{
                 borderColor: "var(--border-strong)",
                 outlineColor: "color-mix(in srgb, var(--primary) 60%, transparent)",
@@ -148,7 +148,7 @@ export function CoachHeader({
               <button
                 type="button"
                 onClick={onToggleTools}
-                className="btn-interactive flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium text-[var(--muted)] transition-colors hover:bg-[var(--panel-2)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                className="btn-interactive flex h-9 w-9 items-center justify-center rounded-lg border text-xs font-medium text-[var(--muted)] transition-colors hover:bg-[var(--panel-2)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 sm:w-auto sm:gap-1.5 sm:px-2.5"
                 style={{
                   borderColor: "var(--border-strong)",
                   outlineColor: "color-mix(in srgb, var(--primary) 60%, transparent)",
@@ -157,7 +157,7 @@ export function CoachHeader({
                 aria-expanded={toolsOpen}
               >
                 <PanelIcon className="h-3.5 w-3.5" />
-                {toolsOpen ? "Hide" : "Memory"}
+                <span className="hidden sm:inline">{toolsOpen ? "Hide" : "Memory"}</span>
               </button>
             )}
           </>

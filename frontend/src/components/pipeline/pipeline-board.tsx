@@ -18,7 +18,7 @@ export function PipelineBoard({ apps, jobs, onStatusChange }: PipelineBoardProps
         role="region"
         aria-label="Application kanban board"
       >
-        <div className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <div className="grid min-w-0 gap-4 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
           {STATUSES.map((status, i) => {
             const col = apps.filter((a) => a.status === status);
             return (

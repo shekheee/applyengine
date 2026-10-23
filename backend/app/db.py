@@ -31,6 +31,7 @@ def init_db() -> None:
     _migrate_chat_attachments()
     _migrate_chat_routing()
     _migrate_profile_base()
+    _migrate_application_fit_v2()
     _migrate_interview_overall_score()
     _migrate_interview_curriculum_topic()
     _migrate_conversations()
@@ -270,6 +271,38 @@ def _migrate_profile_base() -> None:
             text(
                 "CREATE UNIQUE INDEX IF NOT EXISTS ux_profile_one_base_per_user "
                 "ON profile (user_id) WHERE is_base = TRUE"
+            )
+        )
+
+
+def _migrate_application_fit_v2() -> None:
+    """Add an auditable version and component breakdown to fit assessments."""
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        if is_sqlite:
+            existing = {
+                row[1] for row in conn.execute(text("PRAGMA table_info(application)"))
+            }
+            if "fit_version" not in existing:
+                conn.execute(
+                    text("ALTER TABLE application ADD COLUMN fit_version TEXT DEFAULT '1.0'")
+                )
+            if "fit_breakdown" not in existing:
+                conn.execute(
+                    text("ALTER TABLE application ADD COLUMN fit_breakdown JSON DEFAULT '{}'")
+                )
+            return
+        conn.execute(
+            text(
+                "ALTER TABLE application ADD COLUMN IF NOT EXISTS fit_version "
+                "TEXT DEFAULT '1.0'"
+            )
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE application ADD COLUMN IF NOT EXISTS fit_breakdown "
+                "JSON DEFAULT '{}'::json"
             )
         )
 

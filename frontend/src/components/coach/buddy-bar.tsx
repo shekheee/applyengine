@@ -125,7 +125,7 @@ export function BuddyBar({
       }}
       aria-label="Technical Buddy controls"
     >
-      <div className="coach-thread-inner mx-auto min-w-0">
+      <div className="coach-thread-inner relative mx-auto min-w-0">
         <div className="flex flex-wrap items-center gap-2.5">
           <div className="mr-auto min-w-[180px]">
             <div className="flex items-center gap-2">
@@ -248,11 +248,11 @@ export function BuddyBar({
             Discuss in text
           </button>
 
-          <details className="group">
+          <details className="group static sm:relative">
             <summary className="cursor-pointer list-none rounded-lg border border-[var(--border-strong)] bg-[var(--panel-2)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)]">
               Vocabulary · {dashboard?.vocabulary.length ?? 0}
             </summary>
-            <div className="absolute z-30 mt-2 w-[min(92vw,440px)] rounded-2xl border border-[var(--border-strong)] bg-[var(--panel)] p-3 shadow-2xl">
+            <div className="absolute inset-x-0 z-30 mt-2 max-h-[min(60dvh,28rem)] overflow-y-auto rounded-2xl border border-[var(--border-strong)] bg-[var(--panel)] p-3 shadow-2xl sm:left-auto sm:right-0 sm:w-[min(92vw,440px)]">
               <div className="grid gap-2 sm:grid-cols-[1fr_1.4fr_auto]">
                 <input
                   value={term}

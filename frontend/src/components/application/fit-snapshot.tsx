@@ -120,6 +120,18 @@ export function FitSnapshot({
   const fitTone =
     fitScore >= 70 ? "green" : fitScore >= 45 ? "amber" : fitScore > 0 ? "red" : "primary";
   const hasScore = app.fit_score !== null;
+  const breakdown = app.fit_breakdown?.version ? app.fit_breakdown : undefined;
+  const components = Object.values(breakdown?.components ?? {}).filter(
+    (component) => component.available && component.score !== null
+  );
+  const requirements = breakdown?.requirements ?? [];
+  const requirementCounts = requirements.reduce(
+    (counts, requirement) => {
+      counts[requirement.status] += 1;
+      return counts;
+    },
+    { met: 0, partial: 0, gap: 0 }
+  );
 
   return (
     <section aria-labelledby="fit-snapshot-heading">
@@ -134,6 +146,19 @@ export function FitSnapshot({
           <p className="mt-1 text-sm text-[var(--muted-2)]">
             How your profile aligns with this role
           </p>
+          {breakdown && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Badge tone="primary">Fit Score v{breakdown.version}</Badge>
+              <span className="text-xs capitalize text-[var(--muted-2)]">
+                {breakdown.confidence} confidence
+              </span>
+            </div>
+          )}
+          {hasScore && !breakdown && (
+            <div className="mt-2">
+              <Badge tone="amber">Legacy score · re-check for Fit Score v2</Badge>
+            </div>
+          )}
           {hasScore && app.updated_at && (
             <p className="mt-1 text-xs text-[var(--muted-2)]">
               Last checked {formatCheckedAt(app.updated_at)}
@@ -165,7 +190,7 @@ export function FitSnapshot({
         >
           <div className="flex items-center gap-5">
             <ScoreRing score={app.fit_score} />
-            <div className="min-w-0 flex-1 space-y-4">
+            <div className="min-w-0 flex-1">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-[var(--muted)]">
                   Overall fit
@@ -180,8 +205,22 @@ export function FitSnapshot({
                         : "Significant gaps to address"}
                 </p>
               </div>
-              <MetricBar label="Keyword coverage" value={coverage} tone={fitTone} />
             </div>
+          </div>
+          <div className="mt-6 space-y-4 border-t pt-5" style={{ borderColor: "var(--border)" }}>
+            {components.length ? (
+              components.map((component) => (
+                <div key={component.label} title={component.explanation}>
+                  <MetricBar
+                    label={`${component.label} · ${Math.round(component.weight)}% weight`}
+                    value={Math.round(component.score ?? 0)}
+                    tone={fitTone}
+                  />
+                </div>
+              ))
+            ) : (
+              <MetricBar label="Keyword coverage" value={coverage} tone={fitTone} />
+            )}
           </div>
         </div>
 
@@ -209,6 +248,54 @@ export function FitSnapshot({
               emptyLabel="No gaps flagged"
             />
           </div>
+
+          {requirements.length > 0 && (
+            <div className="mt-6 border-t pt-5" style={{ borderColor: "var(--border)" }}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
+                  Requirement evidence
+                </h3>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <span className="text-emerald-400">{requirementCounts.met} met</span>
+                  <span className="text-amber-400">{requirementCounts.partial} partial</span>
+                  <span className="text-red-400">{requirementCounts.gap} gaps</span>
+                </div>
+              </div>
+              <details className="group mt-3">
+                <summary className="cursor-pointer select-none text-sm font-medium text-[var(--primary-2)] outline-none hover:underline">
+                  Review how each requirement was scored
+                </summary>
+                <div className="mt-3 divide-y divide-[var(--border)] rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-2)]/50 px-4">
+                  {requirements.map((requirement, index) => (
+                    <div key={`${requirement.text}-${index}`} className="py-3">
+                      <div className="flex min-w-0 items-start justify-between gap-3">
+                        <p className="min-w-0 text-sm leading-snug text-[var(--text)]">
+                          {requirement.text}
+                        </p>
+                        <Badge
+                          tone={
+                            requirement.status === "met"
+                              ? "green"
+                              : requirement.status === "partial"
+                                ? "amber"
+                                : "red"
+                          }
+                        >
+                          {Math.round(requirement.score)}%
+                        </Badge>
+                      </div>
+                      <p className="mt-1 text-xs capitalize text-[var(--muted-2)]">
+                        {requirement.priority}
+                        {requirement.missing_terms.length
+                          ? ` · Missing: ${requirement.missing_terms.join(", ")}`
+                          : ""}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            </div>
+          )}
 
           {app.gap_analysis?.trim() && (
             <div

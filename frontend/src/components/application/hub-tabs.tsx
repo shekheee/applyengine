@@ -20,7 +20,7 @@ export function HubTabNav({
       style={{ borderColor: "var(--border)" }}
     >
       <div
-        className="-mb-px flex gap-1 overflow-x-auto overscroll-x-contain pb-px [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="-mb-px flex scroll-px-2 gap-0.5 overflow-x-auto overscroll-x-contain pb-px [-ms-overflow-style:none] [scrollbar-width:none] sm:gap-1 [&::-webkit-scrollbar]:hidden"
         role="tablist"
         aria-label="Application workspace"
       >
@@ -37,7 +37,7 @@ export function HubTabNav({
               data-active={isActive}
               onClick={() => onChange(tab.id)}
               className={cn(
-                "btn-interactive group relative flex shrink-0 items-center gap-2 px-4 py-3 text-sm font-medium",
+                "btn-interactive group relative flex shrink-0 scroll-ml-2 items-center gap-1.5 px-3 py-3 text-sm font-medium sm:gap-2 sm:px-4",
                 "border-b-2 transition-[color,border-color] motion-reduce:transition-none",
                 isActive
                   ? "border-[var(--primary)] text-[var(--text)]"

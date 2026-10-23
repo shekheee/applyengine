@@ -75,7 +75,7 @@ export function ModelSelector({
 
       {open && (
         <div
-          className="absolute bottom-full left-0 z-50 mb-1 min-w-[220px] overflow-hidden rounded-xl border bg-[var(--panel)] py-1 shadow-xl shadow-black/40"
+          className="absolute bottom-full left-0 z-50 mb-1 min-w-[220px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border bg-[var(--panel)] py-1 shadow-xl shadow-black/40"
           style={{ borderColor: "var(--border)" }}
         >
           {Object.entries(grouped).map(([providerLabel, items]) => (
