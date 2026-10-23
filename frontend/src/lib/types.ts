@@ -340,6 +340,86 @@ export interface InterviewSessionSummary {
     key_feedback?: string;
     topic?: string;
   }>;
+  case_scorecard?: CaseScorecard;
+}
+
+export interface CaseFrameworkStep {
+  id: string;
+  order: number;
+  title: string;
+  signals: string[];
+  misses: string[];
+}
+
+export interface CaseBankItem {
+  id: string;
+  title: string;
+  industry: string;
+  client: string;
+  prompt: string;
+  pushbacks: string[];
+}
+
+export interface CaseBank {
+  framework: CaseFrameworkStep[];
+  cases: CaseBankItem[];
+}
+
+export interface CaseSignalCount {
+  count: number;
+  examples: string[];
+}
+
+export interface CaseScorecard {
+  case_id?: string;
+  case_title?: string;
+  framework_score: number;
+  steps_due?: number;
+  steps: Array<{
+    step: string;
+    title: string;
+    score: number;
+    heuristic_score: number;
+    source: "llm" | "heuristic";
+    due?: boolean;
+    evidence?: string;
+    checks: Record<string, boolean>;
+    keywords: string[];
+  }>;
+  value_sizing: {
+    status: "complete" | "partial" | "missing";
+    due?: boolean;
+    missing: string[];
+    evidence?: string;
+    llm_formula?: string;
+  };
+  structure_signals: {
+    clarifying_questions: CaseSignalCount;
+    check_ins: CaseSignalCount;
+    summaries: CaseSignalCount;
+    assumptions: CaseSignalCount;
+    signposting: CaseSignalCount;
+  };
+  structure_feedback: string[];
+  flags: string[];
+  reference_value_sizing?: string;
+  trap?: string;
+  delivery?: {
+    answers: number;
+    words_per_minute: number;
+    filler_rate_per_100: number;
+    top_fillers: Array<{ word: string; count: number }>;
+    feedback: string[];
+  };
+}
+
+export interface CaseTranscriptAnalysis {
+  case_scorecard: CaseScorecard;
+  delivery: DeliveryMetrics;
+  duration_source: "provided" | "timestamps" | "none";
+  candidate_word_count: number;
+  interviewer_lines: number;
+  markdown: string;
 }
 
 export interface InterviewSession {

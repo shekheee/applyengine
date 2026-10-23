@@ -9,6 +9,7 @@ import {
 } from "react";
 import { api } from "@/lib/api";
 import type {
+  CaseBank,
   CoachModel,
   DeliveryMetrics,
   InterviewCurriculum,
@@ -38,6 +39,7 @@ import { AnswerComposer, FollowupComposer } from "@/components/interview/answer-
 import { SessionRail } from "@/components/interview/session-rail";
 import { SummaryView } from "@/components/interview/summary-view";
 import { LiveInterviewRoom } from "@/components/interview/live-interview-room";
+import { CaseTranscriptAnalyzer } from "@/components/interview/case-transcript-analyzer";
 import {
   AlertBanner,
   InterviewLoadingState,
@@ -88,6 +90,8 @@ export function InterviewPractice({
   const [interviewerPersona, setInterviewerPersona] = useState("hiring_manager");
   const [captionMode, setCaptionMode] = useState<"progressive" | "hidden">("progressive");
   const [curriculum, setCurriculum] = useState<InterviewCurriculum | null>(null);
+  const [caseBank, setCaseBank] = useState<CaseBank | null>(null);
+  const [caseId, setCaseId] = useState("");
   const [showStudyGuide, setShowStudyGuide] = useState(false);
   const [showMlTrack, setShowMlTrack] = useState(false);
 
@@ -115,13 +119,14 @@ export function InterviewPractice({
   useEffect(() => {
     async function load() {
       try {
-        const [base, jobList, modelData, sessions, prog, curr] = await Promise.all([
+        const [base, jobList, modelData, sessions, prog, curr, cases] = await Promise.all([
           api.baseProfile().catch(() => null),
           api.listJobs().catch(() => []),
           api.listCoachModels().catch(() => ({ models: [], default_model: "" })),
           api.listInterviewSessions().catch(() => []),
           api.getInterviewProgress().catch(() => null),
           api.getInterviewCurriculum().catch(() => null),
+          api.getInterviewCases().catch(() => null),
         ]);
         setProfile(base);
         setJobs(jobList ?? []);
@@ -129,6 +134,7 @@ export function InterviewPractice({
         setPastSessions(sessions);
         setProgress(prog);
         setCurriculum(curr);
+        setCaseBank(cases);
         if (curr?.ml_profile_detected) {
           setShowMlTrack(true);
         }
@@ -171,6 +177,7 @@ export function InterviewPractice({
         behavior_mode: behaviorMode,
         interviewer_persona: interviewerPersona,
         captions: captionMode,
+        case_id: caseId || undefined,
       });
       setSession(s);
       setAnswer("");
@@ -436,9 +443,24 @@ export function InterviewPractice({
   const isLast =
     session != null && session.current_index >= (session.questions.length - 1);
 
-  const categoryLabel = session?.curriculum_topic
-    ? curriculumTopicLabel(currentQ?.category ?? "")
-    : (currentQ?.category ?? "");
+  const sessionCaseId = String(session?.live_state?.case_id ?? "");
+  const sessionCase = caseBank?.cases.find((c) => c.id === sessionCaseId);
+  const caseStepTitle = caseBank?.framework.find((step) => step.id === currentQ?.category)?.title;
+  const categoryLabel = sessionCase
+    ? (caseStepTitle ?? currentQ?.category ?? "")
+    : session?.curriculum_topic
+      ? curriculumTopicLabel(currentQ?.category ?? "")
+      : (currentQ?.category ?? "");
+
+  function selectCase(id: string) {
+    setCaseId(id);
+    if (id) {
+      setCurriculumTopic("");
+      setInterviewerPersona("case_partner");
+    } else if (interviewerPersona === "case_partner") {
+      setInterviewerPersona("hiring_manager");
+    }
+  }
 
   return (
     <div
@@ -511,17 +533,43 @@ export function InterviewPractice({
           <Card
             className="workspace-panel space-y-7 p-5 sm:p-7"
           >
-            <OptionGrid
-              label="Focus area"
-              hint="Choose the type of questions you want to practice"
-              options={INTERVIEW_FOCUS.map((f) => ({
-                id: f.id,
-                label: f.label,
-                desc: f.desc,
-              }))}
-              value={focus}
-              onChange={setFocus}
-            />
+            {caseBank && caseBank.cases.length > 0 && (
+              <div className="space-y-3">
+                <OptionGrid
+                  label="Data science business case"
+                  hint="Artefact-style case scored on the seven-step framework, value sizing and structure habits"
+                  options={[
+                    { id: "", label: "No case", desc: "Standard interview using the focus area below" },
+                    ...caseBank.cases.map((c) => ({ id: c.id, label: c.title, desc: c.prompt })),
+                  ]}
+                  value={caseId}
+                  onChange={selectCase}
+                />
+                {caseId && (
+                  <>
+                    <p className="text-xs leading-relaxed text-[var(--muted)]">
+                      Seven steps: {caseBank.framework.map((step) => step.title).join(" → ")}. Ask clarifying
+                      questions — the interviewer reveals practice facts only when you ask.
+                    </p>
+                    <CaseTranscriptAnalyzer caseId={caseId} />
+                  </>
+                )}
+              </div>
+            )}
+
+            {!caseId && (
+              <OptionGrid
+                label="Focus area"
+                hint="Choose the type of questions you want to practice"
+                options={INTERVIEW_FOCUS.map((f) => ({
+                  id: f.id,
+                  label: f.label,
+                  desc: f.desc,
+                }))}
+                value={focus}
+                onChange={setFocus}
+              />
+            )}
 
             <SegmentControl
               label="Difficulty"
@@ -564,6 +612,7 @@ export function InterviewPractice({
                   { id: "technical_panel", label: "Technical panel", desc: "Depth, trade-offs and failure modes" },
                   { id: "skeptical_stakeholder", label: "Senior stakeholder", desc: "Pushback, influence and risk" },
                   { id: "change_leader", label: "Change leader", desc: "Adoption, sponsorship and resistance" },
+                  { id: "case_partner", label: "Case partner", desc: "Runs a DS business case; reveals facts when asked" },
                 ]}
                 value={interviewerPersona}
                 onChange={setInterviewerPersona}
@@ -584,7 +633,7 @@ export function InterviewPractice({
               </p>
             </div>
 
-            {curriculum && (
+            {curriculum && !caseId && (
               <div
                 className="border-l-2 bg-[var(--panel-2)]/40 p-5"
                 style={{ borderColor: "var(--border)" }}
@@ -744,9 +793,11 @@ export function InterviewPractice({
               category={categoryLabel}
               tip={currentQ.tip}
               trackLabel={
-                session.curriculum_topic
-                  ? `${curriculumTopicLabel(session.curriculum_topic)} track`
-                  : undefined
+                sessionCase
+                  ? `Case · ${sessionCase.title}`
+                  : session.curriculum_topic
+                    ? `${curriculumTopicLabel(session.curriculum_topic)} track`
+                    : undefined
               }
             />
 

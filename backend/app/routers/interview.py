@@ -22,6 +22,7 @@ from app.models import InterviewSession, InterviewTurn, Job, Memory, Profile, Us
 from app.schemas import (
     AudioDeliveryAnalysisOut,
     InterviewAnswerIn,
+    InterviewCaseTranscriptIn,
     InterviewCompleteIn,
     InterviewCurriculumOut,
     InterviewFollowupIn,
@@ -46,6 +47,14 @@ from app.services.interview_practice import (
     summary_to_markdown,
 )
 from app.services.interview_progress import build_interview_progress
+from app.services.ds_case_framework import (
+    CASE_BY_ID,
+    FRAMEWORK_STEPS,
+    analyze_case_transcript,
+    case_questions,
+    cases_for_api,
+    normalize_case_id,
+)
 from app.services.live_interview import (
     apply_live_meta,
     build_realtime_interview_instructions,
@@ -185,6 +194,7 @@ def _competency_blueprint(
         "leadership_stakeholder": "Leadership and stakeholder influence",
         "resume_deep_dive": "Resume evidence and impact",
     }
+    labels.update({step.id: step.title for step in FRAMEWORK_STEPS})
     blueprint: list[dict[str, str]] = []
     seen: set[str] = set()
     for question in questions:
@@ -220,6 +230,29 @@ def get_curriculum(
     data = curriculum_for_api()
     data["ml_profile_detected"] = is_ml_relevant_profile(profile)
     return data
+
+
+@router.get("/cases")
+def get_cases(user: User = Depends(get_current_user)):
+    """Seven-step DS case framework and the practice case bank."""
+    return cases_for_api()
+
+
+@router.post("/cases/analyze-transcript")
+def analyze_case_transcript_route(
+    body: InterviewCaseTranscriptIn,
+    user: User = Depends(get_current_user),
+):
+    """Score a pasted case transcript (e.g. a mock with a friend) without an LLM call."""
+    case = CASE_BY_ID.get(normalize_case_id(body.case_id))
+    if not case:
+        raise HTTPException(404, "Unknown case")
+    transcript = body.transcript.strip()
+    if not transcript:
+        raise HTTPException(400, "Transcript is empty")
+    if len(transcript) > 60_000:
+        raise HTTPException(413, "Transcript is too long (max 60,000 characters)")
+    return analyze_case_transcript(case, transcript, body.duration_seconds)
 
 
 @router.get("/progress", response_model=InterviewProgressOut)
@@ -355,6 +388,7 @@ def create_session(
         "technical_panel",
         "skeptical_stakeholder",
         "change_leader",
+        "case_partner",
     }
     if persona not in allowed_personas:
         raise HTTPException(422, "Unsupported interviewer persona")
@@ -362,28 +396,45 @@ def create_session(
     if captions not in ("progressive", "hidden"):
         raise HTTPException(422, "captions must be 'progressive' or 'hidden'")
 
-    questions = generate_questions(
-        profile,
-        job,
-        memories,
-        focus=body.focus,
-        difficulty=body.difficulty,
-        model_id=model_id,
-        curriculum_topic=curriculum_topic,
-        question_count=4 if mode == "live" else 6,
-        instant=mode == "live",
-    )
+    case_id = normalize_case_id(body.case_id)
+    if body.case_id and not case_id:
+        raise HTTPException(422, "Unknown case_id")
+    focus = body.focus
+    if case_id:
+        # A case is a fixed seven-step walk-through; no question generation needed.
+        focus = "case_study"
+        curriculum_topic = ""
+        questions = case_questions(CASE_BY_ID[case_id])
+    else:
+        questions = generate_questions(
+            profile,
+            job,
+            memories,
+            focus=body.focus,
+            difficulty=body.difficulty,
+            model_id=model_id,
+            curriculum_topic=curriculum_topic,
+            question_count=4 if mode == "live" else 6,
+            instant=mode == "live",
+        )
 
     session = InterviewSession(
         user_id=user.id,
         job_id=body.job_id,
-        title=(f"{job.company} · {job.title}" if job else f"{body.focus.replace('_', ' ').title()} interview"),
-        focus=body.focus,
+        title=(
+            f"Case · {CASE_BY_ID[case_id].title}"
+            if case_id
+            else f"{job.company} · {job.title}"
+            if job
+            else f"{body.focus.replace('_', ' ').title()} interview"
+        ),
+        focus=focus,
         difficulty=body.difficulty,
         curriculum_topic=curriculum_topic,
         mode=mode,
         live_state={
-            "competency_blueprint": _competency_blueprint(questions, job, body.focus),
+            "competency_blueprint": _competency_blueprint(questions, job, focus),
+            "case_id": case_id,
             "behavior_mode": behavior_mode,
             "interviewer_persona": persona,
             "captions": captions,
@@ -776,6 +827,7 @@ def submit_answer(
         model_id=model_id,
         curriculum_topic=getattr(s, "curriculum_topic", "") or "",
         question_category=str(questions[idx].get("category", "")),
+        case_id=str((s.live_state or {}).get("case_id", "")),
     )
     md = feedback_to_markdown(fb)
     turn = InterviewTurn(
@@ -851,6 +903,7 @@ async def submit_answer_stream(
                 model_id=model_id,
                 curriculum_topic=getattr(s, "curriculum_topic", "") or "",
                 question_category=str(questions[idx].get("category", "")),
+                case_id=str((s.live_state or {}).get("case_id", "")),
             )
             md = feedback_to_markdown(fb)
             # Simulate streaming by chunking markdown for UX
@@ -937,7 +990,11 @@ async def followup_stream(
         accumulated = ""
         try:
             async for token in stream_followup_async(
-                question_text, history, profile, model_id=model_id
+                question_text,
+                history,
+                profile,
+                model_id=model_id,
+                case_id=str((s.live_state or {}).get("case_id", "")),
             ):
                 accumulated += token
                 yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
