@@ -8,6 +8,7 @@ import { ScoreRing10 } from "./conversation-thread";
 import { summaryMarkdown } from "./summary-markdown";
 import { cn, scoreBgClass, scoreColor } from "./utils";
 import { IconChart, IconTarget } from "./icons";
+import { CaseScorecard } from "./case-scorecard";
 
 function SummarySection({
   title,
@@ -140,6 +141,8 @@ export function SummaryView({
           {summary.answered_questions === 1 ? "" : "s"}.
         </div>
       )}
+
+      {summary.case_scorecard && <CaseScorecard card={summary.case_scorecard} />}
 
       {summary.competency_scores && Object.keys(summary.competency_scores).length > 0 && (
         <div className="space-y-3">

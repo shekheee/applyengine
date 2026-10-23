@@ -31,6 +31,16 @@ export function summaryMarkdown(summary: InterviewSession["summary"]): string {
     summary.next_steps.forEach((s) => lines.push(`- ${s}`));
     lines.push("");
   }
+  const card = summary.case_scorecard;
+  if (card) {
+    lines.push(`### Case framework · ${card.framework_score}/10`);
+    card.steps.forEach((step, i) => lines.push(`- ${i + 1}. ${step.title}: ${step.score}/3`));
+    lines.push(
+      `- Value sizing: ${card.value_sizing.status}${card.value_sizing.missing.length ? ` (missing ${card.value_sizing.missing.join(", ")})` : ""}`
+    );
+    card.flags.forEach((flag) => lines.push(`- ⚠ ${flag}`));
+    lines.push("");
+  }
   if (summary.per_question?.length) {
     lines.push("### Question scores");
     summary.per_question.forEach((pq) => {

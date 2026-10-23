@@ -8,6 +8,17 @@ from typing import Any
 from app import prompts
 from app.llm.factory import build_coach_provider
 from app.models import InterviewSession, InterviewTurn, Job, Memory, Profile
+from app.services.ds_case_framework import (
+    CASE_BY_ID,
+    analyse_case_text,
+    best_step_scores,
+    build_case_scorecard,
+    case_feedback_rubric,
+    case_for_session,
+    case_prompt_block,
+    case_scorecard_markdown,
+    case_summary_block,
+)
 from app.services.ml_interview_curriculum import (
     curriculum_prompt_block,
     fallback_curriculum_questions,
@@ -218,6 +229,7 @@ def evaluate_answer(
     model_id: str | None = None,
     curriculum_topic: str = "",
     question_category: str = "",
+    case_id: str = "",
 ) -> dict[str, Any]:
     chain = _chain(model_id)
     prior = "\n".join(
@@ -231,6 +243,9 @@ def evaluate_answer(
     rubric = ""
     if curriculum_topic:
         rubric = feedback_rubric_block(curriculum_topic, question_category or curriculum_topic)
+    case = CASE_BY_ID.get(case_id)
+    if case:
+        rubric = case_feedback_rubric(case, question_category)
     data = privacy.restore(chain.chat_json(
         privacy.protect_system(prompts.INTERVIEW_FEEDBACK_SYSTEM),
         privacy.mask_text(prompts.interview_feedback_user(
@@ -245,6 +260,19 @@ def evaluate_answer(
     ))
     if not isinstance(data, dict):
         data = {}
+    if case:
+        # Score coverage on everything said so far, so earlier steps keep their credit.
+        earlier = [t.content for t in prior_turns if t.role == "candidate"]
+        earlier_steps = [
+            (t.scores or {}).get("framework_steps") for t in prior_turns if t.role == "feedback"
+        ]
+        data["case_scorecard"] = analyse_case_text(
+            "\n".join([*earlier, answer]),
+            best_step_scores(*earlier_steps, data.get("framework_steps")),
+            llm_value_sizing=data.get("value_sizing"),
+            # Case questions map one-to-one onto framework steps.
+            steps_due=question_index + 1,
+        )
     data["_routing"] = routing_metadata(chain)
     logger.info("Interview feedback served by %s/%s", chain.last_served, chain.last_model)
     return data
@@ -282,9 +310,39 @@ def feedback_to_markdown(fb: dict[str, Any]) -> str:
             if quote and assessment:
                 lines.append(f'- “{quote}” — {assessment}')
         lines.append("")
+    answers = [
+        item
+        for item in (fb.get("clarification_answers") or [])
+        if isinstance(item, dict) and item.get("question") and item.get("answer")
+    ]
+    if answers:
+        lines.append("**Interviewer answers to your clarifying questions**")
+        lines.extend(f"- _{a['question']}_ — {a['answer']}" for a in answers[:5])
+        lines.append("")
+    if fb.get("case_scorecard"):
+        lines.append(case_scorecard_markdown(fb["case_scorecard"]))
+        lines.append("")
     if fb.get("follow_up_question"):
         lines.append(f"**Follow-up to practice:** {fb['follow_up_question']}")
     return "\n".join(lines).strip()
+
+
+def _followup_system(question: str, profile: Profile | None, case_id: str = "") -> str:
+    content = (
+        prompts.INTERVIEW_FOLLOWUP_SYSTEM
+        + f"\n\nProfession context:\n{profession_context(profile, None)}\n\n"
+        f"Current interview question:\n{question}\n\n"
+        f"Candidate resume:\n{profile_to_text(profile) if profile else '(none)'}"
+    )
+    case = CASE_BY_ID.get(case_id)
+    if case:
+        content += (
+            "\n\n"
+            + case_prompt_block(case, for_interviewer=True)
+            + "\nWhen the candidate asks a clarifying question, answer it as the case interviewer "
+            "from CASE FACTS only, then hand the case back to them."
+        )
+    return content
 
 
 def stream_followup(
@@ -293,20 +351,11 @@ def stream_followup(
     profile: Profile | None,
     *,
     model_id: str | None = None,
+    case_id: str = "",
 ) -> Iterator[str]:
     chain = _chain(model_id)
     privacy = IdentifierPrivacy.from_profile(profile)
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                prompts.INTERVIEW_FOLLOWUP_SYSTEM
-                + f"\n\nProfession context:\n{profession_context(profile, None)}\n\n"
-                f"Current interview question:\n{question}\n\n"
-                f"Candidate resume:\n{profile_to_text(profile) if profile else '(none)'}"
-            ),
-        }
-    ]
+    messages = [{"role": "system", "content": _followup_system(question, profile, case_id)}]
     for h in history[-8:]:
         messages.append({"role": h["role"], "content": h["content"]})
     for token in chain.chat_stream(privacy.protect_messages(messages)):
@@ -319,20 +368,11 @@ async def stream_followup_async(
     profile: Profile | None,
     *,
     model_id: str | None = None,
+    case_id: str = "",
 ) -> AsyncIterator[str]:
     chain = _chain(model_id)
     privacy = IdentifierPrivacy.from_profile(profile)
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                prompts.INTERVIEW_FOLLOWUP_SYSTEM
-                + f"\n\nProfession context:\n{profession_context(profile, None)}\n\n"
-                f"Current interview question:\n{question}\n\n"
-                f"Candidate resume:\n{profile_to_text(profile) if profile else '(none)'}"
-            ),
-        }
-    ]
+    messages = [{"role": "system", "content": _followup_system(question, profile, case_id)}]
     for h in history[-8:]:
         messages.append({"role": h["role"], "content": h["content"]})
     async for token in chain.chat_stream_async(privacy.protect_messages(messages)):
@@ -345,6 +385,9 @@ def build_transcript(session: InterviewSession, turns: list[InterviewTurn]) -> s
 
         return build_live_transcript(session, turns)
     lines: list[str] = []
+    case = case_for_session(session)
+    if case:
+        lines.append(f"Business case: {case.title}")
     for i, q in enumerate(session.questions or []):
         lines.append(f"Q{i + 1}: {q.get('text', '')}")
     for t in turns:
@@ -370,6 +413,9 @@ def generate_summary(
     prof_ctx = privacy.mask_text(profession_context(profile, job))
     curriculum_topic = normalize_curriculum_topic(getattr(session, "curriculum_topic", "") or "")
     curriculum_text = curriculum_prompt_block(curriculum_topic) if curriculum_topic else ""
+    case = case_for_session(session)
+    if case:
+        curriculum_text = case_summary_block(case)
     data = privacy.restore(chain.chat_json(
         privacy.protect_system(prompts.INTERVIEW_SUMMARY_SYSTEM),
         privacy.mask_text(prompts.interview_summary_user(
@@ -382,9 +428,45 @@ def generate_summary(
     ))
     if not isinstance(data, dict):
         data = {}
+    if case:
+        data["case_scorecard"] = session_case_scorecard(session, turns, data)
     data["_routing"] = routing_metadata(chain)
     logger.info("Interview summary served by %s/%s", chain.last_served, chain.last_model)
     return data
+
+
+def session_case_scorecard(
+    session: InterviewSession,
+    turns: list[InterviewTurn],
+    summary: dict[str, Any],
+) -> dict[str, Any]:
+    """Whole-case scorecard from candidate turns, per-answer feedback and the summary."""
+    case = case_for_session(session)
+    if not case:
+        return {}
+    answers = [
+        t
+        for t in turns
+        if t.role == "candidate" and (t.scores or {}).get("candidate_intent", "answer") == "answer"
+    ]
+    clarifications = sum(
+        1
+        for t in turns
+        if t.role == "candidate" and (t.scores or {}).get("candidate_intent") == "clarification"
+    )
+    # Text-mode clarifying questions asked through the follow-up box.
+    followups = [t.content for t in turns if t.role == "followup"]
+    return build_case_scorecard(
+        case,
+        [t.content for t in answers] + followups,
+        per_turn_steps=[
+            (t.scores or {}).get("framework_steps") for t in turns if t.role == "feedback"
+        ],
+        summary_steps=summary.get("framework_steps"),
+        summary_value_sizing=summary.get("value_sizing"),
+        deliveries=[(t.scores or {}).get("delivery") or {} for t in answers],
+        clarification_turns=clarifications,
+    )
 
 
 def summary_to_markdown(summary: dict[str, Any]) -> str:
@@ -411,6 +493,9 @@ def summary_to_markdown(summary: dict[str, Any]) -> str:
     if summary.get("next_steps"):
         lines.append("### Next steps")
         lines.extend(f"- {s}" for s in summary["next_steps"])
+        lines.append("")
+    if summary.get("case_scorecard"):
+        lines.append(case_scorecard_markdown(summary["case_scorecard"]))
         lines.append("")
     per_q = summary.get("per_question") or []
     if per_q:

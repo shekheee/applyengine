@@ -29,6 +29,10 @@ FILLER_WORDS = (
     "i mean",
 )
 
+# "So", "right" and "okay" are only fillers when they open a sentence
+# ("So, um, I'd start…"); mid-sentence they carry meaning.
+SENTENCE_OPENER_FILLERS = re.compile(r"(?:^|[.!?]\s+)(so|right|okay|ok)\b(?=[,\s])", re.IGNORECASE)
+
 MIN_AUDIO_BYTES = 100
 MAX_ANALYSIS_AUDIO_BYTES = 12 * 1024 * 1024
 
@@ -82,9 +86,15 @@ def analyze_delivery(
         if matches:
             filler_counts[filler] = len(matches)
             total_fillers += len(matches)
+    for match in SENTENCE_OPENER_FILLERS.finditer(lowered.strip()):
+        key = f"{match.group(1)} (sentence opener)"
+        filler_counts[key] = filler_counts.get(key, 0) + 1
+        total_fillers += 1
 
+    # Without timing (a pasted transcript) pace is unknown, not "very fast".
+    timed = duration_seconds > 0
     duration = max(duration_seconds, 0.1)
-    wpm = round((total_words / duration) * 60) if total_words else 0
+    wpm = round((total_words / duration) * 60) if total_words and timed else 0
     filler_rate = round((total_fillers / total_words) * 100) if total_words else 0
 
     pauses: list[dict[str, Any]] = []
@@ -165,7 +175,7 @@ def analyze_delivery(
         "pause_count": len(pauses),
         "longest_pause_ms": max((p["duration_ms"] for p in pauses), default=0),
         "pauses": pauses[:5],
-        "duration_seconds": round(duration, 1),
+        "duration_seconds": round(duration, 1) if timed else 0,
         "observations": observations,
         "capture_quality": capture_quality,
         "audio_analysis": {},

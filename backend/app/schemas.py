@@ -256,6 +256,13 @@ class InterviewSessionCreate(BaseModel):
     behavior_mode: str = "simulation"  # simulation | coach
     interviewer_persona: str = "hiring_manager"
     captions: str = "progressive"  # progressive | hidden
+    case_id: str = ""  # DS business-case bank id; "" for a standard interview
+
+
+class InterviewCaseTranscriptIn(BaseModel):
+    case_id: str
+    transcript: str
+    duration_seconds: float | None = None
 
 
 class InterviewSessionUpdate(BaseModel):

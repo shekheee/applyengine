@@ -11,6 +11,8 @@ import type {
   ClientAudioMetrics,
   ResumeDesignResult,
   ResumeVersion,
+  CaseBank,
+  CaseTranscriptAnalysis,
   InterviewCurriculum,
   InterviewProgress,
   InterviewSession,
@@ -874,6 +876,18 @@ export const api = {
   // ---- Interview Practice ----
   getInterviewCurriculum: () => req<InterviewCurriculum>("/api/interview/curriculum"),
 
+  getInterviewCases: () => req<CaseBank>("/api/interview/cases"),
+
+  analyzeCaseTranscript: (body: {
+    case_id: string;
+    transcript: string;
+    duration_seconds?: number | null;
+  }) =>
+    req<CaseTranscriptAnalysis>("/api/interview/cases/analyze-transcript", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
   listInterviewSessions: () =>
     req<InterviewSession[]>("/api/interview/sessions"),
 
@@ -890,6 +904,7 @@ export const api = {
     behavior_mode?: "simulation" | "coach";
     interviewer_persona?: string;
     captions?: "progressive" | "hidden";
+    case_id?: string;
   }) =>
     req<InterviewSession>("/api/interview/sessions", {
       method: "POST",

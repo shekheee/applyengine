@@ -10,7 +10,12 @@ from typing import Any
 from app import prompts
 from app.llm.factory import build_coach_provider
 from app.models import InterviewSession, InterviewTurn, Job, Profile
-from app.services.interview_practice import generate_summary, routing_metadata
+from app.services.ds_case_framework import case_for_session, case_prompt_block, case_summary_block
+from app.services.interview_practice import (
+    generate_summary,
+    routing_metadata,
+    session_case_scorecard,
+)
 from app.services.ml_interview_curriculum import (
     curriculum_prompt_block,
     normalize_curriculum_topic,
@@ -35,6 +40,7 @@ PERSONA_GUIDES = {
     "technical_panel": "Evidence-focused technical panel. Test depth, trade-offs, failure modes, decisions, and the candidate's exact contribution.",
     "skeptical_stakeholder": "Respectfully sceptical senior stakeholder. Challenge assumptions, influence, risk management, and unsupported impact claims.",
     "change_leader": "Senior change-management leader. Test adoption strategy, sponsorship, resistance, communications, benefits realisation, and human impact.",
+    "case_partner": "Consulting case partner running a data-science business case. Let the candidate drive, answer clarifying questions only from the case facts, and probe for baseline, business metric, validation, pilot, adoption, and quantified impact.",
 }
 
 
@@ -194,6 +200,9 @@ TARGET ROLE / JOB DESCRIPTION
 """
     if curriculum_text:
         instructions += f"\n\nSPECIALIST TOPIC GUIDE\n{_bounded_context(curriculum_text, 2_500)}"
+    case = case_for_session(session)
+    if case:
+        instructions += f"\n\nBUSINESS CASE\n{case_prompt_block(case, for_interviewer=True)}"
     if existing:
         instructions += (
             "\n\nEXISTING TRANSCRIPT\n"
@@ -249,6 +258,9 @@ async def stream_interviewer_turn_async(
     curriculum_topic = normalize_curriculum_topic(getattr(session, "curriculum_topic", "") or "")
     prof_ctx = profession_context(profile, job)
     curriculum_text = curriculum_prompt_block(curriculum_topic) if curriculum_topic else ""
+    case = case_for_session(session)
+    if case:
+        curriculum_text = case_prompt_block(case, for_interviewer=True)
     idx = session.current_index
     followups = followups_at_index(session, idx)
 
@@ -395,6 +407,9 @@ def build_live_transcript(session: InterviewSession, turns: list[InterviewTurn])
     ]
     if session.curriculum_topic:
         lines.append(f"Curriculum topic: {session.curriculum_topic}")
+    case = case_for_session(session)
+    if case:
+        lines.append(f"Business case: {case.title}")
     lines.append("")
     planned = session.questions or []
     if planned:
@@ -439,6 +454,9 @@ def generate_live_summary(
     prof_ctx = profession_context(profile, job)
     curriculum_topic = normalize_curriculum_topic(getattr(session, "curriculum_topic", "") or "")
     curriculum_text = curriculum_prompt_block(curriculum_topic) if curriculum_topic else ""
+    case = case_for_session(session)
+    if case:
+        curriculum_text = case_summary_block(case)
     transcript = build_live_transcript(session, turns)
     data = privacy.restore(chain.chat_json(
         privacy.protect_system(prompts.INTERVIEW_SUMMARY_SYSTEM),
@@ -452,6 +470,8 @@ def generate_live_summary(
     ))
     if not isinstance(data, dict):
         data = {}
+    if case:
+        data["case_scorecard"] = session_case_scorecard(session, turns, data)
     data["_routing"] = routing_metadata(chain)
     logger.info("Live interview summary served by %s/%s", chain.last_served, chain.last_model)
     return data
