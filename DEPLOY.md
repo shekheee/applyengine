@@ -54,4 +54,8 @@ Update it if you add more origins, then redeploy.
 ### Notes
 - Render free tier sleeps on idle and the SQLite disk is small — fine for a demo/portfolio.
   For durability, provision a Render Postgres and set `DATABASE_URL` to it.
-- `autoDeploy: true` means every push to the default branch redeploys the backend.
+- Backend deploys are gated by CI: on each push to `main`, `.github/workflows/ci.yml` runs the
+  backend tests and the frontend type-check, lint and build, then triggers the Render deploy only if
+  all pass and backend files changed. `render.yaml` sets `autoDeploy: false` so Render never
+  deploys on its own. The workflow needs the `RENDER_API_KEY` repository secret.
+- The frontend still deploys through Vercel's Git integration, which does not wait for CI.

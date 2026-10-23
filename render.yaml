@@ -9,7 +9,8 @@ services:
     buildCommand: pip install -r requirements.txt && PLAYWRIGHT_BROWSERS_PATH=/opt/render/project/src/backend/pw-browsers python -m playwright install chromium
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
-    autoDeploy: true
+    # Deploys come from the CI workflow (.github/workflows/ci.yml) after tests pass.
+    autoDeploy: false
     envVars:
       - key: PLAYWRIGHT_BROWSERS_PATH
         value: /opt/render/project/src/backend/pw-browsers
