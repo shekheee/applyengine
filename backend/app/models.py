@@ -299,7 +299,7 @@ class PrepTask(SQLModel, table=True):
     # Authored study content from data/prep_content/*.json.
     brief: str | None = Field(default=None, sa_column=Column(Text))
     starter: str | None = Field(default=None, sa_column=Column(Text))
-    tests: list[dict[str, str]] | None = Field(default=None, sa_column=Column(JSON))
+    tests: list[dict[str, Any]] | None = Field(default=None, sa_column=Column(JSON))
     hints: list[str] | None = Field(default=None, sa_column=Column(JSON))
     solution: str | None = Field(default=None, sa_column=Column(Text))
 

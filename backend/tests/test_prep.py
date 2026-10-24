@@ -725,7 +725,10 @@ CONTENT = {
     "py-mon": {
         "brief": "Collections practice.",
         "starter": "def group(words):\n    raise NotImplementedError\n",
-        "tests": [{"name": "groups", "code": "assert group(['a']) == {'a': ['a']}"}],
+        "tests": [
+            {"name": "groups", "input": "['a']", "code": "assert group(['a']) == {'a': ['a']}"},
+            {"name": "empty", "input": "[]", "hidden": True, "code": "assert group([]) == {}"},
+        ],
         "hints": ["One", "Two", "Three"],
         "solution": "Use defaultdict(list).",
     },
@@ -822,6 +825,7 @@ class PrepContentAndTutorTests(unittest.TestCase):
             self.assertIsNone(session.get(PrepTask, "lc-217").hints)
         detail = self.detail("py-mon")
         self.assertIn("NotImplementedError", detail["starter"])
+        self.assertEqual([t.get("hidden", False) for t in detail["tests"]], [False, True])
         self.assertEqual(detail["hints_total"], 3)
         self.assertEqual(detail["hints_revealed"], [])
 

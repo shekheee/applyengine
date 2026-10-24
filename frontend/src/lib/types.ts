@@ -742,7 +742,7 @@ export interface PrepTaskDetail {
   open_redos: PrepRedo[];
   brief: string | null;
   starter: string | null;
-  tests: { name: string; code: string }[];
+  tests: { name: string; code: string; input?: string; hidden?: boolean }[];
   hints_total: number;
   hints_revealed: string[];
   solution: string | null;

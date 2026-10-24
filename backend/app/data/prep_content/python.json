@@ -4,24 +4,76 @@
   "starter": "from typing import Hashable, Iterable\n\n\ndef group_by_first_letter(words: list[str]) -> dict[str, list[str]]:\n    \"\"\"Group words by lowercased first letter, keeping input order; skip empty strings.\"\"\"\n    raise NotImplementedError\n\n\ndef sort_records(records: list[dict]) -> list[dict]:\n    \"\"\"Return a new list sorted by score descending, then name ascending.\"\"\"\n    raise NotImplementedError\n\n\ndef dedupe_keep_order(items: Iterable[Hashable]) -> list:\n    \"\"\"Return items with duplicates removed, keeping each first occurrence in order.\"\"\"\n    raise NotImplementedError\n",
   "tests": [
    {
-    "name": "groups words by lowercased first letter",
-    "code": "got = group_by_first_letter([\"apple\", \"Avocado\", \"banana\", \"cherry\", \"blueberry\"])\nassert got == {\"a\": [\"apple\", \"Avocado\"], \"b\": [\"banana\", \"blueberry\"], \"c\": [\"cherry\"]}, f\"got {got}\"\n"
+    "name": "group words by first letter",
+    "input": "group_by_first_letter(words = [\"apple\", \"Avocado\", \"banana\", \"\"])",
+    "hidden": false,
+    "code": "expect(group_by_first_letter([\"apple\", \"Avocado\", \"banana\", \"\"]), {\"a\": [\"apple\", \"Avocado\"], \"b\": [\"banana\"]})\n"
    },
    {
-    "name": "grouping edge cases: empty input and empty strings",
-    "code": "assert group_by_first_letter([]) == {}, \"empty input should give {}\"\ngot = group_by_first_letter([\"\", \"Zed\", \"\", \"zoo\"])\nassert got == {\"z\": [\"Zed\", \"zoo\"]}, f\"empty strings must be skipped, got {got}\"\n"
+    "name": "sort by score desc, name asc",
+    "input": "sort_records(records = [{\"name\": \"bo\", \"score\": 2}, {\"name\": \"al\", \"score\": 2}, {\"name\": \"cy\", \"score\": 5}])",
+    "hidden": false,
+    "code": "got = sort_records([{\"name\": \"bo\", \"score\": 2}, {\"name\": \"al\", \"score\": 2}, {\"name\": \"cy\", \"score\": 5}])\nexpect(got, [{\"name\": \"cy\", \"score\": 5}, {\"name\": \"al\", \"score\": 2}, {\"name\": \"bo\", \"score\": 2}])\n"
    },
    {
-    "name": "sorts by score desc then name asc",
-    "code": "recs = [{\"name\": \"bo\", \"score\": 2}, {\"name\": \"al\", \"score\": 2}, {\"name\": \"cy\", \"score\": 5}, {\"name\": \"di\", \"score\": 1}]\ngot = sort_records(recs)\nassert [r[\"name\"] for r in got] == [\"cy\", \"al\", \"bo\", \"di\"], f\"got {[r['name'] for r in got]}\"\n"
+    "name": "dedupe keeps first occurrences",
+    "input": "dedupe_keep_order(items = [3, 1, 3, 2, 1])",
+    "hidden": false,
+    "code": "expect(dedupe_keep_order([3, 1, 3, 2, 1]), [3, 1, 2])\n"
    },
    {
-    "name": "sort_records returns a new list and leaves input alone",
-    "code": "recs = [{\"name\": \"b\", \"score\": 1}, {\"name\": \"a\", \"score\": 9}]\nbefore = [dict(r) for r in recs]\ngot = sort_records(recs)\nassert got is not recs, \"return a new list\"\nassert recs == before, \"input list must not be reordered\"\nassert sort_records([]) == []\n"
+    "name": "group: empty input",
+    "input": "group_by_first_letter(words = [])",
+    "hidden": true,
+    "code": "expect(group_by_first_letter([]), {})\n"
    },
    {
-    "name": "dedupe keeps first occurrence in order",
-    "code": "assert dedupe_keep_order([3, 1, 3, 2, 1]) == [3, 1, 2]\nassert dedupe_keep_order([1, 2, 1]) == [1, 2], \"keep FIRST occurrence\"\nassert dedupe_keep_order([]) == []\nassert dedupe_keep_order(\"banana\") == [\"b\", \"a\", \"n\"], \"should accept any iterable\"\nassert dedupe_keep_order(x for x in [5, 5, 4]) == [5, 4], \"should accept a generator\"\n"
+    "name": "group: empty strings skipped, case folded",
+    "input": "group_by_first_letter(words = [\"\", \"Zed\", \"\", \"zoo\", \"ZIP\"])",
+    "hidden": true,
+    "code": "expect(group_by_first_letter([\"\", \"Zed\", \"\", \"zoo\", \"ZIP\"]), {\"z\": [\"Zed\", \"zoo\", \"ZIP\"]})\nexpect(group_by_first_letter([\"\", \"\"]), {}, label=\"only empty strings\")\n"
+   },
+   {
+    "name": "group: unicode and non-letter first characters",
+    "input": "group_by_first_letter(words = [\"Éclair\", \"écrit\", \"1st\", \"_x\", \"2nd\"])",
+    "hidden": true,
+    "code": "expect(group_by_first_letter([\"Éclair\", \"écrit\", \"1st\", \"_x\", \"2nd\"]),\n       {\"é\": [\"Éclair\", \"écrit\"], \"1\": [\"1st\"], \"_\": [\"_x\"], \"2\": [\"2nd\"]})\n"
+   },
+   {
+    "name": "group: keys in first-seen order, words keep spelling",
+    "input": "group_by_first_letter(words = [\"cat\", \"Apple\", \"car\", \"BANANA\", \"avo\"])",
+    "hidden": true,
+    "code": "got = group_by_first_letter([\"cat\", \"Apple\", \"car\", \"BANANA\", \"avo\"])\nexpect(list(got.items()), [(\"c\", [\"cat\", \"car\"]), (\"a\", [\"Apple\", \"avo\"]), (\"b\", [\"BANANA\"])])\n"
+   },
+   {
+    "name": "sort: several ties and negative scores",
+    "input": "records = [{\"name\": \"dee\", \"score\": 0}, {\"name\": \"al\", \"score\": -3}, {\"name\": \"cy\", \"score\": 0}, {\"name\": \"bo\", \"score\": 7}, {\"name\": \"ann\", \"score\": 0}]",
+    "hidden": true,
+    "code": "recs = [{\"name\": \"dee\", \"score\": 0}, {\"name\": \"al\", \"score\": -3}, {\"name\": \"cy\", \"score\": 0},\n        {\"name\": \"bo\", \"score\": 7}, {\"name\": \"ann\", \"score\": 0}]\nexpect([r[\"name\"] for r in sort_records(recs)], [\"bo\", \"ann\", \"cy\", \"dee\", \"al\"])\n"
+   },
+   {
+    "name": "sort: returns a new list, input untouched",
+    "input": "records = [{\"name\": \"b\", \"score\": 1}, {\"name\": \"a\", \"score\": 9}]",
+    "hidden": true,
+    "code": "recs = [{\"name\": \"b\", \"score\": 1}, {\"name\": \"a\", \"score\": 9}]\ngot = sort_records(recs)\nexpect([r[\"name\"] for r in got], [\"a\", \"b\"])\nexpect([r[\"name\"] for r in recs], [\"b\", \"a\"], label=\"input order after the call\")\nexpect(got is recs, False, label=\"returned the same list object\")\n"
+   },
+   {
+    "name": "sort: empty and single record",
+    "input": "sort_records(records = []), sort_records(records = [{\"name\": \"solo\", \"score\": 1}])",
+    "hidden": true,
+    "code": "expect(sort_records([]), [])\nexpect(sort_records([{\"name\": \"solo\", \"score\": 1}]), [{\"name\": \"solo\", \"score\": 1}])\n"
+   },
+   {
+    "name": "dedupe: empty, no duplicates, mixed types",
+    "input": "items = [], [1, 2, 3], [1, \"1\", 1.5, \"1\", 1]",
+    "hidden": true,
+    "code": "expect(dedupe_keep_order([]), [])\nexpect(dedupe_keep_order([1, 2, 3]), [1, 2, 3])\nexpect(dedupe_keep_order([1, \"1\", 1.5, \"1\", 1]), [1, \"1\", 1.5])\n"
+   },
+   {
+    "name": "dedupe: any iterable (string, generator) and large input",
+    "input": "items = \"banana\", (x for x in [5, 5, 4]), list(range(1000)) * 3",
+    "hidden": true,
+    "code": "expect(dedupe_keep_order(\"banana\"), [\"b\", \"a\", \"n\"])\nexpect(dedupe_keep_order(x for x in [5, 5, 4]), [5, 4])\nbig = dedupe_keep_order(list(range(1000)) * 3)\nexpect((len(big), big[:3], big[-1]), (1000, [0, 1, 2], 999))\n"
    }
   ],
   "hints": [
@@ -36,28 +88,76 @@
   "starter": "import heapq\nimport itertools\nfrom collections import Counter, deque\n\n\ndef top_k_frequent(words: list[str], k: int) -> list[str]:\n    \"\"\"k most frequent words, most frequent first, ties alphabetical.\"\"\"\n    raise NotImplementedError\n\n\ndef sliding_window_max(nums: list[int], k: int) -> list[int]:\n    \"\"\"Max of each window of size k, in O(n) with a deque of indices.\"\"\"\n    raise NotImplementedError\n\n\nclass TaskQueue:\n    \"\"\"Min-heap of tasks by priority; equal priorities pop in push order.\"\"\"\n\n    def __init__(self) -> None:\n        raise NotImplementedError\n\n    def push(self, priority: int, name: str) -> None:\n        raise NotImplementedError\n\n    def pop(self) -> str:\n        raise NotImplementedError\n\n    def peek(self) -> str:\n        raise NotImplementedError\n\n    def __len__(self) -> int:\n        raise NotImplementedError\n",
   "tests": [
    {
-    "name": "top_k_frequent orders by count then alphabetically",
-    "code": "words = [\"b\", \"a\", \"b\", \"c\", \"a\", \"d\", \"c\", \"e\"]\nassert top_k_frequent(words, 2) == [\"a\", \"b\"], f\"got {top_k_frequent(words, 2)}\"\nassert top_k_frequent(words, 3) == [\"a\", \"b\", \"c\"]\nassert top_k_frequent([\"x\", \"y\", \"y\"], 1) == [\"y\"]\n"
-   },
-   {
-    "name": "top_k_frequent edge cases",
-    "code": "assert top_k_frequent([\"a\", \"b\"], 10) == [\"a\", \"b\"], \"k larger than distinct words returns all\"\nassert top_k_frequent([\"a\"], 0) == [], \"k <= 0 returns []\"\nassert top_k_frequent([], 3) == []\n"
+    "name": "top-k frequent words",
+    "input": "words = [\"b\", \"a\", \"b\", \"c\", \"a\", \"d\"], k = 2",
+    "hidden": false,
+    "code": "expect(top_k_frequent([\"b\", \"a\", \"b\", \"c\", \"a\", \"d\"], 2), [\"a\", \"b\"])\n"
    },
    {
     "name": "sliding window max",
-    "code": "assert sliding_window_max([1, 3, -1, -3, 5, 3, 6, 7], 3) == [3, 3, 5, 5, 6, 7]\nassert sliding_window_max([9, 8, 7, 6], 2) == [9, 8, 7]\nassert sliding_window_max([4, 2], 1) == [4, 2]\nassert sliding_window_max([1, 2], 3) == [], \"window bigger than input gives []\"\n"
+    "input": "nums = [1, 3, -1, -3, 5, 3, 6, 7], k = 3",
+    "hidden": false,
+    "code": "expect(sliding_window_max([1, 3, -1, -3, 5, 3, 6, 7], 3), [3, 3, 5, 5, 6, 7])\n"
    },
    {
-    "name": "sliding window rejects k < 1",
-    "code": "try:\n    sliding_window_max([1, 2, 3], 0)\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError(\"k=0 should raise ValueError\")\n"
+    "name": "task queue: priority then FIFO",
+    "input": "ops: push(2,\"write\") → push(1,\"read\") → push(1,\"eval\") → pop → pop → len",
+    "hidden": false,
+    "code": "q = TaskQueue()\nq.push(2, \"write\")\nq.push(1, \"read\")\nq.push(1, \"eval\")\nexpect((q.pop(), q.pop(), len(q)), (\"read\", \"eval\", 1))\n"
    },
    {
-    "name": "TaskQueue pops lowest priority, FIFO on ties",
-    "code": "q = TaskQueue()\nq.push(2, \"write\")\nq.push(1, \"read\")\nq.push(1, \"eval\")\nq.push(0, \"boot\")\nassert len(q) == 4\nassert q.peek() == \"boot\" and len(q) == 4, \"peek must not remove\"\nassert [q.pop() for _ in range(4)] == [\"boot\", \"read\", \"eval\", \"write\"]\nassert len(q) == 0\n"
+    "name": "top-k: ties broken alphabetically",
+    "input": "words = [\"c\", \"b\", \"a\", \"c\", \"b\", \"a\", \"d\"], k = 2; words = [\"x\", \"y\", \"y\"], k = 1",
+    "hidden": true,
+    "code": "expect(top_k_frequent([\"c\", \"b\", \"a\", \"c\", \"b\", \"a\", \"d\"], 2), [\"a\", \"b\"])\nexpect(top_k_frequent([\"x\", \"y\", \"y\"], 1), [\"y\"])\nexpect(top_k_frequent([\"b\", \"a\", \"b\", \"c\", \"a\", \"d\", \"c\", \"e\"], 4), [\"a\", \"b\", \"c\", \"d\"])\n"
    },
    {
-    "name": "TaskQueue empty raises IndexError",
-    "code": "q = TaskQueue()\nfor op in (q.pop, q.peek):\n    try:\n        op()\n    except IndexError:\n        pass\n    else:\n        raise AssertionError(f\"{op.__name__} on empty queue should raise IndexError\")\n"
+    "name": "top-k: k larger than distinct words",
+    "input": "words = [\"b\", \"a\", \"b\"], k = 10",
+    "hidden": true,
+    "code": "expect(top_k_frequent([\"b\", \"a\", \"b\"], 10), [\"b\", \"a\"])\n"
+   },
+   {
+    "name": "top-k: k <= 0 and empty input",
+    "input": "words = [\"a\"], k = 0; words = [\"a\"], k = -2; words = [], k = 3",
+    "hidden": true,
+    "code": "expect(top_k_frequent([\"a\"], 0), [])\nexpect(top_k_frequent([\"a\"], -2), [])\nexpect(top_k_frequent([], 3), [])\n"
+   },
+   {
+    "name": "window: k = 1, k = len(nums), k > len(nums)",
+    "input": "nums = [4, 2, 9], k = 1 / 3 / 4",
+    "hidden": true,
+    "code": "expect(sliding_window_max([4, 2, 9], 1), [4, 2, 9])\nexpect(sliding_window_max([4, 2, 9], 3), [9])\nexpect(sliding_window_max([4, 2, 9], 4), [])\nexpect(sliding_window_max([], 2), [])\n"
+   },
+   {
+    "name": "window: k < 1 raises ValueError",
+    "input": "nums = [1, 2, 3], k = 0; k = -1",
+    "hidden": true,
+    "code": "expect_raises(ValueError, sliding_window_max, [1, 2, 3], 0, label=\"k = 0\")\nexpect_raises(ValueError, sliding_window_max, [1, 2, 3], -1, label=\"k = -1\")\n"
+   },
+   {
+    "name": "window: decreasing, duplicates, large input",
+    "input": "nums = [9, 8, 7, 6], k = 2; nums = [2, 2, 2, 1], k = 2; 5000 seeded ints, k = 50",
+    "hidden": true,
+    "code": "expect(sliding_window_max([9, 8, 7, 6], 2), [9, 8, 7])\nexpect(sliding_window_max([2, 2, 2, 1], 2), [2, 2, 2])\nimport random\nrng = random.Random(7)\nnums = [rng.randint(-1000, 1000) for _ in range(5000)]\ngot = sliding_window_max(nums, 50)\nbrute = [max(nums[i:i + 50]) for i in range(len(nums) - 49)]\nexpect((len(got), got[:3], got == brute), (len(brute), brute[:3], True))\n"
+   },
+   {
+    "name": "queue: peek does not remove, FIFO among equal priorities",
+    "input": "ops: push(1,\"a\") → push(0,\"z\") → push(1,\"b\") → push(1,\"c\") → peek → len → pop ×4",
+    "hidden": true,
+    "code": "q = TaskQueue()\nfor p, n in [(1, \"a\"), (0, \"z\"), (1, \"b\"), (1, \"c\")]:\n    q.push(p, n)\nexpect((q.peek(), len(q)), (\"z\", 4), label=\"peek then len\")\nexpect([q.pop() for _ in range(4)], [\"z\", \"a\", \"b\", \"c\"])\nexpect(len(q), 0)\n"
+   },
+   {
+    "name": "queue: pop/peek on empty raise IndexError",
+    "input": "ops: pop on empty; peek on empty; push → pop → pop",
+    "hidden": true,
+    "code": "q = TaskQueue()\nexpect_raises(IndexError, q.pop, label=\"pop on empty\")\nexpect_raises(IndexError, q.peek, label=\"peek on empty\")\nq.push(5, \"only\")\nexpect(q.pop(), \"only\")\nexpect_raises(IndexError, q.pop, label=\"pop after draining\")\n"
+   },
+   {
+    "name": "queue: interleaved ops, two queues don't share state",
+    "input": "q1: push(3,\"x\") → push(1,\"y\") → pop → push(0,\"w\") → pop → pop; q2: push(9,\"solo\")",
+    "hidden": true,
+    "code": "q1, q2 = TaskQueue(), TaskQueue()\nq1.push(3, \"x\")\nq1.push(1, \"y\")\nq2.push(9, \"solo\")\nout = [q1.pop()]\nq1.push(0, \"w\")\nout += [q1.pop(), q1.pop()]\nexpect(out, [\"y\", \"w\", \"x\"])\nexpect((len(q1), len(q2), q2.peek()), (0, 1, \"solo\"))\n"
    }
   ],
   "hints": [
@@ -72,28 +172,76 @@
   "starter": "from abc import ABC, abstractmethod\nfrom dataclasses import dataclass, field\n\n\nclass BankAccount:\n    def __init__(self, owner: str, balance: float = 0.0) -> None:\n        raise NotImplementedError\n\n    @property\n    def balance(self) -> float:\n        raise NotImplementedError\n\n    def deposit(self, amount: float) -> float:\n        raise NotImplementedError\n\n    def withdraw(self, amount: float) -> float:\n        raise NotImplementedError\n\n    def __repr__(self) -> str:\n        raise NotImplementedError\n\n\n@dataclass\nclass Report:\n    scores: list[float] = field(default_factory=list)\n\n    @property\n    def mean(self) -> float:\n        raise NotImplementedError\n\n\nclass Grader(ABC):\n    @abstractmethod\n    def grade(self, output: str, expected: str) -> float:\n        \"\"\"Score one output against the expected answer, 0.0 to 1.0.\"\"\"\n\n    def run(self, cases: list[tuple[str, str]]) -> Report:\n        raise NotImplementedError\n\n\nclass ExactMatchGrader(Grader):\n    def grade(self, output: str, expected: str) -> float:\n        raise NotImplementedError\n\n\nclass ContainsGrader(Grader):\n    def grade(self, output: str, expected: str) -> float:\n        raise NotImplementedError\n",
   "tests": [
    {
-    "name": "BankAccount deposit/withdraw/repr",
-    "code": "acct = BankAccount(\"Ann\", 10)\nassert acct.deposit(5) == 15, \"deposit returns the new balance\"\nassert acct.withdraw(2.5) == 12.5\nassert acct.balance == 12.5\nassert repr(acct) == \"BankAccount(owner='Ann', balance=12.50)\", f\"got {acct!r}\"\nassert repr(BankAccount(\"Bo\")) == \"BankAccount(owner='Bo', balance=0.00)\"\n"
+    "name": "deposit, withdraw, repr",
+    "input": "acct = BankAccount(\"Ann\", 10); deposit(5); withdraw(2.5)",
+    "hidden": false,
+    "code": "acct = BankAccount(\"Ann\", 10)\nexpect(acct.deposit(5), 15, label=\"deposit(5)\")\nexpect(acct.withdraw(2.5), 12.5, label=\"withdraw(2.5)\")\nexpect(repr(acct), \"BankAccount(owner='Ann', balance=12.50)\")\n"
    },
    {
-    "name": "BankAccount validation",
-    "code": "def expect_value_error(fn, label):\n    try:\n        fn()\n    except ValueError:\n        return\n    raise AssertionError(f\"{label} should raise ValueError\")\n\nexpect_value_error(lambda: BankAccount(\"\", 1), \"empty owner\")\nexpect_value_error(lambda: BankAccount(\"Ann\", -1), \"negative opening balance\")\nacct = BankAccount(\"Ann\", 10)\nexpect_value_error(lambda: acct.deposit(0), \"deposit of 0\")\nexpect_value_error(lambda: acct.withdraw(-3), \"negative withdraw\")\nexpect_value_error(lambda: acct.withdraw(11), \"overdraft\")\nassert acct.balance == 10, \"a failed withdraw must not change the balance\"\n"
-   },
-   {
-    "name": "balance is a read-only property",
-    "code": "acct = BankAccount(\"Ann\", 10)\ntry:\n    acct.balance = 1_000_000\nexcept AttributeError:\n    pass\nelse:\n    raise AssertionError(\"assigning balance should raise AttributeError (use @property without a setter)\")\nassert acct.balance == 10\n"
+    "name": "ContainsGrader run and mean",
+    "input": "ContainsGrader().run([(\"The answer is Paris\", \"paris\"), (\"Rome\", \"paris\")])",
+    "hidden": false,
+    "code": "rep = ContainsGrader().run([(\"The answer is Paris\", \"paris\"), (\"Rome\", \"paris\")])\nexpect(rep.scores, [1.0, 0.0])\nexpect(rep.mean, 0.5)\n"
    },
    {
     "name": "Grader is abstract",
-    "code": "import inspect\nassert inspect.isabstract(Grader), \"Grader must have an abstract grade method\"\ntry:\n    Grader()\nexcept TypeError:\n    pass\nelse:\n    raise AssertionError(\"Grader() should raise TypeError\")\nassert isinstance(ExactMatchGrader(), Grader) and isinstance(ContainsGrader(), Grader)\n"
+    "input": "Grader()",
+    "hidden": false,
+    "code": "expect_raises(TypeError, Grader)\nexpect((isinstance(ExactMatchGrader(), Grader), isinstance(ContainsGrader(), Grader)), (True, True))\n"
    },
    {
-    "name": "graders score correctly",
-    "code": "em = ExactMatchGrader()\nassert em.grade(\"  Paris\\n\", \"Paris\") == 1.0\nassert em.grade(\"paris\", \"Paris\") == 0.0, \"exact match is case-sensitive\"\ncg = ContainsGrader()\nassert cg.grade(\"The answer is PARIS.\", \"paris\") == 1.0\nassert cg.grade(\"Rome\", \"paris\") == 0.0\n"
+    "name": "repr: default balance and two decimals",
+    "input": "BankAccount(\"Bo\"); BankAccount(\"Cy\", 3.456)",
+    "hidden": true,
+    "code": "expect(repr(BankAccount(\"Bo\")), \"BankAccount(owner='Bo', balance=0.00)\")\nexpect(repr(BankAccount(\"Cy\", 3.456)), \"BankAccount(owner='Cy', balance=3.46)\")\nexpect(BankAccount(\"Bo\").balance, 0.0)\n"
    },
    {
-    "name": "run returns a Report dataclass with mean",
-    "code": "import dataclasses\nrep = ContainsGrader().run([(\"The answer is Paris\", \"paris\"), (\"Rome\", \"paris\"), (\"paris!\", \"Paris\"), (\"x\", \"y\")])\nassert dataclasses.is_dataclass(rep) and isinstance(rep, Report)\nassert rep.scores == [1.0, 0.0, 1.0, 0.0], f\"got {rep.scores}\"\nassert rep.mean == 0.5\nassert ExactMatchGrader().run([]).mean == 0.0, \"empty report mean is 0.0\"\nassert Report().scores == [] and Report().scores is not Report().scores, \"use default_factory\"\n"
+    "name": "constructor validation",
+    "input": "BankAccount(\"\", 1); BankAccount(\"Ann\", -1); BankAccount(\"Ann\", 0)",
+    "hidden": true,
+    "code": "expect_raises(ValueError, BankAccount, \"\", 1, label=\"empty owner\")\nexpect_raises(ValueError, BankAccount, \"Ann\", -1, label=\"negative opening balance\")\nexpect(BankAccount(\"Ann\", 0).balance, 0.0, label=\"zero opening balance is fine\")\n"
+   },
+   {
+    "name": "non-positive amounts rejected",
+    "input": "acct = BankAccount(\"Ann\", 10); deposit(0); deposit(-1); withdraw(0); withdraw(-3)",
+    "hidden": true,
+    "code": "acct = BankAccount(\"Ann\", 10)\nexpect_raises(ValueError, acct.deposit, 0, label=\"deposit(0)\")\nexpect_raises(ValueError, acct.deposit, -1, label=\"deposit(-1)\")\nexpect_raises(ValueError, acct.withdraw, 0, label=\"withdraw(0)\")\nexpect_raises(ValueError, acct.withdraw, -3, label=\"withdraw(-3)\")\nexpect(acct.balance, 10.0, label=\"balance after rejected ops\")\n"
+   },
+   {
+    "name": "overdraft raises and leaves balance unchanged",
+    "input": "acct = BankAccount(\"Ann\", 10); withdraw(11)",
+    "hidden": true,
+    "code": "acct = BankAccount(\"Ann\", 10)\nexpect_raises(ValueError, acct.withdraw, 11, label=\"withdraw(11)\")\nexpect(acct.balance, 10.0)\n"
+   },
+   {
+    "name": "withdraw exact balance, accounts independent",
+    "input": "a = BankAccount(\"Ann\", 10); b = BankAccount(\"Bo\", 10); a.withdraw(10)",
+    "hidden": true,
+    "code": "a, b = BankAccount(\"Ann\", 10), BankAccount(\"Bo\", 10)\nexpect(a.withdraw(10), 0.0, label=\"withdraw the full balance\")\nexpect((a.balance, b.balance), (0.0, 10.0))\n"
+   },
+   {
+    "name": "balance is read-only",
+    "input": "acct = BankAccount(\"Ann\", 10); acct.balance = 1_000_000",
+    "hidden": true,
+    "code": "acct = BankAccount(\"Ann\", 10)\nexpect_raises(AttributeError, setattr, acct, \"balance\", 1_000_000, label=\"assign balance\")\nexpect(acct.balance, 10.0)\n"
+   },
+   {
+    "name": "ExactMatchGrader strips whitespace, is case-sensitive",
+    "input": "grade(\"  Paris\\n\", \"Paris\"); grade(\"paris\", \"Paris\"); grade(\"Paris\", \" Paris \")",
+    "hidden": true,
+    "code": "em = ExactMatchGrader()\nexpect(em.grade(\"  Paris\\n\", \"Paris\"), 1.0)\nexpect(em.grade(\"paris\", \"Paris\"), 0.0, label=\"case differs\")\nexpect(em.grade(\"Paris\", \" Paris \"), 1.0, label=\"expected is stripped too\")\nexpect(em.grade(\"\", \"\"), 1.0, label=\"both empty\")\n"
+   },
+   {
+    "name": "ContainsGrader is case-insensitive substring",
+    "input": "grade(\"The answer is PARIS.\", \"paris\"); grade(\"Rome\", \"paris\"); grade(\"Par\", \"paris\")",
+    "hidden": true,
+    "code": "cg = ContainsGrader()\nexpect(cg.grade(\"The answer is PARIS.\", \"paris\"), 1.0)\nexpect(cg.grade(\"Rome\", \"paris\"), 0.0)\nexpect(cg.grade(\"Par\", \"paris\"), 0.0, label=\"output shorter than expected\")\n"
+   },
+   {
+    "name": "Report: empty mean, order kept, default not shared",
+    "input": "ExactMatchGrader().run([]); run 4 cases; Report(), Report()",
+    "hidden": true,
+    "code": "import dataclasses\nexpect(ExactMatchGrader().run([]).mean, 0.0, label=\"empty run mean\")\nrep = ExactMatchGrader().run([(\"a\", \"a\"), (\"b\", \"x\"), (\" c \", \"c\"), (\"d\", \"D\")])\nexpect((dataclasses.is_dataclass(rep), type(rep).__name__, rep.scores, rep.mean),\n       (True, \"Report\", [1.0, 0.0, 1.0, 0.0], 0.5))\nr1, r2 = Report(), Report()\nr1.scores.append(1.0)\nexpect(r2.scores, [], label=\"second Report's scores after appending to the first\")\n"
    }
   ],
   "hints": [
@@ -108,24 +256,76 @@
   "starter": "import json\nimport time\nfrom typing import Callable, Iterable, Iterator\n\n\nclass JSONLError(Exception):\n    \"\"\"Raised for a malformed line; carries the 1-based line number.\"\"\"\n\n    def __init__(self, line_no: int, message: str) -> None:\n        raise NotImplementedError\n\n\ndef read_jsonl(lines: Iterable[str]) -> Iterator[dict]:\n    \"\"\"Lazily yield one dict per non-blank line.\"\"\"\n    raise NotImplementedError\n\n\nclass Timer:\n    def __init__(self, clock: Callable[[], float] = time.perf_counter) -> None:\n        raise NotImplementedError\n\n    def __enter__(self) -> \"Timer\":\n        raise NotImplementedError\n\n    def __exit__(self, exc_type, exc, tb) -> bool:\n        raise NotImplementedError\n",
   "tests": [
    {
-    "name": "reads records and skips blank lines",
-    "code": "import io\nsrc = io.StringIO('{\"id\": 1, \"text\": \"a\"}\\n\\n   \\n{\"id\": 2, \"text\": \"b\"}\\n')\ngot = list(read_jsonl(src))\nassert got == [{\"id\": 1, \"text\": \"a\"}, {\"id\": 2, \"text\": \"b\"}], f\"got {got}\"\nassert list(read_jsonl([])) == []\n"
+    "name": "read records, skip blank lines",
+    "input": "lines = io.StringIO('{\"id\": 1}\\n\\n   \\n{\"id\": 2}\\n')",
+    "hidden": false,
+    "code": "import io\nexpect(list(read_jsonl(io.StringIO('{\"id\": 1}\\n\\n   \\n{\"id\": 2}\\n'))), [{\"id\": 1}, {\"id\": 2}])\n"
    },
    {
-    "name": "read_jsonl is a lazy generator",
-    "code": "import types\nconsumed = []\ndef line_source():\n    for i in range(1_000_000):\n        consumed.append(i)\n        yield '{\"i\": %d}\\n' % i\ngen = read_jsonl(line_source())\nassert isinstance(gen, types.GeneratorType), \"read_jsonl should be a generator function (use yield)\"\nassert consumed == [], \"nothing should be read before the first next()\"\nassert next(gen) == {\"i\": 0}\nassert next(gen) == {\"i\": 1}\nassert len(consumed) <= 3, f\"read {len(consumed)} lines for 2 records: not lazy\"\n"
+    "name": "Timer with an injected clock",
+    "input": "clock ticks 10.0 at enter, 12.5 at exit",
+    "hidden": false,
+    "code": "ticks = iter([10.0, 12.5])\nwith Timer(clock=lambda: next(ticks)) as t:\n    pass\nexpect(t.elapsed, 2.5)\n"
    },
    {
-    "name": "malformed line raises JSONLError with line number and cause",
-    "code": "import io, json\ngen = read_jsonl(io.StringIO('{\"ok\": 1}\\n\\n{\"broken\": \\n{\"ok\": 2}\\n'))\nassert next(gen) == {\"ok\": 1}, \"good lines before the bad one must still be yielded\"\ntry:\n    next(gen)\nexcept JSONLError as err:\n    assert err.line_no == 3, f\"blank lines count: expected line 3, got {err.line_no}\"\n    assert str(err).startswith(\"line 3: \"), f\"got {str(err)!r}\"\n    assert isinstance(err.__cause__, json.JSONDecodeError), \"chain with raise ... from err\"\nelse:\n    raise AssertionError(\"malformed JSON should raise JSONLError\")\nassert issubclass(JSONLError, Exception)\n"
+    "name": "empty and whitespace-only input",
+    "input": "lines = []; lines = [\"\\n\", \"   \\n\", \"\\t\"]",
+    "hidden": true,
+    "code": "expect(list(read_jsonl([])), [])\nexpect(list(read_jsonl([\"\\n\", \"   \\n\", \"\\t\"])), [])\n"
    },
    {
-    "name": "Timer measures with the injected clock",
-    "code": "ticks = iter([10.0, 12.5])\ntimer = Timer(clock=lambda: next(ticks))\nassert timer.elapsed is None, \"elapsed is None before the block runs\"\nwith timer as t:\n    assert t is timer, \"__enter__ must return the timer\"\nassert timer.elapsed == 2.5, f\"got {timer.elapsed}\"\nwith Timer() as real:\n    sum(range(1000))\nassert real.elapsed is not None and real.elapsed >= 0\n"
+    "name": "list input, unicode, no trailing newline",
+    "input": "lines = ['{\"text\": \"héllo ✓\"}', '  {\"n\": [1, 2]}  ']",
+    "hidden": true,
+    "code": "expect(list(read_jsonl(['{\"text\": \"héllo ✓\"}', '  {\"n\": [1, 2]}  '])), [{\"text\": \"héllo ✓\"}, {\"n\": [1, 2]}])\n"
    },
    {
-    "name": "Timer lets exceptions propagate and still records elapsed",
-    "code": "ticks = iter([1.0, 4.0])\ntimer = Timer(clock=lambda: next(ticks))\ntry:\n    with timer:\n        raise KeyError(\"boom\")\nexcept KeyError:\n    pass\nelse:\n    raise AssertionError(\"Timer must not swallow exceptions\")\nassert timer.elapsed == 3.0, f\"elapsed must be set even on error, got {timer.elapsed}\"\n"
+    "name": "read_jsonl is lazy",
+    "input": "a generator of 1,000,000 lines; take 2 records",
+    "hidden": true,
+    "code": "import types\nconsumed = []\ndef line_source():\n    for i in range(1_000_000):\n        consumed.append(i)\n        yield '{\"i\": %d}\\n' % i\ngen = read_jsonl(line_source())\nexpect(isinstance(gen, types.GeneratorType), True, label=\"read_jsonl returns a generator\")\nexpect(len(consumed), 0, label=\"lines read before the first next()\")\nexpect([next(gen), next(gen)], [{\"i\": 0}, {\"i\": 1}])\nexpect(len(consumed), 2, label=\"lines read for 2 records\")\n"
+   },
+   {
+    "name": "malformed line: 1-based physical line number",
+    "input": "lines = '{\"ok\": 1}\\n\\n{\"broken\": \\n{\"ok\": 2}\\n'",
+    "hidden": true,
+    "code": "import io\ngen = read_jsonl(io.StringIO('{\"ok\": 1}\\n\\n{\"broken\": \\n{\"ok\": 2}\\n'))\nexpect(next(gen), {\"ok\": 1}, label=\"good line before the bad one\")\nerr = expect_raises(JSONLError, next, gen, label=\"next() on line 3\")\nexpect(err.line_no, 3, label=\"line_no (blank lines count)\")\n"
+   },
+   {
+    "name": "malformed line chains the JSONDecodeError",
+    "input": "lines = [\"{bad\"]",
+    "hidden": true,
+    "code": "err = expect_raises(JSONLError, list, read_jsonl([\"{bad\"]))\nexpect(type(err.__cause__).__name__, \"JSONDecodeError\", label=\"err.__cause__\")\nexpect(str(err).startswith(\"line 1: \"), True, label=f\"str(err) = {str(err)!r}\")\n"
+   },
+   {
+    "name": "JSONLError fields and message format",
+    "input": "JSONLError(7, \"boom\")",
+    "hidden": true,
+    "code": "err = JSONLError(7, \"boom\")\nexpect((err.line_no, str(err), isinstance(err, Exception)), (7, \"line 7: boom\", True))\n"
+   },
+   {
+    "name": "bad line after several good ones",
+    "input": "lines = ['{\"a\": 1}', '{\"a\": 2}', \"\", \"\", \"not json\", '{\"a\": 3}']",
+    "hidden": true,
+    "code": "lines = ['{\"a\": 1}', '{\"a\": 2}', \"\", \"\", \"not json\", '{\"a\": 3}']\nseen = []\ntry:\n    for rec in read_jsonl(lines):\n        seen.append(rec)\nexcept JSONLError as err:\n    seen.append(f\"JSONLError at line {err.line_no}\")\nexpect(seen, [{\"a\": 1}, {\"a\": 2}, \"JSONLError at line 5\"])\n"
+   },
+   {
+    "name": "Timer: elapsed None before, __enter__ returns the timer",
+    "input": "timer = Timer(clock); timer.elapsed; with timer as t",
+    "hidden": true,
+    "code": "ticks = iter([1.0, 1.25])\ntimer = Timer(clock=lambda: next(ticks))\nexpect(timer.elapsed, None, label=\"elapsed before the block\")\nwith timer as t:\n    expect(t is timer, True, label=\"with Timer() as t: t is the timer\")\nexpect(timer.elapsed, 0.25)\n"
+   },
+   {
+    "name": "Timer: exception propagates, elapsed still set",
+    "input": "clock ticks 1.0, 4.0; with timer: raise KeyError(\"boom\")",
+    "hidden": true,
+    "code": "ticks = iter([1.0, 4.0])\ntimer = Timer(clock=lambda: next(ticks))\ndef run_block():\n    with timer:\n        raise KeyError(\"boom\")\nexpect_raises(KeyError, run_block, label=\"exception inside the block\")\nexpect(timer.elapsed, 3.0)\n"
+   },
+   {
+    "name": "Timer: default clock gives a small non-negative time",
+    "input": "with Timer() as t: sum(range(1000))",
+    "hidden": true,
+    "code": "with Timer() as real:\n    sum(range(1000))\nexpect((type(real.elapsed).__name__, 0 <= real.elapsed < 1), (\"float\", True))\n"
    }
   ],
   "hints": [
@@ -140,24 +340,76 @@
   "starter": "import json\nfrom typing import Literal, Optional\n\nfrom pydantic import BaseModel, ConfigDict, Field, ValidationError\n\n\nclass Answer(BaseModel):\n    \"\"\"TODO: label, confidence, reasons, citation; forbid extra fields.\"\"\"\n\n\ndef parse_llm_output(raw: str) -> tuple[Optional[Answer], Optional[str]]:\n    \"\"\"Return (answer, None) on success or (None, error message) on failure.\"\"\"\n    raise NotImplementedError\n",
   "tests": [
    {
-    "name": "valid JSON parses into Answer with defaults",
-    "code": "ans, err = parse_llm_output('  {\"label\": \"positive\", \"confidence\": 0.9}  ')\nassert err is None, f\"unexpected error: {err}\"\nassert isinstance(ans, Answer)\nassert ans.label == \"positive\" and ans.confidence == 0.9\nassert ans.reasons == [] and ans.citation is None\nans2, _ = parse_llm_output('{\"label\": \"neutral\", \"confidence\": 1, \"reasons\": [\"r1\"], \"citation\": \"doc-3\"}')\nassert ans2.reasons == [\"r1\"] and ans2.citation == \"doc-3\"\n"
-   },
-   {
-    "name": "markdown code fence is stripped",
-    "code": "fence = \"`\" * 3\nraw = fence + 'json\\n{\"label\": \"negative\", \"confidence\": 0.2}\\n' + fence + \"\\n\"\nans, err = parse_llm_output(raw)\nassert err is None, f\"fenced JSON should parse, got error: {err}\"\nassert ans.label == \"negative\"\nans, err = parse_llm_output(fence + '\\n{\"label\": \"neutral\", \"confidence\": 0}\\n' + fence)\nassert err is None and ans.label == \"neutral\", \"fence without a language tag\"\n"
-   },
-   {
-    "name": "malformed JSON gives an invalid JSON error",
-    "code": "ans, err = parse_llm_output('{\"label\": \"positive\", \"confidence\": }')\nassert ans is None\nassert isinstance(err, str) and err.startswith(\"invalid JSON: \"), f\"got {err!r}\"\nans, err = parse_llm_output(\"Sure! Here is the answer.\")\nassert ans is None and err.startswith(\"invalid JSON: \")\n"
+    "name": "valid JSON fills defaults",
+    "input": "raw = '{\"label\": \"positive\", \"confidence\": 0.9}'",
+    "hidden": false,
+    "code": "ans, err = parse_llm_output('{\"label\": \"positive\", \"confidence\": 0.9}')\nexpect((type(ans).__name__, ans.label, ans.confidence, ans.reasons, ans.citation, err),\n       (\"Answer\", \"positive\", 0.9, [], None, None))\n"
    },
    {
     "name": "schema errors name every bad field",
-    "code": "ans, err = parse_llm_output('{\"label\": \"great\", \"confidence\": 1.5}')\nassert ans is None\nassert err.startswith(\"validation failed: \"), f\"got {err!r}\"\nassert \"label: \" in err and \"confidence: \" in err, f\"both fields should be reported: {err!r}\"\n_, err = parse_llm_output('{\"label\": \"positive\"}')\nassert err.startswith(\"validation failed: \") and \"confidence: \" in err, \"missing field is an error\"\n_, err = parse_llm_output('[1, 2]')\nassert err.startswith(\"validation failed: \"), \"a JSON list is not an Answer\"\n"
+    "input": "raw = '{\"label\": \"great\", \"confidence\": 2}'",
+    "hidden": false,
+    "code": "def fields(err):\n    \"\"\"Field paths named in a 'validation failed: ...' message.\"\"\"\n    return [p.split(\": \")[0] for p in err[len(\"validation failed: \"):].split(\"; \")]\n\nans, err = parse_llm_output('{\"label\": \"great\", \"confidence\": 2}')\nexpect(ans, None)\nexpect(err.startswith(\"validation failed: \"), True, label=err)\nexpect(fields(err), [\"label\", \"confidence\"])\n"
    },
    {
-    "name": "Answer model rejects extra fields and bad bounds",
-    "code": "from pydantic import ValidationError\nassert Answer(label=\"positive\", confidence=0.5).confidence == 0.5\nfor bad in ({\"label\": \"positive\", \"confidence\": 0.5, \"score\": 3},\n            {\"label\": \"positive\", \"confidence\": -0.1},\n            {\"label\": \"maybe\", \"confidence\": 0.5}):\n    try:\n        Answer.model_validate(bad)\n    except ValidationError:\n        continue\n    raise AssertionError(f\"should be rejected: {bad}\")\n"
+    "name": "markdown fence with json tag",
+    "input": "raw = ```json\\n{\"label\": \"negative\", \"confidence\": 0.2}\\n```\\n",
+    "hidden": false,
+    "code": "fence = \"`\" * 3\nans, err = parse_llm_output(fence + 'json\\n{\"label\": \"negative\", \"confidence\": 0.2}\\n' + fence + \"\\n\")\nexpect((ans.label if ans else None, err), (\"negative\", None))\n"
+   },
+   {
+    "name": "fence without a language tag",
+    "input": "raw = ```\\n{\"label\": \"neutral\", \"confidence\": 0}\\n```",
+    "hidden": true,
+    "code": "fence = \"`\" * 3\nans, err = parse_llm_output(fence + '\\n{\"label\": \"neutral\", \"confidence\": 0}\\n' + fence)\nexpect((ans.label if ans else None, ans.confidence if ans else None, err), (\"neutral\", 0.0, None))\n"
+   },
+   {
+    "name": "all fields, surrounding whitespace",
+    "input": "raw = '  {\"label\": \"neutral\", \"confidence\": 1, \"reasons\": [\"r1\"], \"citation\": \"doc-3\"}  \\n'",
+    "hidden": true,
+    "code": "ans, err = parse_llm_output('  {\"label\": \"neutral\", \"confidence\": 1, \"reasons\": [\"r1\"], \"citation\": \"doc-3\"}  \\n')\nexpect((ans.label, ans.confidence, ans.reasons, ans.citation, err), (\"neutral\", 1.0, [\"r1\"], \"doc-3\", None))\n"
+   },
+   {
+    "name": "malformed JSON",
+    "input": "raw = '{\"label\": \"positive\", \"confidence\": }'",
+    "hidden": true,
+    "code": "ans, err = parse_llm_output('{\"label\": \"positive\", \"confidence\": }')\nexpect(ans, None)\nexpect(err.split(\":\")[0] + \":\", \"invalid JSON:\", label=err)\n"
+   },
+   {
+    "name": "prose and empty string are invalid JSON",
+    "input": "raw = \"Sure! Here is the answer.\"; raw = \"\"; raw = \"   \"",
+    "hidden": true,
+    "code": "for raw in (\"Sure! Here is the answer.\", \"\", \"   \"):\n    ans, err = parse_llm_output(raw)\n    expect((ans, err[:14]), (None, \"invalid JSON: \"), label=repr(raw))\n"
+   },
+   {
+    "name": "missing required field",
+    "input": "raw = '{\"label\": \"positive\"}'",
+    "hidden": true,
+    "code": "def fields(err):\n    \"\"\"Field paths named in a 'validation failed: ...' message.\"\"\"\n    return [p.split(\": \")[0] for p in err[len(\"validation failed: \"):].split(\"; \")]\n\nans, err = parse_llm_output('{\"label\": \"positive\"}')\nexpect((ans, fields(err)), (None, [\"confidence\"]))\n"
+   },
+   {
+    "name": "JSON that is not an object uses <root>",
+    "input": "raw = '[1, 2]'; raw = '\"positive\"'",
+    "hidden": true,
+    "code": "def fields(err):\n    \"\"\"Field paths named in a 'validation failed: ...' message.\"\"\"\n    return [p.split(\": \")[0] for p in err[len(\"validation failed: \"):].split(\"; \")]\n\nfor raw in ('[1, 2]', '\"positive\"'):\n    ans, err = parse_llm_output(raw)\n    expect((ans, fields(err)), (None, [\"<root>\"]), label=raw)\n"
+   },
+   {
+    "name": "unknown field is rejected",
+    "input": "raw = '{\"label\": \"positive\", \"confidence\": 0.5, \"score\": 3}'",
+    "hidden": true,
+    "code": "def fields(err):\n    \"\"\"Field paths named in a 'validation failed: ...' message.\"\"\"\n    return [p.split(\": \")[0] for p in err[len(\"validation failed: \"):].split(\"; \")]\n\nans, err = parse_llm_output('{\"label\": \"positive\", \"confidence\": 0.5, \"score\": 3}')\nexpect((ans, fields(err)), (None, [\"score\"]))\n"
+   },
+   {
+    "name": "nested path for a bad list item",
+    "input": "raw = '{\"label\": \"positive\", \"confidence\": 0.5, \"reasons\": [\"ok\", 7]}'",
+    "hidden": true,
+    "code": "def fields(err):\n    \"\"\"Field paths named in a 'validation failed: ...' message.\"\"\"\n    return [p.split(\": \")[0] for p in err[len(\"validation failed: \"):].split(\"; \")]\n\nans, err = parse_llm_output('{\"label\": \"positive\", \"confidence\": 0.5, \"reasons\": [\"ok\", 7]}')\nexpect((ans, fields(err)), (None, [\"reasons.1\"]))\n"
+   },
+   {
+    "name": "confidence bounds are inclusive [0, 1]",
+    "input": "Answer.model_validate with confidence = 0, 1, -0.1, 1.0001",
+    "hidden": true,
+    "code": "from pydantic import ValidationError\nexpect(Answer.model_validate({\"label\": \"positive\", \"confidence\": 0}).confidence, 0.0)\nexpect(Answer.model_validate({\"label\": \"negative\", \"confidence\": 1}).confidence, 1.0)\nexpect_raises(ValidationError, Answer.model_validate, {\"label\": \"positive\", \"confidence\": -0.1}, label=\"-0.1\")\nexpect_raises(ValidationError, Answer.model_validate, {\"label\": \"positive\", \"confidence\": 1.0001}, label=\"1.0001\")\nexpect_raises(ValidationError, Answer.model_validate, {\"label\": \"maybe\", \"confidence\": 0.5}, label=\"label 'maybe'\")\n"
    }
   ],
   "hints": [
@@ -172,24 +424,76 @@
   "starter": "import asyncio\n\n\n# Provided: stands in for httpx.AsyncClient (no network in the browser).\nclass FakeClient:\n    \"\"\"await client.get(url) -> body str.\n\n    URLs containing \"bad\" raise ConnectionError; URLs containing \"slow\" take 0.5 s.\n    Tracks how many requests are in flight at once in .peak.\n    \"\"\"\n\n    def __init__(self, delay: float = 0.005) -> None:\n        self.delay = delay\n        self.in_flight = 0\n        self.peak = 0\n        self.calls: list[str] = []\n\n    async def get(self, url: str) -> str:\n        self.calls.append(url)\n        self.in_flight += 1\n        self.peak = max(self.peak, self.in_flight)\n        try:\n            await asyncio.sleep(0.5 if \"slow\" in url else self.delay)\n            if \"bad\" in url:\n                raise ConnectionError(f\"cannot reach {url}\")\n            return f\"body of {url}\"\n        finally:\n            self.in_flight -= 1\n\n\nasync def fetch_all(client, urls: list[str], max_in_flight: int = 5,\n                    timeout: float = 1.0) -> list:\n    \"\"\"Fetch every URL with at most max_in_flight concurrent requests.\n\n    Returns bodies or exceptions, in the same order as urls.\n    \"\"\"\n    raise NotImplementedError\n",
   "tests": [
    {
-    "name": "50 URLs, results in order, max 5 in flight",
-    "code": "client = FakeClient()\nurls = [f\"https://api.example.com/item/{i}\" for i in range(50)]\nresults = await fetch_all(client, urls, max_in_flight=5)\nassert results == [f\"body of {u}\" for u in urls], \"results must be bodies in input order\"\nassert sorted(client.calls) == sorted(urls), \"every URL fetched exactly once\"\nassert client.peak <= 5, f\"{client.peak} requests were in flight at once, limit is 5\"\nassert client.peak == 5, f\"peak was {client.peak}: requests should run concurrently, not one by one\"\n"
+    "name": "50 URLs, max 5 in flight, input order",
+    "input": "urls = [\"https://api.example.com/item/0\" … \"/item/49\"], max_in_flight = 5",
+    "hidden": false,
+    "code": "client = FakeClient()\nurls = [f\"https://api.example.com/item/{i}\" for i in range(50)]\nresults = await fetch_all(client, urls, max_in_flight=5)\nexpect((len(results), results[0], results[-1]),\n       (50, \"body of https://api.example.com/item/0\", \"body of https://api.example.com/item/49\"))\nexpect(results == [f\"body of {u}\" for u in urls], True, label=\"all 50 bodies in input order\")\nexpect(client.peak, 5, label=\"client.peak\")\n"
    },
    {
-    "name": "respects a different limit",
-    "code": "client = FakeClient()\nurls = [f\"u{i}\" for i in range(9)]\nresults = await fetch_all(client, urls, max_in_flight=2)\nassert len(results) == 9\nassert client.peak == 2, f\"expected peak 2, got {client.peak}\"\n"
+    "name": "failures returned in place",
+    "input": "urls = [\"a\", \"bad-1\", \"b\", \"bad-2\", \"c\"]",
+    "hidden": false,
+    "code": "def show(results):\n    return [r if isinstance(r, str) else type(r).__name__ for r in results]\n\nresults = await fetch_all(FakeClient(), [\"a\", \"bad-1\", \"b\", \"bad-2\", \"c\"])\nexpect(show(results), [\"body of a\", \"ConnectionError\", \"body of b\", \"ConnectionError\", \"body of c\"])\n"
    },
    {
-    "name": "failures are returned in place, others still succeed",
-    "code": "client = FakeClient()\nurls = [\"a\", \"bad-1\", \"b\", \"bad-2\", \"c\"]\nresults = await fetch_all(client, urls)\nassert results[0] == \"body of a\" and results[2] == \"body of b\" and results[4] == \"body of c\"\nassert isinstance(results[1], ConnectionError), f\"got {results[1]!r}\"\nassert isinstance(results[3], ConnectionError)\n"
+    "name": "a different limit",
+    "input": "urls = [\"u0\" … \"u8\"], max_in_flight = 2",
+    "hidden": true,
+    "code": "client = FakeClient()\nresults = await fetch_all(client, [f\"u{i}\" for i in range(9)], max_in_flight=2)\nexpect((len(results), client.peak), (9, 2))\n"
+   },
+   {
+    "name": "max_in_flight = 1 runs sequentially",
+    "input": "urls = [\"x\", \"y\", \"z\"], max_in_flight = 1",
+    "hidden": true,
+    "code": "client = FakeClient()\nresults = await fetch_all(client, [\"x\", \"y\", \"z\"], max_in_flight=1)\nexpect((results, client.peak), ([\"body of x\", \"body of y\", \"body of z\"], 1))\n"
+   },
+   {
+    "name": "limit larger than the number of URLs",
+    "input": "urls = [\"p\", \"q\", \"r\"], max_in_flight = 10",
+    "hidden": true,
+    "code": "client = FakeClient()\nresults = await fetch_all(client, [\"p\", \"q\", \"r\"], max_in_flight=10)\nexpect((results, client.peak), ([\"body of p\", \"body of q\", \"body of r\"], 3))\n"
    },
    {
     "name": "per-request timeout gives TimeoutError",
-    "code": "import asyncio\nclient = FakeClient()\nloop = asyncio.get_running_loop()\nstart = loop.time()\nresults = await fetch_all(client, [\"a\", \"slow-1\", \"b\"], max_in_flight=3, timeout=0.05)\ntook = loop.time() - start\nassert results[0] == \"body of a\" and results[2] == \"body of b\"\nassert isinstance(results[1], asyncio.TimeoutError), f\"slow URL should time out, got {results[1]!r}\"\nassert took < 0.4, f\"timeout not applied: took {took:.2f}s\"\n"
+    "input": "urls = [\"a\", \"slow-1\", \"b\"], max_in_flight = 3, timeout = 0.05",
+    "hidden": true,
+    "code": "def show(results):\n    return [r if isinstance(r, str) else type(r).__name__ for r in results]\n\nimport asyncio\nloop = asyncio.get_running_loop()\nstart = loop.time()\nresults = await fetch_all(FakeClient(), [\"a\", \"slow-1\", \"b\"], max_in_flight=3, timeout=0.05)\ntook = loop.time() - start\nexpect(show(results), [\"body of a\", \"TimeoutError\", \"body of b\"])\nexpect(took < 0.4, True, label=f\"finished in {took:.2f}s (slow URL sleeps 0.5s)\")\n"
    },
    {
-    "name": "edge cases: empty list and invalid limit",
-    "code": "assert await fetch_all(FakeClient(), []) == []\ntry:\n    await fetch_all(FakeClient(), [\"a\"], max_in_flight=0)\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError(\"max_in_flight=0 should raise ValueError\")\n"
+    "name": "timeout blocks only its own slot",
+    "input": "urls = [\"slow-1\", \"a\", \"b\", \"c\"], max_in_flight = 1, timeout = 0.05",
+    "hidden": true,
+    "code": "def show(results):\n    return [r if isinstance(r, str) else type(r).__name__ for r in results]\n\nclient = FakeClient()\nresults = await fetch_all(client, [\"slow-1\", \"a\", \"b\", \"c\"], max_in_flight=1, timeout=0.05)\nexpect(show(results), [\"TimeoutError\", \"body of a\", \"body of b\", \"body of c\"])\nexpect(client.calls, [\"slow-1\", \"a\", \"b\", \"c\"], label=\"client.calls\")\n"
+   },
+   {
+    "name": "empty URL list",
+    "input": "urls = []",
+    "hidden": true,
+    "code": "client = FakeClient()\nexpect(await fetch_all(client, []), [])\nexpect(client.calls, [], label=\"client.calls\")\n"
+   },
+   {
+    "name": "max_in_flight < 1 raises ValueError",
+    "input": "urls = [\"a\"], max_in_flight = 0; max_in_flight = -3",
+    "hidden": true,
+    "code": "await expect_raises_async(ValueError, fetch_all(FakeClient(), [\"a\"], max_in_flight=0), label=\"max_in_flight=0\")\nawait expect_raises_async(ValueError, fetch_all(FakeClient(), [\"a\"], max_in_flight=-3), label=\"max_in_flight=-3\")\n"
+   },
+   {
+    "name": "every URL fails",
+    "input": "urls = [\"bad-a\", \"bad-b\", \"bad-c\"]",
+    "hidden": true,
+    "code": "def show(results):\n    return [r if isinstance(r, str) else type(r).__name__ for r in results]\n\nresults = await fetch_all(FakeClient(), [\"bad-a\", \"bad-b\", \"bad-c\"])\nexpect(show(results), [\"ConnectionError\", \"ConnectionError\", \"ConnectionError\"])\nexpect(str(results[1]), \"cannot reach bad-b\", label=\"the exception object itself is returned\")\n"
+   },
+   {
+    "name": "duplicate URLs are each fetched",
+    "input": "urls = [\"same\", \"other\", \"same\"]",
+    "hidden": true,
+    "code": "client = FakeClient()\nresults = await fetch_all(client, [\"same\", \"other\", \"same\"])\nexpect(results, [\"body of same\", \"body of other\", \"body of same\"])\nexpect(sorted(client.calls), [\"other\", \"same\", \"same\"], label=\"client.calls (sorted)\")\n"
+   },
+   {
+    "name": "each URL requested exactly once",
+    "input": "urls = [\"u0\" … \"u19\"], max_in_flight = 4",
+    "hidden": true,
+    "code": "client = FakeClient()\nurls = [f\"u{i}\" for i in range(20)]\nawait fetch_all(client, urls, max_in_flight=4)\nexpect((len(client.calls), sorted(client.calls) == sorted(urls), client.peak), (20, True, 4))\n"
    }
   ],
   "hints": [
@@ -205,23 +509,75 @@
   "tests": [
    {
     "name": "make_client returns a scripted Mock",
-    "code": "from unittest.mock import Mock\nclient = make_client(201, {\"a\": 1})\nassert isinstance(client, Mock), \"build the client with unittest.mock.Mock\"\nresp = client.get(\"https://x\", timeout=1)\nassert resp.status_code == 201\nassert resp.json() == {\"a\": 1}\nclient.get.assert_called_once_with(\"https://x\", timeout=1)\n"
+    "input": "client = make_client(201, {\"a\": 1}); client.get(\"https://x\", timeout=1)",
+    "hidden": false,
+    "code": "from unittest.mock import Mock, call\nclient = make_client(201, {\"a\": 1})\nexpect(type(client).__name__, \"Mock\")\nresp = client.get(\"https://x\", timeout=1)\nexpect((resp.status_code, resp.json()), (201, {\"a\": 1}))\nexpect(client.get.call_args_list, [call(\"https://x\", timeout=1)], label=\"client.get calls\")\n"
    },
    {
-    "name": "test_dedupe has enough cases and passes on correct code",
-    "code": "names, cases = getattr(test_dedupe, \"parametrize\", ([], []))\nassert len(cases) >= 4, f\"need at least 4 parametrized cases, found {len(cases)}\"\nassert any(len(c[0]) == 0 for c in cases), \"include an empty-input case\"\nfailures = run_test(test_dedupe, {\"dedupe\": dedupe_keep_order})\nassert failures == [], f\"your test fails on correct code: {failures}\"\n"
+    "name": "test_dedupe passes on the correct dedupe",
+    "input": "run_test(test_dedupe, {\"dedupe\": dedupe_keep_order})",
+    "hidden": false,
+    "code": "expect(run_test(test_dedupe, {\"dedupe\": dedupe_keep_order}), [])\n"
    },
    {
-    "name": "test_dedupe catches each buggy dedupe",
-    "code": "mutants = {\n    \"no dedupe\": lambda xs: list(xs),\n    \"sorted set\": lambda xs: sorted(set(xs)),\n    \"keeps last occurrence\": lambda xs: list(dict.fromkeys(list(xs)[::-1]))[::-1],\n}\nfor label, bad in mutants.items():\n    assert run_test(test_dedupe, {\"dedupe\": bad}), f\"your cases do not catch the bug: {label}\"\n"
+    "name": "fetch_title tests pass on the correct fetch_title",
+    "input": "run_test(test_fetch_title_ok / test_fetch_title_http_error, {\"fetch_title\": fetch_title})",
+    "hidden": false,
+    "code": "fx = {\"fetch_title\": fetch_title}\nexpect(run_test(test_fetch_title_ok, fx), [], label=\"test_fetch_title_ok\")\nexpect(run_test(test_fetch_title_http_error, fx), [], label=\"test_fetch_title_http_error\")\n"
    },
    {
-    "name": "fetch_title tests pass on correct code",
-    "code": "fx = {\"fetch_title\": fetch_title}\nassert run_test(test_fetch_title_ok, fx) == [], run_test(test_fetch_title_ok, fx)\nassert run_test(test_fetch_title_http_error, fx) == [], run_test(test_fetch_title_http_error, fx)\n"
+    "name": "test_dedupe table: >= 4 cases incl. empty input",
+    "input": "test_dedupe.parametrize",
+    "hidden": true,
+    "code": "names, cases = getattr(test_dedupe, \"parametrize\", ([], []))\nsummary = {\n    \"argnames\": names,\n    \"enough cases\": len(cases) >= 4,\n    \"has empty input\": any(len(case[0]) == 0 for case in cases),\n}\nexpect(summary, {\"argnames\": [\"items\", \"expected\"], \"enough cases\": True, \"has empty input\": True},\n       label=f\"{len(cases)} cases\")\n"
    },
    {
-    "name": "fetch_title tests catch each buggy fetch_title",
-    "code": "def no_timeout(client, url):\n    r = client.get(url)\n    if r.status_code != 200:\n        raise ValueError(\"bad status\")\n    return r.json()[\"title\"].strip()\n\ndef no_strip(client, url):\n    r = client.get(url, timeout=5)\n    if r.status_code != 200:\n        raise ValueError(\"bad status\")\n    return r.json()[\"title\"]\n\ndef no_status_check(client, url):\n    r = client.get(url, timeout=5)\n    return r.json().get(\"title\", \"\").strip()\n\nfor bad in (no_timeout, no_strip, no_status_check):\n    fx = {\"fetch_title\": bad}\n    caught = run_test(test_fetch_title_ok, fx) + run_test(test_fetch_title_http_error, fx)\n    assert caught, f\"your fetch_title tests do not catch the bug: {bad.__name__}\"\n"
+    "name": "mutant: no deduplication",
+    "input": "dedupe = lambda xs: list(xs)",
+    "hidden": true,
+    "code": "def verdict(*failure_lists, baseline=None):\n    \"\"\"'caught' only if the tests pass on the correct code and fail on the mutant.\"\"\"\n    if baseline is None:\n        good = {\"fetch_title\": fetch_title}\n        baseline = run_test(test_fetch_title_ok, good) + run_test(test_fetch_title_http_error, good)\n    if baseline:\n        return \"tests fail on correct code\"\n    return \"caught\" if any(failure_lists) else \"missed\"\n\nexpect(verdict(run_test(test_dedupe, {\"dedupe\": lambda xs: list(xs)}), baseline=run_test(test_dedupe, {\"dedupe\": dedupe_keep_order})), \"caught\")\n"
+   },
+   {
+    "name": "mutant: sorted(set(xs))",
+    "input": "dedupe = lambda xs: sorted(set(xs))",
+    "hidden": true,
+    "code": "def verdict(*failure_lists, baseline=None):\n    \"\"\"'caught' only if the tests pass on the correct code and fail on the mutant.\"\"\"\n    if baseline is None:\n        good = {\"fetch_title\": fetch_title}\n        baseline = run_test(test_fetch_title_ok, good) + run_test(test_fetch_title_http_error, good)\n    if baseline:\n        return \"tests fail on correct code\"\n    return \"caught\" if any(failure_lists) else \"missed\"\n\nexpect(verdict(run_test(test_dedupe, {\"dedupe\": lambda xs: sorted(set(xs))}), baseline=run_test(test_dedupe, {\"dedupe\": dedupe_keep_order})), \"caught\")\n"
+   },
+   {
+    "name": "mutant: keeps the last occurrence",
+    "input": "dedupe = lambda xs: list(dict.fromkeys(list(xs)[::-1]))[::-1]",
+    "hidden": true,
+    "code": "def verdict(*failure_lists, baseline=None):\n    \"\"\"'caught' only if the tests pass on the correct code and fail on the mutant.\"\"\"\n    if baseline is None:\n        good = {\"fetch_title\": fetch_title}\n        baseline = run_test(test_fetch_title_ok, good) + run_test(test_fetch_title_http_error, good)\n    if baseline:\n        return \"tests fail on correct code\"\n    return \"caught\" if any(failure_lists) else \"missed\"\n\nkeeps_last = lambda xs: list(dict.fromkeys(list(xs)[::-1]))[::-1]\nexpect(verdict(run_test(test_dedupe, {\"dedupe\": keeps_last}), baseline=run_test(test_dedupe, {\"dedupe\": dedupe_keep_order})), \"caught\")\n"
+   },
+   {
+    "name": "make_client: fresh client per call, payload returned as-is",
+    "input": "c1 = make_client(200, {\"title\": \"a\"}); c2 = make_client(404, {})",
+    "hidden": true,
+    "code": "c1, c2 = make_client(200, {\"title\": \"a\"}), make_client(404, {})\nr1, r2 = c1.get(\"u1\"), c2.get(\"u2\", timeout=3)\nexpect((r1.status_code, r1.json(), r2.status_code, r2.json()), (200, {\"title\": \"a\"}, 404, {}))\nexpect((c1.get.call_count, c2.get.call_count), (1, 1), label=\"calls recorded per client\")\n"
+   },
+   {
+    "name": "mutant: fetch_title drops the timeout",
+    "input": "fetch_title = client.get(url) without timeout=5",
+    "hidden": true,
+    "code": "def verdict(*failure_lists, baseline=None):\n    \"\"\"'caught' only if the tests pass on the correct code and fail on the mutant.\"\"\"\n    if baseline is None:\n        good = {\"fetch_title\": fetch_title}\n        baseline = run_test(test_fetch_title_ok, good) + run_test(test_fetch_title_http_error, good)\n    if baseline:\n        return \"tests fail on correct code\"\n    return \"caught\" if any(failure_lists) else \"missed\"\n\ndef no_timeout(client, url):\n    r = client.get(url)\n    if r.status_code != 200:\n        raise ValueError(\"bad status\")\n    return r.json()[\"title\"].strip()\nfx = {\"fetch_title\": no_timeout}\nexpect(verdict(run_test(test_fetch_title_ok, fx), run_test(test_fetch_title_http_error, fx)), \"caught\")\n"
+   },
+   {
+    "name": "mutant: fetch_title forgets .strip()",
+    "input": "fetch_title returns r.json()[\"title\"] unstripped",
+    "hidden": true,
+    "code": "def verdict(*failure_lists, baseline=None):\n    \"\"\"'caught' only if the tests pass on the correct code and fail on the mutant.\"\"\"\n    if baseline is None:\n        good = {\"fetch_title\": fetch_title}\n        baseline = run_test(test_fetch_title_ok, good) + run_test(test_fetch_title_http_error, good)\n    if baseline:\n        return \"tests fail on correct code\"\n    return \"caught\" if any(failure_lists) else \"missed\"\n\ndef no_strip(client, url):\n    r = client.get(url, timeout=5)\n    if r.status_code != 200:\n        raise ValueError(\"bad status\")\n    return r.json()[\"title\"]\nfx = {\"fetch_title\": no_strip}\nexpect(verdict(run_test(test_fetch_title_ok, fx), run_test(test_fetch_title_http_error, fx)), \"caught\")\n"
+   },
+   {
+    "name": "mutant: fetch_title skips the status check",
+    "input": "fetch_title never checks status_code",
+    "hidden": true,
+    "code": "def verdict(*failure_lists, baseline=None):\n    \"\"\"'caught' only if the tests pass on the correct code and fail on the mutant.\"\"\"\n    if baseline is None:\n        good = {\"fetch_title\": fetch_title}\n        baseline = run_test(test_fetch_title_ok, good) + run_test(test_fetch_title_http_error, good)\n    if baseline:\n        return \"tests fail on correct code\"\n    return \"caught\" if any(failure_lists) else \"missed\"\n\ndef no_status_check(client, url):\n    r = client.get(url, timeout=5)\n    return r.json().get(\"title\", \"\").strip()\nfx = {\"fetch_title\": no_status_check}\nexpect(verdict(run_test(test_fetch_title_ok, fx), run_test(test_fetch_title_http_error, fx)), \"caught\")\n"
+   },
+   {
+    "name": "mutants: wrong exception type, calls get twice",
+    "input": "fetch_title raises RuntimeError on non-200; fetch_title calls client.get twice",
+    "hidden": true,
+    "code": "def verdict(*failure_lists, baseline=None):\n    \"\"\"'caught' only if the tests pass on the correct code and fail on the mutant.\"\"\"\n    if baseline is None:\n        good = {\"fetch_title\": fetch_title}\n        baseline = run_test(test_fetch_title_ok, good) + run_test(test_fetch_title_http_error, good)\n    if baseline:\n        return \"tests fail on correct code\"\n    return \"caught\" if any(failure_lists) else \"missed\"\n\ndef wrong_error(client, url):\n    r = client.get(url, timeout=5)\n    if r.status_code != 200:\n        raise RuntimeError(\"bad status\")\n    return r.json()[\"title\"].strip()\ndef calls_twice(client, url):\n    client.get(url, timeout=5)\n    r = client.get(url, timeout=5)\n    if r.status_code != 200:\n        raise ValueError(\"bad status\")\n    return r.json()[\"title\"].strip()\ngot = {}\nfor bad in (wrong_error, calls_twice):\n    fx = {\"fetch_title\": bad}\n    got[bad.__name__] = verdict(run_test(test_fetch_title_ok, fx), run_test(test_fetch_title_http_error, fx))\nexpect(got, {\"wrong_error\": \"caught\", \"calls_twice\": \"caught\"})\n"
    }
   ],
   "hints": [

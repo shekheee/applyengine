@@ -17,6 +17,10 @@ from app.services.prep_seed import load_seed
 DATA_DIR = Path(__file__).resolve().parent.parent / "app" / "data"
 CONTENT_DIR = DATA_DIR / "prep_content"
 EXTRA_DIR = DATA_DIR / "prep_extra"
+PRELUDE_FILE = (
+    Path(__file__).resolve().parents[2]
+    / "frontend" / "src" / "components" / "shared" / "runner-prelude.ts"
+)
 EXTRA_URL = re.compile(r"^https://leetcode\.com/problems/[a-z0-9-]+/$")
 CODE_TYPES = {"python", "drill", "lld"}
 FENCE = re.compile(r"```python\n(.*?)```", re.S)
@@ -50,18 +54,33 @@ def run_source(source: str, namespace: dict, loop: asyncio.AbstractEventLoop) ->
         loop.run_until_complete(asyncio.wait_for(result, timeout=20))
 
 
-def run_tests(code: str, tests: list[dict]) -> list[tuple[str, str | None]]:
+def runner_prelude() -> str:
+    """The Python the browser CodeRunner runs before the learner's code."""
+    text = PRELUDE_FILE.read_text(encoding="utf-8")
+    match = re.search(
+        r"# --- runner prelude: begin ---\n(.*?)# --- runner prelude: end ---", text, re.S
+    )
+    if not match:
+        raise AssertionError("runner prelude markers not found in runner-prelude.ts")
+    return match.group(1)
+
+
+def run_tests(code: str, tests: list[dict]) -> list[tuple[str, str | None, int]]:
+    """(name, error or None, number of expect() records) per test."""
     loop = asyncio.new_event_loop()
     try:
         namespace: dict = {"__name__": "__main__"}
+        run_source(runner_prelude(), namespace, loop)
         run_source(code, namespace, loop)
         outcomes = []
         for test in tests:
+            namespace["_EXPECTS"].clear()
             try:
                 run_source(test["code"], namespace, loop)
-                outcomes.append((test["name"], None))
-            except Exception as error:  # noqa: BLE001 - a failing test is data here
-                outcomes.append((test["name"], f"{type(error).__name__}: {error}"))
+                error = None
+            except Exception as exc:  # noqa: BLE001 - a failing test is data here
+                error = f"{type(exc).__name__}: {exc}"
+            outcomes.append((test["name"], error, len(namespace["_EXPECTS"])))
         return outcomes
     finally:
         loop.close()
@@ -114,11 +133,19 @@ class PrepContentTests(unittest.TestCase):
                 if task_type != "dsa":
                     self.assertGreater(len(entry.get("brief", "").strip()), 150)
                 if task_type in CODE_TYPES:
+                    tests = entry.get("tests", [])
                     self.assertTrue(entry.get("starter", "").strip(), "code tasks need a starter")
-                    self.assertGreaterEqual(len(entry.get("tests", [])), 3)
                     self.assertTrue(solution_code(entry), "solution needs a ```python block")
+                    self.assertTrue(8 <= len(tests) <= 14, "8-14 test cases")
+                    visible = [t for t in tests if not t.get("hidden")]
+                    self.assertGreaterEqual(len(visible), 2, "at least 2 example cases")
+                    self.assertGreaterEqual(len(tests) - len(visible), 4, "at least 4 hidden cases")
+                    self.assertFalse(tests[0].get("hidden"), "the first case is an example")
                 for test in entry.get("tests", []):
                     self.assertTrue(test.get("name") and test.get("code"))
+                    self.assertIsInstance(test.get("input"), str, "each case shows its input")
+                    self.assertTrue(test["input"].strip())
+                    self.assertIsInstance(test.get("hidden", False), bool)
 
     def test_reference_solutions_pass_and_starters_fail(self):
         for task_id, entry in self.content.items():
@@ -126,11 +153,14 @@ class PrepContentTests(unittest.TestCase):
             if not tests:
                 continue
             with self.subTest(task=task_id):
-                failures = [(n, e) for n, e in run_tests(solution_code(entry), tests) if e]
+                outcomes = run_tests(solution_code(entry), tests)
+                failures = [(n, e) for n, e, _ in outcomes if e]
                 self.assertEqual(failures, [], "reference solution must pass every test")
+                silent = [n for n, _, expects in outcomes if expects == 0]
+                self.assertEqual(silent, [], "each case must call expect() so Output shows")
                 starter = run_tests(entry["starter"], tests)
                 self.assertTrue(
-                    any(error for _, error in starter), "the blank starter must fail a test"
+                    any(error for _, error, _ in starter), "the blank starter must fail a test"
                 )
 
 

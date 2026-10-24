@@ -4,24 +4,76 @@
   "starter": "import asyncio\nimport time\nfrom dataclasses import dataclass\n\n# Provided ---------------------------------------------------------------\n# Fake API errors, shaped like the ones a real SDK raises.\nclass APIError(Exception):\n    status = 0\n\n\nclass RateLimitError(APIError):\n    \"\"\"HTTP 429. `retry_after` is the server's hint in seconds (may be None).\"\"\"\n    status = 429\n\n    def __init__(self, retry_after=None):\n        super().__init__(f\"429 rate limited (retry_after={retry_after})\")\n        self.retry_after = retry_after\n\n\nclass ServerError(APIError):\n    \"\"\"HTTP 5xx: the provider failed, the request itself was fine.\"\"\"\n\n    def __init__(self, status=500):\n        super().__init__(f\"{status} server error\")\n        self.status = status\n\n\nclass BadRequestError(APIError):\n    \"\"\"HTTP 400: the request is wrong. Retrying cannot fix it.\"\"\"\n    status = 400\n\n    def __init__(self, message=\"400 bad request\"):\n        super().__init__(message)\n\n\nclass FakeLLM:\n    \"\"\"Provided deterministic fake model.\n\n    `script` is a list of outcomes, one per call, consumed in order:\n      - a str            -> returned as the reply text\n      - an Exception     -> raised\n      - (delay, str)     -> sleeps `delay` seconds, then replies with str\n    When the script runs out it replies \"ok\". Every call is recorded in `calls`.\n    The reply honours max_tokens by keeping only the first max_tokens words.\n    Token counts are words (a crude but deterministic tokenizer).\n    \"\"\"\n\n    def __init__(self, script=None):\n        self.script = list(script or [])\n        self.calls = []\n\n    async def generate(self, prompt, system=None, max_tokens=256):\n        self.calls.append({\"prompt\": prompt, \"system\": system, \"max_tokens\": max_tokens})\n        outcome = self.script.pop(0) if self.script else \"ok\"\n        if isinstance(outcome, BaseException):\n            raise outcome\n        delay = 0.0\n        if isinstance(outcome, tuple):\n            delay, outcome = outcome\n        await asyncio.sleep(delay)\n        words = outcome.split()[:max_tokens]\n        prompt_words = len(prompt.split()) + len((system or \"\").split())\n        return {\n            \"content\": \" \".join(words),\n            \"usage\": {\"input_tokens\": prompt_words, \"output_tokens\": len(words)},\n            \"stop_reason\": \"max_tokens\" if len(outcome.split()) > max_tokens else \"end_turn\",\n        }\n\n# End provided -------------------------------------------------------------\n\n\n@dataclass\nclass Completion:\n    text: str\n    input_tokens: int\n    output_tokens: int\n    latency_s: float\n    stop_reason: str\n\n\nclass LLMTimeoutError(Exception):\n    \"\"\"Raised when a call takes longer than the client's timeout.\"\"\"\n\n\nclass LLMClient:\n    def __init__(self, llm, timeout: float = 30.0):\n        \"\"\"Wrap a raw model (anything with `async generate(prompt, system, max_tokens)`).\"\"\"\n        raise NotImplementedError\n\n    async def complete(self, prompt: str, system: str | None = None, max_tokens: int = 256) -> Completion:\n        \"\"\"Validate inputs, call the model under a timeout, return a Completion.\"\"\"\n        raise NotImplementedError\n",
   "tests": [
    {
-    "name": "returns a Completion with text, usage and stop reason",
-    "code": "llm = FakeLLM([\"Paris is the capital of France\"])\nclient = LLMClient(llm, timeout=1.0)\nc = await client.complete(\"Capital of France?\", system=\"Be brief\", max_tokens=3)\nassert isinstance(c, Completion), f\"expected Completion, got {type(c).__name__}\"\nassert c.text == \"Paris is the\", c.text\nassert (c.input_tokens, c.output_tokens) == (5, 3), (c.input_tokens, c.output_tokens)\nassert c.stop_reason == \"max_tokens\", c.stop_reason\n"
+    "name": "Example: reply is truncated to max_tokens",
+    "input": "script = [\"Paris is the capital\"], prompt = \"Capital of France?\", system = \"Be brief\", max_tokens = 3",
+    "hidden": false,
+    "code": "client = LLMClient(FakeLLM([\"Paris is the capital\"]), timeout=1.0)\nc = await client.complete(\"Capital of France?\", system=\"Be brief\", max_tokens=3)\nexpect(type(c).__name__, \"Completion\", label=\"return type\")\nexpect((c.text, c.output_tokens, c.stop_reason), (\"Paris is the\", 3, \"max_tokens\"))\nexpect(c.input_tokens, 5, label=\"input_tokens = prompt words + system words\")\n"
    },
    {
-    "name": "passes system and max_tokens through to the model",
-    "code": "llm = FakeLLM([\"hi\"])\nawait LLMClient(llm, timeout=1.0).complete(\"hello\", system=\"You are terse\", max_tokens=7)\nassert llm.calls == [{\"prompt\": \"hello\", \"system\": \"You are terse\", \"max_tokens\": 7}], llm.calls\n"
+    "name": "Short reply ends the turn",
+    "input": "script = [\"Hello there\"], prompt = \"Say hi\"",
+    "hidden": false,
+    "code": "c = await LLMClient(FakeLLM([\"Hello there\"]), timeout=1.0).complete(\"Say hi\")\nexpect((c.text, c.input_tokens, c.output_tokens, c.stop_reason), (\"Hello there\", 2, 2, \"end_turn\"))\n"
    },
    {
-    "name": "measures latency of the call",
-    "code": "client = LLMClient(FakeLLM([(0.03, \"slow answer\")]), timeout=1.0)\nc = await client.complete(\"q\")\nassert 0.025 <= c.latency_s < 0.5, f\"latency_s should be about 0.03, got {c.latency_s}\"\n"
+    "name": "system and max_tokens reach the model unchanged",
+    "input": "prompt = \"hello\", system = \"You are terse\", max_tokens = 7",
+    "hidden": false,
+    "code": "llm = FakeLLM([\"hi\"])\nawait LLMClient(llm, timeout=1.0).complete(\"hello\", system=\"You are terse\", max_tokens=7)\nexpect(llm.calls, [{\"prompt\": \"hello\", \"system\": \"You are terse\", \"max_tokens\": 7}])\n"
    },
    {
-    "name": "raises LLMTimeoutError when the model is too slow",
-    "code": "client = LLMClient(FakeLLM([(0.2, \"too late\")]), timeout=0.02)\ntry:\n    await client.complete(\"q\")\nexcept LLMTimeoutError:\n    pass\nelse:\n    raise AssertionError(\"expected LLMTimeoutError\")\n"
+    "name": "Defaults: system=None, max_tokens=256",
+    "input": "prompt = \"hi\" (no system, no max_tokens)",
+    "hidden": true,
+    "code": "llm = FakeLLM([\"yo\"])\nawait LLMClient(llm).complete(\"hi\")\nexpect(llm.calls, [{\"prompt\": \"hi\", \"system\": None, \"max_tokens\": 256}])\n"
    },
    {
-    "name": "validates inputs and lets model errors propagate",
-    "code": "client = LLMClient(FakeLLM([RateLimitError(2)]), timeout=1.0)\nfor bad in [dict(prompt=\"   \"), dict(prompt=\"ok\", max_tokens=0)]:\n    try:\n        await client.complete(**bad)\n    except ValueError:\n        pass\n    else:\n        raise AssertionError(f\"expected ValueError for {bad}\")\ntry:\n    LLMClient(FakeLLM(), timeout=0)\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError(\"timeout=0 should raise ValueError\")\ntry:\n    await client.complete(\"go\")\nexcept RateLimitError as e:\n    assert e.retry_after == 2\nelse:\n    raise AssertionError(\"RateLimitError should propagate unchanged\")\n"
+    "name": "Latency measures the model call",
+    "input": "script = [(0.03 s delay, \"slow answer\")], timeout = 1.0",
+    "hidden": true,
+    "code": "c = await LLMClient(FakeLLM([(0.03, \"slow answer\")]), timeout=1.0).complete(\"q\")\nexpect(c.text, \"slow answer\")\nexpect(0.025 <= c.latency_s < 0.5, True, label=f\"latency_s about 0.03 (got {c.latency_s:.4f})\")\n"
+   },
+   {
+    "name": "Slow model raises LLMTimeoutError",
+    "input": "script = [(0.2 s delay, \"too late\")], timeout = 0.02",
+    "hidden": true,
+    "code": "client = LLMClient(FakeLLM([(0.2, \"too late\")]), timeout=0.02)\nawait expect_raises_async(LLMTimeoutError, client.complete(\"q\"), label=\"0.2 s reply, 0.02 s timeout\")\n"
+   },
+   {
+    "name": "Reply just inside the timeout succeeds",
+    "input": "script = [(0.005 s delay, \"in time\")], timeout = 0.5",
+    "hidden": true,
+    "code": "c = await LLMClient(FakeLLM([(0.005, \"in time\")]), timeout=0.5).complete(\"q\")\nexpect(c.text, \"in time\")\n"
+   },
+   {
+    "name": "Blank prompts rejected before any model call",
+    "input": "prompt in [\"\", \"   \", \"\\n\\t\"]",
+    "hidden": true,
+    "code": "llm = FakeLLM([\"never\"])\nclient = LLMClient(llm, timeout=1.0)\nfor bad in [\"\", \"   \", \"\\n\\t\"]:\n    await expect_raises_async(ValueError, client.complete(bad), label=f\"prompt={bad!r}\")\nexpect(llm.calls, [], label=\"model must not be called\")\n"
+   },
+   {
+    "name": "max_tokens <= 0 is rejected",
+    "input": "prompt = \"ok\", max_tokens in [0, -5]",
+    "hidden": true,
+    "code": "llm = FakeLLM()\nclient = LLMClient(llm, timeout=1.0)\nfor mt in [0, -5]:\n    await expect_raises_async(ValueError, client.complete(\"ok\", max_tokens=mt), label=f\"max_tokens={mt}\")\nexpect(llm.calls, [])\n"
+   },
+   {
+    "name": "timeout <= 0 is rejected by the constructor",
+    "input": "LLMClient(FakeLLM(), timeout=0) and timeout=-1",
+    "hidden": true,
+    "code": "expect_raises(ValueError, LLMClient, FakeLLM(), timeout=0, label=\"timeout=0\")\nexpect_raises(ValueError, LLMClient, FakeLLM(), timeout=-1, label=\"timeout=-1\")\n"
+   },
+   {
+    "name": "Model errors propagate untouched, no retry",
+    "input": "script = [RateLimitError(retry_after=2)], then [ServerError(503)], then [BadRequestError()]",
+    "hidden": true,
+    "code": "llm = FakeLLM([RateLimitError(2)])\nerr = await expect_raises_async(RateLimitError, LLMClient(llm, timeout=1.0).complete(\"go\"))\nexpect(err.retry_after, 2, label=\"same error object, retry_after kept\")\nexpect(len(llm.calls), 1, label=\"the wrapper never retries\")\nerr = await expect_raises_async(ServerError, LLMClient(FakeLLM([ServerError(503)]), timeout=1.0).complete(\"go\"))\nexpect(err.status, 503)\nawait expect_raises_async(BadRequestError, LLMClient(FakeLLM([BadRequestError()]), timeout=1.0).complete(\"go\"))\n"
+   },
+   {
+    "name": "Empty reply is still a valid Completion",
+    "input": "script = [\"\"], prompt = \"say nothing\"",
+    "hidden": true,
+    "code": "c = await LLMClient(FakeLLM([\"\"]), timeout=1.0).complete(\"say nothing\")\nexpect((c.text, c.output_tokens, c.stop_reason), (\"\", 0, \"end_turn\"))\n"
    }
   ],
   "hints": [
@@ -36,24 +88,76 @@
   "starter": "import asyncio\nimport random\n\n# Provided ---------------------------------------------------------------\n# Fake API errors, shaped like the ones a real SDK raises.\nclass APIError(Exception):\n    status = 0\n\n\nclass RateLimitError(APIError):\n    \"\"\"HTTP 429. `retry_after` is the server's hint in seconds (may be None).\"\"\"\n    status = 429\n\n    def __init__(self, retry_after=None):\n        super().__init__(f\"429 rate limited (retry_after={retry_after})\")\n        self.retry_after = retry_after\n\n\nclass ServerError(APIError):\n    \"\"\"HTTP 5xx: the provider failed, the request itself was fine.\"\"\"\n\n    def __init__(self, status=500):\n        super().__init__(f\"{status} server error\")\n        self.status = status\n\n\nclass BadRequestError(APIError):\n    \"\"\"HTTP 400: the request is wrong. Retrying cannot fix it.\"\"\"\n    status = 400\n\n    def __init__(self, message=\"400 bad request\"):\n        super().__init__(message)\n\n\nclass FakeLLM:\n    \"\"\"Provided scripted fake. Each call pops the next outcome: a str is returned,\n    an Exception is raised. When the script runs out it returns \"ok\".\"\"\"\n\n    def __init__(self, script=None):\n        self.script = list(script or [])\n        self.calls = 0\n\n    async def generate(self, prompt):\n        self.calls += 1\n        outcome = self.script.pop(0) if self.script else \"ok\"\n        if isinstance(outcome, BaseException):\n            raise outcome\n        return outcome\n\n\nclass SleepRecorder:\n    \"\"\"Provided: pass as `sleep=` so tests record delays instead of waiting.\"\"\"\n\n    def __init__(self):\n        self.delays = []\n\n    async def __call__(self, seconds):\n        self.delays.append(seconds)\n\n# End provided -------------------------------------------------------------\n\n\ndef is_retryable(err: BaseException) -> bool:\n    \"\"\"True for 429 and any 5xx; False for 400 and anything that is not an APIError.\"\"\"\n    raise NotImplementedError\n\n\ndef backoff_delay(attempt: int, base: float, cap: float, rng: random.Random) -> float:\n    \"\"\"Full-jitter delay before retry number `attempt` (1-based):\n    uniform(0, min(cap, base * 2 ** (attempt - 1))).\"\"\"\n    raise NotImplementedError\n\n\nasync def call_with_retry(fn, *, max_attempts: int = 5, base: float = 0.5, cap: float = 8.0,\n                          sleep=asyncio.sleep, rng: random.Random | None = None):\n    \"\"\"Await fn() and return its result, retrying retryable errors with backoff.\n    Re-raise the last error after max_attempts tries; never retry non-retryable errors.\"\"\"\n    raise NotImplementedError\n",
   "tests": [
    {
-    "name": "classifies retryable errors",
-    "code": "assert is_retryable(RateLimitError()) and is_retryable(ServerError(500)) and is_retryable(ServerError(503))\nassert not is_retryable(BadRequestError()), \"400 must never be retried\"\nassert not is_retryable(ValueError(\"bug\")), \"non-API errors are not retryable\"\n"
+    "name": "Example: 503 then 429(retry_after=3) then success",
+    "input": "script = [ServerError(503), RateLimitError(retry_after=3), \"done\"], rng = Random(1)",
+    "hidden": false,
+    "code": "llm = FakeLLM([ServerError(503), RateLimitError(retry_after=3), \"done\"])\nrec = SleepRecorder()\nout = await call_with_retry(lambda: llm.generate(\"hi\"), sleep=rec, rng=random.Random(1))\nexpect(out, \"done\")\nexpect(llm.calls, 3)\nexpect(len(rec.delays), 2, label=\"one sleep per retry\")\nexpect(rec.delays[1], 3.0, label=\"retry_after=3 beats a jitter of at most 1.0\")\n"
    },
    {
-    "name": "backoff is jittered and capped",
-    "code": "rng = random.Random(42)\ndelays = [backoff_delay(n, 0.5, 4.0, rng) for n in range(1, 8)]\nfor n, d in enumerate(delays, start=1):\n    assert 0 <= d <= min(4.0, 0.5 * 2 ** (n - 1)), f\"retry {n}: delay {d} out of range\"\nexact = [min(4.0, 0.5 * 2 ** (n - 1)) for n in range(1, 8)]\nassert delays != exact, \"delays should be random (jitter), not the exact exponential values\"\n"
+    "name": "Classify retryable errors",
+    "input": "errors = [RateLimitError(), ServerError(500), ServerError(503), BadRequestError(), ValueError(\"bug\")]",
+    "hidden": false,
+    "code": "errs = [RateLimitError(), ServerError(500), ServerError(503), BadRequestError(), ValueError(\"bug\")]\nexpect([is_retryable(e) for e in errs], [True, True, True, False, False])\n"
    },
    {
-    "name": "retries 5xx and 429 then succeeds, honouring retry_after",
-    "code": "llm = FakeLLM([ServerError(503), RateLimitError(retry_after=3), \"done\"])\nrec = SleepRecorder()\nout = await call_with_retry(lambda: llm.generate(\"hi\"), sleep=rec, rng=random.Random(1))\nassert out == \"done\" and llm.calls == 3, (out, llm.calls)\nassert len(rec.delays) == 2, rec.delays\nassert rec.delays[1] >= 3.0, f\"retry_after=3 must be honoured, slept {rec.delays[1]}\"\n"
+    "name": "A 400 is raised at once, never retried",
+    "input": "script = [BadRequestError(\"bad schema\"), \"never reached\"]",
+    "hidden": false,
+    "code": "llm = FakeLLM([BadRequestError(\"bad schema\"), \"never reached\"])\nrec = SleepRecorder()\nawait expect_raises_async(BadRequestError, call_with_retry(lambda: llm.generate(\"hi\"), sleep=rec, rng=random.Random(0)))\nexpect((llm.calls, rec.delays), (1, []))\n"
    },
    {
-    "name": "never retries a 400",
-    "code": "llm = FakeLLM([BadRequestError(\"bad schema\"), \"never reached\"])\nrec = SleepRecorder()\ntry:\n    await call_with_retry(lambda: llm.generate(\"hi\"), sleep=rec, rng=random.Random(0))\nexcept BadRequestError:\n    pass\nelse:\n    raise AssertionError(\"BadRequestError should be raised immediately\")\nassert llm.calls == 1 and rec.delays == [], (llm.calls, rec.delays)\n"
+    "name": "Status boundaries: 499, 500, 599, 600",
+    "input": "errors = [ServerError(499), ServerError(500), ServerError(599), ServerError(600), RateLimitError(retry_after=1)]",
+    "hidden": true,
+    "code": "errs = [ServerError(499), ServerError(500), ServerError(599), ServerError(600), RateLimitError(retry_after=1)]\nexpect([is_retryable(e) for e in errs], [False, True, True, False, True])\n"
    },
    {
-    "name": "gives up after max_attempts and re-raises the last error",
-    "code": "llm = FakeLLM([ServerError(500)] * 4 + [ServerError(502)] + [\"too late\"])\nrec = SleepRecorder()\ntry:\n    await call_with_retry(lambda: llm.generate(\"hi\"), max_attempts=5, sleep=rec, rng=random.Random(0))\nexcept ServerError as e:\n    assert e.status == 502, f\"should re-raise the LAST error, got {e.status}\"\nelse:\n    raise AssertionError(\"expected ServerError after 5 attempts\")\nassert llm.calls == 5, f\"expected 5 calls, got {llm.calls}\"\nassert len(rec.delays) == 4, f\"sleep between attempts only (4), got {len(rec.delays)}\"\n"
+    "name": "Full jitter with a seeded rng",
+    "input": "attempts 1..4, base = 0.5, cap = 8.0, rng = Random(42)",
+    "hidden": true,
+    "code": "rng = random.Random(42)\ngot = [round(backoff_delay(n, 0.5, 8.0, rng), 9) for n in range(1, 5)]\nref = random.Random(42)\nwant = [round(ref.uniform(0, 0.5 * 2 ** (n - 1)), 9) for n in range(1, 5)]\nexpect(got, want, label=\"uniform(0, base * 2**(n-1)) drawn from rng\")\n"
+   },
+   {
+    "name": "Backoff ceiling is capped",
+    "input": "attempts 1..12, base = 1.0, cap = 4.0, rng = Random(3)",
+    "hidden": true,
+    "code": "rng = random.Random(3)\ndelays = [backoff_delay(n, 1.0, 4.0, rng) for n in range(1, 13)]\nexpect(max(delays) <= 4.0, True, label=f\"max delay {max(delays):.3f} must not exceed cap 4.0\")\nref = random.Random(3)\nwant = [ref.uniform(0, min(4.0, 2 ** (n - 1))) for n in range(1, 13)]\nexpect([round(d, 9) for d in delays], [round(w, 9) for w in want])\n"
+   },
+   {
+    "name": "Retries exhausted: re-raise the LAST error",
+    "input": "script = [ServerError(500)] * 4 + [ServerError(502), \"too late\"], max_attempts = 5",
+    "hidden": true,
+    "code": "llm = FakeLLM([ServerError(500)] * 4 + [ServerError(502)] + [\"too late\"])\nrec = SleepRecorder()\nerr = await expect_raises_async(ServerError, call_with_retry(lambda: llm.generate(\"hi\"), max_attempts=5, sleep=rec, rng=random.Random(0)))\nexpect(err.status, 502, label=\"status of the re-raised error\")\nexpect(llm.calls, 5)\nexpect(len(rec.delays), 4, label=\"no sleep after the final attempt\")\n"
+   },
+   {
+    "name": "Seeded delay schedule across retries",
+    "input": "script = [ServerError(500)] * 3 + [\"ok\"], base = 1.0, cap = 3.0, rng = Random(0)",
+    "hidden": true,
+    "code": "llm = FakeLLM([ServerError(500)] * 3 + [\"ok\"])\nrec = SleepRecorder()\nout = await call_with_retry(lambda: llm.generate(\"x\"), base=1.0, cap=3.0, sleep=rec, rng=random.Random(0))\nref = random.Random(0)\nwant = [round(ref.uniform(0, c), 9) for c in (1.0, 2.0, 3.0)]\nexpect(out, \"ok\")\nexpect([round(d, 9) for d in rec.delays], want, label=\"retry n waits uniform(0, min(cap, base*2**(n-1)))\")\n"
+   },
+   {
+    "name": "retry_after vs jitter: the larger wins",
+    "input": "script = [RateLimitError(retry_after=10), \"ok\"]; then [RateLimitError(retry_after=None), \"ok\"], rng = Random(5)",
+    "hidden": true,
+    "code": "rec = SleepRecorder()\nllm = FakeLLM([RateLimitError(retry_after=10), \"ok\"])\nawait call_with_retry(lambda: llm.generate(\"x\"), sleep=rec, rng=random.Random(5))\nexpect(rec.delays, [10.0], label=\"retry_after=10 is a floor\")\nrec = SleepRecorder()\nllm = FakeLLM([RateLimitError(retry_after=None), \"ok\"])\nawait call_with_retry(lambda: llm.generate(\"x\"), sleep=rec, rng=random.Random(5))\nexpect([round(d, 9) for d in rec.delays], [round(random.Random(5).uniform(0, 0.5), 9)], label=\"no hint: plain jitter\")\n"
+   },
+   {
+    "name": "Retries exhausted on repeated 429s",
+    "input": "script = [RateLimitError(retry_after=1), RateLimitError(retry_after=2), RateLimitError(retry_after=4)], max_attempts = 3",
+    "hidden": true,
+    "code": "llm = FakeLLM([RateLimitError(retry_after=1), RateLimitError(retry_after=2), RateLimitError(retry_after=4), \"late\"])\nrec = SleepRecorder()\nerr = await expect_raises_async(RateLimitError, call_with_retry(lambda: llm.generate(\"x\"), max_attempts=3, base=0.1, sleep=rec, rng=random.Random(0)))\nexpect(err.retry_after, 4, label=\"last error re-raised\")\nexpect(rec.delays, [1.0, 2.0], label=\"each wait honours its retry_after\")\n"
+   },
+   {
+    "name": "max_attempts=1 means a single try",
+    "input": "script = [ServerError(500), \"x\"], max_attempts = 1",
+    "hidden": true,
+    "code": "llm = FakeLLM([ServerError(500), \"x\"])\nrec = SleepRecorder()\nawait expect_raises_async(ServerError, call_with_retry(lambda: llm.generate(\"x\"), max_attempts=1, sleep=rec, rng=random.Random(0)))\nexpect((llm.calls, rec.delays), (1, []))\n"
+   },
+   {
+    "name": "Non-API exceptions propagate immediately",
+    "input": "script = [KeyError(\"k\"), \"never\"]",
+    "hidden": true,
+    "code": "llm = FakeLLM([KeyError(\"k\"), \"never\"])\nrec = SleepRecorder()\nawait expect_raises_async(KeyError, call_with_retry(lambda: llm.generate(\"x\"), sleep=rec, rng=random.Random(0)))\nexpect((llm.calls, rec.delays), (1, []))\n"
    }
   ],
   "hints": [
@@ -68,24 +172,70 @@
   "starter": "import asyncio\nimport time\n\n# Provided ---------------------------------------------------------------\nclass FakeClock:\n    \"\"\"Provided virtual time. Pass `clock=fc.now` and `sleep=fc.sleep`:\n    sleeping advances the clock instantly, so tests are fast and exact.\"\"\"\n\n    def __init__(self, start=1000.0):\n        self.t = start\n        self.slept = []\n\n    def now(self):\n        return self.t\n\n    async def sleep(self, seconds):\n        self.slept.append(seconds)\n        self.t += max(0.0, seconds)\n\n# End provided -------------------------------------------------------------\n\n\nclass TokenBucket:\n    def __init__(self, rate_per_minute: float, capacity: float | None = None,\n                 clock=time.monotonic, sleep=asyncio.sleep):\n        \"\"\"Allow `rate_per_minute` requests per minute on average, with bursts up to\n        `capacity` (default: rate_per_minute). The bucket starts full.\"\"\"\n        raise NotImplementedError\n\n    @property\n    def tokens(self) -> float:\n        \"\"\"Current token count after refilling for elapsed time.\"\"\"\n        raise NotImplementedError\n\n    def try_acquire(self) -> bool:\n        \"\"\"Take one token if available and return True; otherwise return False.\"\"\"\n        raise NotImplementedError\n\n    async def acquire(self) -> None:\n        \"\"\"Take one token, sleeping until one is available.\"\"\"\n        raise NotImplementedError\n",
   "tests": [
    {
-    "name": "starts full and refuses when empty",
-    "code": "fc = FakeClock()\nb = TokenBucket(60, capacity=3, clock=fc.now, sleep=fc.sleep)\nassert [b.try_acquire() for _ in range(4)] == [True, True, True, False]\nassert abs(b.tokens) < 1e-9, f\"bucket should be empty, has {b.tokens}\"\n"
+    "name": "Example: burst of 2, then wait 1 s",
+    "input": "rate_per_minute = 60, capacity = 2; ops: try ×3 → acquire",
+    "hidden": false,
+    "code": "fc = FakeClock()\nb = TokenBucket(60, capacity=2, clock=fc.now, sleep=fc.sleep)\nexpect([b.try_acquire(), b.try_acquire(), b.try_acquire()], [True, True, False])\nawait b.acquire()\nexpect(fc.slept, [1.0], label=\"one sleep for the exact deficit\")\n"
    },
    {
-    "name": "refills at rate and caps at capacity",
-    "code": "fc = FakeClock()\nb = TokenBucket(120, capacity=4, clock=fc.now, sleep=fc.sleep)  # 2 tokens / second\nfor _ in range(4):\n    assert b.try_acquire()\nfc.t += 1.0\nassert abs(b.tokens - 2.0) < 1e-9, f\"after 1 s expected 2 tokens, got {b.tokens}\"\nfc.t += 100\nassert abs(b.tokens - 4.0) < 1e-9, f\"tokens must cap at capacity 4, got {b.tokens}\"\n"
+    "name": "Refills at the rate, caps at capacity",
+    "input": "rate_per_minute = 120, capacity = 4; drain 4 → +1 s → tokens → +100 s → tokens",
+    "hidden": false,
+    "code": "fc = FakeClock()\nb = TokenBucket(120, capacity=4, clock=fc.now, sleep=fc.sleep)\nfor _ in range(4):\n    b.try_acquire()\nfc.t += 1.0\nexpect(b.tokens, 2.0, label=\"2 tokens/s for 1 s\")\nfc.t += 100\nexpect(b.tokens, 4.0, label=\"capped at capacity\")\n"
    },
    {
-    "name": "acquire waits exactly the time needed",
-    "code": "fc = FakeClock()\nb = TokenBucket(60, capacity=2, clock=fc.now, sleep=fc.sleep)  # 1 token / second\nawait b.acquire(); await b.acquire()\nassert fc.slept == [], f\"first two acquires should not sleep, slept {fc.slept}\"\nstart = fc.t\nawait b.acquire()\nassert abs((fc.t - start) - 1.0) < 1e-6, f\"third acquire should wait 1 s, waited {fc.t - start}\"\nassert len(fc.slept) == 1, f\"sleep once for the exact deficit, not in a loop: {fc.slept}\"\n"
+    "name": "Sustained rate after the burst",
+    "input": "rate_per_minute = 30, capacity = 1; acquire × 11",
+    "hidden": false,
+    "code": "fc = FakeClock()\nb = TokenBucket(30, capacity=1, clock=fc.now, sleep=fc.sleep)\nstart = fc.t\nfor _ in range(11):\n    await b.acquire()\nexpect(fc.t - start, 20.0, label=\"10 extra tokens at one per 2 s\")\n"
    },
    {
-    "name": "sustained rate: 10 extra acquires take 10 intervals",
-    "code": "fc = FakeClock()\nb = TokenBucket(30, capacity=1, clock=fc.now, sleep=fc.sleep)  # one token every 2 s\nstart = fc.t\nfor _ in range(11):\n    await b.acquire()\nassert abs((fc.t - start) - 20.0) < 1e-6, f\"expected 20 s of virtual time, got {fc.t - start}\"\n"
+    "name": "Starts full",
+    "input": "rate_per_minute = 60, capacity = 3; tokens",
+    "hidden": true,
+    "code": "fc = FakeClock()\nexpect(TokenBucket(60, capacity=3, clock=fc.now, sleep=fc.sleep).tokens, 3.0)\n"
    },
    {
-    "name": "works with real asyncio.sleep and validates arguments",
-    "code": "b = TokenBucket(6000, capacity=1)  # 100 per second\nt0 = time.monotonic()\nawait b.acquire(); await b.acquire()\nassert time.monotonic() - t0 < 0.5\nfor args in [(0,), (60, 0.5)]:\n    try:\n        TokenBucket(*args)\n    except ValueError:\n        pass\n    else:\n        raise AssertionError(f\"TokenBucket{args} should raise ValueError\")\n"
+    "name": "capacity defaults to rate_per_minute",
+    "input": "rate_per_minute = 5 (no capacity); try_acquire × 6",
+    "hidden": true,
+    "code": "fc = FakeClock()\nb = TokenBucket(5, clock=fc.now, sleep=fc.sleep)\nexpect([b.try_acquire() for _ in range(6)], [True] * 5 + [False])\nexpect(b.tokens, 0.0)\n"
+   },
+   {
+    "name": "No elapsed time, no refill",
+    "input": "rate_per_minute = 60, capacity = 1, clock frozen; try ×3",
+    "hidden": true,
+    "code": "fc = FakeClock()\nb = TokenBucket(60, capacity=1, clock=fc.now, sleep=fc.sleep)\nexpect([b.try_acquire() for _ in range(3)], [True, False, False])\nexpect(b.tokens, 0.0)\n"
+   },
+   {
+    "name": "Sleeps only for the missing fraction",
+    "input": "rate_per_minute = 60, capacity = 1; take → +0.25 s → try → acquire",
+    "hidden": true,
+    "code": "fc = FakeClock()\nb = TokenBucket(60, capacity=1, clock=fc.now, sleep=fc.sleep)\nb.try_acquire()\nfc.t += 0.25\nexpect(b.try_acquire(), False, label=\"0.25 tokens is not enough\")\nawait b.acquire()\nexpect(len(fc.slept), 1, label=\"no busy loop\")\nexpect(fc.slept[0], 0.75, label=\"wait for the missing 0.75 token\")\n"
+   },
+   {
+    "name": "Concurrent acquirers queue up",
+    "input": "rate_per_minute = 60, capacity = 1; gather(acquire(), acquire(), acquire())",
+    "hidden": true,
+    "code": "fc = FakeClock()\nb = TokenBucket(60, capacity=1, clock=fc.now, sleep=fc.sleep)\nstart = fc.t\nawait asyncio.gather(b.acquire(), b.acquire(), b.acquire())\nexpect(fc.t - start, 2.0, label=\"3 tokens: 1 now, then 1 per second\")\nexpect(b.tokens, 0.0)\n"
+   },
+   {
+    "name": "Invalid arguments raise ValueError",
+    "input": "TokenBucket(0), TokenBucket(-10), TokenBucket(60, capacity=0.5), TokenBucket(60, capacity=0)",
+    "hidden": true,
+    "code": "expect_raises(ValueError, TokenBucket, 0, label=\"rate 0\")\nexpect_raises(ValueError, TokenBucket, -10, label=\"rate -10\")\nexpect_raises(ValueError, TokenBucket, 60, capacity=0.5, label=\"capacity 0.5\")\nexpect_raises(ValueError, TokenBucket, 60, capacity=0, label=\"capacity 0\")\n"
+   },
+   {
+    "name": "Two buckets do not share state",
+    "input": "b1, b2 = TokenBucket(60, capacity=1) ×2 on one clock; drain b1",
+    "hidden": true,
+    "code": "fc = FakeClock()\nb1 = TokenBucket(60, capacity=1, clock=fc.now, sleep=fc.sleep)\nb2 = TokenBucket(60, capacity=1, clock=fc.now, sleep=fc.sleep)\nb1.try_acquire()\nexpect((b1.try_acquire(), b2.try_acquire()), (False, True))\n"
+   },
+   {
+    "name": "Works with real time and asyncio.sleep",
+    "input": "rate_per_minute = 6000, capacity = 1 (default clock/sleep); acquire × 2",
+    "hidden": true,
+    "code": "b = TokenBucket(6000, capacity=1)\nt0 = time.monotonic()\nawait b.acquire(); await b.acquire()\nelapsed = time.monotonic() - t0\nexpect(b.try_acquire(), False, label=\"bucket empty right after\")\nexpect(elapsed < 0.5, True, label=f\"two acquires at 100/s took {elapsed:.3f} s\")\n"
    }
   ],
   "hints": [
@@ -100,24 +250,76 @@
   "starter": "import asyncio\nimport io\nimport json\nimport logging\nimport random\n\n# Provided ---------------------------------------------------------------\n# Fake API errors, shaped like the ones a real SDK raises.\nclass APIError(Exception):\n    status = 0\n\n\nclass RateLimitError(APIError):\n    \"\"\"HTTP 429. `retry_after` is the server's hint in seconds (may be None).\"\"\"\n    status = 429\n\n    def __init__(self, retry_after=None):\n        super().__init__(f\"429 rate limited (retry_after={retry_after})\")\n        self.retry_after = retry_after\n\n\nclass ServerError(APIError):\n    \"\"\"HTTP 5xx: the provider failed, the request itself was fine.\"\"\"\n\n    def __init__(self, status=500):\n        super().__init__(f\"{status} server error\")\n        self.status = status\n\n\nclass BadRequestError(APIError):\n    \"\"\"HTTP 400: the request is wrong. Retrying cannot fix it.\"\"\"\n    status = 400\n\n    def __init__(self, message=\"400 bad request\"):\n        super().__init__(message)\n\n\nasync def call_with_retry(fn, *, max_attempts=5, base=0.5, cap=8.0, sleep=asyncio.sleep, rng=None):\n    \"\"\"Provided: drill 4.2's retry helper (retries 429/5xx with full jitter).\"\"\"\n    rng = rng or random.Random()\n    for attempt in range(1, max_attempts + 1):\n        try:\n            return await fn()\n        except APIError as err:\n            transient = isinstance(err, RateLimitError) or 500 <= err.status < 600\n            if not transient or attempt == max_attempts:\n                raise\n            delay = rng.uniform(0, min(cap, base * 2 ** (attempt - 1)))\n            if getattr(err, \"retry_after\", None) is not None:\n                delay = max(delay, err.retry_after)\n            await sleep(delay)\n\n\nclass FakeLLM:\n    \"\"\"Provided fake that tracks concurrency. The outcome depends on the prompt text:\n      contains \"bad\"   -> BadRequestError every time\n      contains \"down\"  -> ServerError every time\n      contains \"flaky\" -> RateLimitError on the first call for that prompt, then succeeds\n      otherwise        -> returns prompt.upper()\n    Each call sleeps a few ms (varied per prompt) so replies finish out of order.\"\"\"\n\n    def __init__(self):\n        self.in_flight = 0\n        self.max_in_flight = 0\n        self.calls = 0\n        self._seen = set()\n\n    async def generate(self, prompt):\n        self.calls += 1\n        self.in_flight += 1\n        self.max_in_flight = max(self.max_in_flight, self.in_flight)\n        try:\n            await asyncio.sleep(0.001 * (sum(map(ord, prompt)) % 4))\n            if \"bad\" in prompt:\n                raise BadRequestError(f\"400 invalid prompt: {prompt}\")\n            if \"down\" in prompt:\n                raise ServerError(503)\n            if \"flaky\" in prompt and prompt not in self._seen:\n                self._seen.add(prompt)\n                raise RateLimitError(retry_after=0)\n            return prompt.upper()\n        finally:\n            self.in_flight -= 1\n\n\nasync def no_sleep(seconds):\n    \"\"\"Provided: pass as retry_sleep so retries do not actually wait.\"\"\"\n\n# End provided -------------------------------------------------------------\n\n\nlogger = logging.getLogger(\"batch\")\n\n\nasync def run_batch(prompts: list[str], llm, out: io.TextIOBase, *, max_concurrency: int = 10,\n                    max_attempts: int = 5, retry_sleep=asyncio.sleep) -> dict:\n    \"\"\"Run every prompt through llm.generate with at most `max_concurrency` in flight,\n    retrying via call_with_retry. Write one JSON line per prompt to `out`, in input order:\n      {\"index\": i, \"prompt\": p, \"ok\": true,  \"output\": \"...\"}\n      {\"index\": i, \"prompt\": p, \"ok\": false, \"error\": \"ErrorClass: message\"}\n    Log each failure with logger.warning and keep going.\n    Return {\"total\": n, \"succeeded\": s, \"failed\": f}.\"\"\"\n    raise NotImplementedError\n",
   "tests": [
    {
+    "name": "Example: one bad prompt among good ones",
+    "input": "prompts = [\"a\", \"bad one\", \"flaky c\"]",
+    "hidden": false,
+    "code": "buf = io.StringIO()\nstats = await run_batch([\"a\", \"bad one\", \"flaky c\"], FakeLLM(), buf, retry_sleep=no_sleep)\nexpect(stats, {\"total\": 3, \"succeeded\": 2, \"failed\": 1})\nexpect([json.loads(l)[\"ok\"] for l in buf.getvalue().splitlines()], [True, False, True])\n"
+   },
+   {
     "name": "100 prompts, never more than 10 in flight",
-    "code": "llm = FakeLLM()\nbuf = io.StringIO()\nstats = await run_batch([f\"prompt {i}\" for i in range(100)], llm, buf, retry_sleep=no_sleep)\nassert stats == {\"total\": 100, \"succeeded\": 100, \"failed\": 0}, stats\nassert llm.max_in_flight <= 10, f\"peak concurrency {llm.max_in_flight} > 10\"\nassert llm.max_in_flight >= 5, f\"calls should overlap, peak was only {llm.max_in_flight}\"\n"
+    "input": "prompts = [\"prompt 0\" … \"prompt 99\"], max_concurrency = 10",
+    "hidden": false,
+    "code": "llm = FakeLLM()\nstats = await run_batch([f\"prompt {i}\" for i in range(100)], llm, io.StringIO(), retry_sleep=no_sleep)\nexpect(stats, {\"total\": 100, \"succeeded\": 100, \"failed\": 0})\nexpect(llm.max_in_flight, 10, label=\"peak concurrency\")\n"
    },
    {
-    "name": "JSONL output is in input order",
-    "code": "buf = io.StringIO()\nprompts = [f\"item {i}\" for i in range(30)]\nawait run_batch(prompts, FakeLLM(), buf, max_concurrency=7, retry_sleep=no_sleep)\nrows = [json.loads(line) for line in buf.getvalue().splitlines()]\nassert [r[\"index\"] for r in rows] == list(range(30)), \"rows must be in input order\"\nassert rows[3] == {\"index\": 3, \"prompt\": \"item 3\", \"ok\": True, \"output\": \"ITEM 3\"}, rows[3]\n"
+    "name": "Rows come out in input order",
+    "input": "prompts = [\"item 0\" … \"item 29\"], max_concurrency = 7",
+    "hidden": false,
+    "code": "buf = io.StringIO()\nawait run_batch([f\"item {i}\" for i in range(30)], FakeLLM(), buf, max_concurrency=7, retry_sleep=no_sleep)\nrows = [json.loads(line) for line in buf.getvalue().splitlines()]\nexpect([r[\"index\"] for r in rows], list(range(30)))\nexpect(rows[3], {\"index\": 3, \"prompt\": \"item 3\", \"ok\": True, \"output\": \"ITEM 3\"})\n"
    },
    {
-    "name": "failures are recorded and do not stop the batch",
-    "code": "llm = FakeLLM()\nbuf = io.StringIO()\nprompts = [\"fine 0\", \"bad 1\", \"fine 2\", \"down 3\", \"fine 4\"]\nstats = await run_batch(prompts, llm, buf, retry_sleep=no_sleep)\nrows = [json.loads(line) for line in buf.getvalue().splitlines()]\nassert [r[\"ok\"] for r in rows] == [True, False, True, False, True], rows\nassert rows[1][\"error\"].startswith(\"BadRequestError\"), rows[1]\nassert rows[3][\"error\"].startswith(\"ServerError\"), rows[3]\nassert stats == {\"total\": 5, \"succeeded\": 3, \"failed\": 2}, stats\nassert llm.calls == 1 + 1 + 1 + 5 + 1, f\"400 tried once, 5xx tried 5 times: {llm.calls} calls\"\n"
+    "name": "Empty batch",
+    "input": "prompts = []",
+    "hidden": true,
+    "code": "buf = io.StringIO()\nstats = await run_batch([], FakeLLM(), buf, retry_sleep=no_sleep)\nexpect(stats, {\"total\": 0, \"succeeded\": 0, \"failed\": 0})\nexpect(buf.getvalue(), \"\", label=\"nothing written\")\n"
    },
    {
-    "name": "transient 429 is retried to success",
-    "code": "llm = FakeLLM()\nbuf = io.StringIO()\nstats = await run_batch([\"flaky a\", \"flaky b\"], llm, buf, retry_sleep=no_sleep)\nassert stats[\"succeeded\"] == 2, stats\nassert llm.calls == 4, f\"each flaky prompt should take 2 calls, total {llm.calls}\"\n"
+    "name": "max_concurrency=1 runs one at a time",
+    "input": "prompts = [\"p0\" … \"p7\"], max_concurrency = 1",
+    "hidden": true,
+    "code": "llm = FakeLLM()\nbuf = io.StringIO()\nawait run_batch([f\"p{i}\" for i in range(8)], llm, buf, max_concurrency=1, retry_sleep=no_sleep)\nexpect(llm.max_in_flight, 1)\nexpect([json.loads(l)[\"output\"] for l in buf.getvalue().splitlines()], [f\"P{i}\" for i in range(8)])\n"
    },
    {
-    "name": "failures are logged and bad concurrency is rejected",
-    "code": "records = []\nclass Grab(logging.Handler):\n    def emit(self, record):\n        records.append(record)\nh = Grab()\nlogging.getLogger(\"batch\").addHandler(h)\ntry:\n    await run_batch([\"bad x\"], FakeLLM(), io.StringIO(), retry_sleep=no_sleep)\nfinally:\n    logging.getLogger(\"batch\").removeHandler(h)\nassert any(r.levelno >= logging.WARNING for r in records), \"log failures with logger.warning\"\ntry:\n    await run_batch([\"a\"], FakeLLM(), io.StringIO(), max_concurrency=0)\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError(\"max_concurrency=0 should raise ValueError\")\n"
+    "name": "Failure rows carry 'ClassName: message'",
+    "input": "prompts = [\"fine 0\", \"bad 1\", \"fine 2\", \"down 3\", \"fine 4\"]",
+    "hidden": true,
+    "code": "llm = FakeLLM()\nbuf = io.StringIO()\nstats = await run_batch([\"fine 0\", \"bad 1\", \"fine 2\", \"down 3\", \"fine 4\"], llm, buf, retry_sleep=no_sleep)\nrows = [json.loads(line) for line in buf.getvalue().splitlines()]\nexpect(stats, {\"total\": 5, \"succeeded\": 3, \"failed\": 2})\nexpect(rows[1], {\"index\": 1, \"prompt\": \"bad 1\", \"ok\": False, \"error\": \"BadRequestError: 400 invalid prompt: bad 1\"})\nexpect(rows[3][\"error\"], \"ServerError: 503 server error\")\nexpect(llm.calls, 9, label=\"400 tried once, 5xx tried 5 times, 3 successes\")\n"
+   },
+   {
+    "name": "429 retried to success through retry_sleep",
+    "input": "prompts = [\"flaky a\", \"flaky b\"], retry_sleep = recorder",
+    "hidden": true,
+    "code": "slept = []\nasync def rec_sleep(s):\n    slept.append(s)\nllm = FakeLLM()\nstats = await run_batch([\"flaky a\", \"flaky b\"], llm, io.StringIO(), retry_sleep=rec_sleep)\nexpect(stats, {\"total\": 2, \"succeeded\": 2, \"failed\": 0})\nexpect(llm.calls, 4, label=\"2 calls per flaky prompt\")\nexpect(len(slept), 2, label=\"the injected retry_sleep is used\")\n"
+   },
+   {
+    "name": "max_attempts=1 disables retries",
+    "input": "prompts = [\"down x\", \"flaky y\"], max_attempts = 1",
+    "hidden": true,
+    "code": "llm = FakeLLM()\nbuf = io.StringIO()\nstats = await run_batch([\"down x\", \"flaky y\"], llm, buf, max_attempts=1, retry_sleep=no_sleep)\nrows = [json.loads(l) for l in buf.getvalue().splitlines()]\nexpect(stats, {\"total\": 2, \"succeeded\": 0, \"failed\": 2})\nexpect(llm.calls, 2)\nexpect(rows[1][\"error\"], \"RateLimitError: 429 rate limited (retry_after=0)\")\n"
+   },
+   {
+    "name": "Every prompt fails, batch still completes",
+    "input": "prompts = [\"bad a\", \"down b\", \"bad c\"]",
+    "hidden": true,
+    "code": "buf = io.StringIO()\nstats = await run_batch([\"bad a\", \"down b\", \"bad c\"], FakeLLM(), buf, retry_sleep=no_sleep)\nexpect(stats, {\"total\": 3, \"succeeded\": 0, \"failed\": 3})\nexpect([json.loads(l)[\"index\"] for l in buf.getvalue().splitlines()], [0, 1, 2])\n"
+   },
+   {
+    "name": "Duplicate and unicode prompts each get a row",
+    "input": "prompts = [\"héllo\", \"héllo\", \"naïve ✓\"]",
+    "hidden": true,
+    "code": "buf = io.StringIO()\nawait run_batch([\"héllo\", \"héllo\", \"naïve ✓\"], FakeLLM(), buf, retry_sleep=no_sleep)\nrows = [json.loads(l) for l in buf.getvalue().splitlines()]\nexpect([(r[\"index\"], r[\"output\"]) for r in rows], [(0, \"HÉLLO\"), (1, \"HÉLLO\"), (2, \"NAÏVE ✓\")])\n"
+   },
+   {
+    "name": "Each failed prompt is logged with logger.warning",
+    "input": "prompts = [\"bad x\", \"ok\", \"down y\"]",
+    "hidden": true,
+    "code": "records = []\nclass Grab(logging.Handler):\n    def emit(self, record):\n        records.append(record)\nh = Grab()\nlogging.getLogger(\"batch\").addHandler(h)\ntry:\n    await run_batch([\"bad x\", \"ok\", \"down y\"], FakeLLM(), io.StringIO(), retry_sleep=no_sleep)\nfinally:\n    logging.getLogger(\"batch\").removeHandler(h)\nexpect(len([r for r in records if r.levelno >= logging.WARNING]), 2, label=\"warnings logged\")\n"
+   },
+   {
+    "name": "max_concurrency < 1 is rejected",
+    "input": "prompts = [\"a\"], max_concurrency = 0",
+    "hidden": true,
+    "code": "await expect_raises_async(ValueError, run_batch([\"a\"], FakeLLM(), io.StringIO(), max_concurrency=0))\n"
    }
   ],
   "hints": [
@@ -132,24 +334,76 @@
   "starter": "import asyncio\nfrom dataclasses import dataclass\n\n# Provided ---------------------------------------------------------------\nclass StreamDisconnected(Exception):\n    \"\"\"The connection dropped mid-stream.\"\"\"\n\n\nclass FakeStreamingLLM:\n    \"\"\"Provided fake streaming model.\n\n    stream(prompt, resume_from=0) is an async generator yielding the reply's tokens\n    starting at index `resume_from`. Each index in `disconnect_at` raises\n    StreamDisconnected once, just BEFORE that token would be sent (the next\n    connection gets past it). Each new connection is recorded in `connections`.\n    \"\"\"\n\n    def __init__(self, tokens, disconnect_at=()):\n        self.tokens = list(tokens)\n        self.pending_drops = set(disconnect_at)\n        self.connections = []\n\n    async def stream(self, prompt, resume_from=0):\n        self.connections.append(resume_from)\n        for i in range(resume_from, len(self.tokens)):\n            await asyncio.sleep(0)\n            if i in self.pending_drops:\n                self.pending_drops.discard(i)\n                raise StreamDisconnected(f\"connection reset at token {i}\")\n            yield self.tokens[i]\n\n# End provided -------------------------------------------------------------\n\n\n@dataclass\nclass StreamResult:\n    text: str\n    tokens: list[str]\n    complete: bool\n    error: str | None = None\n\n\nasync def consume_stream(stream, on_token=print) -> StreamResult:\n    \"\"\"Read an async iterator of tokens, call on_token(tok) for each as it arrives,\n    return the joined text. On StreamDisconnected return the partial text with\n    complete=False and error set to the message; never raise it.\"\"\"\n    raise NotImplementedError\n\n\nasync def stream_with_resume(llm, prompt: str, on_token=print, max_reconnects: int = 2) -> str:\n    \"\"\"Stream the full reply, reconnecting with resume_from=<tokens received so far>\n    after a disconnect. Each token reaches on_token exactly once. Raise\n    StreamDisconnected if more than max_reconnects reconnections would be needed.\"\"\"\n    raise NotImplementedError\n",
   "tests": [
    {
-    "name": "streams tokens live and returns the full text",
-    "code": "llm = FakeStreamingLLM([\"The\", \" sky\", \" is\", \" blue\"])\nseen = []\nr = await consume_stream(llm.stream(\"q\"), on_token=seen.append)\nassert seen == [\"The\", \" sky\", \" is\", \" blue\"], seen\nassert (r.text, r.complete, r.error) == (\"The sky is blue\", True, None), r\n"
+    "name": "Streams the full reply",
+    "input": "tokens = [\"The\", \" sky\", \" is\", \" blue\"]",
+    "hidden": false,
+    "code": "llm = FakeStreamingLLM([\"The\", \" sky\", \" is\", \" blue\"])\nseen = []\nr = await consume_stream(llm.stream(\"q\"), on_token=seen.append)\nexpect(seen, [\"The\", \" sky\", \" is\", \" blue\"])\nexpect((r.text, r.complete, r.error), (\"The sky is blue\", True, None))\n"
    },
    {
-    "name": "tokens are delivered as they arrive, not at the end",
-    "code": "log = []\nasync def slow_stream():\n    for t in [\"a\", \"b\", \"c\"]:\n        log.append(f\"sent {t}\")\n        yield t\nawait consume_stream(slow_stream(), on_token=lambda t: log.append(f\"got {t}\"))\nassert log == [\"sent a\", \"got a\", \"sent b\", \"got b\", \"sent c\", \"got c\"], log\n"
+    "name": "Example: resume after one disconnect",
+    "input": "tokens = [\"Hel\", \"lo\", \" wor\", \"ld\"], disconnect_at = [2]",
+    "hidden": false,
+    "code": "llm = FakeStreamingLLM([\"Hel\", \"lo\", \" wor\", \"ld\"], disconnect_at=[2])\nseen = []\ntext = await stream_with_resume(llm, \"hi\", on_token=seen.append)\nexpect(text, \"Hello world\")\nexpect(seen, [\"Hel\", \"lo\", \" wor\", \"ld\"])\nexpect(llm.connections, [0, 2])\n"
    },
    {
-    "name": "mid-stream disconnect returns the partial text",
-    "code": "llm = FakeStreamingLLM([\"one\", \" two\", \" three\"], disconnect_at=[2])\nr = await consume_stream(llm.stream(\"q\"), on_token=lambda t: None)\nassert r.complete is False, \"a dropped stream is not complete\"\nassert r.text == \"one two\" and r.tokens == [\"one\", \" two\"], r\nassert r.error and \"reset\" in r.error, r.error\n"
+    "name": "Disconnect returns the partial text",
+    "input": "tokens = [\"one\", \" two\", \" three\"], disconnect_at = [2]",
+    "hidden": false,
+    "code": "llm = FakeStreamingLLM([\"one\", \" two\", \" three\"], disconnect_at=[2])\nr = await consume_stream(llm.stream(\"q\"), on_token=lambda t: None)\nexpect((r.text, r.tokens, r.complete), (\"one two\", [\"one\", \" two\"], False))\nexpect(r.error, \"connection reset at token 2\")\n"
    },
    {
-    "name": "resume reconnects from the right offset without duplicates",
-    "code": "llm = FakeStreamingLLM([\"a\", \"b\", \"c\", \"d\", \"e\"], disconnect_at=[1, 3])\nseen = []\ntext = await stream_with_resume(llm, \"q\", on_token=seen.append, max_reconnects=2)\nassert text == \"abcde\", text\nassert seen == [\"a\", \"b\", \"c\", \"d\", \"e\"], f\"each token exactly once: {seen}\"\nassert llm.connections == [0, 1, 3], llm.connections\n"
+    "name": "Tokens are delivered live, not at the end",
+    "input": "async generator yielding \"a\", \"b\", \"c\" and logging each send",
+    "hidden": true,
+    "code": "log = []\nasync def gen():\n    for t in [\"a\", \"b\", \"c\"]:\n        log.append(f\"sent {t}\")\n        yield t\nawait consume_stream(gen(), on_token=lambda t: log.append(f\"got {t}\"))\nexpect(log, [\"sent a\", \"got a\", \"sent b\", \"got b\", \"sent c\", \"got c\"])\n"
    },
    {
-    "name": "gives up after max_reconnects",
-    "code": "llm = FakeStreamingLLM(list(\"abcdef\"), disconnect_at=[1, 2, 3])\ntry:\n    await stream_with_resume(llm, \"q\", on_token=lambda t: None, max_reconnects=2)\nexcept StreamDisconnected:\n    pass\nelse:\n    raise AssertionError(\"3 drops with max_reconnects=2 should raise StreamDisconnected\")\nassert llm.connections == [0, 1, 2], llm.connections\n"
+    "name": "Empty stream",
+    "input": "tokens = []",
+    "hidden": true,
+    "code": "seen = []\nr = await consume_stream(FakeStreamingLLM([]).stream(\"q\"), on_token=seen.append)\nexpect(r, StreamResult(\"\", [], True, None))\nexpect(seen, [])\n"
+   },
+   {
+    "name": "Disconnect before the first token",
+    "input": "tokens = [\"x\", \"y\"], disconnect_at = [0]",
+    "hidden": true,
+    "code": "r = await consume_stream(FakeStreamingLLM([\"x\", \"y\"], disconnect_at=[0]).stream(\"q\"), on_token=lambda t: None)\nexpect(r, StreamResult(\"\", [], False, \"connection reset at token 0\"))\n"
+   },
+   {
+    "name": "Two drops resumed without duplicates",
+    "input": "tokens = [\"a\", \"b\", \"c\", \"d\", \"e\"], disconnect_at = [1, 3], max_reconnects = 2",
+    "hidden": true,
+    "code": "llm = FakeStreamingLLM([\"a\", \"b\", \"c\", \"d\", \"e\"], disconnect_at=[1, 3])\nseen = []\ntext = await stream_with_resume(llm, \"q\", on_token=seen.append, max_reconnects=2)\nexpect(text, \"abcde\")\nexpect(seen, [\"a\", \"b\", \"c\", \"d\", \"e\"], label=\"each token exactly once\")\nexpect(llm.connections, [0, 1, 3], label=\"resume_from offsets\")\n"
+   },
+   {
+    "name": "Drop right before the last token",
+    "input": "tokens = [\"x\", \"y\", \"z\"], disconnect_at = [2]",
+    "hidden": true,
+    "code": "llm = FakeStreamingLLM([\"x\", \"y\", \"z\"], disconnect_at=[2])\nseen = []\nexpect(await stream_with_resume(llm, \"q\", on_token=seen.append), \"xyz\")\nexpect(llm.connections, [0, 2])\nexpect(seen, [\"x\", \"y\", \"z\"])\n"
+   },
+   {
+    "name": "No drops: a single connection",
+    "input": "tokens = [\"a\", \"b\"], disconnect_at = []",
+    "hidden": true,
+    "code": "llm = FakeStreamingLLM([\"a\", \"b\"])\nexpect(await stream_with_resume(llm, \"q\", on_token=lambda t: None), \"ab\")\nexpect(llm.connections, [0])\n"
+   },
+   {
+    "name": "Gives up after max_reconnects",
+    "input": "tokens = list(\"abcdef\"), disconnect_at = [1, 2, 3], max_reconnects = 2",
+    "hidden": true,
+    "code": "llm = FakeStreamingLLM(list(\"abcdef\"), disconnect_at=[1, 2, 3])\nseen = []\nawait expect_raises_async(StreamDisconnected, stream_with_resume(llm, \"q\", on_token=seen.append, max_reconnects=2))\nexpect(llm.connections, [0, 1, 2])\nexpect(seen, [\"a\", \"b\", \"c\"], label=\"tokens received before giving up, once each\")\n"
+   },
+   {
+    "name": "max_reconnects=0 never reconnects",
+    "input": "tokens = [\"a\", \"b\", \"c\"], disconnect_at = [1], max_reconnects = 0",
+    "hidden": true,
+    "code": "llm = FakeStreamingLLM([\"a\", \"b\", \"c\"], disconnect_at=[1])\nawait expect_raises_async(StreamDisconnected, stream_with_resume(llm, \"q\", on_token=lambda t: None, max_reconnects=0))\nexpect(llm.connections, [0])\n"
+   },
+   {
+    "name": "Other exceptions propagate",
+    "input": "async generator yields \"a\" then raises ValueError(\"boom\")",
+    "hidden": true,
+    "code": "seen = []\nasync def broken():\n    yield \"a\"\n    raise ValueError(\"boom\")\nawait expect_raises_async(ValueError, consume_stream(broken(), on_token=seen.append))\nexpect(seen, [\"a\"])\n"
    }
   ],
   "hints": [
@@ -164,24 +418,76 @@
   "starter": "import json\nfrom typing import Literal\n\nfrom pydantic import BaseModel, Field, ValidationError\n\n# Provided ---------------------------------------------------------------\nclass Ticket(BaseModel):\n    \"\"\"Provided target schema for the tests.\"\"\"\n    title: str = Field(min_length=3)\n    priority: Literal[\"low\", \"medium\", \"high\"]\n    tags: list[str] = []\n\n\nclass FakeLLM:\n    \"\"\"Provided scripted fake: each call returns the next string in `script`.\n    Every prompt it receives is recorded in `prompts`.\"\"\"\n\n    def __init__(self, script):\n        self.script = list(script)\n        self.prompts = []\n\n    async def generate(self, prompt):\n        self.prompts.append(prompt)\n        if not self.script:\n            raise AssertionError(\"FakeLLM script exhausted: too many calls\")\n        return self.script.pop(0)\n\n# End provided -------------------------------------------------------------\n\n\nclass StructuredOutputError(Exception):\n    \"\"\"Raised when the model never produced valid output. `.attempts` = calls made.\"\"\"\n\n    def __init__(self, message, attempts):\n        super().__init__(message)\n        self.attempts = attempts\n\n\ndef extract_json(text: str) -> str:\n    \"\"\"Return the JSON object inside `text`: strip a markdown code fence if present,\n    otherwise take the span from the first '{' to the last '}'.\"\"\"\n    raise NotImplementedError\n\n\nasync def get_structured(llm, prompt: str, model_cls: type[BaseModel], max_repairs: int = 2) -> BaseModel:\n    \"\"\"Ask for JSON matching model_cls (include the JSON schema in the prompt), validate,\n    and on failure re-prompt with the error. At most 1 + max_repairs calls.\"\"\"\n    raise NotImplementedError\n",
   "tests": [
    {
-    "name": "valid JSON on the first try needs one call",
-    "code": "llm = FakeLLM(['{\"title\": \"Fix login\", \"priority\": \"high\", \"tags\": [\"auth\"]}'])\nt = await get_structured(llm, \"Make a ticket\", Ticket)\nassert isinstance(t, Ticket) and t.priority == \"high\" and t.tags == [\"auth\"], t\nassert len(llm.prompts) == 1\nassert \"Make a ticket\" in llm.prompts[0] and \"priority\" in llm.prompts[0], \"include the schema in the prompt\"\n"
+    "name": "Valid JSON on the first try",
+    "input": "script = ['{\"title\": \"Fix login\", \"priority\": \"high\", \"tags\": [\"auth\"]}'], prompt = \"Make a ticket\"",
+    "hidden": false,
+    "code": "llm = FakeLLM(['{\"title\": \"Fix login\", \"priority\": \"high\", \"tags\": [\"auth\"]}'])\nt = await get_structured(llm, \"Make a ticket\", Ticket)\nexpect(t, Ticket(title=\"Fix login\", priority=\"high\", tags=[\"auth\"]))\nexpect(len(llm.prompts), 1)\np = llm.prompts[0]\nexpect((\"Make a ticket\" in p, \"medium\" in p), (True, True), label=\"prompt has the request and the schema\")\n"
    },
    {
-    "name": "extract_json strips fences and surrounding prose",
-    "code": "f = \"`\" * 3\nassert extract_json(f + 'json\\n{\"a\": 1}\\n' + f) == '{\"a\": 1}'\nassert extract_json('Sure! Here it is: {\"a\": {\"b\": 2}} Hope that helps.') == '{\"a\": {\"b\": 2}}'\nassert extract_json('  {\"x\": 0}  ') == '{\"x\": 0}'\n"
+    "name": "Example: schema error is repaired",
+    "input": "script = ['{\"title\": \"Login broken\", \"priority\": \"urgent\"}', '{... \"priority\": \"high\"}']",
+    "hidden": false,
+    "code": "llm = FakeLLM(['{\"title\": \"Login broken\", \"priority\": \"urgent\"}',\n               '{\"title\": \"Login broken\", \"priority\": \"high\"}'])\nt = await get_structured(llm, \"File a ticket: login is broken\", Ticket)\nexpect((t.priority, len(llm.prompts)), (\"high\", 2))\nrepair = llm.prompts[1]\nexpect((\"urgent\" in repair, \"File a ticket: login is broken\" in repair), (True, True),\n       label=\"repair prompt has the bad reply and the original request\")\n"
    },
    {
-    "name": "schema error is repaired using the validation message",
-    "code": "llm = FakeLLM([\n    '{\"title\": \"Login broken\", \"priority\": \"urgent\"}',\n    '{\"title\": \"Login broken\", \"priority\": \"high\"}',\n])\nt = await get_structured(llm, \"File a ticket\", Ticket)\nassert t.priority == \"high\" and len(llm.prompts) == 2, (t, llm.prompts)\nrepair = llm.prompts[1]\nassert \"urgent\" in repair, \"repair prompt should show the bad reply\"\nassert \"priority\" in repair and \"File a ticket\" in repair, \"repair prompt needs the error and the original request\"\n"
+    "name": "extract_json: fence, prose, whitespace",
+    "input": "texts = [\"```json\\n{\\\"a\\\": 1}\\n```\", \"Sure! Here it is: {\\\"a\\\": {\\\"b\\\": 2}} Hope that helps.\", \"  {\\\"x\\\": 0}  \"]",
+    "hidden": false,
+    "code": "f = \"`\" * 3\ntexts = [f + 'json\\n{\"a\": 1}\\n' + f, 'Sure! Here it is: {\"a\": {\"b\": 2}} Hope that helps.', '  {\"x\": 0}  ']\nexpect([extract_json(t) for t in texts], ['{\"a\": 1}', '{\"a\": {\"b\": 2}}', '{\"x\": 0}'])\n"
    },
    {
-    "name": "broken JSON is repaired too",
-    "code": "f = \"`\" * 3\nllm = FakeLLM(['{\"title\": \"Crash on save\", \"priority\": \"low\",', f + 'json\\n{\"title\": \"Crash on save\", \"priority\": \"low\"}\\n' + f])\nt = await get_structured(llm, \"ticket please\", Ticket)\nassert t.title == \"Crash on save\" and len(llm.prompts) == 2, (t, len(llm.prompts))\n"
+    "name": "extract_json: fence without a tag, prose around a fence",
+    "input": "texts = [\"```\\n{\\\"a\\\": 1}\\n```\", \"Here:\\n```json\\n{\\\"b\\\": 2}\\n```\\nDone\"]",
+    "hidden": true,
+    "code": "f = \"`\" * 3\ntexts = [f + '\\n{\"a\": 1}\\n' + f, 'Here:\\n' + f + 'json\\n{\"b\": 2}\\n' + f + '\\nDone']\nexpect([extract_json(t) for t in texts], ['{\"a\": 1}', '{\"b\": 2}'])\n"
    },
    {
-    "name": "gives up after max_repairs with StructuredOutputError",
-    "code": "llm = FakeLLM([\"not json\", '{\"title\": \"x\", \"priority\": \"low\"}', '{\"priority\": \"low\"}', \"unused\"])\ntry:\n    await get_structured(llm, \"ticket\", Ticket, max_repairs=2)\nexcept StructuredOutputError as e:\n    assert e.attempts == 3, e.attempts\nelse:\n    raise AssertionError(\"expected StructuredOutputError\")\nassert len(llm.prompts) == 3, f\"1 call + 2 repairs = 3, made {len(llm.prompts)}\"\n"
+    "name": "extract_json: no braces or no closing brace",
+    "input": "texts = [\"  hello  \", \"{oops\", \"x {\\\"a\\\": {\\\"b\\\": {\\\"c\\\": 3}}} y\"]",
+    "hidden": true,
+    "code": "texts = [\"  hello  \", \"{oops\", 'x {\"a\": {\"b\": {\"c\": 3}}} y']\nexpect([extract_json(t) for t in texts], [\"hello\", \"{oops\", '{\"a\": {\"b\": {\"c\": 3}}}'])\n"
+   },
+   {
+    "name": "Fenced reply validates on the first call",
+    "input": "script = [\"```json\\n{\\\"title\\\": \\\"Add docs\\\", \\\"priority\\\": \\\"low\\\"}\\n```\"]",
+    "hidden": true,
+    "code": "f = \"`\" * 3\nllm = FakeLLM([f + 'json\\n{\"title\": \"Add docs\", \"priority\": \"low\"}\\n' + f])\nt = await get_structured(llm, \"docs ticket\", Ticket)\nexpect((t.title, t.priority, len(llm.prompts)), (\"Add docs\", \"low\", 1))\n"
+   },
+   {
+    "name": "Truncated JSON is repaired",
+    "input": "script = ['{\"title\": \"Crash on save\", \"priority\": \"low\",', fenced valid JSON]",
+    "hidden": true,
+    "code": "f = \"`\" * 3\nllm = FakeLLM(['{\"title\": \"Crash on save\", \"priority\": \"low\",',\n               f + 'json\\n{\"title\": \"Crash on save\", \"priority\": \"low\"}\\n' + f])\nt = await get_structured(llm, \"ticket please\", Ticket)\nexpect((t.title, len(llm.prompts)), (\"Crash on save\", 2))\n"
+   },
+   {
+    "name": "Repair prompt quotes the validation error",
+    "input": "script = ['{\"title\": \"x\", \"priority\": \"low\"}', '{\"title\": \"Fix x\", \"priority\": \"low\"}'] (title too short)",
+    "hidden": true,
+    "code": "llm = FakeLLM(['{\"title\": \"x\", \"priority\": \"low\"}', '{\"title\": \"Fix x\", \"priority\": \"low\"}'])\nt = await get_structured(llm, \"short title\", Ticket)\nexpect(t.title, \"Fix x\")\nexpect(\"at least 3 characters\" in llm.prompts[1], True, label=\"str(ValidationError) is in the repair prompt\")\n"
+   },
+   {
+    "name": "Missing field repaired; tags default to []",
+    "input": "script = ['{\"title\": \"Crash\"}', '{\"title\": \"Crash\", \"priority\": \"medium\"}']",
+    "hidden": true,
+    "code": "llm = FakeLLM(['{\"title\": \"Crash\"}', '{\"title\": \"Crash\", \"priority\": \"medium\"}'])\nt = await get_structured(llm, \"crash ticket\", Ticket)\nexpect(t, Ticket(title=\"Crash\", priority=\"medium\", tags=[]))\n"
+   },
+   {
+    "name": "Wrong field type is repaired",
+    "input": "script = ['{\"title\": \"Docs\", \"priority\": \"low\", \"tags\": \"docs\"}', '{... \"tags\": [\"docs\"]}']",
+    "hidden": true,
+    "code": "llm = FakeLLM(['{\"title\": \"Docs\", \"priority\": \"low\", \"tags\": \"docs\"}',\n               '{\"title\": \"Docs\", \"priority\": \"low\", \"tags\": [\"docs\"]}'])\nt = await get_structured(llm, \"docs\", Ticket)\nexpect((t.tags, len(llm.prompts)), ([\"docs\"], 2))\n"
+   },
+   {
+    "name": "Gives up after max_repairs",
+    "input": "script = [\"not json\", '{\"title\": \"x\", \"priority\": \"low\"}', '{\"priority\": \"low\"}', \"unused\"], max_repairs = 2",
+    "hidden": true,
+    "code": "llm = FakeLLM([\"not json\", '{\"title\": \"x\", \"priority\": \"low\"}', '{\"priority\": \"low\"}', \"unused\"])\nerr = await expect_raises_async(StructuredOutputError, get_structured(llm, \"ticket\", Ticket, max_repairs=2))\nexpect(err.attempts, 3)\nexpect(len(llm.prompts), 3, label=\"1 call + 2 repairs\")\n"
+   },
+   {
+    "name": "max_repairs=0 allows exactly one call",
+    "input": "script = [\"nope\", \"unused\"], max_repairs = 0",
+    "hidden": true,
+    "code": "llm = FakeLLM([\"nope\", \"unused\"])\nerr = await expect_raises_async(StructuredOutputError, get_structured(llm, \"ticket\", Ticket, max_repairs=0))\nexpect((err.attempts, len(llm.prompts)), (1, 1))\n"
    }
   ],
   "hints": [
@@ -196,24 +502,76 @@
   "starter": "import ast\nimport json\nimport logging\nimport operator\nfrom dataclasses import dataclass, field\n\n# Provided ---------------------------------------------------------------\nDICTIONARY = {\n    \"ephemeral\": \"lasting for a very short time\",\n    \"latency\": \"the delay before a transfer of data begins\",\n    \"token\": \"a unit of text processed by a language model\",\n}\n\n\nclass ScriptedModel:\n    \"\"\"Provided fake model. respond(messages) returns the next scripted action:\n      {\"type\": \"tool_call\", \"tool\": name, \"args\": {...}}   or\n      {\"type\": \"final\", \"text\": \"...\"}\n    A scripted item may also be a function(messages) -> action, so a test can\n    check what the model was shown. Every messages list it receives is copied\n    into `seen`.\"\"\"\n\n    def __init__(self, script):\n        self.script = list(script)\n        self.seen = []\n\n    async def respond(self, messages):\n        self.seen.append([dict(m) for m in messages])\n        if not self.script:\n            return {\"type\": \"tool_call\", \"tool\": \"calculator\", \"args\": {\"expression\": \"1+1\"}}\n        item = self.script.pop(0)\n        return item(messages) if callable(item) else item\n\n# End provided -------------------------------------------------------------\n\n\nlogger = logging.getLogger(\"agent\")\n\n\ndef calculator(expression: str) -> str:\n    \"\"\"Safely evaluate arithmetic (+ - * / ** %, unary minus, parentheses, numbers).\n    Never use eval(). Raise ValueError for anything else.\"\"\"\n    raise NotImplementedError\n\n\ndef lookup(word: str) -> str:\n    \"\"\"Return the DICTIONARY definition (case-insensitive). Raise KeyError if missing.\"\"\"\n    raise NotImplementedError\n\n\nTOOLS = {\"calculator\": calculator, \"lookup\": lookup}\n\n\n@dataclass\nclass Step:\n    index: int\n    action: str            # \"tool\" or \"final\"\n    tool: str | None = None\n    args: dict | None = None\n    result: str | None = None\n\n\n@dataclass\nclass AgentResult:\n    answer: str | None\n    steps: list[Step] = field(default_factory=list)\n    stopped_reason: str = \"final\"   # \"final\" or \"max_steps\"\n\n\nasync def run_agent(model, question: str, max_steps: int = 5) -> AgentResult:\n    \"\"\"Loop: ask the model, run any tool it calls, append the result to messages,\n    until it returns a final answer or max_steps model calls have been made.\"\"\"\n    raise NotImplementedError\n",
   "tests": [
    {
-    "name": "calculator evaluates arithmetic safely",
-    "code": "assert calculator(\"2 + 3 * 4\") == \"14\"\nassert calculator(\"(1 + 2) ** 2 - -1\") == \"10\"\nassert calculator(\"7 / 2\") == \"3.5\" and calculator(\"8 / 4\") == \"2\"\nfor bad in [\"__import__('os').system('ls')\", \"abs(-1)\", \"x + 1\", \"2 +\"]:\n    try:\n        calculator(bad)\n    except ValueError:\n        pass\n    else:\n        raise AssertionError(f\"calculator({bad!r}) must raise ValueError\")\n"
+    "name": "Example: calculator then final answer",
+    "input": "script = [tool_call calculator(\"6*7\"), final \"42\"], question = \"What is 6 times 7?\"",
+    "hidden": false,
+    "code": "m = ScriptedModel([{\"type\": \"tool_call\", \"tool\": \"calculator\", \"args\": {\"expression\": \"6*7\"}},\n                   {\"type\": \"final\", \"text\": \"42\"}])\nr = await run_agent(m, \"What is 6 times 7?\")\nexpect((r.answer, r.stopped_reason), (\"42\", \"final\"))\nexpect([s.action for s in r.steps], [\"tool\", \"final\"])\nexpect((r.steps[0].tool, r.steps[0].result), (\"calculator\", \"42\"))\n"
    },
    {
-    "name": "lookup is case-insensitive and raises on unknown words",
-    "code": "assert lookup(\"Latency\") == DICTIONARY[\"latency\"]\ntry:\n    lookup(\"flibbertigibbet\")\nexcept KeyError:\n    pass\nelse:\n    raise AssertionError(\"unknown word should raise KeyError\")\n"
+    "name": "calculator: basic arithmetic",
+    "input": "expressions = [\"2 + 3 * 4\", \"(1 + 2) ** 2 - -1\", \"7 / 2\", \"8 / 4\"]",
+    "hidden": false,
+    "code": "expect([calculator(e) for e in [\"2 + 3 * 4\", \"(1 + 2) ** 2 - -1\", \"7 / 2\", \"8 / 4\"]], [\"14\", \"10\", \"3.5\", \"2\"])\n"
    },
    {
-    "name": "runs tools, feeds results back, stops at the final answer",
-    "code": "def answer(messages):\n    last = messages[-1]\n    assert last[\"role\"] == \"tool\" and last[\"content\"] == \"a unit of text processed by a language model\", last\n    return {\"type\": \"final\", \"text\": \"done\"}\nm = ScriptedModel([\n    {\"type\": \"tool_call\", \"tool\": \"calculator\", \"args\": {\"expression\": \"6*7\"}},\n    {\"type\": \"tool_call\", \"tool\": \"lookup\", \"args\": {\"word\": \"TOKEN\"}},\n    answer,\n])\nr = await run_agent(m, \"q\")\nassert r.answer == \"done\" and r.stopped_reason == \"final\", r\nassert [s.action for s in r.steps] == [\"tool\", \"tool\", \"final\"], r.steps\nassert r.steps[0].result == \"42\" and r.steps[0].tool == \"calculator\", r.steps[0]\nassert m.seen[1][0] == {\"role\": \"user\", \"content\": \"q\"}\nassert m.seen[1][-1] == {\"role\": \"tool\", \"tool\": \"calculator\", \"content\": \"42\"}, m.seen[1][-1]\n"
+    "name": "lookup is case-insensitive",
+    "input": "words = [\"Latency\", \"TOKEN\"]",
+    "hidden": false,
+    "code": "expect(lookup(\"Latency\"), \"the delay before a transfer of data begins\")\nexpect(lookup(\"TOKEN\"), \"a unit of text processed by a language model\")\n"
    },
    {
-    "name": "tool errors are returned to the model, not raised",
-    "code": "m = ScriptedModel([\n    {\"type\": \"tool_call\", \"tool\": \"lookup\", \"args\": {\"word\": \"zzz\"}},\n    {\"type\": \"tool_call\", \"tool\": \"weather\", \"args\": {\"city\": \"Paris\"}},\n    {\"type\": \"final\", \"text\": \"sorry\"},\n])\nr = await run_agent(m, \"q\")\nassert r.answer == \"sorry\", r\nassert r.steps[0].result.startswith(\"error: KeyError\"), r.steps[0].result\nassert r.steps[1].result.startswith(\"error:\") and \"weather\" in r.steps[1].result, r.steps[1].result\n"
+    "name": "calculator: modulo, powers, unary minus, whole floats",
+    "input": "expressions = [\"7/7\", \"10 % 3\", \"2 ** -1\", \"-(2 + 3) * 2\", \"1.5 * 2\", \"2 ** 10\"]",
+    "hidden": true,
+    "code": "expect([calculator(e) for e in [\"7/7\", \"10 % 3\", \"2 ** -1\", \"-(2 + 3) * 2\", \"1.5 * 2\", \"2 ** 10\"]],\n       [\"1\", \"1\", \"0.5\", \"-10\", \"3\", \"1024\"])\n"
    },
    {
-    "name": "stops after max_steps and logs each step",
-    "code": "records = []\nclass Grab(logging.Handler):\n    def emit(self, record):\n        records.append(record)\nh = Grab()\nlg = logging.getLogger(\"agent\")\nold = lg.level\nlg.addHandler(h); lg.setLevel(logging.INFO)\ntry:\n    m = ScriptedModel([])  # keeps calling the calculator forever\n    r = await run_agent(m, \"loop\", max_steps=5)\nfinally:\n    lg.removeHandler(h); lg.setLevel(old)\nassert r.answer is None and r.stopped_reason == \"max_steps\", r\nassert len(r.steps) == 5 and len(m.seen) == 5, (len(r.steps), len(m.seen))\nassert len(records) >= 5, f\"log every step, got {len(records)} records\"\n"
+    "name": "calculator rejects anything but arithmetic",
+    "input": "expressions = [\"__import__('os')…\", \"abs(-1)\", \"x + 1\", \"2 +\", \"\", \"'a' * 3\", \"[1, 2]\", \"1 if 1 else 2\"]",
+    "hidden": true,
+    "code": "for bad in [\"__import__('os').system('ls')\", \"abs(-1)\", \"x + 1\", \"2 +\", \"\", \"'a' * 3\", \"[1, 2]\", \"1 if 1 else 2\"]:\n    expect_raises(ValueError, calculator, bad, label=repr(bad))\n"
+   },
+   {
+    "name": "lookup of an unknown word raises KeyError",
+    "input": "word = \"flibbertigibbet\"",
+    "hidden": true,
+    "code": "expect_raises(KeyError, lookup, \"flibbertigibbet\")\n"
+   },
+   {
+    "name": "Tool results are fed back in the transcript",
+    "input": "script = [calculator(\"6*7\"), lookup(\"TOKEN\"), final \"done\"], question = \"q\"",
+    "hidden": true,
+    "code": "m = ScriptedModel([\n    {\"type\": \"tool_call\", \"tool\": \"calculator\", \"args\": {\"expression\": \"6*7\"}},\n    {\"type\": \"tool_call\", \"tool\": \"lookup\", \"args\": {\"word\": \"TOKEN\"}},\n    {\"type\": \"final\", \"text\": \"done\"},\n])\nr = await run_agent(m, \"q\")\nexpect([s.action for s in r.steps], [\"tool\", \"tool\", \"final\"])\nexpect(m.seen[1], [\n    {\"role\": \"user\", \"content\": \"q\"},\n    {\"role\": \"assistant\", \"tool_call\": {\"tool\": \"calculator\", \"args\": {\"expression\": \"6*7\"}}},\n    {\"role\": \"tool\", \"tool\": \"calculator\", \"content\": \"42\"},\n])\nexpect(m.seen[2][-1], {\"role\": \"tool\", \"tool\": \"lookup\", \"content\": \"a unit of text processed by a language model\"})\n"
+   },
+   {
+    "name": "Failing and unknown tools come back as error results",
+    "input": "script = [lookup(\"zzz\"), weather(city=\"Paris\"), final \"sorry\"]",
+    "hidden": true,
+    "code": "m = ScriptedModel([\n    {\"type\": \"tool_call\", \"tool\": \"lookup\", \"args\": {\"word\": \"zzz\"}},\n    {\"type\": \"tool_call\", \"tool\": \"weather\", \"args\": {\"city\": \"Paris\"}},\n    {\"type\": \"final\", \"text\": \"sorry\"},\n])\nr = await run_agent(m, \"q\")\nexpect(r.answer, \"sorry\")\nexpect(r.steps[0].result[:15], \"error: KeyError\")\nres = r.steps[1].result\nexpect((res.startswith(\"error:\"), \"weather\" in res), (True, True), label=f\"unknown tool result: {res!r}\")\n"
+   },
+   {
+    "name": "Division by zero inside a tool does not crash the loop",
+    "input": "script = [calculator(\"1/0\"), final \"recovered\"]",
+    "hidden": true,
+    "code": "m = ScriptedModel([{\"type\": \"tool_call\", \"tool\": \"calculator\", \"args\": {\"expression\": \"1/0\"}},\n                   {\"type\": \"final\", \"text\": \"recovered\"}])\nr = await run_agent(m, \"q\")\nexpect(r.answer, \"recovered\")\nexpect(r.steps[0].result.startswith(\"error:\"), True, label=f\"result {r.steps[0].result!r}\")\nexpect(m.seen[1][-1][\"content\"], r.steps[0].result, label=\"the model sees the error\")\n"
+   },
+   {
+    "name": "Wrong tool arguments become a TypeError result",
+    "input": "script = [calculator(expr=\"1\")  (wrong arg name), final \"ok\"]",
+    "hidden": true,
+    "code": "m = ScriptedModel([{\"type\": \"tool_call\", \"tool\": \"calculator\", \"args\": {\"expr\": \"1\"}},\n                   {\"type\": \"final\", \"text\": \"ok\"}])\nr = await run_agent(m, \"q\")\nexpect(r.steps[0].result[:16], \"error: TypeError\")\nexpect(r.answer, \"ok\")\n"
+   },
+   {
+    "name": "Stops after max_steps and logs every step",
+    "input": "script = calculator(\"1+1\") forever, max_steps = 5",
+    "hidden": true,
+    "code": "records = []\nclass Grab(logging.Handler):\n    def emit(self, record):\n        records.append(record)\nh = Grab()\nlg = logging.getLogger(\"agent\")\nold = lg.level\nlg.addHandler(h); lg.setLevel(logging.INFO)\ntry:\n    m = ScriptedModel([])\n    r = await run_agent(m, \"loop\", max_steps=5)\nfinally:\n    lg.removeHandler(h); lg.setLevel(old)\nexpect((r.answer, r.stopped_reason, len(r.steps), len(m.seen)), (None, \"max_steps\", 5, 5))\nexpect(len(records) >= 5, True, label=f\"{len(records)} log records for 5 steps\")\n"
+   },
+   {
+    "name": "A final answer on the last allowed step counts",
+    "input": "max_steps = 2: [tool, final \"yes\"] vs [tool, tool, final \"late\"]",
+    "hidden": true,
+    "code": "calc = {\"type\": \"tool_call\", \"tool\": \"calculator\", \"args\": {\"expression\": \"1+1\"}}\nr = await run_agent(ScriptedModel([calc, {\"type\": \"final\", \"text\": \"yes\"}]), \"q\", max_steps=2)\nexpect((r.answer, r.stopped_reason), (\"yes\", \"final\"))\nm = ScriptedModel([calc, calc, {\"type\": \"final\", \"text\": \"late\"}])\nr = await run_agent(m, \"q\", max_steps=2)\nexpect((r.answer, r.stopped_reason, len(m.seen)), (None, \"max_steps\", 2))\n"
    }
   ],
   "hints": [
@@ -228,24 +586,76 @@
   "starter": "import math\nimport re\n\nimport numpy as np\n\n# Provided ---------------------------------------------------------------\ndef tokenize(text: str) -> list[str]:\n    \"\"\"Provided: lowercase word tokens.\"\"\"\n    return re.findall(r\"[a-z0-9]+\", text.lower())\n\n\nDOCS = (\n    \"Retrieval augmented generation grounds a language model in documents. \"\n    \"First the corpus is split into chunks. Each chunk is embedded or vectorised. \"\n    \"At query time the most similar chunks are retrieved and added to the prompt. \"\n    \"Token buckets limit request rates. A bucket refills at a fixed rate and allows bursts. \"\n    \"Exponential backoff with jitter spreads out retries after rate limit errors.\"\n)\n\n# End provided -------------------------------------------------------------\n\n\ndef chunk_text(text: str, chunk_size: int, overlap: int) -> list[str]:\n    \"\"\"Split into chunks of `chunk_size` words; consecutive chunks share `overlap` words.\n    The last chunk may be shorter. Raise ValueError unless 0 <= overlap < chunk_size.\"\"\"\n    raise NotImplementedError\n\n\nclass TfidfIndex:\n    def __init__(self, chunks: list[str]):\n        \"\"\"Build vocab, idf (numpy array) and an L2-normalised TF-IDF matrix\n        of shape (len(chunks), len(vocab)).\"\"\"\n        raise NotImplementedError\n\n    def search(self, query: str, k: int = 3) -> list[tuple[int, float]]:\n        \"\"\"Top-k (chunk_index, cosine_score) by descending score, ties by lower index.\n        Only scores > 0 are returned.\"\"\"\n        raise NotImplementedError\n",
   "tests": [
    {
-    "name": "chunks have the right size and overlap",
-    "code": "assert chunk_text(\"a b c d e f g\", 3, 1) == [\"a b c\", \"c d e\", \"e f g\"]\nassert chunk_text(\"a b c d e f g h\", 3, 1) == [\"a b c\", \"c d e\", \"e f g\", \"g h\"]\nassert chunk_text(\"a b\", 5, 2) == [\"a b\"]\nassert chunk_text(\"\", 5, 2) == []\n"
+    "name": "Example: chunks with overlap",
+    "input": "text = \"a b c d e f g\", chunk_size = 3, overlap = 1",
+    "hidden": false,
+    "code": "expect(chunk_text(\"a b c d e f g\", 3, 1), [\"a b c\", \"c d e\", \"e f g\"])\n"
    },
    {
-    "name": "invalid chunk parameters raise ValueError",
-    "code": "for size, ov in [(3, 3), (3, 5), (0, 0), (4, -1)]:\n    try:\n        chunk_text(\"a b c d\", size, ov)\n    except ValueError:\n        pass\n    else:\n        raise AssertionError(f\"chunk_text(size={size}, overlap={ov}) should raise\")\n"
+    "name": "Example: cosine scores for 'cat'",
+    "input": "chunks = [\"the cat sat\", \"the dog ran\", \"a cat and a dog\"], query = \"cat\", k = 2",
+    "hidden": false,
+    "code": "idx = TfidfIndex([\"the cat sat\", \"the dog ran\", \"a cat and a dog\"])\nexpect([(i, round(s, 4)) for i, s in idx.search(\"cat\", k=2)], [(0, 0.5179), (2, 0.3065)])\n"
    },
    {
-    "name": "idf weights rare terms above common ones and rows are unit length",
-    "code": "idx = TfidfIndex([\"the cat sat\", \"the dog ran\", \"the cat ran\"])\nassert isinstance(idx.idf, np.ndarray) and isinstance(idx.matrix, np.ndarray)\nassert idx.matrix.shape == (3, len(idx.vocab)), idx.matrix.shape\nassert idx.idf[idx.vocab[\"sat\"]] > idx.idf[idx.vocab[\"cat\"]] > idx.idf[idx.vocab[\"the\"]]\nassert abs(idx.idf[idx.vocab[\"the\"]] - 1.0) < 1e-9, \"a term in every doc has idf ln(4/4)+1 = 1\"\nassert np.allclose(np.linalg.norm(idx.matrix, axis=1), 1.0)\n"
+    "name": "Short final chunk when words remain",
+    "input": "text = \"a b c d e f g h\", chunk_size = 3, overlap = 1",
+    "hidden": true,
+    "code": "expect(chunk_text(\"a b c d e f g h\", 3, 1), [\"a b c\", \"c d e\", \"e f g\", \"g h\"])\n"
    },
    {
-    "name": "search ranks the relevant chunk first",
-    "code": "chunks = chunk_text(DOCS, 12, 3)\nidx = TfidfIndex(chunks)\nhits = idx.search(\"backoff jitter retries\", k=2)\nassert hits and \"jitter\" in chunks[hits[0][0]].lower(), [chunks[i] for i, _ in hits]\nscores = [s for _, s in hits]\nassert scores == sorted(scores, reverse=True) and all(0 < s <= 1 + 1e-9 for s in scores), scores\n"
+    "name": "Exact fit, no overlap, messy whitespace",
+    "input": "(\"a b c d e\", 3, 1), (\"a b c d\", 2, 0), (\"a   b\\nc\", 2, 0)",
+    "hidden": true,
+    "code": "expect(chunk_text(\"a b c d e\", 3, 1), [\"a b c\", \"c d e\"], label=\"no tiny trailing chunk\")\nexpect(chunk_text(\"a b c d\", 2, 0), [\"a b\", \"c d\"])\nexpect(chunk_text(\"a   b\\nc\", 2, 0), [\"a b\", \"c\"], label=\"joined by single spaces\")\n"
    },
    {
-    "name": "exact cosine scores, ties and unknown query terms",
-    "code": "idx = TfidfIndex([\"the cat sat\", \"the dog ran\", \"a cat and a dog\"])\nhits = idx.search(\"cat\", k=5)\nassert [i for i, _ in hits] == [0, 2], hits\nidf_cat = math.log(4 / 3) + 1\nexp0 = idf_cat / math.sqrt(2 * idf_cat ** 2 + (math.log(4 / 2) + 1) ** 2)\nassert abs(hits[0][1] - exp0) < 1e-9, (hits[0][1], exp0)\nassert idx.search(\"zebra quantum\", k=3) == [], \"no overlapping terms -> no results\"\ntwin = TfidfIndex([\"red fish\", \"red fish\", \"blue\"])\nassert [i for i, _ in twin.search(\"fish\", k=2)] == [0, 1], \"ties break by lower index\"\n"
+    "name": "Text shorter than a chunk, empty, whitespace only",
+    "input": "(\"a b\", 5, 2), (\"\", 5, 2), (\"   \\n \", 5, 2)",
+    "hidden": true,
+    "code": "expect([chunk_text(\"a b\", 5, 2), chunk_text(\"\", 5, 2), chunk_text(\"   \\n \", 5, 2)], [[\"a b\"], [], []])\n"
+   },
+   {
+    "name": "Invalid chunk parameters raise ValueError",
+    "input": "(chunk_size, overlap) in [(3, 3), (3, 5), (0, 0), (4, -1)]",
+    "hidden": true,
+    "code": "for size, ov in [(3, 3), (3, 5), (0, 0), (4, -1)]:\n    expect_raises(ValueError, chunk_text, \"a b c d\", size, ov, label=f\"size={size}, overlap={ov}\")\n"
+   },
+   {
+    "name": "Smoothed IDF and unit-length rows",
+    "input": "chunks = [\"the cat sat\", \"the dog ran\", \"the cat ran\"]; idf of sat, cat, the",
+    "hidden": true,
+    "code": "idx = TfidfIndex([\"the cat sat\", \"the dog ran\", \"the cat ran\"])\nexpect(idx.matrix.shape, (3, len(idx.vocab)))\nexpect([round(float(idx.idf[idx.vocab[w]]), 4) for w in [\"sat\", \"cat\", \"the\"]], [1.6931, 1.2877, 1.0])\nexpect([round(float(n), 6) for n in np.linalg.norm(idx.matrix, axis=1)], [1.0, 1.0, 1.0])\n"
+   },
+   {
+    "name": "Search the sample DOCS",
+    "input": "chunks = chunk_text(DOCS, 12, 3), query = \"backoff jitter retries\", k = 2",
+    "hidden": true,
+    "code": "chunks = chunk_text(DOCS, 12, 3)\nhits = TfidfIndex(chunks).search(\"backoff jitter retries\", k=2)\nexpect([(i, round(s, 4)) for i, s in hits], [(6, 0.4179), (5, 0.335)])\nexpect(chunks[hits[0][0]], \"jitter spreads out retries after rate limit errors.\")\n"
+   },
+   {
+    "name": "No matching terms, k=0, k larger than matches",
+    "input": "chunks = [\"the cat sat\", \"the dog ran\", \"a cat and a dog\"]; \"zebra quantum\", \"cat\" k=0, \"cat\" k=10",
+    "hidden": true,
+    "code": "idx = TfidfIndex([\"the cat sat\", \"the dog ran\", \"a cat and a dog\"])\nexpect(idx.search(\"zebra quantum\", k=3), [], label=\"unknown terms only\")\nexpect(idx.search(\"cat\", k=0), [], label=\"k=0\")\nexpect([i for i, _ in idx.search(\"cat\", k=10)], [0, 2], label=\"only scores > 0\")\n"
+   },
+   {
+    "name": "Ties break by lower index",
+    "input": "chunks = [\"red fish\", \"red fish\", \"blue\"], query = \"fish\", k = 2",
+    "hidden": true,
+    "code": "hits = TfidfIndex([\"red fish\", \"red fish\", \"blue\"]).search(\"fish\", k=2)\nexpect([i for i, _ in hits], [0, 1])\nexpect(round(hits[0][1], 9), round(hits[1][1], 9), label=\"equal scores\")\n"
+   },
+   {
+    "name": "Query case and repetition do not change cosine",
+    "input": "query in [\"cat\", \"CAT\", \"cat cat\"]",
+    "hidden": true,
+    "code": "idx = TfidfIndex([\"the cat sat\", \"the dog ran\", \"a cat and a dog\"])\nbase = [(i, round(s, 6)) for i, s in idx.search(\"cat\", k=5)]\nexpect([(i, round(s, 6)) for i, s in idx.search(\"CAT\", k=5)], base, label=\"uppercase\")\nexpect([(i, round(s, 6)) for i, s in idx.search(\"cat cat\", k=5)], base, label=\"repeated term\")\n"
+   },
+   {
+    "name": "Chunk with no tokens gives a zero row",
+    "input": "chunks = [\"!!!\", \"cat\"], query = \"cat\"",
+    "hidden": true,
+    "code": "idx = TfidfIndex([\"!!!\", \"cat\"])\nexpect([round(float(n), 6) for n in np.linalg.norm(idx.matrix, axis=1)], [0.0, 1.0])\nexpect([(i, round(s, 6)) for i, s in idx.search(\"cat\")], [(1, 1.0)])\n"
    }
   ],
   "hints": [
@@ -260,24 +670,76 @@
   "starter": "import re\nimport string\nfrom collections import Counter\n\nimport numpy as np\n\n# Provided ---------------------------------------------------------------\nclass StubJudge:\n    \"\"\"Provided stub LLM judge: complete(prompt) returns the next scripted reply\n    and records every prompt in `prompts`.\"\"\"\n\n    def __init__(self, replies):\n        self.replies = list(replies)\n        self.prompts = []\n\n    async def complete(self, prompt):\n        self.prompts.append(prompt)\n        return self.replies.pop(0)\n\n# End provided -------------------------------------------------------------\n\n\ndef normalize(text: str) -> str:\n    \"\"\"Lowercase, remove punctuation, drop the articles a/an/the, collapse whitespace.\"\"\"\n    raise NotImplementedError\n\n\ndef exact_match(pred: str, ref: str) -> float:\n    \"\"\"1.0 if normalize(pred) == normalize(ref) else 0.0.\"\"\"\n    raise NotImplementedError\n\n\ndef token_f1(pred: str, ref: str) -> float:\n    \"\"\"Token-level F1 over normalised tokens with multiplicity (SQuAD style).\"\"\"\n    raise NotImplementedError\n\n\nasync def judge_score(judge, question: str, pred: str, ref: str) -> float:\n    \"\"\"Ask the judge to grade 1-5, parse the LAST 'Score: N', return (N - 1) / 4.\n    Raise ValueError if no score can be parsed.\"\"\"\n    raise NotImplementedError\n\n\ndef bootstrap_ci(scores: list[float], n_resamples: int = 2000, confidence: float = 0.95,\n                 seed: int = 0) -> tuple[float, float, float]:\n    \"\"\"Return (mean, low, high): percentile bootstrap CI of the mean.\"\"\"\n    raise NotImplementedError\n",
   "tests": [
    {
-    "name": "normalisation and exact match",
-    "code": "assert normalize(\"  The  Eiffel-Tower, Paris! \") == \"eiffeltower paris\", normalize(\"  The  Eiffel-Tower, Paris! \")\nassert exact_match(\"The Eiffel Tower!\", \"eiffel tower\") == 1.0\nassert exact_match(\"Eiffel\", \"Eiffel Tower\") == 0.0\nassert normalize(\"theory of an atom\") == \"theory of atom\", \"remove whole-word articles only\"\n"
+    "name": "Example: exact match after normalising",
+    "input": "pairs = [(\"The Eiffel Tower!\", \"eiffel tower\"), (\"Eiffel\", \"Eiffel Tower\")]",
+    "hidden": false,
+    "code": "expect(exact_match(\"The Eiffel Tower!\", \"eiffel tower\"), 1.0)\nexpect(exact_match(\"Eiffel\", \"Eiffel Tower\"), 0.0)\n"
    },
    {
-    "name": "token F1 including edge cases",
-    "code": "assert abs(token_f1(\"the cat sat\", \"cat sat down\") - 0.8) < 1e-9, token_f1(\"the cat sat\", \"cat sat down\")\nassert abs(token_f1(\"x x y\", \"x y y\") - 2 / 3) < 1e-9, \"count tokens with multiplicity, not as sets\"\nassert token_f1(\"\", \"\") == 1.0 and token_f1(\"\", \"cat\") == 0.0 and token_f1(\"dog\", \"cat\") == 0.0\n"
+    "name": "Example: token F1",
+    "input": "pred = \"the cat sat\", ref = \"cat sat down\"",
+    "hidden": false,
+    "code": "expect(token_f1(\"the cat sat\", \"cat sat down\"), 0.8)\n"
    },
    {
-    "name": "LLM judge score is parsed and scaled",
-    "code": "judge = StubJudge([\"Mostly right but vague. Score: 4\", \"score: 2 ... on reflection, Score = 5\", \"Looks fine\"])\nassert await judge_score(judge, \"Capital of France?\", \"Paris\", \"Paris\") == 0.75\np = judge.prompts[0]\nassert \"Capital of France?\" in p and \"Paris\" in p, \"prompt must include question, reference and candidate\"\nassert await judge_score(judge, \"q\", \"a\", \"b\") == 1.0, \"use the LAST score in the reply\"\ntry:\n    await judge_score(judge, \"q\", \"a\", \"b\")\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError(\"unparseable judge reply must raise ValueError\")\n"
+    "name": "Example: bootstrap CI",
+    "input": "scores = [1, 0, 1, 1, 0, 1, 1, 1] (defaults: 2000 resamples, 95%, seed 0)",
+    "hidden": false,
+    "code": "expect(tuple(round(x, 6) for x in bootstrap_ci([1, 0, 1, 1, 0, 1, 1, 1])), (0.75, 0.375, 1.0))\n"
    },
    {
-    "name": "bootstrap CI follows the specified procedure",
-    "code": "scores = [1, 0, 1, 1, 0, 1, 1, 1, 0, 1]\nmean, low, high = bootstrap_ci(scores, n_resamples=500, seed=7)\nrng = np.random.default_rng(7)\nmeans = np.asarray(scores, float)[rng.integers(0, 10, size=(500, 10))].mean(axis=1)\nexp_low, exp_high = np.percentile(means, [2.5, 97.5])\nassert mean == 0.7 and abs(low - exp_low) < 1e-12 and abs(high - exp_high) < 1e-12, (mean, low, high)\nassert bootstrap_ci(scores, n_resamples=500, seed=7) == (mean, low, high), \"same seed, same answer\"\n"
+    "name": "normalize: punctuation, whole-word articles, whitespace",
+    "input": "texts = [\"  The  Eiffel-Tower, Paris! \", \"theory of an atom\", \"An apple a day\", \"\"]",
+    "hidden": true,
+    "code": "expect([normalize(t) for t in [\"  The  Eiffel-Tower, Paris! \", \"theory of an atom\", \"An apple a day\", \"\"]],\n       [\"eiffeltower paris\", \"theory of atom\", \"apple day\", \"\"])\n"
    },
    {
-    "name": "CI sanity: brackets the mean, narrows with data, degenerate cases",
-    "code": "m1, l1, h1 = bootstrap_ci([1, 0] * 10)\nm2, l2, h2 = bootstrap_ci([1, 0] * 200)\nassert l1 <= m1 <= h1 and l2 <= m2 <= h2\nassert (h2 - l2) < (h1 - l1), \"more data should give a narrower interval\"\nassert bootstrap_ci([0.5, 0.5, 0.5]) == (0.5, 0.5, 0.5)\ntry:\n    bootstrap_ci([])\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError(\"empty scores should raise ValueError\")\n"
+    "name": "token F1 counts duplicates",
+    "input": "pred = \"x x y\", ref = \"x y y\"",
+    "hidden": true,
+    "code": "expect(token_f1(\"x x y\", \"x y y\"), 2 / 3)\n"
+   },
+   {
+    "name": "token F1 empties and no overlap",
+    "input": "pairs = [(\"\", \"\"), (\"\", \"cat\"), (\"cat\", \"\"), (\"dog\", \"cat\"), (\"the\", \"a\")]",
+    "hidden": true,
+    "code": "expect([token_f1(p, r) for p, r in [(\"\", \"\"), (\"\", \"cat\"), (\"cat\", \"\"), (\"dog\", \"cat\"), (\"the\", \"a\")]],\n       [1.0, 0.0, 0.0, 0.0, 1.0])\n"
+   },
+   {
+    "name": "Judge score is parsed and scaled",
+    "input": "reply = \"Mostly right but vague. Score: 4\", question = \"Capital of France?\", pred = \"Lyon\", ref = \"Paris\"",
+    "hidden": true,
+    "code": "judge = StubJudge([\"Mostly right but vague. Score: 4\"])\nexpect(await judge_score(judge, \"Capital of France?\", \"Lyon\", \"Paris\"), 0.75)\np = judge.prompts[0]\nexpect((\"Capital of France?\" in p, \"Lyon\" in p, \"Paris\" in p), (True, True, True), label=\"question, candidate, reference in prompt\")\n"
+   },
+   {
+    "name": "Judge: last score wins, case-insensitive, bounds",
+    "input": "replies = [\"score: 2 ... on reflection, SCORE: 5\", \"Score: 1\"]",
+    "hidden": true,
+    "code": "judge = StubJudge([\"score: 2 ... on reflection, SCORE: 5\", \"Score: 1\"])\nexpect(await judge_score(judge, \"q\", \"a\", \"b\"), 1.0, label=\"last score\")\nexpect(await judge_score(judge, \"q\", \"a\", \"b\"), 0.0, label=\"Score: 1\")\n"
+   },
+   {
+    "name": "Judge without a valid score raises",
+    "input": "replies = [\"Looks fine\", \"Score: 7\", \"Score: 0\"]",
+    "hidden": true,
+    "code": "judge = StubJudge([\"Looks fine\", \"Score: 7\", \"Score: 0\"])\nfor reply in [\"Looks fine\", \"Score: 7\", \"Score: 0\"]:\n    await expect_raises_async(ValueError, judge_score(judge, \"q\", \"a\", \"b\"), label=reply)\n"
+   },
+   {
+    "name": "bootstrap_ci follows the specified procedure",
+    "input": "scores = [1, 0, 1, 1, 0, 1, 1, 1, 0, 1], n_resamples = 500, seed = 7",
+    "hidden": true,
+    "code": "scores = [1, 0, 1, 1, 0, 1, 1, 1, 0, 1]\ngot = bootstrap_ci(scores, n_resamples=500, seed=7)\nrng = np.random.default_rng(7)\nmeans = np.asarray(scores, float)[rng.integers(0, 10, size=(500, 10))].mean(axis=1)\nlo, hi = np.percentile(means, [2.5, 97.5])\nexpect(tuple(round(float(x), 9) for x in got), (0.7, round(float(lo), 9), round(float(hi), 9)))\nexpect([type(x).__name__ for x in got], [\"float\", \"float\", \"float\"])\nexpect(bootstrap_ci(scores, n_resamples=500, seed=7), got, label=\"same seed, same answer\")\n"
+   },
+   {
+    "name": "bootstrap_ci: constant, single and empty input",
+    "input": "scores in [[0.5, 0.5, 0.5], [1.0], []]",
+    "hidden": true,
+    "code": "expect(bootstrap_ci([0.5, 0.5, 0.5]), (0.5, 0.5, 0.5))\nexpect(bootstrap_ci([1.0]), (1.0, 1.0, 1.0))\nexpect_raises(ValueError, bootstrap_ci, [], label=\"empty scores\")\n"
+   },
+   {
+    "name": "More data gives a narrower interval",
+    "input": "scores = [1, 0] * 10 vs [1, 0] * 200",
+    "hidden": true,
+    "code": "m1, l1, h1 = bootstrap_ci([1, 0] * 10)\nm2, l2, h2 = bootstrap_ci([1, 0] * 200)\nexpect((round(m1, 6), round(h1 - l1, 4)), (0.5, 0.5))\nexpect((round(m2, 6), round(h2 - l2, 4)), (0.5, 0.0975))\n"
    }
   ],
   "hints": [
@@ -292,24 +754,76 @@
   "starter": "import hashlib\nimport json\nimport time\nfrom collections import OrderedDict\n\n# Provided ---------------------------------------------------------------\nclass FakeClock:\n    \"\"\"Provided: manual clock. Pass clock=fc.now and move time with fc.t += seconds.\"\"\"\n\n    def __init__(self):\n        self.t = 0.0\n\n    def now(self):\n        return self.t\n\n\nclass FakeLLM:\n    \"\"\"Provided: counts calls; replies with a string built from its inputs.\"\"\"\n\n    def __init__(self):\n        self.calls = 0\n\n    async def generate(self, model, prompt, **params):\n        self.calls += 1\n        return f\"{model}:{prompt}:{sorted(params.items())}#{self.calls}\"\n\n# End provided -------------------------------------------------------------\n\n\ndef make_key(model: str, prompt: str, params: dict) -> str:\n    \"\"\"Stable sha256 hex digest of (model, prompt, params); param order must not matter.\"\"\"\n    raise NotImplementedError\n\n\nclass ResponseCache:\n    def __init__(self, max_entries: int = 128, ttl_seconds: float = 300.0, clock=time.monotonic):\n        \"\"\"LRU cache with a per-entry time-to-live. Tracks .hits and .misses.\"\"\"\n        raise NotImplementedError\n\n    def get(self, key: str):\n        \"\"\"Return the cached value, or None if missing or expired (expired entries are removed).\"\"\"\n        raise NotImplementedError\n\n    def put(self, key: str, value) -> None:\n        \"\"\"Insert or overwrite (resets the entry's TTL); evict least-recently-used if over capacity.\"\"\"\n        raise NotImplementedError\n\n    def __len__(self) -> int:\n        raise NotImplementedError\n\n\nasync def cached_complete(cache: ResponseCache, llm, model: str, prompt: str, **params) -> str:\n    \"\"\"Return the cached reply for (model, prompt, params) or call llm.generate and cache it.\"\"\"\n    raise NotImplementedError\n",
   "tests": [
    {
-    "name": "key is stable and covers every input",
-    "code": "k = make_key(\"m1\", \"hello\", {\"temperature\": 0, \"max_tokens\": 5})\nassert k == make_key(\"m1\", \"hello\", {\"max_tokens\": 5, \"temperature\": 0}), \"param order must not matter\"\nassert len(k) == 64 and all(c in \"0123456789abcdef\" for c in k), \"expected a sha256 hex digest\"\nothers = {make_key(\"m2\", \"hello\", {\"temperature\": 0, \"max_tokens\": 5}),\n          make_key(\"m1\", \"hello!\", {\"temperature\": 0, \"max_tokens\": 5}),\n          make_key(\"m1\", \"hello\", {\"temperature\": 1, \"max_tokens\": 5})}\nassert k not in others and len(others) == 3, \"model, prompt and each param must change the key\"\n"
+    "name": "Example: LRU eviction then TTL expiry",
+    "input": "max_entries = 2, ttl = 10; ops: put(a,1) → put(b,2) → get(a) → put(c,3) → get(b) → +10 s → get(a)",
+    "hidden": false,
+    "code": "fc = FakeClock()\ncache = ResponseCache(max_entries=2, ttl_seconds=10, clock=fc.now)\ncache.put(\"a\", 1); cache.put(\"b\", 2)\nexpect(cache.get(\"a\"), 1)\ncache.put(\"c\", 3)\nexpect(cache.get(\"b\"), None, label=\"b was least recently used\")\nfc.t += 10\nexpect(cache.get(\"a\"), None, label=\"expired at put_time + ttl\")\n"
    },
    {
-    "name": "LRU evicts the least recently used entry",
-    "code": "fc = FakeClock()\nc = ResponseCache(max_entries=2, ttl_seconds=100, clock=fc.now)\nc.put(\"a\", 1); c.put(\"b\", 2)\nassert c.get(\"a\") == 1          # a is now most recent\nc.put(\"c\", 3)                   # evicts b\nassert c.get(\"b\") is None and c.get(\"a\") == 1 and c.get(\"c\") == 3\nassert len(c) == 2, len(c)\n"
-   },
-   {
-    "name": "entries expire after the TTL and put resets it",
-    "code": "fc = FakeClock()\nc = ResponseCache(max_entries=10, ttl_seconds=10, clock=fc.now)\nc.put(\"a\", \"x\")\nfc.t = 9.9\nassert c.get(\"a\") == \"x\", \"still fresh just before the TTL\"\nfc.t = 10.0\nassert c.get(\"a\") is None and len(c) == 0, \"expired entries are removed\"\nc.put(\"b\", 1); fc.t = 15; c.put(\"b\", 2); fc.t = 24\nassert c.get(\"b\") == 2, \"overwriting resets the TTL\"\n"
-   },
-   {
-    "name": "hit/miss counters and argument validation",
-    "code": "fc = FakeClock()\nc = ResponseCache(max_entries=3, ttl_seconds=5, clock=fc.now)\nc.get(\"nope\"); c.put(\"k\", 1); c.get(\"k\"); c.get(\"k\")\nassert (c.hits, c.misses) == (2, 1), (c.hits, c.misses)\nfor kwargs in [dict(max_entries=0), dict(ttl_seconds=0)]:\n    try:\n        ResponseCache(**kwargs)\n    except ValueError:\n        pass\n    else:\n        raise AssertionError(f\"ResponseCache({kwargs}) should raise ValueError\")\n"
+    "name": "Key ignores param order",
+    "input": "model = \"m1\", prompt = \"hello\", params = {\"temperature\": 0, \"max_tokens\": 5} vs reversed order",
+    "hidden": false,
+    "code": "k = make_key(\"m1\", \"hello\", {\"temperature\": 0, \"max_tokens\": 5})\nexpect(make_key(\"m1\", \"hello\", {\"max_tokens\": 5, \"temperature\": 0}), k)\nexpect((len(k), all(c in \"0123456789abcdef\" for c in k)), (64, True), label=\"sha256 hex digest\")\n"
    },
    {
     "name": "cached_complete calls the model only on a miss",
-    "code": "fc = FakeClock()\ncache = ResponseCache(max_entries=10, ttl_seconds=60, clock=fc.now)\nllm = FakeLLM()\nr1 = await cached_complete(cache, llm, \"m\", \"hi\", temperature=0)\nr2 = await cached_complete(cache, llm, \"m\", \"hi\", temperature=0)\nassert r1 == r2 and llm.calls == 1, (r1, r2, llm.calls)\nawait cached_complete(cache, llm, \"m\", \"hi\", temperature=0.7)\nassert llm.calls == 2, \"different params must miss\"\nfc.t += 60\nawait cached_complete(cache, llm, \"m\", \"hi\", temperature=0)\nassert llm.calls == 3, \"expired entry must be refetched\"\n"
+    "input": "cached_complete(cache, llm, \"m\", \"hi\", temperature=0) × 2",
+    "hidden": false,
+    "code": "fc = FakeClock()\ncache = ResponseCache(max_entries=10, ttl_seconds=60, clock=fc.now)\nllm = FakeLLM()\nr1 = await cached_complete(cache, llm, \"m\", \"hi\", temperature=0)\nr2 = await cached_complete(cache, llm, \"m\", \"hi\", temperature=0)\nexpect(r2, r1)\nexpect(llm.calls, 1)\n"
+   },
+   {
+    "name": "Model, prompt and each param change the key",
+    "input": "base = (\"m1\", \"hello\", {temperature: 0, max_tokens: 5}); vary model, prompt, temperature, add a param",
+    "hidden": true,
+    "code": "keys = [make_key(\"m1\", \"hello\", {\"temperature\": 0, \"max_tokens\": 5}),\n        make_key(\"m2\", \"hello\", {\"temperature\": 0, \"max_tokens\": 5}),\n        make_key(\"m1\", \"hello!\", {\"temperature\": 0, \"max_tokens\": 5}),\n        make_key(\"m1\", \"hello\", {\"temperature\": 1, \"max_tokens\": 5}),\n        make_key(\"m1\", \"hello\", {\"temperature\": 0, \"max_tokens\": 5, \"top_p\": 1})]\nexpect(len(set(keys)), 5, label=\"distinct keys\")\n"
+   },
+   {
+    "name": "Nested params and unicode prompts",
+    "input": "prompt = \"héllo\", params = {\"meta\": {\"b\": 1, \"a\": 2}, \"stop\": [\"\\n\"]} vs nested order swapped",
+    "hidden": true,
+    "code": "k1 = make_key(\"m\", \"héllo\", {\"meta\": {\"b\": 1, \"a\": 2}, \"stop\": [\"\\n\"]})\nk2 = make_key(\"m\", \"héllo\", {\"stop\": [\"\\n\"], \"meta\": {\"a\": 2, \"b\": 1}})\nexpect(k2, k1, label=\"nested dict order does not matter\")\nexpect(make_key(\"m\", \"hello\", {\"meta\": {\"b\": 1, \"a\": 2}, \"stop\": [\"\\n\"]}) == k1, False, label=\"é vs e\")\n"
+   },
+   {
+    "name": "TTL boundary: expired exactly at put_time + ttl",
+    "input": "ttl = 10; put(a) at t=0 → get at t=9.999 → get at t=10.0",
+    "hidden": true,
+    "code": "fc = FakeClock()\nc = ResponseCache(max_entries=10, ttl_seconds=10, clock=fc.now)\nc.put(\"a\", \"x\")\nfc.t = 9.999\nexpect(c.get(\"a\"), \"x\", label=\"t=9.999\")\nfc.t = 10.0\nexpect(c.get(\"a\"), None, label=\"t=10.0\")\nexpect(len(c), 0, label=\"expired entry removed\")\n"
+   },
+   {
+    "name": "put on an existing key resets its TTL",
+    "input": "ttl = 10; put(b,1) at 0 → put(b,2) at 15 → get at 24 → get at 25",
+    "hidden": true,
+    "code": "fc = FakeClock()\nc = ResponseCache(max_entries=10, ttl_seconds=10, clock=fc.now)\nc.put(\"b\", 1); fc.t = 15; c.put(\"b\", 2)\nfc.t = 24\nexpect(c.get(\"b\"), 2)\nfc.t = 25\nexpect(c.get(\"b\"), None)\n"
+   },
+   {
+    "name": "max_entries=1 keeps only the newest",
+    "input": "max_entries = 1; put(a,1) → put(b,2) → get(a) → get(b)",
+    "hidden": true,
+    "code": "fc = FakeClock()\nc = ResponseCache(max_entries=1, ttl_seconds=100, clock=fc.now)\nc.put(\"a\", 1); c.put(\"b\", 2)\nexpect((c.get(\"a\"), c.get(\"b\"), len(c)), (None, 2, 1))\n"
+   },
+   {
+    "name": "Overwriting does not grow the cache",
+    "input": "max_entries = 2; put(a,1) → put(a,2) → put(b,3) → len, get(a)",
+    "hidden": true,
+    "code": "fc = FakeClock()\nc = ResponseCache(max_entries=2, ttl_seconds=100, clock=fc.now)\nc.put(\"a\", 1); c.put(\"a\", 2); c.put(\"b\", 3)\nexpect((len(c), c.get(\"a\"), c.get(\"b\")), (2, 2, 3))\n"
+   },
+   {
+    "name": "Hit/miss counters, expired read is a miss",
+    "input": "ttl = 5; ops: get(nope) → put(k,1) → get(k) ×2 → +5 s → get(k)",
+    "hidden": true,
+    "code": "fc = FakeClock()\nc = ResponseCache(max_entries=3, ttl_seconds=5, clock=fc.now)\nc.get(\"nope\"); c.put(\"k\", 1); c.get(\"k\"); c.get(\"k\")\nexpect((c.hits, c.misses), (2, 1))\nfc.t += 5\nc.get(\"k\")\nexpect((c.hits, c.misses), (2, 2))\n"
+   },
+   {
+    "name": "Invalid arguments raise ValueError",
+    "input": "max_entries in [0, -1], ttl_seconds in [0, -5]",
+    "hidden": true,
+    "code": "for kwargs in [dict(max_entries=0), dict(max_entries=-1), dict(ttl_seconds=0), dict(ttl_seconds=-5)]:\n    expect_raises(ValueError, ResponseCache, label=str(kwargs), **kwargs)\n"
+   },
+   {
+    "name": "Different params or model miss; expiry refetches",
+    "input": "ttl = 60; calls: (m, hi, t=0) → (m, hi, t=0.7) → (m2, hi, t=0) → +60 s → (m, hi, t=0)",
+    "hidden": true,
+    "code": "fc = FakeClock()\ncache = ResponseCache(max_entries=10, ttl_seconds=60, clock=fc.now)\nllm = FakeLLM()\nawait cached_complete(cache, llm, \"m\", \"hi\", temperature=0)\nawait cached_complete(cache, llm, \"m\", \"hi\", temperature=0.7)\nawait cached_complete(cache, llm, \"m2\", \"hi\", temperature=0)\nexpect(llm.calls, 3, label=\"three distinct keys\")\nfc.t += 60\nr = await cached_complete(cache, llm, \"m\", \"hi\", temperature=0)\nexpect(r, \"m:hi:[('temperature', 0)]#4\", label=\"fresh reply after expiry\")\n"
    }
   ],
   "hints": [
@@ -324,24 +838,76 @@
   "starter": "import json\nimport math\nfrom collections import defaultdict\n\nimport numpy as np\n\n# Provided ---------------------------------------------------------------\nSAMPLE_LOG = \"\"\"\\\n{\"model\": \"gpt-x\", \"task\": \"qa\", \"passed\": true, \"latency_ms\": 120}\n{\"model\": \"gpt-x\", \"task\": \"qa\", \"passed\": false, \"latency_ms\": \"340\"}\n{\"model\": \"gpt-x\", \"task\": \"code\", \"passed\": \"PASS\", \"latency_ms\": 200}\n\n{\"model\": \"claude-y\", \"task\": \"qa\", \"passed\": 1, \"latency_ms\": 90}\n{\"model\": \"claude-y\", \"task\": \"qa\", \"passed\": \"true\", \"latency_ms\": null}\n{\"model\": \"claude-y\", \"task\": \"code\", \"passed\": 0, \"latency_ms\": 410.5}\nnot json at all\n{\"model\": \"claude-y\", \"task\": \"code\", \"passed\": \"maybe\", \"latency_ms\": 50}\n{\"task\": \"qa\", \"passed\": true, \"latency_ms\": 10}\n{\"model\": \" gpt-x \", \"task\": \"code\", \"passed\": \"fail\", \"latency_ms\": \"slow\"}\n{\"model\": \"claude-y\", \"task\": \"qa\", \"passed\": true, \"latency_ms\": 130\n[\"model\", \"gpt-x\"]\n\"\"\"\n\n# End provided -------------------------------------------------------------\n\n\ndef parse_records(lines) -> tuple[list[dict], int]:\n    \"\"\"Parse JSONL lines into clean records {\"model\", \"task\", \"passed\", \"latency_ms\"}.\n    Return (records, bad_line_count). Blank lines are skipped and not counted as bad.\"\"\"\n    raise NotImplementedError\n\n\ndef pass_rates(records: list[dict], by: tuple[str, ...] = (\"model\",)) -> dict[tuple, dict]:\n    \"\"\"Group by the given fields: {(values...): {\"n\": count, \"pass_rate\": passed / n}}.\"\"\"\n    raise NotImplementedError\n\n\ndef latency_percentiles(records: list[dict], by: str = \"model\") -> dict[str, dict]:\n    \"\"\"{group: {\"p50\": ..., \"p95\": ...}} over records with a latency, using linear\n    interpolation (numpy's default). Groups with no latencies are omitted.\"\"\"\n    raise NotImplementedError\n",
   "tests": [
    {
-    "name": "parses the messy sample and counts bad lines",
-    "code": "records, bad = parse_records(SAMPLE_LOG)\nassert (len(records), bad) == (7, 5), f\"expected 7 records and 5 bad lines, got {len(records)}, {bad}\"\nassert records[0] == {\"model\": \"gpt-x\", \"task\": \"qa\", \"passed\": True, \"latency_ms\": 120.0}, records[0]\nassert records[2][\"passed\"] is True and records[3][\"passed\"] is True and records[5][\"passed\"] is False\nassert records[6] == {\"model\": \"gpt-x\", \"task\": \"code\", \"passed\": False, \"latency_ms\": None}, records[6]\n"
+    "name": "Example: parse the messy sample",
+    "input": "lines = SAMPLE_LOG (12 non-blank lines)",
+    "hidden": false,
+    "code": "records, bad = parse_records(SAMPLE_LOG)\nexpect((len(records), bad), (7, 5))\nexpect(records[0], {\"model\": \"gpt-x\", \"task\": \"qa\", \"passed\": True, \"latency_ms\": 120.0})\nexpect(records[6], {\"model\": \"gpt-x\", \"task\": \"code\", \"passed\": False, \"latency_ms\": None})\n"
    },
    {
-    "name": "accepts an iterable of lines and coerces values",
-    "code": "lines = ['{\"model\":\"m\",\"task\":\"t\",\"passed\":\"Yes\",\"latency_ms\":\"12.5\"}',\n         '   ',\n         '{\"model\":\"m\",\"task\":\"t\",\"passed\":false,\"latency_ms\":-3}',\n         '{\"model\":\"\",\"task\":\"t\",\"passed\":true}',\n         '{\"model\":\"m\",\"task\":\"t\",\"passed\":2}']\nrecords, bad = parse_records(iter(lines))\nassert bad == 2, f\"empty model and passed=2 are bad lines, got {bad}\"\nassert [r[\"passed\"] for r in records] == [True, False]\nassert records[0][\"latency_ms\"] == 12.5 and records[1][\"latency_ms\"] is None, records\n"
+    "name": "Example: pass rate by model",
+    "input": "records = parse_records(SAMPLE_LOG)[0], by = (\"model\",)",
+    "hidden": false,
+    "code": "records, _ = parse_records(SAMPLE_LOG)\nexpect(pass_rates(records), {(\"gpt-x\",): {\"n\": 4, \"pass_rate\": 0.5}, (\"claude-y\",): {\"n\": 3, \"pass_rate\": 2 / 3}})\n"
    },
    {
-    "name": "pass rate by model",
-    "code": "records, _ = parse_records(SAMPLE_LOG)\nrates = pass_rates(records)\nassert set(rates) == {(\"gpt-x\",), (\"claude-y\",)}, set(rates)\nassert rates[(\"gpt-x\",)] == {\"n\": 4, \"pass_rate\": 0.5}, rates[(\"gpt-x\",)]\nassert rates[(\"claude-y\",)][\"n\"] == 3 and abs(rates[(\"claude-y\",)][\"pass_rate\"] - 2 / 3) < 1e-9\n"
+    "name": "Example: p50 / p95 latency",
+    "input": "records = parse_records(SAMPLE_LOG)[0], by = \"model\"",
+    "hidden": false,
+    "code": "records, _ = parse_records(SAMPLE_LOG)\nlat = latency_percentiles(records)\nexpect({g: {k: round(v, 6) for k, v in d.items()} for g, d in lat.items()},\n       {\"gpt-x\": {\"p50\": 200.0, \"p95\": 326.0}, \"claude-y\": {\"p50\": 250.25, \"p95\": 394.475}})\n"
    },
    {
-    "name": "pass rate by model and task",
-    "code": "records, _ = parse_records(SAMPLE_LOG)\nrates = pass_rates(records, by=(\"model\", \"task\"))\nassert {k: v[\"pass_rate\"] for k, v in rates.items()} == {\n    (\"gpt-x\", \"qa\"): 0.5, (\"gpt-x\", \"code\"): 0.5,\n    (\"claude-y\", \"qa\"): 1.0, (\"claude-y\", \"code\"): 0.0}, rates\n"
+    "name": "Empty and blank-only input",
+    "input": "lines = \"\" ; [] ; \"\\n  \\n\\t\\n\"",
+    "hidden": true,
+    "code": "expect([parse_records(\"\"), parse_records([]), parse_records(\"\\n  \\n\\t\\n\")], [([], 0), ([], 0), ([], 0)])\n"
    },
    {
-    "name": "p50 / p95 latency with linear interpolation",
-    "code": "records, _ = parse_records(SAMPLE_LOG)\nlat = latency_percentiles(records)\nassert abs(lat[\"gpt-x\"][\"p50\"] - 200.0) < 1e-9 and abs(lat[\"gpt-x\"][\"p95\"] - 326.0) < 1e-9, lat[\"gpt-x\"]\nassert abs(lat[\"claude-y\"][\"p50\"] - 250.25) < 1e-9 and abs(lat[\"claude-y\"][\"p95\"] - 394.475) < 1e-9, lat[\"claude-y\"]\nnone_lat = [{\"model\": \"z\", \"task\": \"t\", \"passed\": True, \"latency_ms\": None}]\nassert latency_percentiles(none_lat) == {}, \"groups without latencies are omitted\"\n"
+    "name": "JSON values that are not objects are bad",
+    "input": "lines = ['42', 'null', '\"str\"', '[1, 2]', '{\"model\": \"m\", \"task\": \"t\", \"passed\": true}']",
+    "hidden": true,
+    "code": "records, bad = parse_records(['42', 'null', '\"str\"', '[1, 2]', '{\"model\": \"m\", \"task\": \"t\", \"passed\": true}'])\nexpect((len(records), bad), (1, 4))\n"
+   },
+   {
+    "name": "Truncated and invalid JSON lines are bad",
+    "input": "lines = ['{\"model\": \"m\", \"task\": \"t\", \"passed\": true, \"latency_ms\": 13', 'not json', '{']",
+    "hidden": true,
+    "code": "records, bad = parse_records(['{\"model\": \"m\", \"task\": \"t\", \"passed\": true, \"latency_ms\": 13', 'not json', '{'])\nexpect((records, bad), ([], 3))\n"
+   },
+   {
+    "name": "passed accepts bools, 0/1 and word forms",
+    "input": "passed values: \"PASSED\", \"Failed\", \"No\", \"yes\", \"1\", \"0\", true, 1, 0",
+    "hidden": true,
+    "code": "vals = ['\"PASSED\"', '\"Failed\"', '\"No\"', '\"yes\"', '\"1\"', '\"0\"', 'true', '1', '0']\nlines = ['{\"model\": \"m\", \"task\": \"t\", \"passed\": %s}' % v for v in vals]\nrecords, bad = parse_records(lines)\nexpect([r[\"passed\"] for r in records], [True, False, False, True, True, False, True, True, False])\nexpect(bad, 0)\n"
+   },
+   {
+    "name": "Unrecognisable passed values are bad",
+    "input": "passed values: \"maybe\", 2, null, (missing)",
+    "hidden": true,
+    "code": "lines = ['{\"model\": \"m\", \"task\": \"t\", \"passed\": \"maybe\"}', '{\"model\": \"m\", \"task\": \"t\", \"passed\": 2}',\n         '{\"model\": \"m\", \"task\": \"t\", \"passed\": null}', '{\"model\": \"m\", \"task\": \"t\"}']\nexpect(parse_records(lines), ([], 4))\n"
+   },
+   {
+    "name": "latency_ms coercion keeps the record",
+    "input": "latency_ms: \"12.5\", 7, \"1e3\", -3, \"slow\", null, NaN, (missing), \"inf\"",
+    "hidden": true,
+    "code": "vals = ['\"12.5\"', '7', '\"1e3\"', '-3', '\"slow\"', 'null', 'NaN', None, '\"inf\"']\nlines = ['{\"model\": \"m\", \"task\": \"t\", \"passed\": true%s}' % (\"\" if v is None else ', \"latency_ms\": ' + v) for v in vals]\nrecords, bad = parse_records(lines)\nexpect(bad, 0, label=\"bad latency never drops a record\")\nexpect([r[\"latency_ms\"] for r in records], [12.5, 7.0, 1000.0, None, None, None, None, None, None])\n"
+   },
+   {
+    "name": "model/task: stripped, and missing or blank is bad",
+    "input": "lines: model \" m \", task \" t \"; model \"\"; task \"   \"; no task",
+    "hidden": true,
+    "code": "lines = ['{\"model\": \" m \", \"task\": \" t \", \"passed\": true}', '{\"model\": \"\", \"task\": \"t\", \"passed\": true}',\n         '{\"model\": \"m\", \"task\": \"   \", \"passed\": true}', '{\"model\": \"m\", \"passed\": true}']\nrecords, bad = parse_records(lines)\nexpect(records, [{\"model\": \"m\", \"task\": \"t\", \"passed\": True, \"latency_ms\": None}])\nexpect(bad, 3)\n"
+   },
+   {
+    "name": "pass rate by (model, task), by task, and no records",
+    "input": "records = parse_records(SAMPLE_LOG)[0], by = (\"model\", \"task\") / (\"task\",); then records = []",
+    "hidden": true,
+    "code": "records, _ = parse_records(SAMPLE_LOG)\nrates = pass_rates(records, by=(\"model\", \"task\"))\nexpect({k: v[\"pass_rate\"] for k, v in rates.items()},\n       {(\"gpt-x\", \"qa\"): 0.5, (\"gpt-x\", \"code\"): 0.5, (\"claude-y\", \"qa\"): 1.0, (\"claude-y\", \"code\"): 0.0})\nexpect(pass_rates(records, by=(\"task\",)), {(\"qa\",): {\"n\": 4, \"pass_rate\": 0.75}, (\"code\",): {\"n\": 3, \"pass_rate\": 1 / 3}})\nexpect(pass_rates([]), {})\n"
+   },
+   {
+    "name": "Percentiles: single value, no latencies, by task",
+    "input": "records: z has one latency 42; w has only None; then SAMPLE_LOG by = \"task\"",
+    "hidden": true,
+    "code": "recs = [{\"model\": \"z\", \"task\": \"t\", \"passed\": True, \"latency_ms\": 42.0},\n        {\"model\": \"w\", \"task\": \"t\", \"passed\": True, \"latency_ms\": None}]\nexpect(latency_percentiles(recs), {\"z\": {\"p50\": 42.0, \"p95\": 42.0}}, label=\"w has no latencies: omitted\")\nrecords, _ = parse_records(SAMPLE_LOG)\nlat = latency_percentiles(records, by=\"task\")\nexpect({g: {k: round(v, 6) for k, v in d.items()} for g, d in lat.items()},\n       {\"qa\": {\"p50\": 120.0, \"p95\": 318.0}, \"code\": {\"p50\": 305.25, \"p95\": 399.975}})\n"
    }
   ],
   "hints": [

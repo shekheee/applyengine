@@ -634,7 +634,7 @@ class PrepTaskDetailOut(BaseModel):
     open_redos: list[PrepRedoOut] = Field(default_factory=list)
     brief: str | None = None
     starter: str | None = None
-    tests: list[dict[str, str]] = Field(default_factory=list)
+    tests: list[dict[str, Any]] = Field(default_factory=list)
     hints_total: int = 0
     hints_revealed: list[str] = Field(default_factory=list)
     # The reference solution unlocks once the task has a logged attempt.

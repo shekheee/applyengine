@@ -4,28 +4,76 @@
   "starter": "from typing import Any\n\n\nclass NoTransactionError(RuntimeError):\n    \"\"\"Raised by commit() / rollback() when no transaction is open.\"\"\"\n\n\nclass KVStore:\n    \"\"\"In-memory key-value store with nested transactions.\"\"\"\n\n    def __init__(self) -> None:\n        raise NotImplementedError\n\n    def set(self, key: str, value: Any) -> None:\n        \"\"\"Set key to value (inside the innermost open transaction, if any).\"\"\"\n        raise NotImplementedError\n\n    def get(self, key: str, default: Any = None) -> Any:\n        \"\"\"Return the visible value for key, or default if it is absent/deleted.\"\"\"\n        raise NotImplementedError\n\n    def delete(self, key: str) -> bool:\n        \"\"\"Delete key. Return True if it existed (was visible), else False.\"\"\"\n        raise NotImplementedError\n\n    def begin(self) -> None:\n        \"\"\"Open a (possibly nested) transaction.\"\"\"\n        raise NotImplementedError\n\n    def commit(self) -> None:\n        \"\"\"Commit the innermost transaction into its parent (or the base data).\n        Raise NoTransactionError if none is open.\"\"\"\n        raise NotImplementedError\n\n    def rollback(self) -> None:\n        \"\"\"Discard the innermost transaction. Raise NoTransactionError if none is open.\"\"\"\n        raise NotImplementedError\n\n    @property\n    def depth(self) -> int:\n        \"\"\"Number of currently open transactions.\"\"\"\n        raise NotImplementedError\n\n\nif __name__ == \"__main__\":\n    # Short main to exercise your classes.\n    pass\n",
   "tests": [
    {
-    "name": "set/get/delete without transactions",
-    "code": "kv = KVStore()\nassert kv.get(\"x\") is None, \"missing key should return None\"\nassert kv.get(\"x\", 7) == 7, \"missing key should return the default\"\nkv.set(\"x\", 1)\nassert kv.get(\"x\") == 1\nassert kv.delete(\"x\") is True, \"delete of an existing key returns True\"\nassert kv.delete(\"x\") is False, \"delete of a missing key returns False\"\nassert kv.get(\"x\") is None\nassert kv.depth == 0\n"
+    "name": "brief example: inner rollback of a delete",
+    "input": "ops: set(a,1) → begin → set(a,2) → begin → delete(a) → rollback → get(a) → commit → get(a)",
+    "hidden": false,
+    "code": "kv = KVStore(); out = []\nkv.set(\"a\", 1)\nkv.begin(); kv.set(\"a\", 2)\nkv.begin(); kv.delete(\"a\"); kv.rollback()\nout.append(kv.get(\"a\"))\nkv.commit(); out.append(kv.get(\"a\"))\nexpect(out, [2, 2], \"outputs of get(a)\")\nexpect(kv.depth, 0, \"depth after commit\")\n"
    },
    {
     "name": "rollback restores sets and deletes",
-    "code": "kv = KVStore()\nkv.set(\"a\", 1); kv.set(\"b\", 2)\nkv.begin()\nkv.set(\"a\", 10); kv.delete(\"b\"); kv.set(\"c\", 3)\nassert kv.get(\"a\") == 10 and kv.get(\"b\") is None and kv.get(\"c\") == 3, \"reads inside a txn see txn writes\"\nkv.rollback()\nassert (kv.get(\"a\"), kv.get(\"b\"), kv.get(\"c\")) == (1, 2, None), \"rollback must undo everything in the txn\"\nassert kv.depth == 0\n"
+    "input": "ops: set(a,1) → set(b,2) → begin → set(a,10) → delete(b) → set(c,3) → get(a,b,c) → rollback → get(a,b,c)",
+    "hidden": false,
+    "code": "kv = KVStore()\nkv.set(\"a\", 1); kv.set(\"b\", 2)\nkv.begin()\nkv.set(\"a\", 10); kv.delete(\"b\"); kv.set(\"c\", 3)\ninside = [kv.get(\"a\"), kv.get(\"b\"), kv.get(\"c\")]\nkv.rollback()\nafter = [kv.get(\"a\"), kv.get(\"b\"), kv.get(\"c\")]\nexpect(inside + after, [10, None, 3, 1, 2, None], \"gets inside txn, then after rollback\")\n"
    },
    {
-    "name": "nested rollback only discards the inner transaction",
-    "code": "kv = KVStore()\nkv.begin(); kv.set(\"a\", 1)\nkv.begin(); kv.set(\"a\", 2)\nassert kv.depth == 2\nkv.rollback()\nassert kv.get(\"a\") == 1, \"inner rollback should reveal the outer txn's value\"\nkv.commit()\nassert kv.get(\"a\") == 1 and kv.depth == 0\n"
+    "name": "no transaction: set/get/delete apply immediately",
+    "input": "ops: get(x) → get(x, 7) → set(x,1) → get(x) → delete(x) → delete(x) → get(x)",
+    "hidden": false,
+    "code": "kv = KVStore()\nout = [kv.get(\"x\"), kv.get(\"x\", 7)]\nkv.set(\"x\", 1)\nout += [kv.get(\"x\"), kv.delete(\"x\"), kv.delete(\"x\"), kv.get(\"x\")]\nexpect(out, [None, 7, 1, True, False, None])\nexpect(kv.depth, 0, \"depth\")\n"
+   },
+   {
+    "name": "nested rollback discards only the inner transaction",
+    "input": "ops: begin → set(a,1) → begin → set(a,2) → get(a) → depth → rollback → get(a) → commit → get(a) → depth",
+    "hidden": true,
+    "code": "kv = KVStore(); out = []\nkv.begin(); kv.set(\"a\", 1)\nkv.begin(); kv.set(\"a\", 2)\nout += [kv.get(\"a\"), kv.depth]\nkv.rollback(); out.append(kv.get(\"a\"))\nkv.commit(); out += [kv.get(\"a\"), kv.depth]\nexpect(out, [2, 2, 1, 1, 0])\n"
    },
    {
     "name": "inner commit merges into parent; outer rollback discards it",
-    "code": "kv = KVStore()\nkv.set(\"a\", \"base\")\nkv.begin()\nkv.begin(); kv.set(\"a\", \"inner\"); kv.commit()\nassert kv.get(\"a\") == \"inner\", \"inner commit is visible in the outer txn\"\nkv.rollback()\nassert kv.get(\"a\") == \"base\", \"outer rollback must discard the merged inner commit\"\n"
+    "input": "ops: set(a,base) → begin → begin → set(a,inner) → commit → get(a) → rollback → get(a)",
+    "hidden": true,
+    "code": "kv = KVStore(); out = []\nkv.set(\"a\", \"base\")\nkv.begin()\nkv.begin(); kv.set(\"a\", \"inner\"); kv.commit()\nout.append(kv.get(\"a\"))\nkv.rollback(); out.append(kv.get(\"a\"))\nexpect(out, [\"inner\", \"base\"], \"an inner commit is not durable until the outer commits\")\n"
    },
    {
     "name": "delete inside a committed transaction removes the key",
-    "code": "kv = KVStore()\nkv.set(\"k\", 5)\nkv.begin(); assert kv.delete(\"k\") is True\nassert kv.delete(\"k\") is False, \"already deleted in this txn\"\nkv.commit()\nassert kv.get(\"k\", \"gone\") == \"gone\"\n"
+    "input": "ops: set(k,5) → begin → delete(k) → delete(k) → commit → get(k, 'gone')",
+    "hidden": true,
+    "code": "kv = KVStore()\nkv.set(\"k\", 5)\nkv.begin()\nout = [kv.delete(\"k\"), kv.delete(\"k\")]\nkv.commit()\nout.append(kv.get(\"k\", \"gone\"))\nexpect(out, [True, False, \"gone\"])\n"
    },
    {
-    "name": "commit/rollback with no transaction raise NoTransactionError",
-    "code": "kv = KVStore()\nfor op in (kv.commit, kv.rollback):\n    try:\n        op()\n    except NoTransactionError as e:\n        assert isinstance(e, RuntimeError)\n    else:\n        raise AssertionError(f\"{op.__name__}() without begin() should raise NoTransactionError\")\n"
+    "name": "commit/rollback with nothing open raise NoTransactionError",
+    "input": "ops: commit → rollback → begin → commit → commit",
+    "hidden": true,
+    "code": "kv = KVStore()\nerr = expect_raises(NoTransactionError, kv.commit, label=\"commit with no txn\")\nexpect_raises(NoTransactionError, kv.rollback, label=\"rollback with no txn\")\nkv.begin(); kv.commit()\nexpect_raises(NoTransactionError, kv.commit, label=\"second commit after the only txn closed\")\nexpect(isinstance(err, RuntimeError), True, \"NoTransactionError is a RuntimeError\")\n"
+   },
+   {
+    "name": "missing keys inside transactions",
+    "input": "ops: begin → delete(nope) → get(nope, 'd') → set(n,1) → delete(n) → get(n) → rollback → get(n)",
+    "hidden": true,
+    "code": "kv = KVStore(); out = []\nkv.begin()\nout += [kv.delete(\"nope\"), kv.get(\"nope\", \"d\")]\nkv.set(\"n\", 1)\nout += [kv.delete(\"n\"), kv.get(\"n\")]\nkv.rollback(); out.append(kv.get(\"n\"))\nexpect(out, [False, \"d\", True, None, None])\n"
+   },
+   {
+    "name": "falsy and None values are real values, not 'missing'",
+    "input": "ops: set(z,None) → get(z,'d') → delete(z) → set(f,0) → begin → set(e,'') → get(f,5) → get(e,'d')",
+    "hidden": true,
+    "code": "kv = KVStore()\nkv.set(\"z\", None)\nout = [kv.get(\"z\", \"d\"), kv.delete(\"z\"), kv.get(\"z\", \"d\")]\nkv.set(\"f\", 0)\nkv.begin(); kv.set(\"e\", \"\")\nout += [kv.get(\"f\", 5), kv.get(\"e\", \"d\")]\nexpect(out, [None, True, \"d\", 0, \"\"])\n"
+   },
+   {
+    "name": "delete then re-set in one transaction; three-level commit chain",
+    "input": "ops: set(a,1) → begin → delete(a) → set(a,9) → begin → set(b,2) → begin → delete(a) → commit ×3 → get(a), get(b)",
+    "hidden": true,
+    "code": "kv = KVStore()\nkv.set(\"a\", 1)\nkv.begin(); kv.delete(\"a\"); kv.set(\"a\", 9)\nkv.begin(); kv.set(\"b\", 2)\nkv.begin(); kv.delete(\"a\")\ndepths = [kv.depth]\nkv.commit(); kv.commit(); kv.commit()\ndepths.append(kv.depth)\nexpect([kv.get(\"a\", \"absent\"), kv.get(\"b\")], [\"absent\", 2], \"values after all commits\")\nexpect(depths, [3, 0], \"depth before and after\")\n"
+   },
+   {
+    "name": "two stores do not share state",
+    "input": "ops: kv1.set(a,1) → kv1.begin → kv1.set(b,2) → kv2.get(a) → kv2.get(b) → kv2.depth → kv1.depth",
+    "hidden": true,
+    "code": "kv1, kv2 = KVStore(), KVStore()\nkv1.set(\"a\", 1); kv1.begin(); kv1.set(\"b\", 2)\nexpect([kv2.get(\"a\"), kv2.get(\"b\"), kv2.depth, kv1.depth], [None, None, 0, 1])\n"
+   },
+   {
+    "name": "large: 2000 base keys, 300 nested begins, roll all back",
+    "input": "ops: set(k0..k1999) → 300 × (begin → set(k_i, -1)) → 300 × rollback → sum of values",
+    "hidden": true,
+    "code": "kv = KVStore()\nfor i in range(2000):\n    kv.set(f\"k{i}\", i)\nfor i in range(300):\n    kv.begin(); kv.set(f\"k{i}\", -1)\nmid = kv.get(\"k299\")\nfor _ in range(300):\n    kv.rollback()\nexpect([mid, kv.depth, sum(kv.get(f\"k{i}\") for i in range(2000))], [-1, 0, sum(range(2000))])\n"
    }
   ],
   "hints": [
@@ -40,24 +88,76 @@
   "starter": "import time\nfrom abc import ABC, abstractmethod\nfrom typing import Callable\n\n\nclass RateLimitStrategy(ABC):\n    \"\"\"Strategy interface: decides whether one request for `key` at time `now` is allowed.\n    Implementations keep independent state per key.\"\"\"\n\n    @abstractmethod\n    def allow(self, key: str, now: float) -> bool: ...\n\n\nclass TokenBucket(RateLimitStrategy):\n    def __init__(self, capacity: int, refill_per_sec: float) -> None:\n        \"\"\"Bucket starts full with `capacity` tokens and refills continuously.\n        Raise ValueError if capacity or refill_per_sec is not positive.\"\"\"\n        raise NotImplementedError\n\n    def allow(self, key: str, now: float) -> bool:\n        \"\"\"Refill for elapsed time (capped at capacity), then spend 1 token if available.\"\"\"\n        raise NotImplementedError\n\n\nclass SlidingWindowLog(RateLimitStrategy):\n    def __init__(self, limit: int, window_sec: float) -> None:\n        \"\"\"At most `limit` allowed requests in any window of `window_sec` seconds.\n        Raise ValueError if limit or window_sec is not positive.\"\"\"\n        raise NotImplementedError\n\n    def allow(self, key: str, now: float) -> bool:\n        \"\"\"Forget timestamps <= now - window_sec; allow (and record) if under the limit.\n        Rejected requests are not recorded.\"\"\"\n        raise NotImplementedError\n\n\nclass RateLimiter:\n    \"\"\"Front door: per-user limiting with a pluggable strategy and an injectable clock.\"\"\"\n\n    def __init__(self, strategy: RateLimitStrategy,\n                 clock: Callable[[], float] = time.monotonic) -> None:\n        raise NotImplementedError\n\n    def allow(self, user_id: str) -> bool:\n        raise NotImplementedError\n",
   "tests": [
    {
-    "name": "token bucket allows a burst then refills",
-    "code": "tb = TokenBucket(capacity=2, refill_per_sec=1.0)\nassert [tb.allow(\"u\", 0.0) for _ in range(3)] == [True, True, False], \"burst of capacity, then deny\"\nassert tb.allow(\"u\", 0.5) is False, \"half a token is not enough\"\nassert tb.allow(\"u\", 1.0) is True, \"one token refilled after 1 s\"\nassert tb.allow(\"u\", 1.0) is False\n"
-   },
-   {
-    "name": "token bucket never exceeds capacity after idling",
-    "code": "tb = TokenBucket(capacity=3, refill_per_sec=2.0)\nfor _ in range(3):\n    assert tb.allow(\"u\", 0.0)\nresults = [tb.allow(\"u\", 100.0) for _ in range(4)]\nassert results == [True, True, True, False], f\"refill must cap at capacity, got {results}\"\n"
+    "name": "brief example: token bucket per user with a fake clock",
+    "input": "TokenBucket(capacity=2, refill_per_sec=1); t=0: allow(u1)×3, allow(u2); t=1: allow(u1)",
+    "hidden": false,
+    "code": "t = [0.0]\nrl = RateLimiter(TokenBucket(capacity=2, refill_per_sec=1.0), clock=lambda: t[0])\nout = [rl.allow(\"u1\"), rl.allow(\"u1\"), rl.allow(\"u1\"), rl.allow(\"u2\")]\nt[0] = 1.0\nout.append(rl.allow(\"u1\"))\nexpect(out, [True, True, False, True, True])\n"
    },
    {
     "name": "sliding window log expiry boundary",
-    "code": "sw = SlidingWindowLog(limit=2, window_sec=10.0)\nassert sw.allow(\"u\", 0.0) and sw.allow(\"u\", 1.0)\nassert sw.allow(\"u\", 5.0) is False, \"third request inside the window is denied\"\nassert sw.allow(\"u\", 9.99) is False\nassert sw.allow(\"u\", 10.0) is True, \"the t=0 request expires exactly at t=10\"\nassert sw.allow(\"u\", 10.5) is False\nassert sw.allow(\"u\", 11.0) is True, \"the t=1 request expires at t=11\"\n"
+    "input": "SlidingWindowLog(limit=2, window_sec=10); allow(u) at t = 0, 1, 5, 9.99, 10, 10.5, 11",
+    "hidden": false,
+    "code": "sw = SlidingWindowLog(limit=2, window_sec=10.0)\nout = [sw.allow(\"u\", t) for t in (0.0, 1.0, 5.0, 9.99, 10.0, 10.5, 11.0)]\nexpect(out, [True, True, False, False, True, False, True], \"a request exactly window_sec old has expired\")\n"
    },
    {
-    "name": "RateLimiter keeps per-user state and uses the injected clock",
-    "code": "t = [0.0]\nrl = RateLimiter(SlidingWindowLog(limit=1, window_sec=5.0), clock=lambda: t[0])\nassert rl.allow(\"alice\") is True\nassert rl.allow(\"alice\") is False, \"alice is at her limit\"\nassert rl.allow(\"bob\") is True, \"bob has his own window\"\nt[0] = 5.0\nassert rl.allow(\"alice\") is True, \"clock advanced past the window\"\n"
+    "name": "token bucket burst, half token, refill",
+    "input": "TokenBucket(capacity=2, refill_per_sec=1); allow(u) at t = 0, 0, 0, 0.5, 1.0, 1.0",
+    "hidden": false,
+    "code": "tb = TokenBucket(capacity=2, refill_per_sec=1.0)\nout = [tb.allow(\"u\", t) for t in (0.0, 0.0, 0.0, 0.5, 1.0, 1.0)]\nexpect(out, [True, True, False, False, True, False])\n"
    },
    {
-    "name": "strategies are pluggable; bad config raises ValueError",
-    "code": "class DenyVip(RateLimitStrategy):\n    def allow(self, key, now):\n        return key != \"vip\"\nrl = RateLimiter(DenyVip(), clock=lambda: 0.0)\nassert rl.allow(\"x\") is True and rl.allow(\"vip\") is False, \"RateLimiter must delegate to any strategy\"\nfor bad in (lambda: TokenBucket(0, 1.0), lambda: TokenBucket(1, 0), lambda: SlidingWindowLog(0, 1.0), lambda: SlidingWindowLog(1, -1)):\n    try:\n        bad()\n    except ValueError:\n        pass\n    else:\n        raise AssertionError(\"non-positive configuration should raise ValueError\")\n"
+    "name": "refill is capped at capacity after idling",
+    "input": "TokenBucket(capacity=3, refill_per_sec=2); allow(u)×3 at t=0, then allow(u)×4 at t=100",
+    "hidden": true,
+    "code": "tb = TokenBucket(capacity=3, refill_per_sec=2.0)\nfirst = [tb.allow(\"u\", 0.0) for _ in range(3)]\nlater = [tb.allow(\"u\", 100.0) for _ in range(4)]\nexpect(first + later, [True, True, True, True, True, True, False])\n"
+   },
+   {
+    "name": "per-user isolation through RateLimiter",
+    "input": "SlidingWindowLog(limit=1, window_sec=5); t=0: allow(alice), allow(alice), allow(bob), allow(bob); t=5: allow(alice)",
+    "hidden": true,
+    "code": "t = [0.0]\nrl = RateLimiter(SlidingWindowLog(limit=1, window_sec=5.0), clock=lambda: t[0])\nout = [rl.allow(\"alice\"), rl.allow(\"alice\"), rl.allow(\"bob\"), rl.allow(\"bob\")]\nt[0] = 5.0\nout.append(rl.allow(\"alice\"))\nexpect(out, [True, False, True, False, True])\n"
+   },
+   {
+    "name": "strategy swap: same traffic, different algorithm",
+    "input": "requests for u at t = 0, 0, 0, 1, 1 through TokenBucket(2, 1) vs SlidingWindowLog(2, 10)",
+    "hidden": true,
+    "code": "def replay(strategy):\n    t = [0.0]\n    rl = RateLimiter(strategy, clock=lambda: t[0])\n    out = []\n    for now in (0.0, 0.0, 0.0, 1.0, 1.0):\n        t[0] = now\n        out.append(rl.allow(\"u\"))\n    return out\nexpect({\"token\": replay(TokenBucket(2, 1.0)), \"window\": replay(SlidingWindowLog(2, 10.0))},\n       {\"token\": [True, True, False, True, False], \"window\": [True, True, False, False, False]})\n"
+   },
+   {
+    "name": "RateLimiter delegates to any custom strategy",
+    "input": "custom strategy DenyVip (denies key 'vip'); allow(x), allow(vip), allow(x)",
+    "hidden": true,
+    "code": "class DenyVip(RateLimitStrategy):\n    def __init__(self):\n        self.seen = []\n    def allow(self, key, now):\n        self.seen.append((key, now))\n        return key != \"vip\"\ns = DenyVip()\nrl = RateLimiter(s, clock=lambda: 42.0)\nexpect([rl.allow(\"x\"), rl.allow(\"vip\"), rl.allow(\"x\")], [True, False, True])\nexpect(s.seen[1], (\"vip\", 42.0), \"strategy receives (user_id, clock())\")\n"
+   },
+   {
+    "name": "non-positive config raises ValueError",
+    "input": "TokenBucket(0, 1), TokenBucket(1, 0), TokenBucket(-2, 1), SlidingWindowLog(0, 1), SlidingWindowLog(1, -1)",
+    "hidden": true,
+    "code": "expect_raises(ValueError, TokenBucket, 0, 1.0, label=\"capacity=0\")\nexpect_raises(ValueError, TokenBucket, 1, 0, label=\"refill=0\")\nexpect_raises(ValueError, TokenBucket, -2, 1.0, label=\"capacity<0\")\nexpect_raises(ValueError, SlidingWindowLog, 0, 1.0, label=\"limit=0\")\nexpect_raises(ValueError, SlidingWindowLog, 1, -1, label=\"window<0\")\n"
+   },
+   {
+    "name": "rejected requests are not recorded in the window log",
+    "input": "SlidingWindowLog(limit=1, window_sec=10); allow(u) at t = 0, 5, 9, 10, 14.9, 20",
+    "hidden": true,
+    "code": "sw = SlidingWindowLog(limit=1, window_sec=10.0)\nout = [sw.allow(\"u\", t) for t in (0.0, 5.0, 9.0, 10.0, 14.9, 20.0)]\nexpect(out, [True, False, False, True, False, True], \"denied calls at t=5 and t=9 must not extend the lockout\")\n"
+   },
+   {
+    "name": "fractional refill: denied calls keep accrued tokens",
+    "input": "TokenBucket(capacity=1, refill_per_sec=0.5); allow(u) at t = 0, 1, 2, 2",
+    "hidden": true,
+    "code": "tb = TokenBucket(capacity=1, refill_per_sec=0.5)\nout = [tb.allow(\"u\", t) for t in (0.0, 1.0, 2.0, 2.0)]\nexpect(out, [True, False, True, False])\n"
+   },
+   {
+    "name": "time comes only from the injected clock",
+    "input": "SlidingWindowLog(1, 5) with clock at 1e6, 1e6, 1e6+4.99, 1e6+5",
+    "hidden": true,
+    "code": "t = [1e6]\nrl = RateLimiter(SlidingWindowLog(1, 5.0), clock=lambda: t[0])\nout = []\nfor now in (1e6, 1e6, 1e6 + 4.99, 1e6 + 5):\n    t[0] = now\n    out.append(rl.allow(\"u\"))\nexpect(out, [True, False, False, True])\n"
+   },
+   {
+    "name": "large: 1000 users × 3 requests each",
+    "input": "TokenBucket(capacity=2, refill_per_sec=1); 1000 users each call allow 3 times at t=0; count allowed",
+    "hidden": true,
+    "code": "tb = TokenBucket(capacity=2, refill_per_sec=1.0)\nallowed = sum(tb.allow(f\"user{i}\", 0.0) for i in range(1000) for _ in range(3))\nexpect(allowed, 2000)\n"
    }
   ],
   "hints": [
@@ -72,24 +172,76 @@
   "starter": "from dataclasses import dataclass\nfrom typing import Any, Callable\n\n\n@dataclass\nclass Job:\n    id: str\n    fn: Callable[[], Any]\n    priority: int = 0          # higher runs first; ties run in submission order\n    max_retries: int = 0       # retries allowed after the first attempt\n    attempts: int = 0\n    status: str = \"queued\"     # queued | running | succeeded | failed\n    result: Any = None\n    last_error: str | None = None\n\n\nclass JobScheduler:\n    \"\"\"Owns the queue. Workers pull from it and report back.\"\"\"\n\n    def __init__(self, base_delay: float = 1.0) -> None:\n        raise NotImplementedError\n\n    def submit(self, job: Job) -> None:\n        \"\"\"Queue a job. Raise ValueError on a duplicate id.\"\"\"\n        raise NotImplementedError\n\n    def pull(self, now: float) -> Job | None:\n        \"\"\"Return the highest-priority job that is ready at `now` (or None).\n        Marks it running and increments attempts.\"\"\"\n        raise NotImplementedError\n\n    def complete(self, job_id: str, result: Any) -> None:\n        \"\"\"Mark the job succeeded and store its result.\"\"\"\n        raise NotImplementedError\n\n    def fail(self, job_id: str, error: Exception, now: float) -> None:\n        \"\"\"Record the error. If attempts <= max_retries, re-queue it to become ready at\n        now + base_delay * 2 ** (attempts - 1); otherwise mark it failed.\"\"\"\n        raise NotImplementedError\n\n    def get(self, job_id: str) -> Job:\n        \"\"\"Look up a job by id (KeyError if unknown).\"\"\"\n        raise NotImplementedError\n\n\nclass Worker:\n    def __init__(self, scheduler: JobScheduler) -> None:\n        raise NotImplementedError\n\n    def run_once(self, now: float) -> bool:\n        \"\"\"Pull one job, run it, report success/failure. Return False if nothing was ready.\"\"\"\n        raise NotImplementedError\n",
   "tests": [
    {
-    "name": "higher priority first, FIFO on ties",
-    "code": "s = JobScheduler()\nfor jid, p in [(\"low\", 1), (\"high\", 5), (\"mid\", 3), (\"mid2\", 3)]:\n    s.submit(Job(jid, lambda: None, priority=p))\norder = [s.pull(0.0).id for _ in range(4)]\nassert order == [\"high\", \"mid\", \"mid2\", \"low\"], f\"got {order}\"\nassert s.pull(0.0) is None, \"empty queue returns None\"\n"
+    "name": "brief example: higher priority pulled first",
+    "input": "submit(a, priority=1) → submit(b, priority=5) → pull(0) → pull(0) → pull(0)",
+    "hidden": false,
+    "code": "s = JobScheduler(base_delay=1.0)\ns.submit(Job(\"a\", lambda: 1, priority=1)); s.submit(Job(\"b\", lambda: 2, priority=5))\nout = [s.pull(0), s.pull(0), s.pull(0)]\nexpect([j.id if j else None for j in out], [\"b\", \"a\", None])\n"
    },
    {
     "name": "worker runs a job to success",
-    "code": "s = JobScheduler(); w = Worker(s)\ns.submit(Job(\"j\", lambda: 42))\nassert w.run_once(0.0) is True\nj = s.get(\"j\")\nassert j.status == \"succeeded\" and j.result == 42 and j.attempts == 1, (j.status, j.result, j.attempts)\nassert w.run_once(0.0) is False, \"nothing left to run\"\n"
+    "input": "submit(j → 42) → run_once(0) → run_once(0) → get(j)",
+    "hidden": false,
+    "code": "s = JobScheduler(); w = Worker(s)\ns.submit(Job(\"j\", lambda: 42))\nruns = [w.run_once(0.0), w.run_once(0.0)]\nj = s.get(\"j\")\nexpect(runs, [True, False], \"run_once results\")\nexpect((j.status, j.result, j.attempts), (\"succeeded\", 42, 1))\n"
+   },
+   {
+    "name": "priority ties run in FIFO order",
+    "input": "submit low(1), high(5), mid(3), mid2(3) → pull(0) ×5",
+    "hidden": false,
+    "code": "s = JobScheduler()\nfor jid, p in [(\"low\", 1), (\"high\", 5), (\"mid\", 3), (\"mid2\", 3)]:\n    s.submit(Job(jid, lambda: None, priority=p))\norder = [s.pull(0.0) for _ in range(5)]\nexpect([j.id if j else None for j in order], [\"high\", \"mid\", \"mid2\", \"low\", None])\n"
    },
    {
     "name": "retries use exponential backoff",
-    "code": "calls = []\ndef flaky():\n    calls.append(1)\n    if len(calls) < 3:\n        raise RuntimeError(\"transient\")\n    return \"ok\"\ns = JobScheduler(base_delay=1.0); w = Worker(s)\ns.submit(Job(\"f\", flaky, max_retries=3))\nassert w.run_once(0.0) and s.get(\"f\").status == \"queued\", \"first failure re-queues\"\nassert w.run_once(0.5) is False, \"not ready until t=1 (delay 1)\"\nassert w.run_once(1.0) is True and s.get(\"f\").last_error == \"transient\"\nassert w.run_once(2.9) is False, \"second retry waits 2 more seconds (ready at t=3)\"\nassert w.run_once(3.0) is True\nj = s.get(\"f\")\nassert j.status == \"succeeded\" and j.result == \"ok\" and j.attempts == 3, (j.status, j.attempts)\n"
+    "input": "flaky job fails twice, max_retries=3, base_delay=1; run_once at t = 0, 0.5, 1, 2.9, 3",
+    "hidden": true,
+    "code": "calls = []\ndef flaky():\n    calls.append(1)\n    if len(calls) < 3:\n        raise RuntimeError(\"transient\")\n    return \"ok\"\ns = JobScheduler(base_delay=1.0); w = Worker(s)\ns.submit(Job(\"f\", flaky, max_retries=3))\nruns = [w.run_once(t) for t in (0.0, 0.5, 1.0, 2.9, 3.0)]\nj = s.get(\"f\")\nexpect(runs, [True, False, True, False, True], \"ready at t=1 (delay 1), then t=3 (delay 2)\")\nexpect((j.status, j.result, j.attempts, j.last_error), (\"succeeded\", \"ok\", 3, \"transient\"))\n"
    },
    {
     "name": "exhausted retries mark the job failed",
-    "code": "def boom():\n    raise ValueError(\"bad input\")\ns = JobScheduler(base_delay=1.0); w = Worker(s)\ns.submit(Job(\"b\", boom, max_retries=1))\nw.run_once(0.0); w.run_once(1.0)\nj = s.get(\"b\")\nassert j.status == \"failed\", f\"expected failed, got {j.status}\"\nassert j.attempts == 2 and j.last_error == \"bad input\"\nassert w.run_once(100.0) is False, \"a failed job is not re-queued\"\n"
+    "input": "job always raises ValueError('bad input'), max_retries=1; run_once at t = 0, 1, 100",
+    "hidden": true,
+    "code": "def boom():\n    raise ValueError(\"bad input\")\ns = JobScheduler(base_delay=1.0); w = Worker(s)\ns.submit(Job(\"b\", boom, max_retries=1))\nruns = [w.run_once(0.0), w.run_once(1.0), w.run_once(100.0)]\nj = s.get(\"b\")\nexpect(runs, [True, True, False], \"a failed job is not re-queued\")\nexpect((j.status, j.attempts, j.last_error), (\"failed\", 2, \"bad input\"))\n"
    },
    {
-    "name": "two workers share one queue; duplicate id rejected",
-    "code": "s = JobScheduler()\ns.submit(Job(\"x\", lambda: \"X\")); s.submit(Job(\"y\", lambda: \"Y\"))\nw1, w2 = Worker(s), Worker(s)\nassert w1.run_once(0.0) and w2.run_once(0.0)\nassert {s.get(\"x\").status, s.get(\"y\").status} == {\"succeeded\"}\ntry:\n    s.submit(Job(\"x\", lambda: None))\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError(\"duplicate job id should raise ValueError\")\n"
+    "name": "max_retries=0 means exactly one attempt",
+    "input": "job raises KeyError('k'), max_retries=0; run_once(0) → run_once(50) → get",
+    "hidden": true,
+    "code": "def bad():\n    raise KeyError(\"k\")\ns = JobScheduler(); w = Worker(s)\ns.submit(Job(\"z\", bad))\nruns = [w.run_once(0.0), w.run_once(50.0)]\nj = s.get(\"z\")\nexpect(runs, [True, False])\nexpect((j.status, j.attempts, j.last_error), (\"failed\", 1, str(KeyError(\"k\"))), \"last_error is str(error)\")\n"
+   },
+   {
+    "name": "backoff schedule with base_delay=0.5 via pull/fail",
+    "input": "base_delay=0.5, max_retries=3; pull at t = 0, .49, .5, 1.49, 1.5, 3.49, 3.5, 100, fail after each pulled job",
+    "hidden": true,
+    "code": "s = JobScheduler(base_delay=0.5)\ns.submit(Job(\"r\", lambda: None, max_retries=3))\nseen = []\nfor t in (0.0, 0.49, 0.5, 1.49, 1.5, 3.49, 3.5, 100.0):\n    j = s.pull(t)\n    seen.append(j.attempts if j else None)\n    if j:\n        expect(j.status, \"running\", f\"status after pull at t={t}\")\n        s.fail(\"r\", RuntimeError(\"x\"), t)\nexpect(seen, [1, None, 2, None, 3, None, 4, None], \"attempts of each pulled job (None = nothing ready)\")\nexpect(s.get(\"r\").status, \"failed\")\n"
+   },
+   {
+    "name": "a delayed retry does not block ready jobs, then outranks them",
+    "input": "hi(9, fails once, max_retries=1), lo1(1), lo2(1); run_once at t = 0, 0.5, 1, 1, 1",
+    "hidden": true,
+    "code": "ran = []\nstate = {\"hi\": 0}\ndef hi():\n    ran.append(\"hi\"); state[\"hi\"] += 1\n    if state[\"hi\"] == 1:\n        raise RuntimeError(\"first try fails\")\ndef make(name):\n    def fn():\n        ran.append(name)\n    return fn\ns = JobScheduler(base_delay=1.0); w = Worker(s)\ns.submit(Job(\"hi\", hi, priority=9, max_retries=1))\ns.submit(Job(\"lo1\", make(\"lo1\"), priority=1))\ns.submit(Job(\"lo2\", make(\"lo2\"), priority=1))\nruns = [w.run_once(t) for t in (0.0, 0.5, 1.0, 1.0, 1.0)]\nexpect(ran, [\"hi\", \"lo1\", \"hi\", \"lo2\"], \"execution order\")\nexpect(runs, [True, True, True, True, False])\n"
+   },
+   {
+    "name": "a bad job never crashes the worker",
+    "input": "submit bad(priority 5, raises ZeroDivisionError), good(priority 1 → 'ok'); run_once ×3",
+    "hidden": true,
+    "code": "s = JobScheduler(); w = Worker(s)\ns.submit(Job(\"bad\", lambda: 1 / 0, priority=5))\ns.submit(Job(\"good\", lambda: \"ok\", priority=1))\nruns = [w.run_once(0.0) for _ in range(3)]\nexpect(runs, [True, True, False])\nexpect([s.get(\"bad\").status, s.get(\"good\").status, s.get(\"good\").result], [\"failed\", \"succeeded\", \"ok\"])\n"
+   },
+   {
+    "name": "duplicate id rejected; unknown id raises KeyError",
+    "input": "submit(x) → run x → submit(x) again → get(missing)",
+    "hidden": true,
+    "code": "s = JobScheduler(); w = Worker(s)\ns.submit(Job(\"x\", lambda: \"X\"))\nw.run_once(0.0)\nexpect_raises(ValueError, s.submit, Job(\"x\", lambda: None), label=\"duplicate id, even after completion\")\nexpect_raises(KeyError, s.get, \"missing\", label=\"unknown job id\")\nexpect(s.get(\"x\").result, \"X\")\n"
+   },
+   {
+    "name": "two workers share one queue",
+    "input": "submit x, y; w1.run_once(0) → w2.run_once(0) → w1.run_once(0)",
+    "hidden": true,
+    "code": "s = JobScheduler()\ns.submit(Job(\"x\", lambda: \"X\")); s.submit(Job(\"y\", lambda: \"Y\"))\nw1, w2 = Worker(s), Worker(s)\nruns = [w1.run_once(0.0), w2.run_once(0.0), w1.run_once(0.0)]\nexpect(runs, [True, True, False])\nexpect([s.get(\"x\").status, s.get(\"y\").status], [\"succeeded\", \"succeeded\"])\n"
+   },
+   {
+    "name": "large: 600 jobs with seeded random priorities",
+    "input": "600 jobs, priorities random.Random(7).randint(0, 9); pull all at t=0; order is (-priority, submit order)",
+    "hidden": true,
+    "code": "import random\nrng = random.Random(7)\ns = JobScheduler()\njobs = [(f\"j{i}\", rng.randint(0, 9)) for i in range(600)]\nfor jid, p in jobs:\n    s.submit(Job(jid, lambda: None, priority=p))\npulled = []\nwhile (j := s.pull(0.0)) is not None:\n    pulled.append(j.id)\nwant = [jid for jid, _ in sorted(jobs, key=lambda x: -x[1])]   # sorted() is stable: FIFO on ties\nexpect(pulled[:5], want[:5], \"first five pulled\")\nexpect(pulled == want, True, \"full order matches\")\n"
    }
   ],
   "hints": [
@@ -104,24 +256,76 @@
   "starter": "import re\nfrom abc import ABC, abstractmethod\nfrom dataclasses import dataclass, field\nfrom typing import Iterator\n\n\n@dataclass(frozen=True)\nclass Example:\n    id: str\n    input: str\n    expected: str\n\n\nclass Dataset:\n    def __init__(self, examples: list[Example]) -> None:\n        \"\"\"Raise ValueError on duplicate example ids.\"\"\"\n        raise NotImplementedError\n\n    @classmethod\n    def from_records(cls, records: list[dict]) -> \"Dataset\":\n        \"\"\"Build from dicts with keys id/input/expected; ValueError if a key is missing.\"\"\"\n        raise NotImplementedError\n\n    def __len__(self) -> int:\n        raise NotImplementedError\n\n    def __iter__(self) -> Iterator[Example]:\n        raise NotImplementedError\n\n\nclass ModelAdapter(ABC):\n    \"\"\"Anything that turns a prompt into text (a real API client, a fake, a judge).\"\"\"\n\n    @abstractmethod\n    def generate(self, prompt: str) -> str: ...\n\n\n# Provided: a deterministic model for tests and your main.\nclass DictModel(ModelAdapter):\n    \"\"\"Answers from a prompt -> answer dict; raises RuntimeError for prompts containing 'BOOM'.\"\"\"\n\n    def __init__(self, answers: dict[str, str]) -> None:\n        self.answers = answers\n        self.prompts: list[str] = []\n\n    def generate(self, prompt: str) -> str:\n        self.prompts.append(prompt)\n        if \"BOOM\" in prompt:\n            raise RuntimeError(\"model crashed\")\n        return self.answers.get(prompt, \"\")\n\n\n@dataclass\nclass Task:\n    name: str\n    dataset: Dataset\n    prompt_template: str = \"{input}\"\n\n    def build_prompt(self, example: Example) -> str:\n        \"\"\"Fill {input} in prompt_template with the example's input.\"\"\"\n        raise NotImplementedError\n\n\nclass Grader(ABC):\n    @abstractmethod\n    def grade(self, output: str, example: Example) -> float:\n        \"\"\"Return a score in [0, 1].\"\"\"\n\n\nclass ExactMatchGrader(Grader):\n    def grade(self, output: str, example: Example) -> float:\n        \"\"\"1.0 if equal after lower-casing and collapsing whitespace, else 0.0.\"\"\"\n        raise NotImplementedError\n\n\nclass RegexGrader(Grader):\n    def grade(self, output: str, example: Example) -> float:\n        \"\"\"Treat example.expected as a regex; 1.0 if re.search finds it (case-insensitive).\"\"\"\n        raise NotImplementedError\n\n\nclass LLMJudgeGrader(Grader):\n    def __init__(self, judge: ModelAdapter) -> None:\n        raise NotImplementedError\n\n    def grade(self, output: str, example: Example) -> float:\n        \"\"\"Send the judge a prompt containing the input, the expected answer and the output.\n        1.0 if its reply starts with PASS (case-insensitive), else 0.0.\"\"\"\n        raise NotImplementedError\n\n\n@dataclass\nclass Result:\n    example_id: str\n    output: str\n    score: float\n    error: str | None = None\n\n\n@dataclass\nclass Report:\n    task_name: str\n    results: list[Result] = field(default_factory=list)\n\n    @property\n    def accuracy(self) -> float:\n        \"\"\"Mean score (0.0 for an empty report).\"\"\"\n        raise NotImplementedError\n\n    @property\n    def n_errors(self) -> int:\n        raise NotImplementedError\n\n    def failed_ids(self) -> list[str]:\n        \"\"\"Ids with score < 1.0, in dataset order.\"\"\"\n        raise NotImplementedError\n\n\nclass Runner:\n    def __init__(self, model: ModelAdapter, grader: Grader) -> None:\n        raise NotImplementedError\n\n    def run(self, task: Task) -> Report:\n        \"\"\"Prompt -> model -> grade for every example. A model exception becomes a Result\n        with score 0.0 and error set; the run continues.\"\"\"\n        raise NotImplementedError\n",
   "tests": [
    {
-    "name": "Dataset validation",
-    "code": "ds = Dataset.from_records([{\"id\": \"a\", \"input\": \"q1\", \"expected\": \"x\"}, {\"id\": \"b\", \"input\": \"q2\", \"expected\": \"y\"}])\nassert len(ds) == 2 and [e.id for e in ds] == [\"a\", \"b\"]\nfor bad in ([{\"id\": \"a\", \"input\": \"q\"}], [{\"id\": \"a\", \"input\": \"q\", \"expected\": \"x\"}, {\"id\": \"a\", \"input\": \"r\", \"expected\": \"y\"}]):\n    try:\n        Dataset.from_records(bad)\n    except ValueError:\n        pass\n    else:\n        raise AssertionError(f\"should reject {bad}\")\n"
+    "name": "brief example: one example, exact match",
+    "input": "records = [{\"id\": \"1\", \"input\": \"2+2\", \"expected\": \"4\"}], model answers {\"2+2\": \"4\"}, ExactMatchGrader",
+    "hidden": false,
+    "code": "ds = Dataset.from_records([{\"id\": \"1\", \"input\": \"2+2\", \"expected\": \"4\"}])\nreport = Runner(DictModel({\"2+2\": \"4\"}), ExactMatchGrader()).run(Task(\"math\", ds))\nexpect(report.accuracy, 1.0, \"accuracy\")\nexpect((report.task_name, report.failed_ids(), report.n_errors), (\"math\", [], 0))\n"
+   },
+   {
+    "name": "runner end-to-end with a prompt template",
+    "input": "template \"Q: {input}\", 3 examples (2+2=4, 3+3=6, 5+5=10), model answers 5+5 with \"11\"",
+    "hidden": false,
+    "code": "ds = Dataset.from_records([\n    {\"id\": \"1\", \"input\": \"2+2\", \"expected\": \"4\"},\n    {\"id\": \"2\", \"input\": \"3+3\", \"expected\": \"6\"},\n    {\"id\": \"3\", \"input\": \"5+5\", \"expected\": \"10\"},\n])\nmodel = DictModel({\"Q: 2+2\": \"4\", \"Q: 3+3\": \"6\", \"Q: 5+5\": \"11\"})\nreport = Runner(model, ExactMatchGrader()).run(Task(\"math\", ds, prompt_template=\"Q: {input}\"))\nexpect(model.prompts, [\"Q: 2+2\", \"Q: 3+3\", \"Q: 5+5\"], \"prompts sent\")\nexpect(report.accuracy, 2 / 3, \"accuracy\")\nexpect(report.failed_ids(), [\"3\"])\n"
    },
    {
     "name": "exact and regex graders",
-    "code": "ex = Example(\"1\", \"capital of France?\", \"Paris\")\ng = ExactMatchGrader()\nassert g.grade(\"  paris \", ex) == 1.0, \"exact match should ignore case and surrounding whitespace\"\nassert g.grade(\"Paris, France\", ex) == 0.0\nassert ExactMatchGrader().grade(\"new   york\", Example(\"2\", \"q\", \"New York\")) == 1.0, \"collapse internal whitespace\"\nrx = Example(\"3\", \"year?\", r\"\\b19\\d\\d\\b\")\nassert RegexGrader().grade(\"It was 1969.\", rx) == 1.0\nassert RegexGrader().grade(\"It was 2001.\", rx) == 0.0\n"
+    "input": "exact(\"  paris \", \"Paris\"), exact(\"Paris, France\", \"Paris\"), exact(\"new   york\", \"New York\"), regex(\"It was 1969.\", r\"\\b19\\d\\d\\b\"), regex(\"It was 2001.\", ...)",
+    "hidden": false,
+    "code": "g, rx = ExactMatchGrader(), RegexGrader()\nyear = Example(\"3\", \"year?\", r\"\\b19\\d\\d\\b\")\nscores = [\n    g.grade(\"  paris \", Example(\"1\", \"q\", \"Paris\")),\n    g.grade(\"Paris, France\", Example(\"1\", \"q\", \"Paris\")),\n    g.grade(\"new   york\", Example(\"2\", \"q\", \"New York\")),\n    rx.grade(\"It was 1969.\", year),\n    rx.grade(\"It was 2001.\", year),\n]\nexpect(scores, [1.0, 0.0, 1.0, 1.0, 0.0])\n"
    },
    {
-    "name": "runner end-to-end with prompt template",
-    "code": "ds = Dataset.from_records([\n    {\"id\": \"1\", \"input\": \"2+2\", \"expected\": \"4\"},\n    {\"id\": \"2\", \"input\": \"3+3\", \"expected\": \"6\"},\n    {\"id\": \"3\", \"input\": \"5+5\", \"expected\": \"10\"},\n])\nmodel = DictModel({\"Q: 2+2\": \"4\", \"Q: 3+3\": \"6\", \"Q: 5+5\": \"11\"})\nreport = Runner(model, ExactMatchGrader()).run(Task(\"math\", ds, prompt_template=\"Q: {input}\"))\nassert model.prompts == [\"Q: 2+2\", \"Q: 3+3\", \"Q: 5+5\"], f\"template not applied: {model.prompts}\"\nassert abs(report.accuracy - 2 / 3) < 1e-9, report.accuracy\nassert report.failed_ids() == [\"3\"] and report.n_errors == 0\nassert report.task_name == \"math\"\n"
+    "name": "from_records rejects missing fields and duplicate ids",
+    "input": "records missing \"expected\"; missing \"id\"; two records with id \"a\"; Dataset([Example(a), Example(a)])",
+    "hidden": true,
+    "code": "expect_raises(ValueError, Dataset.from_records, [{\"id\": \"a\", \"input\": \"q\"}], label=\"missing expected\")\nexpect_raises(ValueError, Dataset.from_records, [{\"input\": \"q\", \"expected\": \"x\"}], label=\"missing id\")\nexpect_raises(ValueError, Dataset.from_records,\n              [{\"id\": \"a\", \"input\": \"q\", \"expected\": \"x\"}, {\"id\": \"a\", \"input\": \"r\", \"expected\": \"y\"}], label=\"duplicate id\")\nexpect_raises(ValueError, Dataset, [Example(\"a\", \"q\", \"x\"), Example(\"a\", \"r\", \"y\")], label=\"Dataset() duplicate id\")\n"
    },
    {
-    "name": "model errors are recorded, run continues",
-    "code": "ds = Dataset.from_records([\n    {\"id\": \"1\", \"input\": \"BOOM\", \"expected\": \"x\"},\n    {\"id\": \"2\", \"input\": \"ok\", \"expected\": \"fine\"},\n])\nreport = Runner(DictModel({\"ok\": \"fine\"}), ExactMatchGrader()).run(Task(\"t\", ds))\nassert len(report.results) == 2, \"runner must not stop at the first error\"\nfirst = report.results[0]\nassert first.score == 0.0 and first.error and \"model crashed\" in first.error, first\nassert report.results[1].score == 1.0 and report.n_errors == 1\nassert report.accuracy == 0.5\nassert Report(\"empty\").accuracy == 0.0\n"
+    "name": "dataset keeps record order and length",
+    "input": "records with ids \"b\", \"a\", \"c\"",
+    "hidden": true,
+    "code": "ds = Dataset.from_records([{\"id\": i, \"input\": \"q\" + i, \"expected\": i} for i in (\"b\", \"a\", \"c\")])\nexpect((len(ds), [e.id for e in ds]), (3, [\"b\", \"a\", \"c\"]))\n"
    },
    {
-    "name": "LLM judge grader",
-    "code": "class Judge(ModelAdapter):\n    def __init__(self, reply):\n        self.reply, self.seen = reply, []\n    def generate(self, prompt):\n        self.seen.append(prompt)\n        return self.reply\nex = Example(\"1\", \"Who wrote Hamlet?\", \"Shakespeare\")\nj = Judge(\"  pass - matches\")\nassert LLMJudgeGrader(j).grade(\"William Shakespeare\", ex) == 1.0\np = j.seen[0]\nassert \"Who wrote Hamlet?\" in p and \"Shakespeare\" in p and \"William Shakespeare\" in p, \"judge prompt needs input, expected and output\"\nassert LLMJudgeGrader(Judge(\"FAIL\")).grade(\"Marlowe\", ex) == 0.0\nassert LLMJudgeGrader(Judge(\"I think it's fine\")).grade(\"x\", ex) == 0.0, \"unparseable verdict must not pass\"\n"
+    "name": "model errors are recorded and the run continues",
+    "input": "inputs [\"BOOM\", \"ok\"] (DictModel raises on BOOM), expected [\"x\", \"fine\"]",
+    "hidden": true,
+    "code": "ds = Dataset.from_records([\n    {\"id\": \"1\", \"input\": \"BOOM\", \"expected\": \"x\"},\n    {\"id\": \"2\", \"input\": \"ok\", \"expected\": \"fine\"},\n])\nreport = Runner(DictModel({\"ok\": \"fine\"}), ExactMatchGrader()).run(Task(\"t\", ds))\nexpect([r.score for r in report.results], [0.0, 1.0], \"per-example scores\")\nexpect((report.n_errors, report.accuracy), (1, 0.5))\nexpect(\"model crashed\" in (report.results[0].error or \"\"), True, \"error text recorded on the result\")\n"
+   },
+   {
+    "name": "empty dataset and empty report",
+    "input": "Report('empty'); Runner over Dataset([])",
+    "hidden": true,
+    "code": "expect(Report(\"empty\").accuracy, 0.0, \"empty report accuracy\")\nreport = Runner(DictModel({}), ExactMatchGrader()).run(Task(\"none\", Dataset([])))\nexpect((report.accuracy, report.failed_ids(), report.n_errors), (0.0, [], 0))\n"
+   },
+   {
+    "name": "LLM judge: PASS prefix scores 1, anything else 0",
+    "input": "judge replies \"  pass - matches\", \"FAIL\", \"I think it's fine\", \"FAIL - not PASS\"",
+    "hidden": true,
+    "code": "class Judge(ModelAdapter):\n    def __init__(self, reply):\n        self.reply, self.seen = reply, []\n    def generate(self, prompt):\n        self.seen.append(prompt)\n        return self.reply\nex = Example(\"1\", \"Who wrote Hamlet?\", \"Shakespeare\")\nscores = [LLMJudgeGrader(Judge(r)).grade(\"William Shakespeare\", ex)\n          for r in (\"  pass - matches\", \"FAIL\", \"I think it's fine\", \"FAIL - not PASS\")]\nexpect(scores, [1.0, 0.0, 0.0, 0.0], \"an unparseable verdict never passes\")\n"
+   },
+   {
+    "name": "LLM judge prompt contains input, expected and output",
+    "input": "example(\"Who wrote Hamlet?\", \"Shakespeare\"), output \"Will S.\"; inspect the one judge prompt",
+    "hidden": true,
+    "code": "class Judge(ModelAdapter):\n    def __init__(self):\n        self.seen = []\n    def generate(self, prompt):\n        self.seen.append(prompt)\n        return \"PASS\"\nj = Judge()\nLLMJudgeGrader(j).grade(\"Will S.\", Example(\"1\", \"Who wrote Hamlet?\", \"Shakespeare\"))\np = j.seen[0] if j.seen else \"\"\nexpect([len(j.seen), \"Who wrote Hamlet?\" in p, \"Shakespeare\" in p, \"Will S.\" in p], [1, True, True, True])\n"
+   },
+   {
+    "name": "grader swap: same outputs, different strategy",
+    "input": "model says \"The answer is 4\", expected \"4\"; ExactMatchGrader vs RegexGrader",
+    "hidden": true,
+    "code": "ds = Dataset.from_records([{\"id\": \"1\", \"input\": \"2+2\", \"expected\": \"4\"}])\nmodel = DictModel({\"2+2\": \"The answer is 4\"})\nacc = {name: Runner(model, g).run(Task(\"t\", ds)).accuracy\n       for name, g in ((\"exact\", ExactMatchGrader()), (\"regex\", RegexGrader()))}\nexpect(acc, {\"exact\": 0.0, \"regex\": 1.0})\n"
+   },
+   {
+    "name": "failed_ids keep dataset order (wrong answers and errors)",
+    "input": "ids z, a, m; z answered wrong, a right, m crashes (BOOM)",
+    "hidden": true,
+    "code": "ds = Dataset.from_records([\n    {\"id\": \"z\", \"input\": \"q1\", \"expected\": \"yes\"},\n    {\"id\": \"a\", \"input\": \"q2\", \"expected\": \"yes\"},\n    {\"id\": \"m\", \"input\": \"BOOM q3\", \"expected\": \"yes\"},\n])\nreport = Runner(DictModel({\"q1\": \"no\", \"q2\": \"YES\"}), ExactMatchGrader()).run(Task(\"t\", ds))\nexpect(report.failed_ids(), [\"z\", \"m\"])\n"
+   },
+   {
+    "name": "case-insensitive regex and unicode exact match",
+    "input": "regex(\"PARIS!\", \"paris\"), exact(\"CAFÉ\", \"café\"), regex(\"nothing\", \"^$\")",
+    "hidden": true,
+    "code": "scores = [\n    RegexGrader().grade(\"PARIS!\", Example(\"1\", \"q\", \"paris\")),\n    ExactMatchGrader().grade(\"CAFÉ\", Example(\"2\", \"q\", \"café\")),\n    RegexGrader().grade(\"nothing\", Example(\"3\", \"q\", \"^$\")),\n]\nexpect(scores, [1.0, 1.0, 0.0])\n"
    }
   ],
   "hints": [
@@ -136,24 +340,76 @@
   "starter": "# Provided: fake vendor SDKs with deliberately different shapes.\nclass FakeOpenAIClient:\n    def __init__(self, reply: str = \"hello from openai\", fail: bool = False) -> None:\n        self.reply, self.fail, self.calls = reply, fail, 0\n\n    def chat_completions_create(self, model: str, messages: list[dict]) -> dict:\n        self.calls += 1\n        if self.fail:\n            raise ConnectionError(\"openai unavailable\")\n        prompt = messages[-1][\"content\"]\n        return {\n            \"choices\": [{\"message\": {\"role\": \"assistant\", \"content\": self.reply}}],\n            \"usage\": {\"prompt_tokens\": len(prompt.split()), \"completion_tokens\": len(self.reply.split())},\n        }\n\n\nclass FakeAnthropicClient:\n    def __init__(self, reply: str = \"hello from anthropic\", fail: bool = False) -> None:\n        self.reply, self.fail, self.calls = reply, fail, 0\n\n    def messages_create(self, model: str, max_tokens: int, messages: list[dict]) -> dict:\n        self.calls += 1\n        if self.fail:\n            raise TimeoutError(\"anthropic timed out\")\n        prompt = messages[-1][\"content\"]\n        return {\n            \"content\": [{\"type\": \"text\", \"text\": self.reply}],\n            \"usage\": {\"input_tokens\": len(prompt.split()), \"output_tokens\": len(self.reply.split())},\n        }\n\n\n# Provided: USD per 1K tokens as (input, output).\nPRICES: dict[str, tuple[float, float]] = {\n    \"gpt-small\": (0.5, 1.5),\n    \"claude-small\": (1.0, 5.0),\n}\n\n\nfrom abc import ABC, abstractmethod\nfrom dataclasses import dataclass\n\n\n@dataclass(frozen=True)\nclass ProviderResponse:\n    \"\"\"The one shape every adapter returns.\"\"\"\n    text: str\n    input_tokens: int\n    output_tokens: int\n\n\nclass LLMProvider(ABC):\n    name: str = \"provider\"\n\n    @abstractmethod\n    def complete(self, prompt: str, model: str) -> ProviderResponse: ...\n\n\nclass OpenAIAdapter(LLMProvider):\n    name = \"openai\"\n\n    def __init__(self, client: FakeOpenAIClient) -> None:\n        raise NotImplementedError\n\n    def complete(self, prompt: str, model: str) -> ProviderResponse:\n        \"\"\"Call client.chat_completions_create and map its dict to ProviderResponse.\"\"\"\n        raise NotImplementedError\n\n\nclass AnthropicAdapter(LLMProvider):\n    name = \"anthropic\"\n\n    def __init__(self, client: FakeAnthropicClient, max_tokens: int = 1024) -> None:\n        raise NotImplementedError\n\n    def complete(self, prompt: str, model: str) -> ProviderResponse:\n        \"\"\"Call client.messages_create and map its dict (join text blocks) to ProviderResponse.\"\"\"\n        raise NotImplementedError\n\n\n@dataclass(frozen=True)\nclass Route:\n    provider: LLMProvider\n    model: str\n\n\n@dataclass(frozen=True)\nclass Completion:\n    text: str\n    provider: str      # provider.name\n    model: str\n    input_tokens: int\n    output_tokens: int\n    cost_usd: float\n\n\nclass AllProvidersFailed(Exception):\n    def __init__(self, errors: list[str]) -> None:\n        \"\"\"errors: one message per failed route, in the order tried.\"\"\"\n        super().__init__(\"all providers failed: \" + \"; \".join(errors))\n        self.errors = errors\n\n\nclass LLMGateway:\n    def __init__(self, routes: list[Route], prices: dict[str, tuple[float, float]]) -> None:\n        \"\"\"routes are tried in order. Raise ValueError if routes is empty or a\n        route's model has no price.\"\"\"\n        raise NotImplementedError\n\n    def complete(self, prompt: str) -> Completion:\n        \"\"\"Try each route; on exception fall back to the next. Record successful\n        completions (with cost) in self.ledger. Raise AllProvidersFailed if none succeed.\"\"\"\n        raise NotImplementedError\n\n    def total_cost(self) -> float:\n        raise NotImplementedError\n",
   "tests": [
    {
+    "name": "brief example: falls back when the primary fails",
+    "input": "routes = [openai(fail=True)/gpt-small, anthropic/claude-small]; complete(\"say hi please\")",
+    "hidden": false,
+    "code": "oa, an = FakeOpenAIClient(fail=True), FakeAnthropicClient()\ngw = LLMGateway([Route(OpenAIAdapter(oa), \"gpt-small\"), Route(AnthropicAdapter(an), \"claude-small\")], PRICES)\nc = gw.complete(\"say hi please\")\nexpect((c.provider, c.model, c.text), (\"anthropic\", \"claude-small\", \"hello from anthropic\"))\nexpect((oa.calls, an.calls, len(gw.ledger)), (1, 1, 1), \"calls per vendor, ledger size\")\n"
+   },
+   {
+    "name": "primary route succeeds with the right cost",
+    "input": "routes = [openai(reply=\"hello there friend\")/gpt-small, anthropic/claude-small]; complete(\"say hi please\")",
+    "hidden": false,
+    "code": "oa, an = FakeOpenAIClient(reply=\"hello there friend\"), FakeAnthropicClient()\ngw = LLMGateway([Route(OpenAIAdapter(oa), \"gpt-small\"), Route(AnthropicAdapter(an), \"claude-small\")], PRICES)\nc = gw.complete(\"say hi please\")\nexpect((c.text, c.provider, c.model, c.input_tokens, c.output_tokens),\n       (\"hello there friend\", \"openai\", \"gpt-small\", 3, 3))\nexpect(c.cost_usd, 3 / 1000 * 0.5 + 3 / 1000 * 1.5, \"cost_usd\")\n"
+   },
+   {
     "name": "adapters normalise vendor responses",
-    "code": "o = OpenAIAdapter(FakeOpenAIClient(reply=\"four words right here\")).complete(\"one two\", \"gpt-small\")\nassert o == ProviderResponse(\"four words right here\", 2, 4), o\na = AnthropicAdapter(FakeAnthropicClient(reply=\"hi\")).complete(\"a b c\", \"claude-small\")\nassert a == ProviderResponse(\"hi\", 3, 1), a\nassert isinstance(OpenAIAdapter(FakeOpenAIClient()), LLMProvider)\n"
+    "input": "OpenAIAdapter(reply=\"four words right here\").complete(\"one two\"); AnthropicAdapter(reply=\"hi\").complete(\"a b c\")",
+    "hidden": false,
+    "code": "o = OpenAIAdapter(FakeOpenAIClient(reply=\"four words right here\")).complete(\"one two\", \"gpt-small\")\na = AnthropicAdapter(FakeAnthropicClient(reply=\"hi\")).complete(\"a b c\", \"claude-small\")\nexpect([o, a], [ProviderResponse(\"four words right here\", 2, 4), ProviderResponse(\"hi\", 3, 1)])\n"
    },
    {
-    "name": "primary route succeeds with correct cost",
-    "code": "import math\noa, an = FakeOpenAIClient(reply=\"hello there friend\"), FakeAnthropicClient()\ngw = LLMGateway([Route(OpenAIAdapter(oa), \"gpt-small\"), Route(AnthropicAdapter(an), \"claude-small\")], PRICES)\nc = gw.complete(\"say hi please\")\nassert (c.text, c.provider, c.model) == (\"hello there friend\", \"openai\", \"gpt-small\"), c\nassert (c.input_tokens, c.output_tokens) == (3, 3)\nassert math.isclose(c.cost_usd, 3 / 1000 * 0.5 + 3 / 1000 * 1.5), c.cost_usd\nassert an.calls == 0, \"fallback provider must not be called after a success\"\nassert gw.ledger == [c]\n"
+    "name": "later routes are not called after a success",
+    "input": "routes = [openai/gpt-small, anthropic/claude-small]; complete ×2",
+    "hidden": true,
+    "code": "oa, an = FakeOpenAIClient(), FakeAnthropicClient()\ngw = LLMGateway([Route(OpenAIAdapter(oa), \"gpt-small\"), Route(AnthropicAdapter(an), \"claude-small\")], PRICES)\ngw.complete(\"x\"); gw.complete(\"y\")\nexpect((oa.calls, an.calls, [c.provider for c in gw.ledger]), (2, 0, [\"openai\", \"openai\"]))\n"
    },
    {
-    "name": "falls back when the primary fails",
-    "code": "import math\noa, an = FakeOpenAIClient(fail=True), FakeAnthropicClient(reply=\"backup ok\")\ngw = LLMGateway([Route(OpenAIAdapter(oa), \"gpt-small\"), Route(AnthropicAdapter(an), \"claude-small\")], PRICES)\nc = gw.complete(\"x y\")\nassert c.provider == \"anthropic\" and c.text == \"backup ok\", c\nassert oa.calls == 1 and an.calls == 1\nassert math.isclose(c.cost_usd, 2 / 1000 * 1.0 + 2 / 1000 * 5.0)\nassert len(gw.ledger) == 1, \"only successful calls go in the ledger\"\n"
+    "name": "every route fails: AllProvidersFailed, nothing in the ledger",
+    "input": "routes = [openai(fail)/gpt-small, anthropic(fail)/claude-small]; complete('hi')",
+    "hidden": true,
+    "code": "gw = LLMGateway([Route(OpenAIAdapter(FakeOpenAIClient(fail=True)), \"gpt-small\"),\n                 Route(AnthropicAdapter(FakeAnthropicClient(fail=True)), \"claude-small\")], PRICES)\nerr = expect_raises(AllProvidersFailed, gw.complete, \"hi\")\nerrors = getattr(err, \"errors\", [])\nexpect([len(errors), \"openai\" in errors[0], \"anthropic\" in errors[1]], [2, True, True], \"one error per route, in order\")\nexpect((gw.ledger, gw.total_cost()), ([], 0))\n"
    },
    {
-    "name": "all routes failing raises AllProvidersFailed",
-    "code": "gw = LLMGateway([Route(OpenAIAdapter(FakeOpenAIClient(fail=True)), \"gpt-small\"),\n                 Route(AnthropicAdapter(FakeAnthropicClient(fail=True)), \"claude-small\")], PRICES)\ntry:\n    gw.complete(\"hi\")\nexcept AllProvidersFailed as e:\n    assert len(e.errors) == 2, e.errors\n    assert \"openai\" in e.errors[0] and \"anthropic\" in e.errors[1], e.errors\nelse:\n    raise AssertionError(\"expected AllProvidersFailed\")\nassert gw.ledger == [] and gw.total_cost() == 0\n"
+    "name": "three failing routes, same vendor twice",
+    "input": "routes = [openai(fail)/gpt-small, anthropic(fail)/claude-small, openai(fail)/gpt-small]",
+    "hidden": true,
+    "code": "gw = LLMGateway([Route(OpenAIAdapter(FakeOpenAIClient(fail=True)), \"gpt-small\"),\n                 Route(AnthropicAdapter(FakeAnthropicClient(fail=True)), \"claude-small\"),\n                 Route(OpenAIAdapter(FakeOpenAIClient(fail=True)), \"gpt-small\")], PRICES)\nerr = expect_raises(AllProvidersFailed, gw.complete, \"hi\")\nexpect([v in e for v, e in zip((\"openai\", \"anthropic\", \"openai\"), err.errors)] + [len(err.errors)], [True, True, True, 3])\n"
    },
    {
-    "name": "total cost and constructor validation",
-    "code": "import math\ngw = LLMGateway([Route(OpenAIAdapter(FakeOpenAIClient(reply=\"ok\")), \"gpt-small\")], PRICES)\ngw.complete(\"a\"); gw.complete(\"a b\")\nassert math.isclose(gw.total_cost(), sum(c.cost_usd for c in gw.ledger)) and len(gw.ledger) == 2\nfor bad in (lambda: LLMGateway([], PRICES), lambda: LLMGateway([Route(OpenAIAdapter(FakeOpenAIClient()), \"mystery\")], PRICES)):\n    try:\n        bad()\n    except ValueError:\n        pass\n    else:\n        raise AssertionError(\"empty routes or unpriced model should raise ValueError\")\n"
+    "name": "constructor validation fails at startup",
+    "input": "LLMGateway([], PRICES); LLMGateway([Route(openai, 'mystery')], PRICES)",
+    "hidden": true,
+    "code": "expect_raises(ValueError, LLMGateway, [], PRICES, label=\"no routes\")\nexpect_raises(ValueError, LLMGateway, [Route(OpenAIAdapter(FakeOpenAIClient()), \"mystery\")], PRICES, label=\"unpriced model\")\n"
+   },
+   {
+    "name": "total_cost sums the ledger",
+    "input": "openai(reply=\"ok\")/gpt-small; complete(\"a\") → complete(\"a b\") → total_cost()",
+    "hidden": true,
+    "code": "gw = LLMGateway([Route(OpenAIAdapter(FakeOpenAIClient(reply=\"ok\")), \"gpt-small\")], PRICES)\ngw.complete(\"a\"); gw.complete(\"a b\")\nexpect([round(c.cost_usd, 6) for c in gw.ledger], [0.002, 0.0025], \"per-request cost\")\nexpect(gw.total_cost(), 0.0045, \"total\")\n"
+   },
+   {
+    "name": "cheap model fails, strong model on the same vendor answers",
+    "input": "prices {gpt-small: (0.5,1.5), gpt-big: (2,6)}; routes [openai(fail)/gpt-small, openai(\"big brain\")/gpt-big]; complete(\"one two three four\")",
+    "hidden": true,
+    "code": "prices = {\"gpt-small\": (0.5, 1.5), \"gpt-big\": (2.0, 6.0)}\ngw = LLMGateway([Route(OpenAIAdapter(FakeOpenAIClient(fail=True)), \"gpt-small\"),\n                 Route(OpenAIAdapter(FakeOpenAIClient(reply=\"big brain\")), \"gpt-big\")], prices)\nc = gw.complete(\"one two three four\")\nexpect((c.provider, c.model, c.text), (\"openai\", \"gpt-big\", \"big brain\"))\nexpect(c.cost_usd, 4 / 1000 * 2.0 + 2 / 1000 * 6.0, \"priced with the model that answered\")\n"
+   },
+   {
+    "name": "Anthropic text is the join of text blocks; max_tokens is passed",
+    "input": "content blocks [text \"Hel\", tool_use, text \"lo\"]; AnthropicAdapter(client, max_tokens=256)",
+    "hidden": true,
+    "code": "class MultiBlock(FakeAnthropicClient):\n    def messages_create(self, model, max_tokens, messages):\n        self.calls += 1\n        self.max_tokens_seen = max_tokens\n        return {\"content\": [{\"type\": \"text\", \"text\": \"Hel\"}, {\"type\": \"tool_use\", \"name\": \"x\", \"input\": {}},\n                            {\"type\": \"text\", \"text\": \"lo\"}],\n                \"usage\": {\"input_tokens\": 7, \"output_tokens\": 2}}\nclient = MultiBlock()\nr = AnthropicAdapter(client, max_tokens=256).complete(\"hi\", \"claude-small\")\nexpect(r, ProviderResponse(\"Hello\", 7, 2))\nexpect(getattr(client, \"max_tokens_seen\", None), 256, \"max_tokens forwarded\")\n"
+   },
+   {
+    "name": "any exception falls through; custom providers plug in",
+    "input": "routes [Broken (raises KeyError)/gpt-small, Local (name=\"local\")/gpt-small]; complete(\"a b\")",
+    "hidden": true,
+    "code": "class Broken(LLMProvider):\n    name = \"broken\"\n    def complete(self, prompt, model):\n        raise KeyError(\"no such deployment\")\nclass Local(LLMProvider):\n    name = \"local\"\n    def complete(self, prompt, model):\n        return ProviderResponse(prompt.upper(), 2, 1)\ngw = LLMGateway([Route(Broken(), \"gpt-small\"), Route(Local(), \"gpt-small\")], PRICES)\nc = gw.complete(\"a b\")\nexpect((c.provider, c.text, len(gw.ledger)), (\"local\", \"A B\", 1))\n"
+   },
+   {
+    "name": "empty prompt and empty reply cost nothing",
+    "input": "openai(reply=\"\")/gpt-small; complete(\"\")",
+    "hidden": true,
+    "code": "gw = LLMGateway([Route(OpenAIAdapter(FakeOpenAIClient(reply=\"\")), \"gpt-small\")], PRICES)\nc = gw.complete(\"\")\nexpect((c.text, c.input_tokens, c.output_tokens, c.cost_usd), (\"\", 0, 0, 0.0))\n"
    }
   ],
   "hints": [
@@ -168,24 +424,76 @@
   "starter": "import string\nfrom dataclasses import dataclass\n\n\nclass PromptInputError(ValueError):\n    \"\"\"Variables passed to render() do not match the template.\"\"\"\n\n\n@dataclass(frozen=True)\nclass PromptTemplate:\n    name: str\n    version: int\n    text: str\n\n    @property\n    def variables(self) -> set[str]:\n        \"\"\"Names of the {placeholders} in text ({{ and }} are literal braces).\"\"\"\n        raise NotImplementedError\n\n\n@dataclass(frozen=True)\nclass RenderedPrompt:\n    text: str\n    name: str\n    version: int\n\n\nclass PromptRegistry:\n    def __init__(self) -> None:\n        raise NotImplementedError\n\n    def register(self, name: str, text: str) -> PromptTemplate:\n        \"\"\"Store a new version (1, 2, ...). Re-registering the latest text unchanged returns\n        the existing version. Raise ValueError for malformed templates or positional {}.\"\"\"\n        raise NotImplementedError\n\n    def get(self, name: str, version: int | None = None) -> PromptTemplate:\n        \"\"\"Latest version if version is None. KeyError for unknown name or version.\"\"\"\n        raise NotImplementedError\n\n    def versions(self, name: str) -> list[int]:\n        raise NotImplementedError\n\n    def render(self, name: str, variables: dict[str, object], version: int | None = None) -> RenderedPrompt:\n        \"\"\"Fill the template. Raise PromptInputError naming any missing or unexpected variables.\"\"\"\n        raise NotImplementedError\n",
   "tests": [
    {
-    "name": "versions increase and get returns latest or specific",
-    "code": "reg = PromptRegistry()\nt1 = reg.register(\"greet\", \"Hi {name}!\")\nt2 = reg.register(\"greet\", \"Hello {name} from {team}.\")\nassert (t1.version, t2.version) == (1, 2)\nassert reg.get(\"greet\") == t2 and reg.get(\"greet\", 1) == t1\nassert reg.versions(\"greet\") == [1, 2]\nassert t2.variables == {\"name\", \"team\"}, t2.variables\nother = reg.register(\"other\", \"x\")\nassert other.version == 1, \"versions are per name\"\n"
+    "name": "brief example: render uses the latest version",
+    "input": "register(greet, \"Hi {name}!\") → register(greet, \"Hello {name}, welcome to {product}.\") → render(greet, {name: Ana, product: Acme})",
+    "hidden": false,
+    "code": "reg = PromptRegistry()\nreg.register(\"greet\", \"Hi {name}!\")\nreg.register(\"greet\", \"Hello {name}, welcome to {product}.\")\nexpect(reg.render(\"greet\", {\"name\": \"Ana\", \"product\": \"Acme\"}),\n       RenderedPrompt(\"Hello Ana, welcome to Acme.\", \"greet\", 2))\n"
    },
    {
-    "name": "render fills variables and records the version",
-    "code": "reg = PromptRegistry()\nreg.register(\"greet\", \"Hi {name}!\")\nreg.register(\"greet\", \"Hello {name}, welcome to {product}.\")\nr = reg.render(\"greet\", {\"name\": \"Ana\", \"product\": \"Acme\"})\nassert r == RenderedPrompt(\"Hello Ana, welcome to Acme.\", \"greet\", 2), r\nold = reg.render(\"greet\", {\"name\": \"Bo\"}, version=1)\nassert old.text == \"Hi Bo!\" and old.version == 1\n"
+    "name": "versions increase per name; get latest or a specific one",
+    "input": "register(greet) ×2 with different text → versions(greet) → get(greet).version → get(greet, 1).text → register(other)",
+    "hidden": false,
+    "code": "reg = PromptRegistry()\nt1 = reg.register(\"greet\", \"Hi {name}!\")\nt2 = reg.register(\"greet\", \"Hello {name} from {team}.\")\nother = reg.register(\"other\", \"x\")\nexpect([t1.version, t2.version, other.version], [1, 2, 1], \"versions start at 1 per name\")\nexpect((reg.versions(\"greet\"), reg.get(\"greet\") == t2, reg.get(\"greet\", 1).text), ([1, 2], True, \"Hi {name}!\"))\nexpect(t2.variables, {\"name\", \"team\"}, \"variables\")\n"
    },
    {
-    "name": "missing and unexpected variables raise PromptInputError",
-    "code": "reg = PromptRegistry()\nreg.register(\"q\", \"Answer {question} using {context}.\")\ntry:\n    reg.render(\"q\", {\"question\": \"why?\"})\nexcept PromptInputError as e:\n    assert \"context\" in str(e), f\"error should name the missing variable: {e}\"\n    assert isinstance(e, ValueError)\nelse:\n    raise AssertionError(\"missing variable should raise\")\ntry:\n    reg.render(\"q\", {\"question\": \"a\", \"context\": \"b\", \"tone\": \"c\"})\nexcept PromptInputError as e:\n    assert \"tone\" in str(e), f\"error should name the unexpected variable: {e}\"\nelse:\n    raise AssertionError(\"unexpected variable should raise\")\n"
+    "name": "missing variable raises PromptInputError",
+    "input": "register(q, \"Answer {question} using {context}.\") → render(q, {question: \"why?\"})",
+    "hidden": false,
+    "code": "reg = PromptRegistry()\nreg.register(\"q\", \"Answer {question} using {context}.\")\nerr = expect_raises(PromptInputError, reg.render, \"q\", {\"question\": \"why?\"})\nexpect((\"context\" in str(err), isinstance(err, ValueError)), (True, True), \"names the missing variable; is a ValueError\")\n"
    },
    {
-    "name": "unknown names/versions and bad templates",
-    "code": "reg = PromptRegistry()\nreg.register(\"a\", \"x {y}\")\nfor call in (lambda: reg.get(\"nope\"), lambda: reg.get(\"a\", 2), lambda: reg.render(\"nope\", {})):\n    try:\n        call()\n    except KeyError:\n        pass\n    else:\n        raise AssertionError(\"unknown template or version should raise KeyError\")\nfor bad in (\"Hello {\", \"pos {}\", \"idx {0}\"):\n    try:\n        reg.register(\"bad\", bad)\n    except ValueError:\n        pass\n    else:\n        raise AssertionError(f\"register should reject {bad!r}\")\n"
+    "name": "unexpected variable raises PromptInputError",
+    "input": "render(q, {question, context, tone})",
+    "hidden": true,
+    "code": "reg = PromptRegistry()\nreg.register(\"q\", \"Answer {question} using {context}.\")\nerr = expect_raises(PromptInputError, reg.render, \"q\", {\"question\": \"a\", \"context\": \"b\", \"tone\": \"c\"})\nexpect(\"tone\" in str(err), True, \"error names the unexpected variable\")\n"
    },
    {
-    "name": "literal braces and idempotent re-register",
-    "code": "reg = PromptRegistry()\nt = reg.register(\"json\", 'Return {{\"answer\": \"{answer}\"}}')\nassert t.variables == {\"answer\"}, t.variables\nassert reg.render(\"json\", {\"answer\": \"42\"}).text == 'Return {\"answer\": \"42\"}'\nagain = reg.register(\"json\", 'Return {{\"answer\": \"{answer}\"}}')\nassert again.version == 1 and reg.versions(\"json\") == [1], \"same text should not create a new version\"\n"
+    "name": "missing and unexpected together are both reported",
+    "input": "register(q, \"{alpha} {beta}\") → render(q, {alpha, gamma})",
+    "hidden": true,
+    "code": "reg = PromptRegistry()\nreg.register(\"q\", \"{alpha} {beta}\")\nerr = expect_raises(PromptInputError, reg.render, \"q\", {\"alpha\": 1, \"gamma\": 2})\nmsg = str(err)\nexpect((\"beta\" in msg, \"gamma\" in msg), (True, True), \"both names appear in the error\")\n"
+   },
+   {
+    "name": "old versions stay renderable (version rollback)",
+    "input": "register v1 \"Hi {name}!\", v2 \"Yo {name} {x}\" → render(greet, {name: Bo}, version=1)",
+    "hidden": true,
+    "code": "reg = PromptRegistry()\nreg.register(\"greet\", \"Hi {name}!\")\nreg.register(\"greet\", \"Yo {name} {x}\")\nr = reg.render(\"greet\", {\"name\": \"Bo\"}, version=1)\nexpect((r.text, r.version), (\"Hi Bo!\", 1))\n"
+   },
+   {
+    "name": "unknown names and versions raise KeyError",
+    "input": "register(a, \"x {y}\") → get(nope), get(a, 2), get(a, 0), render(nope, {}), render(a, {y:1}, version=5)",
+    "hidden": true,
+    "code": "reg = PromptRegistry()\nreg.register(\"a\", \"x {y}\")\nexpect_raises(KeyError, reg.get, \"nope\", label=\"unknown name\")\nexpect_raises(KeyError, reg.get, \"a\", 2, label=\"version too high\")\nexpect_raises(KeyError, reg.get, \"a\", 0, label=\"version 0\")\nexpect_raises(KeyError, reg.render, \"nope\", {}, label=\"render unknown name\")\nexpect_raises(KeyError, reg.render, \"a\", {\"y\": 1}, version=5, label=\"render unknown version\")\n"
+   },
+   {
+    "name": "malformed and positional templates are rejected at register",
+    "input": "register(bad, \"Hello {\"), \"pos {}\", \"idx {0}\", \"x }\" ; then versions(a) after a failed register",
+    "hidden": true,
+    "code": "reg = PromptRegistry()\nreg.register(\"a\", \"ok {v}\")\nfor bad in (\"Hello {\", \"pos {}\", \"idx {0}\", \"x }\"):\n    expect_raises(ValueError, reg.register, \"a\", bad, label=repr(bad))\nexpect(reg.versions(\"a\"), [1], \"failed registers must not add versions\")\n"
+   },
+   {
+    "name": "literal braces stay literal",
+    "input": "register(json, 'Return {{\"answer\": \"{answer}\"}}') → variables → render({answer: \"42\"})",
+    "hidden": true,
+    "code": "reg = PromptRegistry()\nt = reg.register(\"json\", 'Return {{\"answer\": \"{answer}\"}}')\nexpect(t.variables, {\"answer\"}, \"variables\")\nexpect(reg.render(\"json\", {\"answer\": \"42\"}).text, 'Return {\"answer\": \"42\"}')\n"
+   },
+   {
+    "name": "re-registering the latest text is idempotent; older text makes a new version",
+    "input": "register(p, A) → register(p, A) → register(p, B) → register(p, A)",
+    "hidden": true,
+    "code": "reg = PromptRegistry()\nv = [reg.register(\"p\", \"A {x}\").version, reg.register(\"p\", \"A {x}\").version,\n     reg.register(\"p\", \"B {x}\").version, reg.register(\"p\", \"A {x}\").version]\nexpect(v, [1, 1, 2, 3])\nexpect(reg.versions(\"p\"), [1, 2, 3])\n"
+   },
+   {
+    "name": "no-variable and repeated-placeholder templates",
+    "input": "register(s, \"static\") → render(s, {}) → render(s, {x:1}); register(r, \"{x} and {x}\") → render(r, {x: \"y\"})",
+    "hidden": true,
+    "code": "reg = PromptRegistry()\nreg.register(\"s\", \"static\")\nreg.register(\"r\", \"{x} and {x}\")\nexpect([reg.render(\"s\", {}).text, reg.render(\"r\", {\"x\": \"y\"}).text], [\"static\", \"y and y\"])\nexpect(reg.get(\"r\").variables, {\"x\"})\nexpect_raises(PromptInputError, reg.render, \"s\", {\"x\": 1}, label=\"extra variable on a static template\")\n"
+   },
+   {
+    "name": "templates are immutable",
+    "input": "register(t, \"Hi {n}\") → t.text = \"hacked\" → render(t, {n: \"A\"})",
+    "hidden": true,
+    "code": "reg = PromptRegistry()\nt = reg.register(\"t\", \"Hi {n}\")\nexpect_raises(AttributeError, setattr, t, \"text\", \"hacked\", label=\"frozen dataclass\")\nexpect(reg.render(\"t\", {\"n\": \"A\"}).text, \"Hi A\")\n"
    }
   ],
   "hints": [
@@ -200,28 +508,76 @@
   "starter": "from dataclasses import dataclass\nfrom typing import Callable\n\n\n@dataclass(frozen=True)\nclass Message:\n    role: str      # \"system\" | \"user\" | \"assistant\"\n    content: str\n\n\n# Provided: a crude tokenizer stand-in (words + 1 token of per-message overhead).\ndef count_tokens(message: Message) -> int:\n    return len(message.content.split()) + 1\n\n\nclass ConversationMemory:\n    \"\"\"Keeps the full chat log, and serves the newest contiguous window that fits a token budget.\"\"\"\n\n    def __init__(self, max_tokens: int, system_prompt: str | None = None,\n                 counter: Callable[[Message], int] = count_tokens) -> None:\n        \"\"\"ValueError if max_tokens <= 0 or the system prompt alone exceeds it.\"\"\"\n        raise NotImplementedError\n\n    def add(self, role: str, content: str) -> Message:\n        \"\"\"Append a \"user\"/\"assistant\" message (ValueError for other roles, or for a message\n        that cannot fit even alone next to the system prompt).\"\"\"\n        raise NotImplementedError\n\n    def context(self) -> list[Message]:\n        \"\"\"System message first (if any), then the newest messages that fit, oldest-first.\"\"\"\n        raise NotImplementedError\n\n    def context_tokens(self) -> int:\n        \"\"\"Tokens used by context().\"\"\"\n        raise NotImplementedError\n\n    @property\n    def history(self) -> list[Message]:\n        \"\"\"Full, untrimmed log (a copy).\"\"\"\n        raise NotImplementedError\n",
   "tests": [
    {
+    "name": "brief example: system prompt + newest messages that fit",
+    "input": "max_tokens=10, system=\"be brief\"; add user \"hi there\", \"hello you\", \"how are\", \"fine thanks\"",
+    "hidden": false,
+    "code": "mem = ConversationMemory(max_tokens=10, system_prompt=\"be brief\")\nfor text in [\"hi there\", \"hello you\", \"how are\", \"fine thanks\"]:\n    mem.add(\"user\", text)\nexpect([m.content for m in mem.context()], [\"be brief\", \"how are\", \"fine thanks\"])\n"
+   },
+   {
     "name": "everything fits: context equals history",
-    "code": "mem = ConversationMemory(max_tokens=100)\nmem.add(\"user\", \"hello\"); mem.add(\"assistant\", \"hi, how can I help\")\nctx = mem.context()\nassert ctx == mem.history and [m.role for m in ctx] == [\"user\", \"assistant\"]\nassert mem.context_tokens() == 2 + 6\n"
+    "input": "max_tokens=100; add(user, \"hello\") → add(assistant, \"hi, how can I help\")",
+    "hidden": false,
+    "code": "mem = ConversationMemory(max_tokens=100)\nmem.add(\"user\", \"hello\"); mem.add(\"assistant\", \"hi, how can I help\")\nexpect([(m.role, m.content) for m in mem.context()], [(\"user\", \"hello\"), (\"assistant\", \"hi, how can I help\")])\nexpect(mem.context_tokens(), 8, \"2 + 6 tokens\")\n"
    },
    {
-    "name": "sliding window drops the oldest, history keeps all",
-    "code": "mem = ConversationMemory(max_tokens=10)\nfor text in [\"one a\", \"two b\", \"three c\", \"four d\"]:   # 3 tokens each\n    mem.add(\"user\", text)\nassert [m.content for m in mem.context()] == [\"two b\", \"three c\", \"four d\"], [m.content for m in mem.context()]\nassert mem.context_tokens() <= 10\nassert len(mem.history) == 4, \"trimming must not delete history\"\n"
+    "name": "sliding window drops the oldest; history keeps all",
+    "input": "max_tokens=10; add user \"one a\", \"two b\", \"three c\", \"four d\" (3 tokens each)",
+    "hidden": false,
+    "code": "mem = ConversationMemory(max_tokens=10)\nfor text in [\"one a\", \"two b\", \"three c\", \"four d\"]:\n    mem.add(\"user\", text)\nexpect([m.content for m in mem.context()], [\"two b\", \"three c\", \"four d\"])\nexpect((mem.context_tokens(), len(mem.history)), (9, 4), \"tokens used, history length\")\n"
    },
    {
-    "name": "window is contiguous (no skipping a big message)",
-    "code": "mem = ConversationMemory(max_tokens=10)\nmem.add(\"user\", \"x\")                         # 2 tokens\nmem.add(\"assistant\", \"a b c d e\")            # 6 tokens\nmem.add(\"user\", \"p q\"); mem.add(\"assistant\", \"r s\")   # 3 + 3\nctx = [m.content for m in mem.context()]\nassert ctx == [\"p q\", \"r s\"], f\"must stop at the first message that does not fit, got {ctx}\"\n"
+    "name": "window is contiguous: stop at the first misfit",
+    "input": "max_tokens=10; add \"x\" (2), \"a b c d e\" (6), \"p q\" (3), \"r s\" (3)",
+    "hidden": true,
+    "code": "mem = ConversationMemory(max_tokens=10)\nmem.add(\"user\", \"x\"); mem.add(\"assistant\", \"a b c d e\")\nmem.add(\"user\", \"p q\"); mem.add(\"assistant\", \"r s\")\nexpect([m.content for m in mem.context()], [\"p q\", \"r s\"], \"must not skip the 6-token message to fit 'x'\")\n"
    },
    {
-    "name": "system prompt is first and counts against the budget",
-    "code": "mem = ConversationMemory(max_tokens=10, system_prompt=\"be brief\")   # 3 tokens\nfor text in [\"hi there\", \"hello you\", \"how are\", \"fine thanks\"]:\n    mem.add(\"user\", text)\nctx = mem.context()\nassert ctx[0] == Message(\"system\", \"be brief\"), ctx[0]\nassert [m.content for m in ctx[1:]] == [\"how are\", \"fine thanks\"]\nassert mem.context_tokens() == 9\nassert Message(\"system\", \"be brief\") not in mem.history, \"system prompt is not part of history\"\n"
+    "name": "system prompt is first, counts, and is not in history",
+    "input": "max_tokens=10, system=\"be brief\"; 4 user messages of 3 tokens",
+    "hidden": true,
+    "code": "mem = ConversationMemory(max_tokens=10, system_prompt=\"be brief\")\nfor text in [\"hi there\", \"hello you\", \"how are\", \"fine thanks\"]:\n    mem.add(\"user\", text)\nctx = mem.context()\nexpect(ctx[0] if ctx else None, Message(\"system\", \"be brief\"), \"first message\")\nexpect((mem.context_tokens(), Message(\"system\", \"be brief\") in mem.history), (9, False))\n"
    },
    {
-    "name": "invalid inputs raise ValueError",
-    "code": "def raises(fn):\n    try:\n        fn()\n    except ValueError:\n        return True\n    return False\nmem = ConversationMemory(max_tokens=5, system_prompt=\"sys\")   # system = 2 tokens\nassert raises(lambda: mem.add(\"tool\", \"x\")), \"unknown role\"\nassert raises(lambda: mem.add(\"user\", \"a b c d\")), \"5 tokens + 2 reserved > 5\"\nassert not raises(lambda: mem.add(\"user\", \"a b\")), \"3 + 2 fits exactly\"\nassert raises(lambda: ConversationMemory(max_tokens=0))\nassert raises(lambda: ConversationMemory(max_tokens=3, system_prompt=\"a b c d\"))\n"
+    "name": "only user and assistant roles can be added",
+    "input": "add(\"tool\", \"x\"), add(\"system\", \"x\"), add(\"User\", \"x\"), add(\"assistant\", \"ok\")",
+    "hidden": true,
+    "code": "mem = ConversationMemory(max_tokens=50)\nfor role in (\"tool\", \"system\", \"User\"):\n    expect_raises(ValueError, mem.add, role, \"x\", label=f\"role={role!r}\")\nexpect(mem.add(\"assistant\", \"ok\"), Message(\"assistant\", \"ok\"), \"add returns the Message\")\n"
    },
    {
-    "name": "custom token counter is used",
-    "code": "mem = ConversationMemory(max_tokens=9, counter=lambda m: len(m.content))\nmem.add(\"user\", \"abcd\"); mem.add(\"assistant\", \"efgh\"); mem.add(\"user\", \"ij\")\nassert [m.content for m in mem.context()] == [\"efgh\", \"ij\"], \"counter must be the injected one\"\n"
+    "name": "budget edges for a single message",
+    "input": "max_tokens=5, system=\"sys\" (2); add \"a b c d\" (5) → ValueError; add \"a b\" (3) fits exactly",
+    "hidden": true,
+    "code": "mem = ConversationMemory(max_tokens=5, system_prompt=\"sys\")\nexpect_raises(ValueError, mem.add, \"user\", \"a b c d\", label=\"5 + 2 reserved > 5\")\nmem.add(\"user\", \"a b\")\nexpect((mem.context_tokens(), [m.content for m in mem.context()]), (5, [\"sys\", \"a b\"]), \"exact fit\")\n"
+   },
+   {
+    "name": "invalid budgets raise ValueError",
+    "input": "ConversationMemory(0), ConversationMemory(-3), ConversationMemory(3, system=\"a b c d\")",
+    "hidden": true,
+    "code": "expect_raises(ValueError, ConversationMemory, 0, label=\"max_tokens=0\")\nexpect_raises(ValueError, ConversationMemory, -3, label=\"negative\")\nexpect_raises(ValueError, ConversationMemory, 3, system_prompt=\"a b c d\", label=\"system prompt alone too big\")\nexpect(ConversationMemory(5, system_prompt=\"a b c d\").context_tokens(), 5, \"system prompt that exactly fills the budget is fine\")\n"
+   },
+   {
+    "name": "empty memory",
+    "input": "ConversationMemory(10).context(); ConversationMemory(10, system='hi').context()",
+    "hidden": true,
+    "code": "plain = ConversationMemory(10)\nwithsys = ConversationMemory(10, system_prompt=\"hi\")\nexpect([plain.context(), plain.context_tokens(), plain.history], [[], 0, []])\nexpect((withsys.context(), withsys.context_tokens()), ([Message(\"system\", \"hi\")], 2))\n"
+   },
+   {
+    "name": "custom token counter is used (Strategy)",
+    "input": "max_tokens=9, counter=len(content); add \"abcd\", \"efgh\", \"ij\"",
+    "hidden": true,
+    "code": "mem = ConversationMemory(max_tokens=9, counter=lambda m: len(m.content))\nmem.add(\"user\", \"abcd\"); mem.add(\"assistant\", \"efgh\"); mem.add(\"user\", \"ij\")\nexpect([m.content for m in mem.context()], [\"efgh\", \"ij\"])\nexpect(mem.context_tokens(), 6)\n"
+   },
+   {
+    "name": "window fills the budget exactly",
+    "input": "max_tokens=6; add \"a b\" (3), \"c d\" (3) → context; then add \"e\" (2) → context",
+    "hidden": true,
+    "code": "mem = ConversationMemory(max_tokens=6)\nmem.add(\"user\", \"a b\"); mem.add(\"assistant\", \"c d\")\nfirst = [m.content for m in mem.context()]\nmem.add(\"user\", \"e\")\nsecond = [m.content for m in mem.context()]\nexpect([first, second], [[\"a b\", \"c d\"], [\"c d\", \"e\"]])\n"
+   },
+   {
+    "name": "large: 2000 alternating turns stay under budget",
+    "input": "max_tokens=50, system='be helpful'; 2000 messages 'msg i word' (4 tokens), alternating roles",
+    "hidden": true,
+    "code": "mem = ConversationMemory(max_tokens=50, system_prompt=\"be helpful\")\nfor i in range(2000):\n    mem.add(\"user\" if i % 2 == 0 else \"assistant\", f\"msg {i} word\")\nctx = mem.context()\nexpect((len(mem.history), mem.context_tokens(), len(ctx) - 1, ctx[-1].content), (2000, 47, 11, \"msg 1999 word\"))\n"
    }
   ],
   "hints": [
@@ -236,24 +592,76 @@
   "starter": "from dataclasses import dataclass, field\nfrom typing import Any, Callable\n\n\nclass ToolError(Exception):\n    \"\"\"Unknown tool or invalid arguments.\"\"\"\n\n\n@dataclass\nclass ToolCall:\n    name: str\n    args: dict[str, Any] = field(default_factory=dict)\n\n\n@dataclass\nclass FinalAnswer:\n    text: str\n\n\n@dataclass\nclass Step:\n    index: int\n    action: ToolCall | FinalAnswer\n    observation: str | None = None\n    error: bool = False\n\n\n@dataclass\nclass AgentResult:\n    answer: str | None\n    steps: list[Step]\n    stop_reason: str     # \"final\" | \"max_steps\"\n\n\n# Provided: a model that replays a script of actions and records what it saw.\nclass ScriptedModel:\n    def __init__(self, actions: list) -> None:\n        self.actions = list(actions)\n        self.seen: list[list[dict]] = []\n        self.tools_seen: list[list[dict]] = []\n\n    def decide(self, messages: list[dict], tools: list[dict]) -> ToolCall | FinalAnswer:\n        self.seen.append([dict(m) for m in messages])\n        self.tools_seen.append(tools)\n        return self.actions.pop(0) if self.actions else FinalAnswer(\"(script exhausted)\")\n\n\n@dataclass\nclass Tool:\n    name: str\n    description: str\n    parameters: dict[str, type]     # param name -> one of str, int, float, bool\n    fn: Callable[..., Any]\n\n    def schema(self) -> dict:\n        \"\"\"{\"name\", \"description\", \"parameters\": {\"type\": \"object\",\n        \"properties\": {p: {\"type\": \"string\"|\"integer\"|\"number\"|\"boolean\"}}, \"required\": [...]}}\"\"\"\n        raise NotImplementedError\n\n\nclass ToolRegistry:\n    def __init__(self) -> None:\n        raise NotImplementedError\n\n    def register(self, name: str, description: str, parameters: dict[str, type]) -> Callable:\n        \"\"\"Decorator that registers fn as a tool and returns fn unchanged.\n        ValueError for a duplicate name or an unsupported parameter type.\"\"\"\n        raise NotImplementedError\n\n    def get(self, name: str) -> Tool:\n        \"\"\"ToolError if unknown.\"\"\"\n        raise NotImplementedError\n\n    def schemas(self) -> list[dict]:\n        \"\"\"Schemas of all tools, in registration order.\"\"\"\n        raise NotImplementedError\n\n    def call(self, name: str, args: dict[str, Any]) -> Any:\n        \"\"\"Validate args (all required present, no extras, types match; bool is not an int,\n        an int is acceptable for float) then call the tool. ToolError on any violation.\"\"\"\n        raise NotImplementedError\n\n\nclass Agent:\n    def __init__(self, model, registry: ToolRegistry, max_steps: int = 5,\n                 on_step: Callable[[Step], None] | None = None) -> None:\n        \"\"\"model has decide(messages, tools) -> ToolCall | FinalAnswer.\"\"\"\n        raise NotImplementedError\n\n    def run(self, task: str) -> AgentResult:\n        \"\"\"Loop: ask the model; on FinalAnswer stop; on ToolCall run the tool and append\n        {\"role\": \"tool\", \"name\": ..., \"content\": observation} to messages. Tool errors become\n        an observation starting with \"error:\" (step.error=True), never an exception.\n        Every decision (including the final one) is a Step passed to on_step.\n        Stop with stop_reason \"max_steps\" after max_steps decisions.\"\"\"\n        raise NotImplementedError\n",
   "tests": [
    {
-    "name": "registry schemas and validation",
-    "code": "reg = ToolRegistry()\n@reg.register(\"scale\", \"Multiply x by k\", {\"x\": float, \"k\": int, \"label\": str})\ndef scale(x, k, label):\n    return f\"{label}={x * k}\"\ns = reg.schemas()[0]\nassert s[\"name\"] == \"scale\" and s[\"description\"] == \"Multiply x by k\"\nassert s[\"parameters\"][\"properties\"] == {\"x\": {\"type\": \"number\"}, \"k\": {\"type\": \"integer\"}, \"label\": {\"type\": \"string\"}}, s\nassert sorted(s[\"parameters\"][\"required\"]) == [\"k\", \"label\", \"x\"] and s[\"parameters\"][\"type\"] == \"object\"\nassert reg.call(\"scale\", {\"x\": 2, \"k\": 3, \"label\": \"v\"}) == \"v=6\", \"int is acceptable for a float param\"\nassert scale(1, 1, \"a\") == \"a=1\", \"decorator must return the function unchanged\"\nfor bad in ({\"x\": 1.0, \"k\": 2}, {\"x\": 1.0, \"k\": 2, \"label\": \"a\", \"z\": 1}, {\"x\": 1.0, \"k\": True, \"label\": \"a\"}, {\"x\": \"1\", \"k\": 2, \"label\": \"a\"}):\n    try:\n        reg.call(\"scale\", bad)\n    except ToolError:\n        pass\n    else:\n        raise AssertionError(f\"call should reject {bad}\")\ntry:\n    reg.call(\"nope\", {})\nexcept ToolError:\n    pass\nelse:\n    raise AssertionError(\"unknown tool should raise ToolError\")\n"
+    "name": "brief example: one tool call then a final answer",
+    "input": "tool add(a:int, b:int); script [ToolCall(add, {a:2, b:3}), FinalAnswer(\"5\")]; run(\"2+3?\")",
+    "hidden": false,
+    "code": "reg = ToolRegistry()\n@reg.register(\"add\", \"Add two ints\", {\"a\": int, \"b\": int})\ndef add(a, b):\n    return a + b\nresult = Agent(ScriptedModel([ToolCall(\"add\", {\"a\": 2, \"b\": 3}), FinalAnswer(\"5\")]), reg).run(\"2+3?\")\nexpect((result.answer, result.stop_reason), (\"5\", \"final\"))\n"
    },
    {
-    "name": "agent calls a tool then answers",
-    "code": "reg = ToolRegistry()\n@reg.register(\"add\", \"Add two ints\", {\"a\": int, \"b\": int})\ndef add(a, b):\n    return a + b\nmodel = ScriptedModel([ToolCall(\"add\", {\"a\": 2, \"b\": 3}), FinalAnswer(\"It is 5\")])\nresult = Agent(model, reg).run(\"what is 2+3?\")\nassert result.answer == \"It is 5\" and result.stop_reason == \"final\"\nassert len(result.steps) == 2 and result.steps[0].observation == \"5\" and not result.steps[0].error\nassert [s.index for s in result.steps] == [0, 1]\nassert model.seen[0] == [{\"role\": \"user\", \"content\": \"what is 2+3?\"}]\nassert model.seen[1][-1] == {\"role\": \"tool\", \"name\": \"add\", \"content\": \"5\"}, model.seen[1]\nassert model.tools_seen[0] == reg.schemas(), \"the model must be given the tool schemas\"\n"
+    "name": "steps, observations and messages the model sees",
+    "input": "tool add; script [ToolCall(add, {a:2, b:3}), FinalAnswer(\"It is 5\")]; run(\"what is 2+3?\")",
+    "hidden": false,
+    "code": "reg = ToolRegistry()\n@reg.register(\"add\", \"Add two ints\", {\"a\": int, \"b\": int})\ndef add(a, b):\n    return a + b\nmodel = ScriptedModel([ToolCall(\"add\", {\"a\": 2, \"b\": 3}), FinalAnswer(\"It is 5\")])\nresult = Agent(model, reg).run(\"what is 2+3?\")\nexpect([(s.index, s.observation, s.error) for s in result.steps], [(0, \"5\", False), (1, None, False)])\nexpect(model.seen[0] if model.seen else None, [{\"role\": \"user\", \"content\": \"what is 2+3?\"}], \"first decision\")\nexpect(model.seen[1][-1] if len(model.seen) > 1 else None, {\"role\": \"tool\", \"name\": \"add\", \"content\": \"5\"}, \"tool observation\")\nexpect(model.tools_seen[0] == reg.schemas(), True, \"model is given the schemas\")\n"
    },
    {
-    "name": "tool errors are fed back, not raised",
-    "code": "reg = ToolRegistry()\n@reg.register(\"div\", \"Divide\", {\"a\": int, \"b\": int})\ndef div(a, b):\n    return a / b\nmodel = ScriptedModel([ToolCall(\"search\", {\"q\": \"x\"}), ToolCall(\"div\", {\"a\": 1, \"b\": 0}), FinalAnswer(\"gave up\")])\nresult = Agent(model, reg, max_steps=5).run(\"t\")\nfirst, second = result.steps[0], result.steps[1]\nassert first.error and first.observation.startswith(\"error:\"), first\nassert second.error and second.observation.startswith(\"error:\") and \"division\" in second.observation, second\nassert result.answer == \"gave up\"\nassert model.seen[2][-1][\"content\"].startswith(\"error:\"), \"the model sees the error message\"\n"
+    "name": "tool schema uses JSON-schema type names",
+    "input": "register(\"scale\", \"Multiply x by k\", {x: float, k: int, label: str}) → schemas()",
+    "hidden": false,
+    "code": "reg = ToolRegistry()\n@reg.register(\"scale\", \"Multiply x by k\", {\"x\": float, \"k\": int, \"label\": str})\ndef scale(x, k, label):\n    return f\"{label}={x * k}\"\ns = reg.schemas()[0]\nexpect(s[\"parameters\"][\"properties\"], {\"x\": {\"type\": \"number\"}, \"k\": {\"type\": \"integer\"}, \"label\": {\"type\": \"string\"}})\nexpect((s[\"name\"], s[\"description\"], s[\"parameters\"][\"type\"], sorted(s[\"parameters\"][\"required\"])),\n       (\"scale\", \"Multiply x by k\", \"object\", [\"k\", \"label\", \"x\"]))\n"
+   },
+   {
+    "name": "call validates arguments",
+    "input": "scale(x: float, k: int, label: str); calls: {x:2,k:3,label:v}, missing label, extra z, k=True, x=\"1\"",
+    "hidden": true,
+    "code": "reg = ToolRegistry()\n@reg.register(\"scale\", \"Multiply\", {\"x\": float, \"k\": int, \"label\": str})\ndef scale(x, k, label):\n    return f\"{label}={x * k}\"\nexpect(reg.call(\"scale\", {\"x\": 2, \"k\": 3, \"label\": \"v\"}), \"v=6\", \"an int is acceptable for a number\")\nexpect_raises(ToolError, reg.call, \"scale\", {\"x\": 1.0, \"k\": 2}, label=\"missing label\")\nexpect_raises(ToolError, reg.call, \"scale\", {\"x\": 1.0, \"k\": 2, \"label\": \"a\", \"z\": 1}, label=\"unexpected z\")\nexpect_raises(ToolError, reg.call, \"scale\", {\"x\": 1.0, \"k\": True, \"label\": \"a\"}, label=\"True is not an integer\")\nexpect_raises(ToolError, reg.call, \"scale\", {\"x\": \"1\", \"k\": 2, \"label\": \"a\"}, label=\"string for a number\")\n"
+   },
+   {
+    "name": "bool parameters and zero-parameter tools",
+    "input": "flag(on: bool) with True, 1; ping() schema",
+    "hidden": true,
+    "code": "reg = ToolRegistry()\n@reg.register(\"flag\", \"Toggle\", {\"on\": bool})\ndef flag(on):\n    return \"on\" if on else \"off\"\n@reg.register(\"ping\", \"Ping\", {})\ndef ping():\n    return \"pong\"\nexpect([reg.call(\"flag\", {\"on\": True}), reg.call(\"ping\", {})], [\"on\", \"pong\"])\nexpect_raises(ToolError, reg.call, \"flag\", {\"on\": 1}, label=\"1 is not a boolean\")\nexpect(reg.get(\"ping\").schema()[\"parameters\"], {\"type\": \"object\", \"properties\": {}, \"required\": []})\n"
+   },
+   {
+    "name": "unknown tool raises ToolError; decorator returns the function",
+    "input": "call(\"nope\", {}); get(\"nope\"); echo(\"hi\") called directly",
+    "hidden": true,
+    "code": "reg = ToolRegistry()\n@reg.register(\"echo\", \"Echo\", {\"s\": str})\ndef echo(s):\n    return s\nexpect_raises(ToolError, reg.call, \"nope\", {}, label=\"call unknown\")\nexpect_raises(ToolError, reg.get, \"nope\", label=\"get unknown\")\nexpect(echo(\"hi\"), \"hi\", \"decorated function still callable\")\n"
+   },
+   {
+    "name": "tool errors are observations, not exceptions",
+    "input": "div(a, b); script [ToolCall(search, {q}), ToolCall(div, {a:1, b:0}), FinalAnswer(\"gave up\")]",
+    "hidden": true,
+    "code": "reg = ToolRegistry()\n@reg.register(\"div\", \"Divide\", {\"a\": int, \"b\": int})\ndef div(a, b):\n    return a / b\nmodel = ScriptedModel([ToolCall(\"search\", {\"q\": \"x\"}), ToolCall(\"div\", {\"a\": 1, \"b\": 0}), FinalAnswer(\"gave up\")])\nresult = Agent(model, reg, max_steps=5).run(\"t\")\nexpect([(s.error, (s.observation or \"\").startswith(\"error:\")) for s in result.steps[:2]], [(True, True), (True, True)])\nexpect((\"division\" in (result.steps[1].observation or \"\"), result.answer), (True, \"gave up\"))\nexpect(model.seen[2][-1][\"content\"].startswith(\"error:\") if len(model.seen) > 2 else None, True, \"model sees the error\")\n"
    },
    {
     "name": "step limit stops a looping agent",
-    "code": "reg = ToolRegistry()\n@reg.register(\"ping\", \"Ping\", {})\ndef ping():\n    return \"pong\"\nmodel = ScriptedModel([ToolCall(\"ping\", {}) for _ in range(10)])\nresult = Agent(model, reg, max_steps=3).run(\"loop forever\")\nassert result.stop_reason == \"max_steps\" and result.answer is None\nassert len(result.steps) == 3 and len(model.seen) == 3, \"exactly max_steps model decisions\"\n"
+    "input": "ping(); script = 10 × ToolCall(ping); Agent(max_steps=3).run",
+    "hidden": true,
+    "code": "reg = ToolRegistry()\n@reg.register(\"ping\", \"Ping\", {})\ndef ping():\n    return \"pong\"\nmodel = ScriptedModel([ToolCall(\"ping\", {}) for _ in range(10)])\nresult = Agent(model, reg, max_steps=3).run(\"loop forever\")\nexpect((result.stop_reason, result.answer, len(result.steps), len(model.seen)), (\"max_steps\", None, 3, 3))\n"
    },
    {
-    "name": "on_step logging and duplicate registration",
-    "code": "reg = ToolRegistry()\n@reg.register(\"echo\", \"Echo\", {\"s\": str})\ndef echo(s):\n    return s\nlogged = []\nmodel = ScriptedModel([ToolCall(\"echo\", {\"s\": \"hi\"}), FinalAnswer(\"done\")])\nresult = Agent(model, reg, on_step=logged.append).run(\"t\")\nassert logged == result.steps and len(logged) == 2 and isinstance(logged[1].action, FinalAnswer)\nfor bad in (lambda: reg.register(\"echo\", \"again\", {\"s\": str}), lambda: reg.register(\"x\", \"bad type\", {\"v\": list})):\n    try:\n        bad()\n    except ValueError:\n        pass\n    else:\n        raise AssertionError(\"duplicate name or unsupported type should raise ValueError\")\n"
+    "name": "max_steps=1 boundary",
+    "input": "max_steps=1 with script [FinalAnswer('hi')] vs script [ToolCall(ping), FinalAnswer('late')]",
+    "hidden": true,
+    "code": "reg = ToolRegistry()\n@reg.register(\"ping\", \"Ping\", {})\ndef ping():\n    return \"pong\"\na = Agent(ScriptedModel([FinalAnswer(\"hi\")]), reg, max_steps=1).run(\"t\")\nb = Agent(ScriptedModel([ToolCall(\"ping\", {}), FinalAnswer(\"late\")]), reg, max_steps=1).run(\"t\")\nexpect([(a.answer, a.stop_reason, len(a.steps)), (b.answer, b.stop_reason, len(b.steps))],\n       [(\"hi\", \"final\", 1), (None, \"max_steps\", 1)])\n"
+   },
+   {
+    "name": "model recovers from bad arguments; messages accumulate",
+    "input": "add(a:int, b:int); script [ToolCall(add, {a:1}), ToolCall(add, {a:1, b:2}), FinalAnswer(\"3\")]",
+    "hidden": true,
+    "code": "reg = ToolRegistry()\n@reg.register(\"add\", \"Add\", {\"a\": int, \"b\": int})\ndef add(a, b):\n    return a + b\nmodel = ScriptedModel([ToolCall(\"add\", {\"a\": 1}), ToolCall(\"add\", {\"a\": 1, \"b\": 2}), FinalAnswer(\"3\")])\nresult = Agent(model, reg).run(\"1+2\")\nexpect([s.error for s in result.steps], [True, False, False])\nexpect([m[\"role\"] for m in model.seen[2]] if len(model.seen) > 2 else None, [\"user\", \"tool\", \"tool\"])\nexpect(model.seen[2][-1][\"content\"] if len(model.seen) > 2 else None, \"3\")\n"
+   },
+   {
+    "name": "on_step sees every step in order",
+    "input": "echo(s); script [ToolCall(echo, {s: \"hi\"}), FinalAnswer(\"done\")]; on_step=logged.append",
+    "hidden": true,
+    "code": "reg = ToolRegistry()\n@reg.register(\"echo\", \"Echo\", {\"s\": str})\ndef echo(s):\n    return s\nlogged = []\nresult = Agent(ScriptedModel([ToolCall(\"echo\", {\"s\": \"hi\"}), FinalAnswer(\"done\")]), reg, on_step=logged.append).run(\"t\")\nexpect([(s.index, type(s.action).__name__) for s in logged], [(0, \"ToolCall\"), (1, \"FinalAnswer\")])\nexpect(logged == result.steps, True, \"logged steps equal result.steps\")\n"
+   },
+   {
+    "name": "duplicate names and unsupported types fail at registration",
+    "input": "register(\"echo\") twice; register(\"x\", {v: list}); register(\"y\", {v: dict})",
+    "hidden": true,
+    "code": "reg = ToolRegistry()\n@reg.register(\"echo\", \"Echo\", {\"s\": str})\ndef echo(s):\n    return s\nexpect_raises(ValueError, reg.register, \"echo\", \"again\", {\"s\": str}, label=\"duplicate name\")\nexpect_raises(ValueError, reg.register, \"x\", \"bad\", {\"v\": list}, label=\"list type\")\nexpect_raises(ValueError, reg.register, \"y\", \"bad\", {\"v\": dict}, label=\"dict type\")\nexpect([s[\"name\"] for s in reg.schemas()], [\"echo\"], \"failed registrations add nothing\")\n"
    }
   ],
   "hints": [
@@ -268,24 +676,76 @@
   "starter": "import hashlib\nimport html\nimport math\nimport re\nfrom abc import ABC, abstractmethod\nfrom dataclasses import dataclass, field\n\n\n@dataclass\nclass Document:\n    id: str\n    text: str\n    metadata: dict = field(default_factory=dict)\n\n\n@dataclass\nclass Chunk:\n    doc_id: str\n    index: int\n    text: str\n    metadata: dict = field(default_factory=dict)\n\n\nclass UnsupportedFormat(ValueError):\n    \"\"\"No loader is registered for the source's extension.\"\"\"\n\n\nclass Loader(ABC):\n    @abstractmethod\n    def load(self, source_id: str, raw: str) -> Document: ...\n\n\nclass Chunker(ABC):\n    @abstractmethod\n    def chunk(self, doc: Document) -> list[Chunk]: ...\n\n\nclass Embedder(ABC):\n    @abstractmethod\n    def embed(self, texts: list[str]) -> list[list[float]]: ...\n\n\nclass VectorStore(ABC):\n    @abstractmethod\n    def add(self, chunks: list[Chunk], vectors: list[list[float]]) -> None: ...\n\n    @abstractmethod\n    def search(self, vector: list[float], k: int) -> list[Chunk]: ...\n\n    @abstractmethod\n    def __len__(self) -> int: ...\n\n\n# Provided: deterministic bag-of-words hashing embedder (stand-in for a real model).\nclass HashEmbedder(Embedder):\n    def __init__(self, dim: int = 64) -> None:\n        self.dim = dim\n\n    def embed(self, texts: list[str]) -> list[list[float]]:\n        vectors = []\n        for text in texts:\n            vec = [0.0] * self.dim\n            for word in re.findall(r\"[a-z0-9]+\", text.lower()):\n                vec[int(hashlib.md5(word.encode()).hexdigest(), 16) % self.dim] += 1.0\n            norm = math.sqrt(sum(v * v for v in vec)) or 1.0\n            vectors.append([v / norm for v in vec])\n        return vectors\n\n\nclass TextLoader(Loader):\n    def load(self, source_id: str, raw: str) -> Document:\n        \"\"\"Stripped text; metadata {\"source\": source_id, \"format\": \"text\"}.\"\"\"\n        raise NotImplementedError\n\n\nclass HTMLLoader(Loader):\n    def load(self, source_id: str, raw: str) -> Document:\n        \"\"\"Drop <script>/<style> blocks and all tags, unescape entities, collapse whitespace.\n        metadata {\"source\", \"format\": \"html\"}.\"\"\"\n        raise NotImplementedError\n\n\nclass PDFLoader(Loader):\n    def load(self, source_id: str, raw: str) -> Document:\n        \"\"\"Pages are separated by form feeds (\\f). Join stripped pages with newlines.\n        metadata {\"source\", \"format\": \"pdf\", \"pages\": n}.\"\"\"\n        raise NotImplementedError\n\n\nclass LoaderFactory:\n    def __init__(self) -> None:\n        raise NotImplementedError\n\n    @classmethod\n    def default(cls) -> \"LoaderFactory\":\n        \"\"\"Factory with .txt/.md -> TextLoader, .html/.htm -> HTMLLoader, .pdf -> PDFLoader.\"\"\"\n        raise NotImplementedError\n\n    def register(self, extension: str, loader_cls: type[Loader]) -> None:\n        raise NotImplementedError\n\n    def create(self, source_id: str) -> Loader:\n        \"\"\"Pick a loader by the source's extension (case-insensitive).\n        UnsupportedFormat if none matches or there is no extension.\"\"\"\n        raise NotImplementedError\n\n\nclass FixedSizeChunker(Chunker):\n    def __init__(self, size: int, overlap: int = 0) -> None:\n        \"\"\"size and overlap are in words. ValueError unless size > 0 and 0 <= overlap < size.\"\"\"\n        raise NotImplementedError\n\n    def chunk(self, doc: Document) -> list[Chunk]:\n        \"\"\"Windows of `size` words advancing by size - overlap; the last window ends at the\n        final word. Index from 0; copy doc.metadata onto each chunk. Empty doc -> [].\"\"\"\n        raise NotImplementedError\n\n\nclass InMemoryVectorStore(VectorStore):\n    def __init__(self) -> None:\n        raise NotImplementedError\n\n    def add(self, chunks: list[Chunk], vectors: list[list[float]]) -> None:\n        \"\"\"ValueError if the lengths differ.\"\"\"\n        raise NotImplementedError\n\n    def search(self, vector: list[float], k: int) -> list[Chunk]:\n        \"\"\"Top-k chunks by cosine similarity.\"\"\"\n        raise NotImplementedError\n\n    def __len__(self) -> int:\n        raise NotImplementedError\n\n\nclass IngestionPipeline:\n    def __init__(self, factory: LoaderFactory, chunker: Chunker, embedder: Embedder, store: VectorStore) -> None:\n        raise NotImplementedError\n\n    def ingest(self, source_id: str, raw: str) -> int:\n        \"\"\"load -> chunk -> embed -> store. Return the number of chunks stored.\"\"\"\n        raise NotImplementedError\n\n    def search(self, query: str, k: int = 3) -> list[Chunk]:\n        raise NotImplementedError\n",
   "tests": [
    {
-    "name": "text, HTML and PDF loaders",
-    "code": "t = TextLoader().load(\"a.txt\", \"  hello world \\n\")\nassert t.text == \"hello world\" and t.metadata == {\"source\": \"a.txt\", \"format\": \"text\"}, t\nh = HTMLLoader().load(\"b.html\", \"<html><head><style>p{color:red}</style><script>var x=1;</script></head><body><h1>Title</h1><p>Fish &amp; chips\\n  today</p></body></html>\")\nassert h.text == \"Title Fish & chips today\", repr(h.text)\nassert h.metadata[\"format\"] == \"html\" and h.metadata[\"source\"] == \"b.html\"\np = PDFLoader().load(\"c.pdf\", \"page one \\fpage two\\f page three\")\nassert p.text == \"page one\\npage two\\npage three\", repr(p.text)\nassert p.metadata[\"pages\"] == 3 and p.metadata[\"format\"] == \"pdf\"\n"
+    "name": "brief example: ingest HTML then search",
+    "input": "FixedSizeChunker(50, 10); ingest(\"refunds.html\", \"<p>Refunds take 5 days &amp; need a receipt</p>\") → search(\"refund receipt\", k=1)",
+    "hidden": false,
+    "code": "p = IngestionPipeline(LoaderFactory.default(), FixedSizeChunker(50, 10), HashEmbedder(), InMemoryVectorStore())\nn = p.ingest(\"refunds.html\", \"<p>Refunds take 5 days &amp; need a receipt</p>\")\ntop = p.search(\"refund receipt\", k=1)\nexpect((n, [c.doc_id for c in top], top[0].text if top else None),\n       (1, [\"refunds.html\"], \"Refunds take 5 days & need a receipt\"))\n"
    },
    {
-    "name": "loader factory picks by extension and is extensible",
-    "code": "f = LoaderFactory.default()\nassert isinstance(f.create(\"docs/Guide.HTML\"), HTMLLoader), \"extension match is case-insensitive\"\nassert isinstance(f.create(\"notes.txt\"), TextLoader) and isinstance(f.create(\"r.pdf\"), PDFLoader)\nfor bad in (\"sheet.xlsx\", \"README\"):\n    try:\n        f.create(bad)\n    except UnsupportedFormat as e:\n        assert isinstance(e, ValueError)\n    else:\n        raise AssertionError(f\"{bad} should raise UnsupportedFormat\")\nclass CsvLoader(Loader):\n    def load(self, source_id, raw):\n        return Document(source_id, raw.replace(\",\", \" \"), {\"source\": source_id, \"format\": \"csv\"})\nf.register(\".csv\", CsvLoader)\nassert f.create(\"data.csv\").load(\"data.csv\", \"a,b\").text == \"a b\"\n"
+    "name": "text, HTML and PDF loaders",
+    "input": "TextLoader(\"  hello world \\n\"); HTMLLoader(<style>,<script>,<h1>Title</h1><p>Fish &amp; chips</p>); PDFLoader(\"page one \\fpage two\\f page three\")",
+    "hidden": false,
+    "code": "t = TextLoader().load(\"a.txt\", \"  hello world \\n\")\nh = HTMLLoader().load(\"b.html\", \"<html><head><style>p{color:red}</style><script>var x=1;</script></head><body><h1>Title</h1><p>Fish &amp; chips\\n  today</p></body></html>\")\np = PDFLoader().load(\"c.pdf\", \"page one \\fpage two\\f page three\")\nexpect([t.text, h.text, p.text], [\"hello world\", \"Title Fish & chips today\", \"page one\\npage two\\npage three\"])\nexpect([t.metadata, h.metadata[\"format\"], h.metadata[\"source\"], p.metadata[\"pages\"], p.metadata[\"format\"]],\n       [{\"source\": \"a.txt\", \"format\": \"text\"}, \"html\", \"b.html\", 3, \"pdf\"])\n"
    },
    {
     "name": "fixed-size chunker with overlap",
-    "code": "doc = Document(\"d1\", \" \".join(f\"w{i}\" for i in range(10)), {\"source\": \"d1.txt\"})\nchunks = FixedSizeChunker(size=4, overlap=1).chunk(doc)\nassert [c.text for c in chunks] == [\"w0 w1 w2 w3\", \"w3 w4 w5 w6\", \"w6 w7 w8 w9\"], [c.text for c in chunks]\nassert [c.index for c in chunks] == [0, 1, 2] and all(c.doc_id == \"d1\" for c in chunks)\nassert all(c.metadata == {\"source\": \"d1.txt\"} for c in chunks)\nassert [c.text for c in FixedSizeChunker(5).chunk(Document(\"s\", \"a b c\"))] == [\"a b c\"]\nassert FixedSizeChunker(3).chunk(Document(\"e\", \"   \")) == []\nfor bad in ((0, 0), (3, 3), (3, -1)):\n    try:\n        FixedSizeChunker(*bad)\n    except ValueError:\n        pass\n    else:\n        raise AssertionError(f\"FixedSizeChunker{bad} should raise ValueError\")\n"
+    "input": "doc = \"w0 ... w9\" (10 words); FixedSizeChunker(size=4, overlap=1)",
+    "hidden": false,
+    "code": "doc = Document(\"d1\", \" \".join(f\"w{i}\" for i in range(10)), {\"source\": \"d1.txt\"})\nchunks = FixedSizeChunker(size=4, overlap=1).chunk(doc)\nexpect([c.text for c in chunks], [\"w0 w1 w2 w3\", \"w3 w4 w5 w6\", \"w6 w7 w8 w9\"])\nexpect([(c.index, c.doc_id, c.metadata) for c in chunks], [(i, \"d1\", {\"source\": \"d1.txt\"}) for i in range(3)])\n"
    },
    {
-    "name": "end-to-end ingest and search",
-    "code": "p = IngestionPipeline(LoaderFactory.default(), FixedSizeChunker(8, 2), HashEmbedder(), InMemoryVectorStore())\nn1 = p.ingest(\"refunds.html\", \"<h1>Refund policy</h1><p>Refunds are issued within five days with a receipt.</p>\")\nn2 = p.ingest(\"shipping.txt\", \"Shipping takes two weeks by sea freight to remote islands and longer in winter storms.\")\nassert n1 >= 1 and n2 >= 2, (n1, n2)\nassert len(p.store) == n1 + n2\ntop = p.search(\"refund policy receipt\", k=1)\nassert len(top) == 1 and top[0].doc_id == \"refunds.html\", top\nassert len(p.search(\"shipping\", k=50)) == n1 + n2, \"k larger than the store returns everything\"\ntry:\n    p.ingest(\"x.docx\", \"nope\")\nexcept UnsupportedFormat:\n    pass\nelse:\n    raise AssertionError(\"unsupported format should raise\")\n"
+    "name": "factory picks by extension, case-insensitively",
+    "input": "create(\"docs/Guide.HTML\"), create(\"notes.txt\"), create(\"r.pdf\"), create(\"a.md\"), create(\"x.htm\")",
+    "hidden": true,
+    "code": "f = LoaderFactory.default()\nexpect([type(f.create(s)).__name__ for s in (\"docs/Guide.HTML\", \"notes.txt\", \"r.pdf\", \"a.md\", \"x.htm\")],\n       [\"HTMLLoader\", \"TextLoader\", \"PDFLoader\", \"TextLoader\", \"HTMLLoader\"])\n"
    },
    {
-    "name": "stages are swappable",
-    "code": "class LineChunker(Chunker):\n    def chunk(self, doc):\n        return [Chunk(doc.id, i, line, dict(doc.metadata)) for i, line in enumerate(l for l in doc.text.splitlines() if l.strip())]\nclass CountingEmbedder(Embedder):\n    def __init__(self):\n        self.calls = 0\n    def embed(self, texts):\n        self.calls += 1\n        return [[float(len(t)), 1.0] for t in texts]\nemb, store = CountingEmbedder(), InMemoryVectorStore()\np = IngestionPipeline(LoaderFactory.default(), LineChunker(), emb, store)\nassert p.ingest(\"notes.txt\", \"alpha\\n\\nbeta\\ngamma\") == 3\nassert len(store) == 3 and emb.calls == 1, \"embed all chunks of a document in one batch call\"\ntry:\n    store.add([Chunk(\"x\", 0, \"t\")], [])\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError(\"mismatched chunks/vectors should raise ValueError\")\n"
+    "name": "unknown or missing extension raises UnsupportedFormat",
+    "input": "create(\"sheet.xlsx\"), create(\"README\"), create(\"archive.tar.gz\"), create(\"v1.2/notes\")",
+    "hidden": true,
+    "code": "f = LoaderFactory.default()\nfor bad in (\"sheet.xlsx\", \"README\", \"archive.tar.gz\", \"v1.2/notes\"):\n    err = expect_raises(UnsupportedFormat, f.create, bad, label=bad)\nexpect(isinstance(err, ValueError), True, \"UnsupportedFormat is a ValueError\")\n"
+   },
+   {
+    "name": "new formats plug in with register()",
+    "input": "register(\".csv\", CsvLoader) → create(\"data.csv\").load(\"data.csv\", \"a,b\")",
+    "hidden": true,
+    "code": "class CsvLoader(Loader):\n    def load(self, source_id, raw):\n        return Document(source_id, raw.replace(\",\", \" \"), {\"source\": source_id, \"format\": \"csv\"})\nf = LoaderFactory.default()\nf.register(\".csv\", CsvLoader)\nd = f.create(\"data.csv\").load(\"data.csv\", \"a,b\")\nexpect((d.text, d.metadata[\"format\"]), (\"a b\", \"csv\"))\n"
+   },
+   {
+    "name": "chunker edges: short, empty, exact multiple, big overlap",
+    "input": "size 5 on \"a b c\"; size 3 on \"   \"; size 4 on 8 words; size 4 overlap 3 on 6 words",
+    "hidden": true,
+    "code": "words = lambda n: \" \".join(f\"w{i}\" for i in range(n))\nout = [\n    [c.text for c in FixedSizeChunker(5).chunk(Document(\"s\", \"a b c\"))],\n    FixedSizeChunker(3).chunk(Document(\"e\", \"   \")),\n    [c.text for c in FixedSizeChunker(4).chunk(Document(\"m\", words(8)))],\n    [c.text for c in FixedSizeChunker(4, 3).chunk(Document(\"o\", words(6)))],\n]\nexpect(out, [[\"a b c\"], [], [\"w0 w1 w2 w3\", \"w4 w5 w6 w7\"],\n             [\"w0 w1 w2 w3\", \"w1 w2 w3 w4\", \"w2 w3 w4 w5\"]])\n"
+   },
+   {
+    "name": "invalid chunker config raises ValueError",
+    "input": "FixedSizeChunker(0, 0), (3, 3), (3, -1), (3, 5)",
+    "hidden": true,
+    "code": "for size, overlap in ((0, 0), (3, 3), (3, -1), (3, 5)):\n    expect_raises(ValueError, FixedSizeChunker, size, overlap, label=f\"size={size}, overlap={overlap}\")\n"
+   },
+   {
+    "name": "chunk metadata is a copy of the document's",
+    "input": "doc metadata {source: \"d.txt\"}; chunk; set chunks[0].metadata[\"x\"] = 1; read doc.metadata",
+    "hidden": true,
+    "code": "doc = Document(\"d\", \"a b c d e f\", {\"source\": \"d.txt\"})\nchunks = FixedSizeChunker(3).chunk(doc)\nchunks[0].metadata[\"x\"] = 1\nexpect((doc.metadata, chunks[1].metadata), ({\"source\": \"d.txt\"}, {\"source\": \"d.txt\"}))\n"
+   },
+   {
+    "name": "HTML entities, uppercase script tags and single-page PDF",
+    "input": "HTML \"<p>Tom&#39;s 5 &lt; 6</p><SCRIPT>bad()</SCRIPT>\"; PDF \"only page\"",
+    "hidden": true,
+    "code": "h = HTMLLoader().load(\"x.html\", \"<p>Tom&#39;s 5 &lt; 6</p><SCRIPT>bad()</SCRIPT>\")\np = PDFLoader().load(\"y.pdf\", \"only page\")\nexpect([h.text, p.metadata[\"pages\"], p.text], [\"Tom's 5 < 6\", 1, \"only page\"])\n"
+   },
+   {
+    "name": "vector store: cosine top-k, k beyond size, length mismatch",
+    "input": "add 3 chunks with vectors [1,0], [0.7,0.7], [0,1]; search([1,0.1], k=2) and k=10; add([chunk], [])",
+    "hidden": true,
+    "code": "store = InMemoryVectorStore()\ncs = [Chunk(\"d\", i, t) for i, t in enumerate((\"east\", \"northeast\", \"north\"))]\nstore.add(cs, [[1.0, 0.0], [0.7, 0.7], [0.0, 1.0]])\nexpect([c.text for c in store.search([1.0, 0.1], 2)], [\"east\", \"northeast\"])\nexpect((len(store.search([0.0, 1.0], 10)), len(store)), (3, 3))\nexpect_raises(ValueError, store.add, [Chunk(\"x\", 0, \"t\")], [], label=\"mismatched lengths\")\n"
+   },
+   {
+    "name": "stages are swappable; one embed call per document; empty doc ingests 0",
+    "input": "LineChunker + CountingEmbedder; ingest(\"notes.txt\", \"alpha\\n\\nbeta\\ngamma\"); ingest(\"e.txt\", \"   \") with default chunker; ingest(\"x.docx\")",
+    "hidden": true,
+    "code": "class LineChunker(Chunker):\n    def chunk(self, doc):\n        lines = [l for l in doc.text.splitlines() if l.strip()]\n        return [Chunk(doc.id, i, line, dict(doc.metadata)) for i, line in enumerate(lines)]\nclass CountingEmbedder(Embedder):\n    def __init__(self):\n        self.calls = 0\n    def embed(self, texts):\n        self.calls += 1\n        return [[float(len(t)), 1.0] for t in texts]\nemb, store = CountingEmbedder(), InMemoryVectorStore()\np = IngestionPipeline(LoaderFactory.default(), LineChunker(), emb, store)\nn = p.ingest(\"notes.txt\", \"alpha\\n\\nbeta\\ngamma\")\nexpect((n, len(store), emb.calls), (3, 3, 1), \"chunks, store size, embed calls\")\nq = IngestionPipeline(LoaderFactory.default(), FixedSizeChunker(4), HashEmbedder(), InMemoryVectorStore())\nexpect(q.ingest(\"e.txt\", \"   \"), 0, \"empty document\")\nexpect_raises(UnsupportedFormat, q.ingest, \"x.docx\", \"nope\")\n"
    }
   ],
   "hints": [
