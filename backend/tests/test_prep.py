@@ -1,7 +1,9 @@
+import json
 import tempfile
 import unittest
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
@@ -10,6 +12,7 @@ from sqlmodel import Session, SQLModel, create_engine, select
 from app.auth import create_access_token
 from app.db import get_session
 from app.main import app
+from app.routers import prep as prep_router
 from app.models import PrepAttempt, PrepFeedback, PrepRedo, PrepTask, User
 from app.routers.prep import (
     check_item,
@@ -394,7 +397,7 @@ class PrepAttemptRouterTests(unittest.TestCase):
             self.assertEqual(unnamed.exception.status_code, 422)
             result = self.log(session, user, task_id=nc, title="Koko Eating Bananas")
             self.assertEqual(result.attempt.title, "Koko Eating Bananas")
-            detail = get_task(nc, session, user)
+            detail = get_task(nc, None, session, user)
             self.assertTrue(detail.synthetic)
             self.assertEqual(detail.title, "Koko Eating Bananas")
             with self.assertRaises(HTTPException) as future:
@@ -409,25 +412,25 @@ class PrepAttemptRouterTests(unittest.TestCase):
     def test_task_detail_carries_spec_history_and_rules(self):
         with Session(self.engine) as session:
             user = session.get(User, self.user_id)
-            lld = get_task("lld-5.1", session, user)
+            lld = get_task("lld-5.1", None, session, user)
             self.assertIn("rollback", lld.spec)
             self.assertTrue(lld.editor)
-            hld = get_task("hld-6.1", session, user)
+            hld = get_task("hld-6.1", None, session, user)
             self.assertEqual(hld.framework[0], "Clarify (5)")
             self.log(session, user, hint_used=True)
-            dsa = get_task("lc-1", session, user)
+            dsa = get_task("lc-1", None, session, user)
             self.assertEqual(len(dsa.attempts), 1)
             self.assertEqual(len(dsa.open_redos), 2)
             self.assertEqual(dsa.rules["redo_offsets_days"], [3, 7])
             with self.assertRaises(HTTPException):
-                get_task("missing", session, user)
+                get_task("missing", None, session, user)
 
     def test_attempts_and_redos_are_private(self):
         with Session(self.engine) as session:
             user = session.get(User, self.user_id)
             other = session.get(User, self.other_id)
             self.log(session, user, hint_used=True)
-            theirs = get_task("lc-1", session, other)
+            theirs = get_task("lc-1", None, session, other)
             self.assertEqual((theirs.attempts, theirs.open_redos), ([], []))
 
 
@@ -654,6 +657,170 @@ class PrepReviewLoopTests(unittest.TestCase):
         self.assertEqual(
             self.client.get("/api/prep/feedback", headers=self.jwt).json()[0]["markdown"], "mine"
         )
+
+
+CONTENT = {
+    "lc-1": {
+        "brief": "Hash map warm-up.",
+        "hints": ["Think about lookups.", "Store what you have seen.", "Map value to index."],
+        "solution": "Use a dict of complements.",
+    },
+    "py-mon": {
+        "brief": "Collections practice.",
+        "starter": "def group(words):\n    raise NotImplementedError\n",
+        "tests": [{"name": "groups", "code": "assert group(['a']) == {'a': ['a']}"}],
+        "hints": ["One", "Two", "Three"],
+        "solution": "Use defaultdict(list).",
+    },
+}
+
+
+class FakeTutor:
+    chat_model = "fake-tutor"
+    last_model = "fake-tutor"
+
+    def __init__(self):
+        self.calls = []
+
+    def chat_stream(self, messages, max_tokens=4096):
+        self.calls.append(messages)
+        yield "### Verdict\n"
+        yield "Solid."
+
+
+class PrepContentAndTutorTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.engine = create_engine(
+            f"sqlite:///{Path(self.tmp.name) / 'test.db'}",
+            connect_args={"check_same_thread": False},
+        )
+        SQLModel.metadata.create_all(self.engine)
+        self.today = datetime.now(timezone.utc).date()
+        with Session(self.engine) as session:
+            sync_seed(session, content=CONTENT)
+            user = User(email="one@example.com", name="One")
+            other = User(email="two@example.com", name="Two")
+            session.add(user)
+            session.add(other)
+            session.commit()
+            self.user_id = user.id
+            self.other_id = other.id
+            put_settings(PrepSettingsIn(start_date=self.today), session, user)
+
+        def override():
+            with Session(self.engine) as session:
+                yield session
+
+        app.dependency_overrides[get_session] = override
+        self.original_engine = prep_router.engine
+        prep_router.engine = self.engine
+        self.client = TestClient(app)
+        self.jwt = {"Authorization": f"Bearer {create_access_token(self.user_id)}"}
+        self.other_jwt = {"Authorization": f"Bearer {create_access_token(self.other_id)}"}
+
+    def tearDown(self):
+        prep_router.engine = self.original_engine
+        app.dependency_overrides.clear()
+        self.tmp.cleanup()
+
+    def detail(self, task_id="lc-1", headers=None):
+        return self.client.get(
+            f"/api/prep/tasks/{task_id}?date={self.today.isoformat()}",
+            headers=headers or self.jwt,
+        ).json()
+
+    def reveal(self, task_id="lc-1", headers=None):
+        return self.client.post(
+            f"/api/prep/tasks/{task_id}/hints",
+            json={"date": self.today.isoformat()},
+            headers=headers or self.jwt,
+        )
+
+    def log(self, **kwargs):
+        body = {"task_id": "lc-1", "date": self.today.isoformat(), "elapsed_minutes": 20}
+        body.update(kwargs)
+        response = self.client.post("/api/prep/attempts", json=body, headers=self.jwt)
+        self.assertEqual(response.status_code, 200, response.text)
+        return response.json()
+
+    def stream(self, attempt_id, message=""):
+        response = self.client.post(
+            f"/api/prep/attempts/{attempt_id}/tutor/stream",
+            json={"message": message},
+            headers=self.jwt,
+        )
+        events = [
+            json.loads(line[len("data: "):])
+            for line in response.text.splitlines()
+            if line.startswith("data: ")
+        ]
+        return response.status_code, events
+
+    def test_seed_sync_merges_authored_content(self):
+        with Session(self.engine) as session:
+            task = session.get(PrepTask, "py-mon")
+            self.assertEqual(task.brief, "Collections practice.")
+            self.assertEqual(task.tests[0]["name"], "groups")
+            self.assertIsNone(session.get(PrepTask, "lc-217").hints)
+        detail = self.detail("py-mon")
+        self.assertIn("NotImplementedError", detail["starter"])
+        self.assertEqual(detail["hints_total"], 3)
+        self.assertEqual(detail["hints_revealed"], [])
+
+    def test_hints_reveal_in_order_and_cap_at_three(self):
+        self.assertEqual(self.reveal().json()["revealed"], ["Think about lookups."])
+        self.reveal()
+        third = self.reveal().json()
+        self.assertEqual(third["revealed"][-1], "Map value to index.")
+        self.assertEqual(len(self.reveal().json()["revealed"]), 3)
+        self.assertEqual(len(self.detail()["hints_revealed"]), 3)
+        self.assertEqual(self.detail(headers=self.other_jwt)["hints_revealed"], [])
+        self.assertEqual(self.reveal("lc-217").status_code, 404)
+
+    def test_revealed_hint_forces_hint_used_and_schedules_redos(self):
+        self.reveal()
+        result = self.log(hint_used=False)
+        self.assertTrue(result["attempt"]["hint_used"])
+        self.assertEqual(len(result["redos_created"]), 2)
+
+    def test_solution_unlocks_after_an_attempt(self):
+        locked = self.detail()
+        self.assertIsNone(locked["solution"])
+        self.assertTrue(locked["solution_locked"])
+        self.log()
+        unlocked = self.detail()
+        self.assertEqual(unlocked["solution"], "Use a dict of complements.")
+        self.assertFalse(unlocked["solution_locked"])
+
+    def test_tutor_reviews_then_answers_and_saves_the_thread(self):
+        attempt_id = self.log(code="def two_sum(): ...", notes="used a dict")["attempt"]["id"]
+        fake = FakeTutor()
+        with patch.object(prep_router, "build_coach_provider", return_value=fake):
+            self.assertEqual(self.stream(attempt_id, "why?")[0], 409)
+            status, events = self.stream(attempt_id)
+            self.assertEqual(status, 200)
+            self.assertEqual([e["type"] for e in events], ["token", "token", "done"])
+            self.assertEqual(events[-1]["message"]["content"], "### Verdict\nSolid.")
+            context = fake.calls[0][1]["content"]
+            self.assertIn("def two_sum(): ...", context)
+            self.assertIn("Use a dict of complements.", context)
+            self.assertEqual(self.stream(attempt_id)[0], 409)
+            _, followup = self.stream(attempt_id, "Why a dict?")
+            self.assertEqual(followup[-1]["type"], "done")
+            self.assertEqual(fake.calls[1][-1], {"role": "user", "content": "Why a dict?"})
+        thread = self.client.get(f"/api/prep/attempts/{attempt_id}/tutor", headers=self.jwt).json()
+        self.assertEqual([m["role"] for m in thread], ["assistant", "user", "assistant"])
+        other = self.client.get(f"/api/prep/attempts/{attempt_id}/tutor", headers=self.other_jwt)
+        self.assertEqual(other.status_code, 404)
+
+    def test_tutor_falls_back_to_the_reference_without_a_model(self):
+        attempt_id = self.log()["attempt"]["id"]
+        with patch.object(prep_router, "build_coach_provider", side_effect=RuntimeError("no keys")):
+            _, events = self.stream(attempt_id)
+        self.assertEqual(events[-1]["type"], "done")
+        self.assertIn("Use a dict of complements.", events[-1]["message"]["content"])
+        self.assertEqual(events[-1]["message"]["model_served"], "offline")
 
 if __name__ == "__main__":
     unittest.main()

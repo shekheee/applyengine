@@ -25,11 +25,13 @@ import type {
   PrepAttemptInput,
   PrepAttemptResult,
   PrepFeedback,
+  PrepHints,
   PrepPlan,
   PrepReviewToken,
   PrepSettings,
   PrepTaskDetail,
   PrepToday,
+  PrepTutorMessage,
   ReasoningEffort,
   SocialMessage,
   SocialProject,
@@ -1346,8 +1348,74 @@ export const api = {
   getPrepLog: (date: string) =>
     req<Record<string, unknown>>(`/api/prep/log?date=${encodeURIComponent(date)}`),
 
-  getPrepTask: (taskId: string) =>
-    req<PrepTaskDetail>(`/api/prep/tasks/${encodeURIComponent(taskId)}`),
+  getPrepTask: (taskId: string, date?: string) =>
+    req<PrepTaskDetail>(
+      `/api/prep/tasks/${encodeURIComponent(taskId)}${date ? `?date=${encodeURIComponent(date)}` : ""}`
+    ),
+
+  revealPrepHint: (taskId: string, date: string) =>
+    req<PrepHints>(`/api/prep/tasks/${encodeURIComponent(taskId)}/hints`, {
+      method: "POST",
+      body: JSON.stringify({ date }),
+    }),
+
+  getPrepTutor: (attemptId: number) =>
+    req<PrepTutorMessage[]>(`/api/prep/attempts/${attemptId}/tutor`),
+
+  /** Streams the attempt review (empty message) or the answer to a follow-up question. */
+  streamPrepTutor: async (
+    attemptId: number,
+    message: string,
+    onToken: (token: string) => void,
+    signal?: AbortSignal
+  ): Promise<PrepTutorMessage> => {
+    const res = await fetch(`${BASE}/api/prep/attempts/${attemptId}/tutor/stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ message }),
+      signal,
+    });
+    if (!res.ok) {
+      if (res.status === 401) setToken(null);
+      let detail = "";
+      try {
+        const data = await res.json();
+        detail = data?.detail ?? JSON.stringify(data);
+      } catch {
+        detail = await res.text().catch(() => "");
+      }
+      throw new ApiError(res.status, detail || `Request failed (${res.status})`);
+    }
+    if (!res.body) throw new ApiError(500, "No response stream");
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let result: PrepTutorMessage | null = null;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const raw = line.slice(6).trim();
+        if (!raw) continue;
+        const event = JSON.parse(raw) as {
+          type: string;
+          content?: string;
+          detail?: string;
+          message?: PrepTutorMessage;
+        };
+        if (event.type === "token" && event.content) onToken(event.content);
+        if (event.type === "done" && event.message) result = event.message;
+        if (event.type === "error") throw new ApiError(502, event.detail || "Tutor failed");
+      }
+    }
+    if (!result) throw new ApiError(500, "Stream ended without a reply");
+    return result;
+  },
 
   logPrepAttempt: (body: PrepAttemptInput) =>
     req<PrepAttemptResult>("/api/prep/attempts", {

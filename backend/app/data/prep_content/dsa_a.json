@@ -1,0 +1,387 @@
+{
+ "lc-1": {
+  "brief": "Drills the **complement lookup**: trade O(n) memory for O(1) lookups so a nested-loop pair search becomes one pass. Watch for using the same element twice and for the order of insert vs lookup.",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "For each number, you know exactly which other value would complete the pair. How fast can you check whether you've already seen that value?",
+   "Walk the array once, keeping a hash map from value to index. Before storing the current number, look up target minus it in the map.",
+   "Check the map for the complement first and return [stored_index, i] on a hit; only then insert nums[i] -> i. Checking before inserting is what stops an element pairing with itself. One pass, O(n) time and space."
+  ],
+  "solution": "### Key insight\nIf x is in the pair, its partner must be exactly target - x, so the question becomes a membership test, and a hash map answers that in O(1).\n\n### Approach\n1. Create an empty dict `seen` mapping value -> index.\n2. For each index i and value x: compute `need = target - x`.\n3. If `need` is in `seen`, return `[seen[need], i]`.\n4. Otherwise store `seen[x] = i` and continue.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def twoSum(self, nums: List[int], target: int) -> List[int]:\n        seen = {}  # value -> index\n        for i, x in enumerate(nums):\n            need = target - x\n            if need in seen:\n                return [seen[need], i]\n            seen[x] = i\n        return []\n```\n\n### Complexity\n- **Time:** O(n), one pass with O(1) average map operations.\n- **Space:** O(n) for the map.\n\n### Common mistakes\n- Inserting before checking, so `[3,...]` with target 6 pairs index 0 with itself.\n- Sorting first and returning sorted indices, which loses the original positions.\n- Using a set instead of a dict, then having no index to return.\n\n### Follow-ups\n- What if the input is sorted? (Two pointers, O(1) extra space; see 167.)\n- Return all unique pairs instead of one; how do you handle duplicates?"
+ },
+ "lc-217": {
+  "brief": "Warm-up for **set membership as a seen-before check**. Know the three trade-offs (brute force, sort, hash set) and say them out loud before coding.",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "You only need to know whether any value appears twice. What data structure tells you 'have I seen this before?' in constant time?",
+   "Scan once, keeping a set of values seen so far. The moment the current value is already in the set, you have your answer.",
+   "Return True as soon as x is in the set, else add it; return False after the loop. O(n) time and space. The alternative is to sort (O(n log n), O(1) extra) and compare neighbours."
+  ],
+  "solution": "### Key insight\nA duplicate exists exactly when a value is already in the set of values seen so far, so you can stop at the first repeat instead of comparing all pairs.\n\n### Approach\n1. Create an empty set `seen`.\n2. For each x: if x is in `seen`, return True; else add it.\n3. If the loop finishes, return False.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def containsDuplicate(self, nums: List[int]) -> bool:\n        seen = set()\n        for x in nums:\n            if x in seen:\n                return True\n            seen.add(x)\n        return False\n```\n\n### Complexity\n- **Time:** O(n).\n- **Space:** O(n) for the set.\n\n### Common mistakes\n- Nested loops (O(n^2)) that time out on large inputs.\n- `len(set(nums)) != len(nums)` is correct but always scans everything; mention that the early-exit loop can stop sooner.\n\n### Follow-ups\n- Contains Duplicate II: duplicates within distance k (sliding-window set of size k).\n- What if memory is O(1)? Sort in place and compare neighbours."
+ },
+ "lc-242": {
+  "brief": "Drills **frequency counting** as a canonical form: two strings are anagrams exactly when their character counts match. Watch the length check and the Unicode follow-up.",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "Two strings are anagrams when they contain the same characters the same number of times. How can you summarise a string so that order doesn't matter?",
+   "Count characters of s, then subtract the counts for t. If every count ends at zero (and lengths matched), they're anagrams.",
+   "Return False immediately if the lengths differ. Use a dict (or a 26-slot array for lowercase letters), increment for s and decrement for t; any non-zero slot means not an anagram. O(n) time, O(1) space for a fixed alphabet."
+  ],
+  "solution": "### Key insight\nOrder is irrelevant, only multiplicity matters, so compare character histograms rather than the strings themselves.\n\n### Approach\n1. If `len(s) != len(t)`, return False.\n2. Build a count map: +1 for each char in s, -1 for each char in t.\n3. Return True only if every count is 0.\n\n### Solution\n```python\nclass Solution:\n    def isAnagram(self, s: str, t: str) -> bool:\n        if len(s) != len(t):\n            return False\n        count = {}\n        for a, b in zip(s, t):\n            count[a] = count.get(a, 0) + 1\n            count[b] = count.get(b, 0) - 1\n        return all(v == 0 for v in count.values())\n```\n\n### Complexity\n- **Time:** O(n).\n- **Space:** O(k) where k is the alphabet size (O(1) for 26 lowercase letters).\n\n### Common mistakes\n- Forgetting the length check and only checking that t's characters appear in s.\n- Using sets, which ignore multiplicity (`aab` vs `abb`).\n- Sorting both strings works (O(n log n)) but say why counting is faster.\n\n### Follow-ups\n- What if the inputs contain Unicode characters? (A dict/Counter handles it; a 26-array does not.)\n- Stream t in chunks too large for memory: keep only the running count map."
+ },
+ "lc-49": {
+  "brief": "Drills **choosing a hash key that canonicalises a group**. The whole problem is picking the key; watch that it is hashable (tuple, not list).",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "All anagrams of a word share something that non-anagrams don't. What could you compute from a word that would be identical for every member of its group?",
+   "Map each word to a canonical key (its sorted letters, or its 26-letter count) and append the word to a dict of lists under that key. The dict's values are the groups.",
+   "Key = tuple(sorted(word)) costs O(k log k) per word; key = tuple of 26 counts costs O(k). Lists aren't hashable, so convert to a tuple or a string. Total O(n*k log k) or O(n*k)."
+  ],
+  "solution": "### Key insight\nAnagrams collapse to the same canonical form, so grouping is a single pass that buckets each word by that form.\n\n### Approach\n1. Create `groups = defaultdict(list)`.\n2. For each word, compute key = 26-count tuple (or `''.join(sorted(word))`).\n3. Append the word to `groups[key]`.\n4. Return `list(groups.values())`.\n\n### Solution\n```python\nfrom collections import defaultdict\nfrom typing import List\n\n\nclass Solution:\n    def groupAnagrams(self, strs: List[str]) -> List[List[str]]:\n        groups = defaultdict(list)\n        for word in strs:\n            counts = [0] * 26\n            for ch in word:\n                counts[ord(ch) - ord(\"a\")] += 1\n            groups[tuple(counts)].append(word)\n        return list(groups.values())\n```\n\n### Complexity\n- **Time:** O(n * k) with the count key (n words, max length k); O(n * k log k) with the sorted key.\n- **Space:** O(n * k) for the groups.\n\n### Common mistakes\n- Using a list as a dict key (TypeError: unhashable).\n- Comparing every pair of words (O(n^2 * k)).\n- Joining counts without a separator in a string key, which can collide (`1,11` vs `11,1`); tuples avoid this.\n\n### Follow-ups\n- Which key is faster in practice for short words, and why? (Sorting short strings is cheap; counts win for long words.)\n- How would you shard this across machines? (Partition by key hash, map-reduce style.)"
+ },
+ "lc-347": {
+  "brief": "Drills **count then select**: a frequency map followed by bucket sort (O(n)) or a size-k heap (O(n log k)). Be ready to explain why you beat O(n log n).",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "First get how often each value appears. Then the question is only: which k counts are largest?",
+   "Count with a hash map. Then either keep a min-heap of size k over (count, value), or bucket values by count (a frequency can be at most n) and read buckets from high to low.",
+   "Bucket sort: make n+1 lists where bucket[c] holds values with count c, then walk c from n down to 1 collecting values until you have k. That's O(n) time; the heap is O(n log k)."
+  ],
+  "solution": "### Key insight\nA frequency is an integer between 1 and n, so you can index buckets by frequency and avoid a comparison sort entirely.\n\n### Approach\n1. Count occurrences with a dict / Counter.\n2. Create `buckets = [[] for _ in range(len(nums) + 1)]`; put each value in `buckets[count]`.\n3. Iterate counts from high to low, extending the result until it has k items.\n\n### Solution\n```python\nfrom collections import Counter\nfrom typing import List\n\n\nclass Solution:\n    def topKFrequent(self, nums: List[int], k: int) -> List[int]:\n        counts = Counter(nums)\n        buckets = [[] for _ in range(len(nums) + 1)]\n        for value, c in counts.items():\n            buckets[c].append(value)\n        result = []\n        for c in range(len(buckets) - 1, 0, -1):\n            for value in buckets[c]:\n                result.append(value)\n                if len(result) == k:\n                    return result\n        return result\n```\n\n### Complexity\n- **Time:** O(n) with buckets (O(n log k) with a heap).\n- **Space:** O(n).\n\n### Common mistakes\n- Sorting the whole frequency map: correct but O(n log n), which the problem asks you to beat.\n- Using a max-heap of all elements and popping k (O(n + k log n)) without being able to justify it.\n- Off-by-one: bucket list of size n, so a value occurring n times overflows.\n\n### Follow-ups\n- Data arrives as a stream and k is small: keep a size-k min-heap; for approximate counts use Count-Min Sketch.\n- Top k frequent words with ties broken alphabetically (692)."
+ },
+ "lc-238": {
+  "brief": "Drills **prefix and suffix accumulation**: precompute 'everything to the left' and 'everything to the right' instead of recomputing per index. No division allowed, which also makes zeros a non-issue.",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "The answer at i is (product of everything left of i) times (product of everything right of i). Can you get both for every i without nested loops?",
+   "Do one left-to-right pass storing the running product of elements before i, then a right-to-left pass multiplying in the running product of elements after i.",
+   "Use the output array to hold left products, then a single variable `right` that starts at 1 and is multiplied by nums[i] after updating answer[i] on the backward pass. O(n) time, O(1) extra space besides the output."
+  ],
+  "solution": "### Key insight\nanswer[i] = prefix[i] * suffix[i], and both can be built in linear passes. Reusing the output array for the prefix and a scalar for the suffix keeps extra space O(1).\n\n### Approach\n1. `answer = [1] * n`; `left = 1`.\n2. Forward: for i, set `answer[i] = left`, then `left *= nums[i]`.\n3. Backward: `right = 1`; for i from n-1 down, `answer[i] *= right`, then `right *= nums[i]`.\n4. Return answer.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def productExceptSelf(self, nums: List[int]) -> List[int]:\n        n = len(nums)\n        answer = [1] * n\n        left = 1\n        for i in range(n):\n            answer[i] = left\n            left *= nums[i]\n        right = 1\n        for i in range(n - 1, -1, -1):\n            answer[i] *= right\n            right *= nums[i]\n        return answer\n```\n\n### Complexity\n- **Time:** O(n), two passes.\n- **Space:** O(1) extra (the output array does not count).\n\n### Common mistakes\n- Using division (total / nums[i]), which is disallowed and breaks with zeros.\n- Updating the running product before writing it, so element i includes itself.\n- Allocating separate prefix and suffix arrays and then claiming O(1) space.\n\n### Follow-ups\n- If division were allowed, how do you handle one zero vs two or more zeros?\n- Same idea for prefix sums: range-sum queries in O(1) after O(n) preprocessing."
+ },
+ "lc-128": {
+  "brief": "Drills **hash set + start-of-run detection** to hit O(n) without sorting. The trap is accidentally re-walking each run from every element (O(n^2)).",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "Sorting gives O(n log n) easily. To get O(n), think about which elements could be the beginning of a consecutive run.",
+   "Put everything in a set. A number x starts a run only if x-1 is not in the set; from each start, count upward while x+1, x+2, ... are present.",
+   "Only expand from starts (x-1 absent), so each element is visited by at most one run walk, which is O(n) total. Iterate over the set, not the list, so duplicates don't trigger repeat walks."
+  ],
+  "solution": "### Key insight\nEach consecutive run has exactly one smallest element. Only expanding from those starts means every number is touched a constant number of times.\n\n### Approach\n1. `s = set(nums)`; `best = 0`.\n2. For each x in s: if `x - 1` is not in s, it's a start.\n3. From a start, increment `y` while `y + 1` is in s; update `best = max(best, y - x + 1)`.\n4. Return best (0 for empty input).\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def longestConsecutive(self, nums: List[int]) -> int:\n        s = set(nums)\n        best = 0\n        for x in s:\n            if x - 1 not in s:\n                y = x\n                while y + 1 in s:\n                    y += 1\n                best = max(best, y - x + 1)\n        return best\n```\n\n### Complexity\n- **Time:** O(n): each number is inside at most one inner walk.\n- **Space:** O(n) for the set.\n\n### Common mistakes\n- Expanding from every element instead of only starts, which is O(n^2) on one long run.\n- Iterating over `nums` with many duplicates of a start, which re-walks the same run.\n- Forgetting the empty input returns 0.\n\n### Follow-ups\n- Union-Find solution: union x with x+1 and track component sizes.\n- Return the run itself, or support inserts in a stream (merge interval endpoints in a map)."
+ },
+ "lc-36": {
+  "brief": "Drills **multi-key hashing**: one pass that tracks seen digits per row, per column and per 3x3 box. Watch the box index formula; you validate the filled cells, you do not solve the puzzle.",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "A digit may appear once per row, once per column and once per 3x3 box. How do you record, in one pass, which digits each of those 27 units already contains?",
+   "Keep 9 row sets, 9 column sets and 9 box sets. For each non-empty cell, if its digit is already in its row, column or box set, the board is invalid; otherwise add it to all three.",
+   "The box index for cell (r, c) is (r // 3) * 3 + c // 3. Skip '.' cells. The board is fixed at 81 cells, so this is O(1); in general O(n^2) for an n x n board."
+  ],
+  "solution": "### Key insight\nEach filled cell belongs to exactly three units. Validity is just 'no unit sees a digit twice', which three arrays of sets check in one scan.\n\n### Approach\n1. Create `rows`, `cols`, `boxes` as lists of 9 empty sets.\n2. For every cell (r, c) with value v != '.': compute `b = (r // 3) * 3 + c // 3`.\n3. If v is in rows[r], cols[c] or boxes[b], return False.\n4. Add v to all three; after the scan return True.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def isValidSudoku(self, board: List[List[str]]) -> bool:\n        rows = [set() for _ in range(9)]\n        cols = [set() for _ in range(9)]\n        boxes = [set() for _ in range(9)]\n        for r in range(9):\n            for c in range(9):\n                v = board[r][c]\n                if v == \".\":\n                    continue\n                b = (r // 3) * 3 + c // 3\n                if v in rows[r] or v in cols[c] or v in boxes[b]:\n                    return False\n                rows[r].add(v)\n                cols[c].add(v)\n                boxes[b].add(v)\n        return True\n```\n\n### Complexity\n- **Time:** O(81) = O(1) for a fixed board.\n- **Space:** O(81) = O(1).\n\n### Common mistakes\n- Wrong box index (e.g. r // 3 + c // 3, which maps different boxes to the same id).\n- Trying to check solvability; the problem only asks whether the filled cells are consistent.\n- Creating the sets with `[set()] * 9`, which shares one set across all rows.\n\n### Follow-ups\n- Solve the Sudoku (37): backtracking with these same three sets for O(1) validity checks.\n- Use bitmasks instead of sets: one 9-bit int per unit."
+ },
+ "lc-560": {
+  "brief": "Drills **prefix sums + hash map of counts**: the bridge from arrays & hashing to subarray problems. Sliding window fails here because values can be negative.",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "The sum of nums[i..j] equals prefix[j+1] - prefix[i]. Rewrite 'subarray sums to k' in terms of two prefix sums.",
+   "Walk once keeping a running prefix sum and a map from prefix value to how many times it has occurred. At each step, the number of subarrays ending here with sum k equals the count of earlier prefixes equal to running - k.",
+   "Seed the map with {0: 1} so subarrays starting at index 0 are counted. Look up running - k before inserting the current running sum. O(n) time and space; a two-pointer window does not work because of negative numbers."
+  ],
+  "solution": "### Key insight\nA subarray ending at j sums to k exactly when some earlier prefix equals prefix_j - k, so counting earlier prefixes in a hash map counts subarrays in O(1) per step.\n\n### Approach\n1. `counts = {0: 1}`, `running = 0`, `total = 0`.\n2. For each x: `running += x`; `total += counts.get(running - k, 0)`.\n3. Then `counts[running] = counts.get(running, 0) + 1`.\n4. Return total.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def subarraySum(self, nums: List[int], k: int) -> int:\n        counts = {0: 1}  # prefix sum -> occurrences\n        running = 0\n        total = 0\n        for x in nums:\n            running += x\n            total += counts.get(running - k, 0)\n            counts[running] = counts.get(running, 0) + 1\n        return total\n```\n\n### Complexity\n- **Time:** O(n).\n- **Space:** O(n) for the prefix map.\n\n### Common mistakes\n- Forgetting the {0: 1} seed, which misses subarrays that start at index 0.\n- Using a sliding window, which assumes all values are positive.\n- Storing a set of prefixes instead of counts, which undercounts when a prefix value repeats (e.g. zeros).\n\n### Follow-ups\n- Count subarrays whose sum is divisible by k (974): key the map by prefix mod k.\n- Longest subarray with sum k: store the first index of each prefix instead of a count."
+ },
+ "lc-125": {
+  "brief": "Drills **converging two pointers** with skip logic. Watch the filtering rule (alphanumeric only, case-insensitive) and pointer bounds while skipping.",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "A palindrome reads the same from both ends. Can you compare from both ends at once without building a cleaned copy?",
+   "Put one pointer at the start and one at the end. Skip characters that are not letters or digits, then compare the two characters lowercased and move both inward.",
+   "Inside the main loop, advance left while left < right and s[left] isn't alphanumeric (same for right), then compare lowercased. Stop when the pointers meet. O(n) time, O(1) space."
+  ],
+  "solution": "### Key insight\nCompare the outermost relevant characters and move inward; skipping irrelevant characters in place avoids an O(n) cleaned copy.\n\n### Approach\n1. `l, r = 0, len(s) - 1`.\n2. While l < r: move l right past non-alphanumerics, move r left past non-alphanumerics (both guarded by l < r).\n3. If `s[l].lower() != s[r].lower()`, return False; else `l += 1`, `r -= 1`.\n4. Return True.\n\n### Solution\n```python\nclass Solution:\n    def isPalindrome(self, s: str) -> bool:\n        l, r = 0, len(s) - 1\n        while l < r:\n            while l < r and not s[l].isalnum():\n                l += 1\n            while l < r and not s[r].isalnum():\n                r -= 1\n            if s[l].lower() != s[r].lower():\n                return False\n            l += 1\n            r -= 1\n        return True\n```\n\n### Complexity\n- **Time:** O(n).\n- **Space:** O(1).\n\n### Common mistakes\n- Skip loops without the `l < r` guard, which run off the string on inputs like `\".,\"`.\n- Forgetting digits are kept (`isalpha` instead of `isalnum`).\n- Building a filtered reversed copy is fine but is O(n) space; know both.\n\n### Follow-ups\n- Valid Palindrome II (680): allowed to delete at most one character.\n- Longest palindromic substring: expand around centres."
+ },
+ "lc-167": {
+  "brief": "Drills **two pointers on sorted input**: sortedness lets you discard a whole row of candidates per step. Note the 1-indexed output and the O(1) extra space requirement.",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "The array is sorted. If the sum of the smallest and largest candidates is too big, which of them can never be part of the answer?",
+   "Start with pointers at both ends. If the sum is too small, move the left pointer right; if too big, move the right pointer left; if equal, you're done.",
+   "Each move rules out one element for every possible partner, so the loop runs at most n times. Return [l + 1, r + 1] because the answer is 1-indexed. O(n) time, O(1) space."
+  ],
+  "solution": "### Key insight\nWith sorted input, sum too large means the right element is too large for every remaining left partner, so it can be dropped. Each step safely eliminates one candidate.\n\n### Approach\n1. `l, r = 0, len(numbers) - 1`.\n2. While l < r: `s = numbers[l] + numbers[r]`.\n3. If s == target return `[l + 1, r + 1]`; if s < target `l += 1`; else `r -= 1`.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def twoSum(self, numbers: List[int], target: int) -> List[int]:\n        l, r = 0, len(numbers) - 1\n        while l < r:\n            s = numbers[l] + numbers[r]\n            if s == target:\n                return [l + 1, r + 1]\n            if s < target:\n                l += 1\n            else:\n                r -= 1\n        return []\n```\n\n### Complexity\n- **Time:** O(n).\n- **Space:** O(1).\n\n### Common mistakes\n- Returning 0-indexed positions.\n- Using a hash map: it works but violates the constant-space constraint.\n- Binary searching for each element's complement (O(n log n)): correct but slower than needed.\n\n### Follow-ups\n- Why is it safe to discard? Be ready to argue the invariant (no valid pair is skipped).\n- Extend to 3Sum (15) and 4Sum (18)."
+ },
+ "lc-15": {
+  "brief": "Drills **sort + fix one + two pointers**, plus **duplicate skipping** for unique triplets. Most bugs are in the dedup logic, not the search.",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "Fix one number; the remaining problem is finding two numbers that sum to its negative. Which earlier problem is that, and what does it need?",
+   "Sort the array. For each index i, run a two-pointer Two Sum II on the part to its right with target -nums[i]. Skip i if nums[i] equals nums[i-1].",
+   "After recording a triplet, move both pointers inward and keep skipping while the new left equals the previous left value, so the same triplet isn't added again. You can break early once nums[i] > 0. O(n^2) time, O(1) extra besides output."
+  ],
+  "solution": "### Key insight\nSorting turns the inner problem into Two Sum II, and makes duplicates adjacent so they can be skipped without a set of triplets.\n\n### Approach\n1. Sort nums.\n2. For i in range(n): if `i > 0 and nums[i] == nums[i-1]`, continue; if `nums[i] > 0`, break.\n3. `l, r = i + 1, n - 1`; while l < r compute the sum s.\n4. s < 0: l += 1. s > 0: r -= 1. s == 0: record, then l += 1, r -= 1, and skip duplicates of nums[l].\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def threeSum(self, nums: List[int]) -> List[List[int]]:\n        nums.sort()\n        n = len(nums)\n        result = []\n        for i in range(n - 2):\n            if nums[i] > 0:\n                break\n            if i > 0 and nums[i] == nums[i - 1]:\n                continue\n            l, r = i + 1, n - 1\n            while l < r:\n                s = nums[i] + nums[l] + nums[r]\n                if s < 0:\n                    l += 1\n                elif s > 0:\n                    r -= 1\n                else:\n                    result.append([nums[i], nums[l], nums[r]])\n                    l += 1\n                    r -= 1\n                    while l < r and nums[l] == nums[l - 1]:\n                        l += 1\n        return result\n```\n\n### Complexity\n- **Time:** O(n^2) (the sort is O(n log n)).\n- **Space:** O(1) extra besides the output (O(n) or O(log n) for the sort in some languages).\n\n### Common mistakes\n- Deduplicating with `nums[i] == nums[i+1]`, which skips valid triplets like [-1,-1,2].\n- Forgetting to skip duplicates on the inner pointer after a match.\n- Throwing triplets into a set of tuples: works, but hides that you didn't reason about dedup.\n\n### Follow-ups\n- 3Sum Closest (16): track the best |s - target| instead of exact matches.\n- Generalise to kSum with recursion down to the two-pointer base case."
+ },
+ "lc-11": {
+  "brief": "Drills **greedy two-pointer elimination**: why moving the shorter wall is safe. Expect the interviewer to ask you to justify it.",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "Area = width x min(height). Start with the widest container. Moving a pointer inward always loses width, so which move could possibly gain area?",
+   "Keep pointers at both ends and record the area. Move the pointer at the shorter line inward; moving the taller one can never help because the height is capped by the shorter line.",
+   "Any container that uses the shorter line with a closer partner has less width and a height at most that shorter line, so it's never better; that's why you can discard it. One pass, O(n) time, O(1) space."
+  ],
+  "solution": "### Key insight\nThe shorter line limits every container it can form with anything closer, and the widest of those has already been measured, so the shorter line can be discarded.\n\n### Approach\n1. `l, r = 0, n - 1`, `best = 0`.\n2. While l < r: `best = max(best, (r - l) * min(h[l], h[r]))`.\n3. If `h[l] < h[r]`, l += 1, else r -= 1.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def maxArea(self, height: List[int]) -> int:\n        l, r = 0, len(height) - 1\n        best = 0\n        while l < r:\n            best = max(best, (r - l) * min(height[l], height[r]))\n            if height[l] < height[r]:\n                l += 1\n            else:\n                r -= 1\n        return best\n```\n\n### Complexity\n- **Time:** O(n).\n- **Space:** O(1).\n\n### Common mistakes\n- Moving the taller line, which can skip the optimum.\n- Confusing it with Trapping Rain Water (42), which sums water over all positions.\n- Brute force O(n^2) without explaining the elimination argument.\n\n### Follow-ups\n- Prove the greedy is correct (exchange / elimination argument).\n- Trapping Rain Water (42): two pointers with left-max and right-max."
+ },
+ "lc-121": {
+  "brief": "Drills the **running minimum** (a one-pass, 'best so far' scan). It is the simplest sliding-window shape: the left edge jumps to a new low.",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "For each day, imagine you sell on that day. Which buy day would you have wanted?",
+   "Scan once, tracking the lowest price seen so far. On each day, the best profit from selling today is price minus that minimum.",
+   "Update the answer with price - min_so_far before or after updating min_so_far (both work, since selling on the buy day gives 0). Start profit at 0 so a falling market returns 0. O(n) time, O(1) space."
+  ],
+  "solution": "### Key insight\nThe best sale on day j uses the cheapest day before j, so a single running minimum gives each day's best profit in O(1).\n\n### Approach\n1. `low = inf`, `best = 0`.\n2. For each price p: `low = min(low, p)`; `best = max(best, p - low)`.\n3. Return best.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def maxProfit(self, prices: List[int]) -> int:\n        low = float(\"inf\")\n        best = 0\n        for p in prices:\n            low = min(low, p)\n            best = max(best, p - low)\n        return best\n```\n\n### Complexity\n- **Time:** O(n).\n- **Space:** O(1).\n\n### Common mistakes\n- Taking max(prices) - min(prices), which ignores that you must buy before you sell.\n- Initialising best to a negative number and returning a loss instead of 0.\n\n### Follow-ups\n- Unlimited transactions (122): sum every positive day-to-day difference.\n- At most two transactions, or with cooldown/fees: state-machine DP."
+ },
+ "lc-3": {
+  "brief": "Drills the **variable-size sliding window** with a 'last seen index' map. Watch the left pointer: it may only move forward.",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "Keep a window that never contains a repeated character. When the next character would repeat, what's the least you must drop from the left?",
+   "Expand right one step at a time and remember each character's last index. If the new character was seen inside the current window, jump left to one past that previous index.",
+   "Set left = max(left, last[ch] + 1), because a last index from before the window must not move left backwards. Update last[ch] = right and best = max(best, right - left + 1). O(n) time, O(min(n, alphabet)) space."
+  ],
+  "solution": "### Key insight\nThe window [left, right] is always duplicate-free; a repeat only forces left past the previous copy of that character, so each index moves forward at most n times.\n\n### Approach\n1. `last = {}`, `left = 0`, `best = 0`.\n2. For right, ch in enumerate(s): if ch in last, `left = max(left, last[ch] + 1)`.\n3. `last[ch] = right`; `best = max(best, right - left + 1)`.\n\n### Solution\n```python\nclass Solution:\n    def lengthOfLongestSubstring(self, s: str) -> int:\n        last = {}\n        left = 0\n        best = 0\n        for right, ch in enumerate(s):\n            if ch in last:\n                left = max(left, last[ch] + 1)\n            last[ch] = right\n            best = max(best, right - left + 1)\n        return best\n```\n\n### Complexity\n- **Time:** O(n).\n- **Space:** O(min(n, alphabet size)).\n\n### Common mistakes\n- `left = last[ch] + 1` without max, which moves left backwards on inputs like \"abba\".\n- Restarting the scan from each index (O(n^2)).\n- Off-by-one in the window length (right - left vs right - left + 1).\n\n### Follow-ups\n- At most k distinct characters (340): shrink while the count map has more than k keys.\n- Return the substring itself rather than its length."
+ },
+ "lc-424": {
+  "brief": "Drills the **window validity condition** `window_len - max_freq <= k`, and the subtle trick that max_freq never needs to decrease.",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "In a window, the cheapest way to make every character the same is to keep the most frequent one and replace the rest. How many replacements is that?",
+   "Grow a window to the right with a count map. The window is valid if its length minus the highest single-character count is at most k; if not, shrink from the left by one.",
+   "Track max_freq as the largest count seen so far; you never need to lower it when shrinking, because the answer only grows when a window beats the previous max_freq. The window size never shrinks, so the final size is the answer. O(n) time, O(26) space."
+  ],
+  "solution": "### Key insight\nA window can be made uniform with (length - count of its most common char) replacements, so you want the longest window where that is at most k.\n\n### Approach\n1. `count = {}`, `left = 0`, `max_freq = 0`, `best = 0`.\n2. For each right: increment count[s[right]], `max_freq = max(max_freq, count[s[right]])`.\n3. While `(right - left + 1) - max_freq > k`: decrement count[s[left]], left += 1.\n4. `best = max(best, right - left + 1)`.\n\n### Solution\n```python\nclass Solution:\n    def characterReplacement(self, s: str, k: int) -> int:\n        count = {}\n        left = 0\n        max_freq = 0\n        best = 0\n        for right, ch in enumerate(s):\n            count[ch] = count.get(ch, 0) + 1\n            max_freq = max(max_freq, count[ch])\n            while (right - left + 1) - max_freq > k:\n                count[s[left]] -= 1\n                left += 1\n            best = max(best, right - left + 1)\n        return best\n```\n\n### Complexity\n- **Time:** O(n).\n- **Space:** O(26) = O(1) for uppercase letters.\n\n### Common mistakes\n- Recomputing max(count.values()) each step: fine for 26 letters (O(26n)) but explain why the stale max_freq is also correct.\n- Counting distinct characters instead of using the most frequent one.\n- Forgetting to decrement the count of the character leaving the window.\n\n### Follow-ups\n- Max Consecutive Ones III (1004): the same window over a binary array.\n- Why does a stale max_freq never produce a wrong answer?"
+ },
+ "lc-567": {
+  "brief": "Drills the **fixed-size sliding window** with frequency matching. Keep a 'matches' counter so each slide is O(1) instead of comparing whole count maps.",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "A permutation of s1 is any substring of s2 with the same length and the same letter counts. What window size should you slide?",
+   "Slide a window of length len(s1) across s2, maintaining letter counts for the window. If the window's counts ever equal s1's counts, return True.",
+   "Use two 26-length arrays and a `matches` count of letters whose counts agree. When a letter enters or leaves, update its count and adjust matches only for that letter; when matches == 26, return True. O(n) time, O(1) space."
+  ],
+  "solution": "### Key insight\nPermutation means equal histograms of equal length, so a fixed-width window that updates one letter in and one letter out tests every candidate in O(1) each.\n\n### Approach\n1. If len(s1) > len(s2), return False.\n2. Build counts for s1 and for the first window of s2; compute `matches`.\n3. Slide: add s2[r], remove s2[r - m], updating matches for each letter changed.\n4. Return True when matches == 26.\n\n### Solution\n```python\nclass Solution:\n    def checkInclusion(self, s1: str, s2: str) -> bool:\n        m, n = len(s1), len(s2)\n        if m > n:\n            return False\n        need = [0] * 26\n        have = [0] * 26\n        for i in range(m):\n            need[ord(s1[i]) - 97] += 1\n            have[ord(s2[i]) - 97] += 1\n        matches = sum(1 for i in range(26) if need[i] == have[i])\n        for r in range(m, n):\n            if matches == 26:\n                return True\n            for idx, delta in ((ord(s2[r]) - 97, 1), (ord(s2[r - m]) - 97, -1)):\n                if have[idx] == need[idx]:\n                    matches -= 1\n                have[idx] += delta\n                if have[idx] == need[idx]:\n                    matches += 1\n        return matches == 26\n```\n\n### Complexity\n- **Time:** O(n + m) (26 is a constant).\n- **Space:** O(1).\n\n### Common mistakes\n- Generating all permutations of s1 (factorial time).\n- Forgetting to check the final window after the loop.\n- Sorting every window (O(n * m log m)).\n\n### Follow-ups\n- Find All Anagrams in a String (438): return every start index instead of a bool.\n- Simpler version: compare the two 26-arrays each step (O(26n)); when is that good enough?"
+ },
+ "lc-76": {
+  "brief": "Stretch. Drills **expand-until-valid, shrink-while-valid** with a 'formed' counter. The capstone of the sliding-window family; watch duplicate characters in t.",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "Grow a window until it contains every needed character (with multiplicity). Once it does, how far can you shrink it from the left before it breaks?",
+   "Count what t needs. Move right, adding characters; track how many distinct characters have reached their required count. While all are satisfied, record the window and move left forward, removing characters.",
+   "Keep `formed` = number of distinct chars whose window count is at least the need; increment it when a count reaches the need exactly and decrement it when a removal drops below. Store the best (length, left, right) and slice once at the end. O(|s| + |t|) time."
+  ],
+  "solution": "### Key insight\nEvery minimal window is found by shrinking the left edge as soon as the window becomes valid, so each pointer moves at most |s| times.\n\n### Approach\n1. `need = Counter(t)`, `required = len(need)`, `formed = 0`, `window = {}`.\n2. For each right: add s[right]; if its count equals need[ch], formed += 1.\n3. While formed == required: update best, remove s[left]; if its count drops below need, formed -= 1; left += 1.\n4. Return the best slice or \"\".\n\n### Solution\n```python\nfrom collections import Counter\n\n\nclass Solution:\n    def minWindow(self, s: str, t: str) -> str:\n        if not t or not s:\n            return \"\"\n        need = Counter(t)\n        required = len(need)\n        window = {}\n        formed = 0\n        best = (float(\"inf\"), 0, 0)\n        left = 0\n        for right, ch in enumerate(s):\n            window[ch] = window.get(ch, 0) + 1\n            if ch in need and window[ch] == need[ch]:\n                formed += 1\n            while formed == required:\n                if right - left + 1 < best[0]:\n                    best = (right - left + 1, left, right)\n                out = s[left]\n                window[out] -= 1\n                if out in need and window[out] < need[out]:\n                    formed -= 1\n                left += 1\n        return \"\" if best[0] == float(\"inf\") else s[best[1]:best[2] + 1]\n```\n\n### Complexity\n- **Time:** O(|s| + |t|).\n- **Space:** O(|s| + |t|) worst case for the maps (O(alphabet) in practice).\n\n### Common mistakes\n- Treating t as a set and ignoring duplicate characters (t = \"aa\").\n- Incrementing `formed` every time a count is >= need rather than exactly when it reaches need.\n- Slicing strings inside the loop (extra O(n) per update); store indices instead.\n\n### Follow-ups\n- Optimise when s is much longer than t: pre-filter s to only positions whose character is in t.\n- Minimum window subsequence (727): order matters, so the approach changes."
+ },
+ "lc-20": {
+  "brief": "Drills the **stack for nested structure**: the most recent unmatched opener must close first. Watch the empty-stack and leftover-opener cases.",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "Brackets must close in the reverse order they opened. Which data structure gives you 'the most recent thing still open'?",
+   "Push opening brackets on a stack. On a closing bracket, the stack top must be its matching opener; pop it, or fail if it doesn't match or the stack is empty.",
+   "Use a dict from closer to opener. At the end the stack must be empty, otherwise some opener was never closed. An odd-length string can be rejected immediately. O(n) time, O(n) space."
+  ],
+  "solution": "### Key insight\nCorrect nesting means each closer matches the latest unmatched opener, which is exactly LIFO order.\n\n### Approach\n1. `pairs = {')': '(', ']': '[', '}': '{'}`, `stack = []`.\n2. For ch in s: if ch is a closer, return False if the stack is empty or `stack.pop() != pairs[ch]`; else push ch.\n3. Return `not stack`.\n\n### Solution\n```python\nclass Solution:\n    def isValid(self, s: str) -> bool:\n        pairs = {\")\": \"(\", \"]\": \"[\", \"}\": \"{\"}\n        stack = []\n        for ch in s:\n            if ch in pairs:\n                if not stack or stack.pop() != pairs[ch]:\n                    return False\n            else:\n                stack.append(ch)\n        return not stack\n```\n\n### Complexity\n- **Time:** O(n).\n- **Space:** O(n).\n\n### Common mistakes\n- Only counting brackets per type, which accepts \"([)]\".\n- Popping from an empty stack on input like \"]\".\n- Returning True at the end without checking the stack is empty (\"((\").\n\n### Follow-ups\n- Minimum additions/removals to make it valid (921 / 1249).\n- Longest valid parentheses substring (32): stack of indices."
+ },
+ "lc-155": {
+  "brief": "Drills **augmenting a stack with per-level state**: store the minimum alongside each element so getMin is O(1) after pops. A design-style question, so talk through the invariant.",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "When you pop the current minimum, you need to know the previous minimum instantly. What could you store at push time so that's always available?",
+   "Keep a second stack (or store pairs) where each entry records the minimum of the stack up to and including that element. Push min(x, current min); pop both together.",
+   "Each stack level stores (value, min_so_far). push: append (x, min(x, top_min)). pop: remove the top. top and getMin read the top pair. Every operation is O(1); space O(n)."
+  ],
+  "solution": "### Key insight\nThe minimum of a stack only changes at push and pop, and depends only on what's below, so caching it per level makes it a lookup.\n\n### Approach\n1. `self.stack = []` holding (val, min_so_far) tuples.\n2. push(x): `m = x if empty else min(x, self.stack[-1][1])`; append (x, m).\n3. pop(): `self.stack.pop()`. top(): `self.stack[-1][0]`. getMin(): `self.stack[-1][1]`.\n\n### Solution\n```python\nclass MinStack:\n    def __init__(self):\n        self.stack = []  # (value, min of stack up to here)\n\n    def push(self, val: int) -> None:\n        current_min = val if not self.stack else min(val, self.stack[-1][1])\n        self.stack.append((val, current_min))\n\n    def pop(self) -> None:\n        self.stack.pop()\n\n    def top(self) -> int:\n        return self.stack[-1][0]\n\n    def getMin(self) -> int:\n        return self.stack[-1][1]\n```\n\n### Complexity\n- **Time:** O(1) for every operation.\n- **Space:** O(n).\n\n### Common mistakes\n- Keeping a single `self.min` variable, which is wrong after the minimum is popped.\n- A separate min-stack that only pushes on strictly smaller values, which breaks with duplicate minimums (use <=).\n- Calling min() over the whole stack in getMin (O(n)).\n\n### Follow-ups\n- Reduce space: only push onto the min-stack when val <= current min.\n- Max Stack with popMax (716): needs a heap or sorted structure plus lazy deletion."
+ },
+ "lc-150": {
+  "brief": "Drills **stack-based expression evaluation**. Watch operand order for `-` and `/`, and that division truncates toward zero (Python's `//` floors).",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "In postfix, every operator applies to the two most recent values that haven't been consumed. Which structure keeps those on top?",
+   "Push numbers on a stack. On an operator, pop the right operand then the left, apply the operator, and push the result. The final stack value is the answer.",
+   "Pop b first, then a, and compute a op b, since order matters for '-' and '/'. For division use int(a / b) to truncate toward zero; a // b floors, so -7 // 2 gives -4 instead of -3. O(n) time and space."
+  ],
+  "solution": "### Key insight\nPostfix notation has no precedence or parentheses: each operator consumes the two latest results, which is a stack.\n\n### Approach\n1. `stack = []`.\n2. For each token: if it's an operator, `b = stack.pop()`, `a = stack.pop()`, push `a op b`.\n3. Otherwise push `int(token)`.\n4. Return `stack[-1]`.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def evalRPN(self, tokens: List[str]) -> int:\n        stack = []\n        for tok in tokens:\n            if tok in (\"+\", \"-\", \"*\", \"/\"):\n                b = stack.pop()\n                a = stack.pop()\n                if tok == \"+\":\n                    stack.append(a + b)\n                elif tok == \"-\":\n                    stack.append(a - b)\n                elif tok == \"*\":\n                    stack.append(a * b)\n                else:\n                    stack.append(int(a / b))  # truncate toward zero\n            else:\n                stack.append(int(tok))\n        return stack[-1]\n```\n\n### Complexity\n- **Time:** O(n).\n- **Space:** O(n).\n\n### Common mistakes\n- Popping operands in the wrong order (computing b - a).\n- Using `//`, which floors: -7 // 2 is -4 but the problem wants -3.\n- Checking `tok.isdigit()` to detect numbers, which fails for negatives like \"-11\".\n\n### Follow-ups\n- Basic Calculator (224/227): infix with precedence and parentheses.\n- Convert infix to postfix (shunting-yard)."
+ },
+ "lc-739": {
+  "brief": "Drills the **monotonic stack** for 'next greater element' queries. The key idea: store indices of days still waiting for an answer.",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "For each day you want the next warmer day. Which days are still 'waiting' for an answer as you scan left to right, and what order are their temperatures in?",
+   "Keep a stack of indices whose answer is unknown. When today's temperature is warmer than the day on top, that day's answer is today: pop it and record the distance. Repeat, then push today.",
+   "The stack's temperatures are non-increasing from bottom to top, which is why one comparison with the top decides. Every index is pushed and popped once, so it's O(n) time, O(n) space; days left in the stack keep answer 0."
+  ],
+  "solution": "### Key insight\nA day is resolved by the first warmer day after it. A stack of unresolved days stays in decreasing temperature order, so each new day resolves a suffix of it.\n\n### Approach\n1. `answer = [0] * n`, `stack = []` of indices.\n2. For i, t: while stack and `temps[stack[-1]] < t`: `j = stack.pop()`, `answer[j] = i - j`.\n3. Push i. Return answer.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def dailyTemperatures(self, temperatures: List[int]) -> List[int]:\n        answer = [0] * len(temperatures)\n        stack = []  # indices with no warmer day found yet\n        for i, t in enumerate(temperatures):\n            while stack and temperatures[stack[-1]] < t:\n                j = stack.pop()\n                answer[j] = i - j\n            stack.append(i)\n        return answer\n```\n\n### Complexity\n- **Time:** O(n) amortised: each index is pushed and popped at most once.\n- **Space:** O(n).\n\n### Common mistakes\n- Storing temperatures instead of indices, so you can't compute the distance.\n- Using <= instead of <, which treats an equal temperature as warmer.\n- Nested scan forward from each day (O(n^2)).\n\n### Follow-ups\n- Next Greater Element II (503): circular array, scan twice.\n- Largest Rectangle in Histogram (84): monotonic stack resolving previous and next smaller."
+ },
+ "lc-704": {
+  "brief": "Drills the **binary search template** itself: pick one interval convention (closed `[lo, hi]` here) and keep it consistent. Most bugs are off-by-one in the loop condition or the updates.",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "The array is sorted. Comparing the target with the middle element tells you which half can't contain it.",
+   "Keep lo and hi as the inclusive bounds of where the target could be. Look at mid; if it's the target return it, if it's smaller search right, otherwise search left.",
+   "With inclusive bounds use while lo <= hi, lo = mid + 1 and hi = mid - 1, and return -1 when the loop ends. mid = (lo + hi) // 2 is fine in Python (use lo + (hi - lo) // 2 in fixed-width languages). O(log n) time, O(1) space."
+  ],
+  "solution": "### Key insight\nEach comparison with the middle element discards half of the remaining range, so at most log2(n) + 1 comparisons are needed.\n\n### Approach\n1. `lo, hi = 0, n - 1`.\n2. While lo <= hi: `mid = (lo + hi) // 2`.\n3. Equal: return mid. `nums[mid] < target`: lo = mid + 1. Else: hi = mid - 1.\n4. Return -1.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def search(self, nums: List[int], target: int) -> int:\n        lo, hi = 0, len(nums) - 1\n        while lo <= hi:\n            mid = (lo + hi) // 2\n            if nums[mid] == target:\n                return mid\n            if nums[mid] < target:\n                lo = mid + 1\n            else:\n                hi = mid - 1\n        return -1\n```\n\n### Complexity\n- **Time:** O(log n).\n- **Space:** O(1).\n\n### Common mistakes\n- `while lo < hi` with inclusive bounds, which misses the last candidate (e.g. a 1-element array).\n- `lo = mid` instead of `mid + 1`, which loops forever.\n- Integer overflow in (lo + hi) in Java/C++; mention lo + (hi - lo) / 2.\n\n### Follow-ups\n- Find the first/last position of a target with duplicates (34): lower-bound/upper-bound variants.\n- Search insert position (35): return lo when the loop ends."
+ },
+ "lc-74": {
+  "brief": "Drills **index mapping for binary search**: a row-major sorted matrix is one sorted array of length m*n in disguise.",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "Each row is sorted and each row starts after the previous row ends. If you read the matrix row by row, what does the sequence look like?",
+   "Treat the matrix as a virtual sorted array of length m*n and binary search over indices 0..m*n-1, converting each index to a (row, col) cell.",
+   "Index k maps to row k // n and column k % n, where n is the number of columns. Standard inclusive binary search; O(log(m*n)) time, O(1) space."
+  ],
+  "solution": "### Key insight\nBecause rows don't overlap, the matrix flattened in row-major order is sorted, and divmod converts a flat index back to a cell.\n\n### Approach\n1. `m, n = len(matrix), len(matrix[0])`; `lo, hi = 0, m * n - 1`.\n2. While lo <= hi: mid; `r, c = divmod(mid, n)`; compare matrix[r][c] with target.\n3. Return True on a match, False when the loop ends.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def searchMatrix(self, matrix: List[List[int]], target: int) -> bool:\n        m, n = len(matrix), len(matrix[0])\n        lo, hi = 0, m * n - 1\n        while lo <= hi:\n            mid = (lo + hi) // 2\n            r, c = divmod(mid, n)\n            v = matrix[r][c]\n            if v == target:\n                return True\n            if v < target:\n                lo = mid + 1\n            else:\n                hi = mid - 1\n        return False\n```\n\n### Complexity\n- **Time:** O(log(m * n)).\n- **Space:** O(1).\n\n### Common mistakes\n- Dividing by the number of rows instead of columns when mapping the index.\n- Searching every row (O(m log n)) or walking cells linearly (O(m*n)).\n\n### Follow-ups\n- Search a 2D Matrix II (240): rows and columns sorted but rows can overlap; start at the top-right corner, O(m + n).\n- Two-step alternative: binary search the row by first column, then the column."
+ },
+ "lc-875": {
+  "brief": "Drills **binary search on the answer**: search over possible speeds, not over the array, using a monotone feasibility check. This pattern shows up constantly (capacity, rate, threshold problems).",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "If Koko can finish at speed k, she can also finish at any faster speed. What does that monotonicity let you do over the range of speeds?",
+   "Binary search k between 1 and max(piles). For a candidate k, compute total hours as the sum of ceil(pile / k); if it fits within h, try smaller, otherwise try larger.",
+   "Find the smallest feasible k with lo = 1, hi = max(piles), while lo < hi: if feasible(mid) then hi = mid else lo = mid + 1; return lo. Ceil division is (p + k - 1) // k. O(n log max(piles)) time, O(1) space."
+  ],
+  "solution": "### Key insight\nHours needed decreases as speed increases, so 'can finish within h' flips from false to true exactly once, and binary search finds that boundary.\n\n### Approach\n1. `lo, hi = 1, max(piles)`.\n2. While lo < hi: `mid = (lo + hi) // 2`; hours = sum of `(p + mid - 1) // mid`.\n3. If hours <= h: hi = mid (mid works, try smaller). Else lo = mid + 1.\n4. Return lo.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def minEatingSpeed(self, piles: List[int], h: int) -> int:\n        lo, hi = 1, max(piles)\n        while lo < hi:\n            mid = (lo + hi) // 2\n            hours = sum((p + mid - 1) // mid for p in piles)\n            if hours <= h:\n                hi = mid\n            else:\n                lo = mid + 1\n        return lo\n```\n\n### Complexity\n- **Time:** O(n log M), where M = max(piles).\n- **Space:** O(1).\n\n### Common mistakes\n- Starting lo at 0 (division by zero).\n- Using floor division p // k, which undercounts hours.\n- Mixing templates: `while lo <= hi` with `hi = mid` can loop forever.\n\n### Follow-ups\n- Capacity To Ship Packages Within D Days (1011) and Split Array Largest Sum (410): same template.\n- Tighten the lower bound: ceil(sum(piles) / h)."
+ },
+ "lc-33": {
+  "brief": "Drills **binary search with a broken invariant**: one half around mid is always sorted, and that half tells you where to go. Watch duplicates are excluded here (that's problem 81).",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "Split the rotated array at any mid. At least one of the two halves is fully sorted. How can you tell which, and why does that help?",
+   "If nums[lo] <= nums[mid], the left half is sorted; check whether the target lies within its range and search there, otherwise go right. Symmetrically when the right half is sorted.",
+   "Left sorted: if nums[lo] <= target < nums[mid], set hi = mid - 1, else lo = mid + 1. Right sorted: if nums[mid] < target <= nums[hi], set lo = mid + 1, else hi = mid - 1. Use <= in nums[lo] <= nums[mid] so lo == mid works. O(log n)."
+  ],
+  "solution": "### Key insight\nRotation breaks sortedness at only one point, so the half not containing that point is sorted, and a range check on it decides which half to keep.\n\n### Approach\n1. Standard inclusive loop with `mid`; return mid on a match.\n2. If `nums[lo] <= nums[mid]` (left sorted): go left if `nums[lo] <= target < nums[mid]`, else right.\n3. Else (right sorted): go right if `nums[mid] < target <= nums[hi]`, else left.\n4. Return -1.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def search(self, nums: List[int], target: int) -> int:\n        lo, hi = 0, len(nums) - 1\n        while lo <= hi:\n            mid = (lo + hi) // 2\n            if nums[mid] == target:\n                return mid\n            if nums[lo] <= nums[mid]:  # left half sorted\n                if nums[lo] <= target < nums[mid]:\n                    hi = mid - 1\n                else:\n                    lo = mid + 1\n            else:  # right half sorted\n                if nums[mid] < target <= nums[hi]:\n                    lo = mid + 1\n                else:\n                    hi = mid - 1\n        return -1\n```\n\n### Complexity\n- **Time:** O(log n).\n- **Space:** O(1).\n\n### Common mistakes\n- Using `<` in `nums[lo] < nums[mid]`, which misclassifies when lo == mid (two-element arrays).\n- Strict vs non-strict comparisons on the range check, so the boundary element is skipped.\n- Finding the pivot first and then searching works (two binary searches) but is easier to get wrong.\n\n### Follow-ups\n- With duplicates (81): when nums[lo] == nums[mid] == nums[hi] you can only shrink both ends, O(n) worst case.\n- Find Minimum in Rotated Sorted Array (153)."
+ },
+ "lc-981": {
+  "brief": "Drills **binary search for a floor (latest <= t)** inside a design problem. Timestamps per key arrive strictly increasing, so appending keeps them sorted.",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "For one key, set() calls come with increasing timestamps. What does that tell you about the list of values stored for that key?",
+   "Store, per key, a list of (timestamp, value) in insertion order, which is already sorted. get() binary searches for the largest timestamp <= the query.",
+   "Use bisect_right on the timestamps with the query time; the answer is at index pos - 1, or '' if pos is 0 (every stored time is later). Keep timestamps in their own list so bisect compares ints only. set is O(1), get is O(log n)."
+  ],
+  "solution": "### Key insight\nInsertion order is time order, so each key's history is a sorted list and 'value at time t' is a floor search.\n\n### Approach\n1. `self.times = defaultdict(list)`, `self.values = defaultdict(list)`.\n2. set: append timestamp and value to that key's lists.\n3. get: `i = bisect_right(times[key], timestamp)`; return `values[key][i - 1]` if i > 0 else \"\".\n\n### Solution\n```python\nfrom bisect import bisect_right\nfrom collections import defaultdict\n\n\nclass TimeMap:\n    def __init__(self):\n        self.times = defaultdict(list)\n        self.values = defaultdict(list)\n\n    def set(self, key: str, value: str, timestamp: int) -> None:\n        self.times[key].append(timestamp)\n        self.values[key].append(value)\n\n    def get(self, key: str, timestamp: int) -> str:\n        times = self.times.get(key)\n        if not times:\n            return \"\"\n        i = bisect_right(times, timestamp)\n        return self.values[key][i - 1] if i else \"\"\n```\n\n### Complexity\n- **Time:** set O(1), get O(log n) where n is the number of entries for that key.\n- **Space:** O(total set calls).\n\n### Common mistakes\n- Linear scan in get (O(n)) which times out with many sets per key.\n- Mixing up bisect_left and bisect_right: with bisect_left you must special-case an exact timestamp match; bisect_right(t) - 1 is the floor directly.\n- Not handling a query earlier than every stored timestamp, or a missing key.\n\n### Follow-ups\n- Timestamps may arrive out of order: use a sorted container / balanced BST per key.\n- How would you persist this? (Append-only log per key, LSM-tree style.)"
+ },
+ "lc-206": {
+  "brief": "Drills **pointer rewiring with prev/curr/next**, the building block for every linked-list problem this week. Be able to write both iterative and recursive versions.",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "To reverse, each node's next must point to the node before it. What do you need to save before you overwrite curr.next?",
+   "Walk the list with prev (initially None) and curr. Save curr.next, point curr.next at prev, then advance prev to curr and curr to the saved node.",
+   "When curr becomes None, prev is the new head. Iterative is O(n) time and O(1) space; the recursive version reverses the rest, then sets head.next.next = head and head.next = None, using O(n) stack."
+  ],
+  "solution": "### Key insight\nReversal is just flipping one pointer per node, as long as you save the rest of the list before flipping.\n\n### Approach\n1. `prev, curr = None, head`.\n2. While curr: `nxt = curr.next`; `curr.next = prev`; `prev = curr`; `curr = nxt`.\n3. Return prev.\n\n### Solution\n```python\n# Definition for singly-linked list (provided by LeetCode):\n# class ListNode:\n#     def __init__(self, val=0, next=None):\n#         self.val = val\n#         self.next = next\nfrom typing import Optional\n\n\nclass Solution:\n    def reverseList(self, head: Optional[ListNode]) -> Optional[ListNode]:\n        prev, curr = None, head\n        while curr:\n            nxt = curr.next\n            curr.next = prev\n            prev = curr\n            curr = nxt\n        return prev\n```\n\n### Complexity\n- **Time:** O(n).\n- **Space:** O(1) iterative (O(n) call stack recursive).\n\n### Common mistakes\n- Overwriting curr.next before saving it, losing the rest of the list.\n- Returning head (now the tail) instead of prev.\n- In the recursive version, forgetting head.next = None, which leaves a cycle.\n\n### Follow-ups\n- Reverse Linked List II (92): reverse only positions left..right.\n- Reverse Nodes in k-Group (25)."
+ },
+ "lc-21": {
+  "brief": "Drills the **dummy head** technique and the merge step of merge sort. Watch attaching the leftover tail in one step.",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "You always take the smaller of the two current heads. How can you avoid special-casing the very first node you attach?",
+   "Create a dummy node and a tail pointer. While both lists have nodes, attach the smaller head to tail and advance that list. Then attach whichever list remains.",
+   "The leftover list is already sorted, so tail.next = l1 or l2 finishes it in O(1). Return dummy.next. Use <= to keep the merge stable. O(n + m) time, O(1) extra space since you reuse nodes."
+  ],
+  "solution": "### Key insight\nA dummy node gives you a fixed place to hang the result, so every attachment is the same operation, and the leftover suffix can be linked whole.\n\n### Approach\n1. `dummy = tail = ListNode()`.\n2. While l1 and l2: attach the smaller one to tail.next and advance it; `tail = tail.next`.\n3. `tail.next = l1 or l2`; return dummy.next.\n\n### Solution\n```python\n# Definition for singly-linked list (provided by LeetCode):\n# class ListNode:\n#     def __init__(self, val=0, next=None):\n#         self.val = val\n#         self.next = next\nfrom typing import Optional\n\n\nclass Solution:\n    def mergeTwoLists(self, list1: Optional[ListNode], list2: Optional[ListNode]) -> Optional[ListNode]:\n        dummy = tail = ListNode()\n        while list1 and list2:\n            if list1.val <= list2.val:\n                tail.next, list1 = list1, list1.next\n            else:\n                tail.next, list2 = list2, list2.next\n            tail = tail.next\n        tail.next = list1 or list2\n        return dummy.next\n```\n\n### Complexity\n- **Time:** O(n + m).\n- **Space:** O(1) extra.\n\n### Common mistakes\n- Forgetting to attach the remaining list after the loop.\n- Not advancing tail, so every node overwrites the same next pointer.\n- Creating new nodes for every value (works, but O(n + m) extra space).\n\n### Follow-ups\n- Merge k Sorted Lists (23): min-heap of heads, O(N log k).\n- Sort List (148): merge sort on a linked list."
+ },
+ "lc-141": {
+  "brief": "Drills **fast and slow pointers** (Floyd's cycle detection). The same two-speed idea finds the middle of a list in Reorder List.",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "A hash set of visited nodes works with O(n) memory. Can two pointers moving at different speeds detect a loop with O(1) memory?",
+   "Move slow one step and fast two steps at a time. If there's no cycle, fast hits the end; if there is, fast eventually laps slow and they meet.",
+   "Loop while fast and fast.next exist; advance, then compare slow is fast (node identity, not values). Inside a cycle the gap shrinks by 1 each step, so they meet within one lap. O(n) time, O(1) space."
+  ],
+  "solution": "### Key insight\nInside a cycle, the fast pointer gains one node per step on the slow one, so it must land on it rather than jump over it.\n\n### Approach\n1. `slow = fast = head`.\n2. While fast and fast.next: `slow = slow.next`, `fast = fast.next.next`; if slow is fast return True.\n3. Return False.\n\n### Solution\n```python\n# Definition for singly-linked list (provided by LeetCode):\n# class ListNode:\n#     def __init__(self, val=0, next=None):\n#         self.val = val\n#         self.next = next\nfrom typing import Optional\n\n\nclass Solution:\n    def hasCycle(self, head: Optional[ListNode]) -> bool:\n        slow = fast = head\n        while fast and fast.next:\n            slow = slow.next\n            fast = fast.next.next\n            if slow is fast:\n                return True\n        return False\n```\n\n### Complexity\n- **Time:** O(n).\n- **Space:** O(1).\n\n### Common mistakes\n- Checking slow == fast before moving (they start equal, so it returns True immediately).\n- Comparing node values instead of node identity.\n- Not guarding fast.next, which raises on even-length lists.\n\n### Follow-ups\n- Linked List Cycle II (142): find the cycle start by resetting one pointer to head after they meet.\n- Find the Duplicate Number (287): the same algorithm on an implicit list."
+ },
+ "lc-143": {
+  "brief": "Drills **composing list primitives**: find middle (fast/slow), reverse second half, merge alternately. Must be done in place, without returning a value.",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "The result alternates first, last, second, second-last... Which three operations from this week would produce that order if you combined them?",
+   "Split the list at its middle using slow/fast pointers, reverse the second half, then weave the two halves together one node at a time.",
+   "After finding the middle with slow, set second = slow.next and slow.next = None to cut the list, otherwise you create a cycle. Reverse second, then alternately link first and second nodes, saving both next pointers before rewiring. O(n) time, O(1) space."
+  ],
+  "solution": "### Key insight\nThe reorder is just the first half interleaved with the reversed second half, and all three steps are O(1)-space list operations.\n\n### Approach\n1. Find middle: slow/fast from head while fast.next and fast.next.next.\n2. Cut: `second = slow.next`, `slow.next = None`; reverse second.\n3. Merge: while second: save `n1 = first.next`, `n2 = second.next`; `first.next = second`; `second.next = n1`; advance first = n1, second = n2.\n\n### Solution\n```python\n# Definition for singly-linked list (provided by LeetCode):\n# class ListNode:\n#     def __init__(self, val=0, next=None):\n#         self.val = val\n#         self.next = next\nfrom typing import Optional\n\n\nclass Solution:\n    def reorderList(self, head: Optional[ListNode]) -> None:\n        if not head or not head.next:\n            return\n        slow = fast = head\n        while fast.next and fast.next.next:\n            slow = slow.next\n            fast = fast.next.next\n        second = slow.next\n        slow.next = None\n        prev = None\n        while second:\n            nxt = second.next\n            second.next = prev\n            prev = second\n            second = nxt\n        first, second = head, prev\n        while second:\n            n1, n2 = first.next, second.next\n            first.next = second\n            second.next = n1\n            first, second = n1, n2\n```\n\n### Complexity\n- **Time:** O(n).\n- **Space:** O(1).\n\n### Common mistakes\n- Not cutting the list at the middle, which produces a cycle.\n- Losing nodes by rewiring before saving both next pointers.\n- Copying nodes into an array (O(n) space): fine as a first answer, but the follow-up asks for O(1).\n\n### Follow-ups\n- Palindrome Linked List (234): same middle + reverse trick.\n- Do it with an array or deque first, then explain the trade-off."
+ },
+ "lc-146": {
+  "brief": "Drills **hash map + doubly linked list** for O(1) get/put with recency ordering. A top interview design question; you should be able to build it from scratch, not only with OrderedDict.",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "You need O(1) lookup by key and O(1) 'move to most recent' and 'evict least recent'. No single structure does both. Which two would you combine?",
+   "Keep a dict from key to node, and a doubly linked list ordered by recency. get moves the node to the front; put inserts or updates at the front and evicts from the back when over capacity.",
+   "Use sentinel head and tail nodes so insert and remove never check for None. Remove and add-to-front are each four pointer updates. On eviction, delete the tail.prev node from both the list and the dict, which is why nodes store their key. All operations O(1)."
+  ],
+  "solution": "### Key insight\nThe dict gives O(1) access to a node, and a doubly linked list lets you unlink that node and relink it at the front in O(1), so recency order is maintained without searching.\n\n### Approach\n1. Node(key, val, prev, next); sentinels `head` and `tail` linked together; `self.map = {}`.\n2. `_remove(node)` unlinks; `_add_front(node)` inserts after head.\n3. get: if key missing return -1; else move its node to front and return val.\n4. put: if key exists, remove old node. Create, add to front, store in map. If size > capacity, remove `tail.prev` and delete its key from the map.\n\n### Solution\n```python\nclass Node:\n    def __init__(self, key=0, val=0):\n        self.key, self.val = key, val\n        self.prev = self.next = None\n\n\nclass LRUCache:\n    def __init__(self, capacity: int):\n        self.capacity = capacity\n        self.map = {}\n        self.head, self.tail = Node(), Node()  # sentinels: head <-> ... <-> tail\n        self.head.next, self.tail.prev = self.tail, self.head\n\n    def _remove(self, node: Node) -> None:\n        node.prev.next, node.next.prev = node.next, node.prev\n\n    def _add_front(self, node: Node) -> None:\n        node.prev, node.next = self.head, self.head.next\n        self.head.next.prev = node\n        self.head.next = node\n\n    def get(self, key: int) -> int:\n        node = self.map.get(key)\n        if node is None:\n            return -1\n        self._remove(node)\n        self._add_front(node)\n        return node.val\n\n    def put(self, key: int, value: int) -> None:\n        if key in self.map:\n            self._remove(self.map[key])\n        node = Node(key, value)\n        self.map[key] = node\n        self._add_front(node)\n        if len(self.map) > self.capacity:\n            lru = self.tail.prev\n            self._remove(lru)\n            del self.map[lru.key]\n```\n\n### Complexity\n- **Time:** O(1) for get and put.\n- **Space:** O(capacity).\n\n### Common mistakes\n- Forgetting that get also refreshes recency.\n- Not storing the key in the node, so eviction can't delete it from the dict.\n- Updating an existing key without moving it to the front, or evicting before handling the update case.\n\n### Follow-ups\n- Implement it with collections.OrderedDict (move_to_end, popitem(last=False)) and say what it does internally.\n- LFU Cache (460), or make it thread-safe / add TTLs."
+ },
+ "lc-56": {
+  "brief": "Drills **sort by start, then sweep and merge** — the base template for every interval problem. Watch the touching case ([1,4] and [4,5] merge).",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "If the intervals were ordered by start time, where could an interval that overlaps the current one possibly be?",
+   "Sort by start. Walk through, keeping the last merged interval; if the next one starts at or before its end, extend the end, otherwise start a new merged interval.",
+   "Extend with end = max(end, next_end), not next_end, because a later interval can be fully contained in the current one. Overlap test is next_start <= last_end. O(n log n) for the sort, O(n) output."
+  ],
+  "solution": "### Key insight\nAfter sorting by start, any interval overlapping the current merged block must come immediately next, so one linear sweep suffices.\n\n### Approach\n1. Sort intervals by start.\n2. `merged = []`. For each [s, e]: if merged and `s <= merged[-1][1]`, set `merged[-1][1] = max(merged[-1][1], e)`.\n3. Else append [s, e]. Return merged.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def merge(self, intervals: List[List[int]]) -> List[List[int]]:\n        intervals.sort(key=lambda iv: iv[0])\n        merged = []\n        for s, e in intervals:\n            if merged and s <= merged[-1][1]:\n                merged[-1][1] = max(merged[-1][1], e)\n            else:\n                merged.append([s, e])\n        return merged\n```\n\n### Complexity\n- **Time:** O(n log n).\n- **Space:** O(n) for the output (plus sort space).\n\n### Common mistakes\n- Setting the end to the new interval's end instead of the max (fails on [1,10],[2,3]).\n- Using < instead of <=, so touching intervals stay separate.\n- Forgetting to sort first.\n\n### Follow-ups\n- Intervals arrive as a stream: keep a sorted structure and merge on insert (or see 57).\n- Meeting Rooms II (253): minimum rooms via a min-heap of end times or a sweep line."
+ },
+ "lc-57": {
+  "brief": "Drills the **three-phase interval sweep** on already-sorted, non-overlapping input: before, overlapping, after. No sort needed, so aim for O(n).",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "The existing intervals are sorted and disjoint. Split them into those entirely before the new interval, those that overlap it, and those entirely after.",
+   "Copy intervals that end before the new one starts. Then, while intervals start at or before the new interval's end, merge them into it by taking the min start and max end. Append the merged interval, then copy the rest.",
+   "Phase 1 condition: end < new_start. Phase 2 condition: start <= new_end, updating new_start = min(...) and new_end = max(...). Phase 3: everything left. Single pass, O(n) time."
+  ],
+  "solution": "### Key insight\nBecause the input is sorted and disjoint, the intervals overlapping the new one form one contiguous block, so you can merge them in a single left-to-right pass.\n\n### Approach\n1. `i = 0`, `res = []`.\n2. While `intervals[i][1] < new[0]`: append and i += 1.\n3. While `intervals[i][0] <= new[1]`: new = [min starts, max ends]; i += 1.\n4. Append new, then append the remaining intervals.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def insert(self, intervals: List[List[int]], newInterval: List[int]) -> List[List[int]]:\n        res = []\n        i, n = 0, len(intervals)\n        start, end = newInterval\n        while i < n and intervals[i][1] < start:\n            res.append(intervals[i])\n            i += 1\n        while i < n and intervals[i][0] <= end:\n            start = min(start, intervals[i][0])\n            end = max(end, intervals[i][1])\n            i += 1\n        res.append([start, end])\n        res.extend(intervals[i:])\n        return res\n```\n\n### Complexity\n- **Time:** O(n).\n- **Space:** O(n) for the output.\n\n### Common mistakes\n- Appending and re-sorting then calling Merge Intervals: correct but O(n log n).\n- Missing the `i < n` guards, which index past the end.\n- Forgetting the empty-intervals case (just return [newInterval]).\n\n### Follow-ups\n- Find the insertion point with binary search; why does the overall bound stay O(n)?\n- Remove Interval (1272), or a calendar that rejects overlapping bookings (729)."
+ },
+ "lc-435": {
+  "brief": "Drills **greedy interval scheduling**: sort by end and keep the interval that finishes first. Recognise that 'minimum removals' = n - 'maximum non-overlapping kept'.",
+  "starter": "",
+  "tests": [],
+  "hints": [
+   "Minimising removals is the same as maximising how many intervals you can keep with no overlap. Which interval should you keep first to leave the most room for the rest?",
+   "Sort by end time. Greedily keep an interval if it starts at or after the end of the last kept interval; otherwise remove it.",
+   "Track prev_end of the last kept interval; count removals when start < prev_end. Touching intervals ([1,2],[2,3]) do not overlap. Sorting by end is the classic activity-selection argument; O(n log n) time, O(1) extra."
+  ],
+  "solution": "### Key insight\nKeeping the interval that ends earliest never hurts: any optimal solution can swap its first interval for the earliest-ending one and stay valid.\n\n### Approach\n1. Sort intervals by end.\n2. `prev_end = -inf`, `removed = 0`.\n3. For [s, e]: if `s >= prev_end`, keep it (`prev_end = e`); else `removed += 1`.\n4. Return removed.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def eraseOverlapIntervals(self, intervals: List[List[int]]) -> int:\n        intervals.sort(key=lambda iv: iv[1])\n        prev_end = float(\"-inf\")\n        removed = 0\n        for s, e in intervals:\n            if s >= prev_end:\n                prev_end = e\n            else:\n                removed += 1\n        return removed\n```\n\n### Complexity\n- **Time:** O(n log n).\n- **Space:** O(1) extra (besides sorting).\n\n### Common mistakes\n- Sorting by start and keeping the first interval, without the rule 'on overlap keep the one that ends earlier'.\n- Treating touching intervals as overlapping (s > prev_end instead of s >= prev_end).\n- Trying DP (O(n^2)) when greedy is optimal.\n\n### Follow-ups\n- Minimum Number of Arrows to Burst Balloons (452): the same greedy where touching counts as overlapping.\n- Prove the greedy choice with an exchange argument."
+ }
+}

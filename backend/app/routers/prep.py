@@ -1,20 +1,26 @@
 from __future__ import annotations
 
+import json
 import re
+from collections.abc import Iterator
 from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select
 
 from app.auth import get_current_user, oauth2_scheme
-from app.db import get_session
+from app.db import engine, get_session
+from app.llm import build_coach_provider
 from app.models import (
     PrepAttempt,
     PrepFeedback,
+    PrepHintReveal,
     PrepRedo,
     PrepReviewToken,
     PrepSettings,
     PrepTask,
+    PrepTutorMessage,
     User,
 )
 from app.schemas import (
@@ -23,6 +29,8 @@ from app.schemas import (
     PrepAttemptResultOut,
     PrepCheckIn,
     PrepFeedbackOut,
+    PrepHintRevealIn,
+    PrepHintsOut,
     PrepPlanOut,
     PrepRedoOut,
     PrepReviewTokenOut,
@@ -30,6 +38,8 @@ from app.schemas import (
     PrepSettingsOut,
     PrepTaskDetailOut,
     PrepTodayOut,
+    PrepTutorIn,
+    PrepTutorMessageOut,
 )
 from app.services.prep_redos import new_redos
 from app.services.prep_schedule import NEETCODE_URL, build_plan, build_today, neetcode_task_id
@@ -40,6 +50,12 @@ from app.services.prep_review import (
     new_review_token,
 )
 from app.services.prep_seed import program, rules
+from app.services.prep_tutor import (
+    OFFLINE_FOLLOWUP,
+    followup_messages,
+    offline_review,
+    review_messages,
+)
 
 router = APIRouter(prefix="/api/prep", tags=["prep"])
 
@@ -263,9 +279,24 @@ def list_feedback(
 
 
 
+def _revealed_hints(user: User, task_id: str, day: date, session: Session) -> list[PrepHintReveal]:
+    return list(
+        session.exec(
+            select(PrepHintReveal)
+            .where(
+                PrepHintReveal.user_id == user.id,
+                PrepHintReveal.task_id == task_id,
+                PrepHintReveal.date == day,
+            )
+            .order_by(PrepHintReveal.level)
+        ).all()
+    )
+
+
 @router.get("/tasks/{task_id}", response_model=PrepTaskDetailOut)
 def get_task(
     task_id: str,
+    day: date | None = Query(default=None, alias="date"),
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ):
@@ -292,9 +323,24 @@ def get_task(
 
     task = session.get(PrepTask, task_id)
     if task is not None:
+        hints = task.hints or []
+        revealed = len(_revealed_hints(user, task_id, day, session)) if day else 0
+        content = {
+            "brief": task.brief,
+            "starter": task.starter,
+            "tests": task.tests or [],
+            "hints_total": len(hints),
+            "hints_revealed": hints[:revealed],
+            # The ideal solution unlocks once the task has a logged attempt.
+            "solution": task.solution if attempts else None,
+            "solution_locked": bool(task.solution) and not attempts,
+        }
         return PrepTaskDetailOut(
-            **task.model_dump(include=set(PrepTaskDetailOut.model_fields)),
+            **task.model_dump(
+                include=set(PrepTaskDetailOut.model_fields) - set(content) - set(history)
+            ),
             **history,
+            **content,
         )
     if _neetcode_day(task_id) is None:
         raise HTTPException(404, "Task not found")
@@ -347,7 +393,9 @@ def create_attempt(
         started_at=body.started_at,
         ended_at=body.ended_at or datetime.now(timezone.utc),
         elapsed_minutes=round(body.elapsed_minutes, 2),
-        hint_used=body.hint_used,
+        # A hint opened during the session counts, whatever the form says.
+        hint_used=body.hint_used
+        or bool(_revealed_hints(user, body.task_id, body.date, session)),
         solved=body.solved,
         self_rating=body.self_rating,
         code=body.code,
@@ -508,4 +556,147 @@ async def put_feedback(
     session.refresh(feedback)
     return PrepFeedbackOut(
         date=feedback.date, markdown=feedback.markdown, created_at=feedback.created_at
+    )
+
+
+@router.post("/tasks/{task_id}/hints", response_model=PrepHintsOut)
+def reveal_hint(
+    task_id: str,
+    body: PrepHintRevealIn,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Reveal the next hint for today. Hints open in order and mark the day's attempt."""
+    _require_near_today(body.date)
+    task = session.get(PrepTask, task_id)
+    if task is None or not task.hints:
+        raise HTTPException(404, "No hints for this task")
+    revealed = _revealed_hints(user, task_id, body.date, session)
+    if len(revealed) < len(task.hints):
+        session.add(
+            PrepHintReveal(
+                user_id=user.id, task_id=task_id, date=body.date, level=len(revealed) + 1
+            )
+        )
+        session.commit()
+        revealed = _revealed_hints(user, task_id, body.date, session)
+    return PrepHintsOut(total=len(task.hints), revealed=task.hints[: len(revealed)])
+
+
+def _owned_attempt(attempt_id: int, user: User, session: Session) -> PrepAttempt:
+    attempt = session.get(PrepAttempt, attempt_id)
+    if not attempt or attempt.user_id != user.id:
+        raise HTTPException(404, "Attempt not found")
+    return attempt
+
+
+def _tutor_history(attempt_id: int, session: Session) -> list[PrepTutorMessage]:
+    return list(
+        session.exec(
+            select(PrepTutorMessage)
+            .where(PrepTutorMessage.attempt_id == attempt_id)
+            .order_by(PrepTutorMessage.id)
+        ).all()
+    )
+
+
+def _tutor_out(message: PrepTutorMessage) -> PrepTutorMessageOut:
+    return PrepTutorMessageOut(
+        id=message.id or 0,
+        role=message.role,
+        content=message.content,
+        model_served=message.model_served,
+        created_at=_utc(message.created_at) or message.created_at,
+    )
+
+
+@router.get("/attempts/{attempt_id}/tutor", response_model=list[PrepTutorMessageOut])
+def get_tutor_thread(
+    attempt_id: int,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    _owned_attempt(attempt_id, user, session)
+    return [_tutor_out(m) for m in _tutor_history(attempt_id, session)]
+
+
+def _sse(payload: dict) -> str:
+    return f"data: {json.dumps(payload)}\n\n"
+
+
+@router.post("/attempts/{attempt_id}/tutor/stream")
+def stream_tutor(
+    attempt_id: int,
+    body: PrepTutorIn,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Stream the attempt review (empty message) or an answer to a follow-up question."""
+    attempt = _owned_attempt(attempt_id, user, session)
+    task = session.get(PrepTask, attempt.task_id)
+    history = _tutor_history(attempt_id, session)
+    hints_revealed = len(_revealed_hints(user, attempt.task_id, attempt.date, session))
+    question = body.message.strip()
+    if not question and history:
+        raise HTTPException(409, "This attempt already has a review")
+    if question and not history:
+        raise HTTPException(409, "Ask for the review first")
+
+    if question:
+        messages = followup_messages(task, attempt, hints_revealed, history, question)
+        session.add(
+            PrepTutorMessage(
+                user_id=user.id, attempt_id=attempt_id, role="user", content=question
+            )
+        )
+        session.commit()
+    else:
+        messages = review_messages(task, attempt, hints_revealed)
+
+    try:
+        provider = build_coach_provider(body.model)
+    except (RuntimeError, ValueError):
+        provider = None
+    user_id = user.id
+
+    def save(content: str, model: str) -> dict:
+        with Session(engine) as db:
+            row = PrepTutorMessage(
+                user_id=user_id,
+                attempt_id=attempt_id,
+                role="assistant",
+                content=content,
+                model_served=model,
+            )
+            db.add(row)
+            db.commit()
+            db.refresh(row)
+            return _tutor_out(row).model_dump(mode="json")
+
+    def events() -> Iterator[str]:
+        if provider is None:
+            text = OFFLINE_FOLLOWUP if question else offline_review(task, attempt)
+            yield _sse({"type": "token", "content": text})
+            yield _sse({"type": "done", "message": save(text, "offline")})
+            return
+        parts: list[str] = []
+        try:
+            for token in provider.chat_stream(messages, max_tokens=2048):
+                parts.append(token)
+                yield _sse({"type": "token", "content": token})
+        except Exception as error:  # noqa: BLE001 - surface provider failures to the UI
+            if not parts:
+                yield _sse({"type": "error", "detail": f"The tutor is unavailable: {error}"})
+                return
+        text = "".join(parts).strip()
+        if not text:
+            yield _sse({"type": "error", "detail": "The tutor returned an empty reply"})
+            return
+        model = provider.last_model or provider.chat_model
+        yield _sse({"type": "done", "message": save(text, model)})
+
+    return StreamingResponse(
+        events(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

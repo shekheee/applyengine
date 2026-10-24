@@ -295,6 +295,12 @@ class PrepTask(SQLModel, table=True):
     target_minutes: int = 30
     stretch: bool = False
     editor: bool = False
+    # Authored study content from data/prep_content/*.json.
+    brief: str | None = Field(default=None, sa_column=Column(Text))
+    starter: str | None = Field(default=None, sa_column=Column(Text))
+    tests: list[dict[str, str]] | None = Field(default=None, sa_column=Column(JSON))
+    hints: list[str] | None = Field(default=None, sa_column=Column(JSON))
+    solution: str | None = Field(default=None, sa_column=Column(Text))
 
 
 class PrepSettings(SQLModel, table=True):
@@ -360,3 +366,26 @@ class PrepReviewToken(SQLModel, table=True):
     token_hash: str = Field(index=True, unique=True)
     created_at: datetime = Field(default_factory=_now)
     last_used_at: datetime | None = None
+
+
+class PrepHintReveal(SQLModel, table=True):
+    """A hint the user opened during a session; any reveal marks that day's attempt."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    task_id: str = Field(index=True)
+    date: dt.date = Field(index=True)
+    level: int = 1
+    revealed_at: datetime = Field(default_factory=_now)
+
+
+class PrepTutorMessage(SQLModel, table=True):
+    """The after-attempt review and follow-up questions, one thread per attempt."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    attempt_id: int = Field(foreign_key="prepattempt.id", index=True)
+    role: str = "assistant"  # user | assistant
+    content: str = Field(default="", sa_column=Column(Text))
+    model_served: str = ""
+    created_at: datetime = Field(default_factory=_now)

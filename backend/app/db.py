@@ -41,7 +41,30 @@ def init_db() -> None:
     _migrate_interview_reliability()
     _migrate_social_studio()
     _migrate_buddy_practice()
+    _migrate_prep_task_content()
     _seed_prep_tasks()
+
+
+def _migrate_prep_task_content() -> None:
+    """Add authored study content columns to preptask tables created before them."""
+    from sqlalchemy import text
+
+    columns = (
+        "brief TEXT",
+        "starter TEXT",
+        "tests JSON",
+        "hints JSON",
+        "solution TEXT",
+    )
+    with engine.begin() as conn:
+        if is_sqlite:
+            existing = {row[1] for row in conn.execute(text("PRAGMA table_info(preptask)"))}
+            for definition in columns:
+                if definition.split()[0] not in existing:
+                    conn.execute(text(f"ALTER TABLE preptask ADD COLUMN {definition}"))
+            return
+        for definition in columns:
+            conn.execute(text(f"ALTER TABLE preptask ADD COLUMN IF NOT EXISTS {definition}"))
 
 
 def _seed_prep_tasks() -> None:

@@ -9,8 +9,11 @@ import { Checklist } from "@/components/shared/checklist";
 import { CodeEditor, clearDraft, loadDraft } from "@/components/shared/code-editor";
 import { CodeRunner } from "@/components/shared/code-runner";
 import { RatingInput } from "@/components/shared/rating-input";
+import { MarkdownPanel } from "@/components/shared/markdown-panel";
 import { Timer, clearTimer } from "@/components/shared/timer";
 import { localISODate, shortDate } from "./dates";
+import { HintPanel } from "./hint-panel";
+import { TutorPanel } from "./tutor-panel";
 
 const DSA_STEPS = [
   "Restate the problem and its constraints",
@@ -52,10 +55,10 @@ export function WorkSession({ taskId }: { taskId: string }) {
 
   useEffect(() => {
     api
-      .getPrepTask(taskId)
+      .getPrepTask(taskId, date)
       .then(setTask)
       .catch((err: Error) => setError(err.message));
-  }, [taskId]);
+  }, [taskId, date]);
 
   if (error) {
     return (
@@ -84,13 +87,14 @@ function SessionBody({ task, date }: { task: PrepTaskDetail; date: string }) {
   const isProject = task.type === "project";
   const hasEditor = !isHld && !isProject;
 
-  const [code, setCode] = useState(() => loadDraft(draftKey) ?? "");
+  const [code, setCode] = useState(() => loadDraft(draftKey) ?? task.starter ?? "");
   const [designNotes, setDesignNotes] = useState(() => (isHld ? loadDraft(draftKey) ?? "" : ""));
   const [steps, setSteps] = useState<Record<string, boolean>>({});
   const [problemName, setProblemName] = useState("");
   const [startedAt, setStartedAt] = useState<string | null>(null);
   const [minutes, setMinutes] = useState("");
-  const [hintUsed, setHintUsed] = useState<boolean | null>(null);
+  const [hintsOpened, setHintsOpened] = useState(task.hints_revealed.length > 0);
+  const [hintUsed, setHintUsed] = useState<boolean | null>(hintsOpened ? true : null);
   const [solved, setSolved] = useState<PrepSolved | null>(null);
   const [rating, setRating] = useState<number | null>(null);
   const [complexity, setComplexity] = useState("");
@@ -148,6 +152,21 @@ function SessionBody({ task, date }: { task: PrepTaskDetail; date: string }) {
   };
 
   if (result) return <SavedSummary task={task} result={result} />;
+
+  const onHintReveal = () => {
+    setHintsOpened(true);
+    setHintUsed(true);
+  };
+  const hintPanel = (
+    <HintPanel
+      taskId={task.id}
+      date={date}
+      total={task.hints_total}
+      initial={task.hints_revealed}
+      waitMinutes={task.type === "dsa" ? task.rules.attempt_before_hint_minutes : undefined}
+      onReveal={onHintReveal}
+    />
+  );
 
   const dueRedo = task.open_redos.find((r) => r.due_date <= date);
   const rules = task.rules;
@@ -213,7 +232,9 @@ function SessionBody({ task, date }: { task: PrepTaskDetail; date: string }) {
             </Card>
           )}
 
-          {(task.spec || task.extensions) && (
+          {task.brief && <MarkdownPanel title="Brief" markdown={task.brief} />}
+
+          {!task.brief && (task.spec || task.extensions) && (
             <Card className="space-y-3">
               {task.spec && (
                 <div>
@@ -276,17 +297,34 @@ function SessionBody({ task, date }: { task: PrepTaskDetail; date: string }) {
             </Card>
           )}
 
+          {task.type !== "dsa" && hintPanel}
+
           {hasEditor && (
             <div>
-              <p className="mb-2 text-xs text-[var(--muted)]">
-                {task.type === "dsa"
-                  ? "Paste your final solution. Completions are off."
-                  : "Write it here. Completions are off; drafts save every 5 seconds."}
-              </p>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs text-[var(--muted)]">
+                  {task.type === "dsa"
+                    ? "Paste your final solution. Completions are off."
+                    : "Write it here. Completions are off; drafts save every 5 seconds."}
+                </p>
+                {task.starter && code !== task.starter && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm("Replace your code with the starter?")) {
+                        setCode(task.starter ?? "");
+                      }
+                    }}
+                    className="text-xs font-medium text-[var(--muted)] hover:text-[var(--text)]"
+                  >
+                    Reset to starter
+                  </button>
+                )}
+              </div>
               <CodeEditor value={code} onChange={setCode} draftKey={draftKey} height={420} />
               {RUNNABLE_TYPES.has(task.type) && (
                 <div className="mt-3">
-                  <CodeRunner code={code} />
+                  <CodeRunner code={code} tests={task.tests} />
                 </div>
               )}
             </div>
@@ -310,6 +348,7 @@ function SessionBody({ task, date }: { task: PrepTaskDetail; date: string }) {
                 <li>A hint, overtime or a partial solve schedules redos. That is the point.</li>
               </ul>
             </Card>
+            <div className="mt-4">{hintPanel}</div>
           </aside>
         )}
       </div>
@@ -333,6 +372,7 @@ function SessionBody({ task, date }: { task: PrepTaskDetail; date: string }) {
                 key={option.label}
                 type="button"
                 aria-pressed={hintUsed === option.value}
+                disabled={hintsOpened && !option.value}
                 onClick={() => setHintUsed(option.value)}
                 className={cn(
                   "rounded-[var(--radius-md)] border px-4 py-3 text-sm font-semibold transition-colors",
@@ -348,6 +388,11 @@ function SessionBody({ task, date }: { task: PrepTaskDetail; date: string }) {
               </button>
             ))}
           </div>
+          {hintsOpened && (
+            <p className="mt-2 text-xs text-amber-300">
+              You opened a hint in this session, so it counts as a hint used.
+            </p>
+          )}
         </fieldset>
 
         <div className="grid gap-5 sm:grid-cols-2">
@@ -423,14 +468,26 @@ function SessionBody({ task, date }: { task: PrepTaskDetail; date: string }) {
           )}
         </div>
       </Card>
+      <PreviousAttempt task={task} />
     </div>
   );
 }
 
 function SavedSummary({ task, result }: { task: PrepTaskDetail; result: PrepAttemptResult }) {
   const created = result.redos_created;
+  const [solution, setSolution] = useState<string | null>(task.solution);
+
+  // The ideal solution unlocks with this first attempt; fetch it now.
+  useEffect(() => {
+    if (solution) return;
+    api
+      .getPrepTask(task.id)
+      .then((fresh) => setSolution(fresh.solution))
+      .catch(() => undefined);
+  }, [task.id, solution]);
+
   return (
-    <div className="page-shell mx-auto max-w-2xl space-y-5 pb-12">
+    <div className="page-shell mx-auto max-w-3xl space-y-5 pb-12">
       <BackLink />
       <Card className="space-y-3">
         <h1 className="text-xl font-semibold tracking-tight">Logged: {result.attempt.title || task.title}</h1>
@@ -450,8 +507,38 @@ function SavedSummary({ task, result }: { task: PrepTaskDetail; result: PrepAtte
             Cleared {result.redos_cleared} due {result.redos_cleared === 1 ? "redo" : "redos"}.
           </p>
         )}
-        <Button href="/prep">Back to today</Button>
+        <Button href="/prep" variant="outline" size="sm">
+          Back to today
+        </Button>
       </Card>
+      <TutorPanel attemptId={result.attempt.id} solution={solution} autoStart />
     </div>
+  );
+}
+
+function PreviousAttempt({ task }: { task: PrepTaskDetail }) {
+  const [open, setOpen] = useState(false);
+  const last = task.attempts[0];
+  if (!last) return null;
+  return (
+    <Card className="space-y-3">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between text-left"
+      >
+        <span className="text-sm font-semibold text-[var(--text)]">
+          Last attempt ({shortDate(last.date)}): review, questions and ideal solution
+        </span>
+        <span className="text-xs font-medium text-[var(--muted)]">{open ? "Hide" : "Show"}</span>
+      </button>
+      {!open && (
+        <p className="text-xs text-[var(--muted)]">
+          On a redo, try it again first. This shows the approach.
+        </p>
+      )}
+      {open && <TutorPanel attemptId={last.id} solution={task.solution} />}
+    </Card>
   );
 }

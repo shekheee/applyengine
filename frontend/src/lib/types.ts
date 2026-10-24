@@ -738,6 +738,26 @@ export interface PrepTaskDetail {
   rules: PrepRules;
   attempts: PrepAttempt[];
   open_redos: PrepRedo[];
+  brief: string | null;
+  starter: string | null;
+  tests: { name: string; code: string }[];
+  hints_total: number;
+  hints_revealed: string[];
+  solution: string | null;
+  solution_locked: boolean;
+}
+
+export interface PrepHints {
+  total: number;
+  revealed: string[];
+}
+
+export interface PrepTutorMessage {
+  id: number;
+  role: "user" | "assistant";
+  content: string;
+  model_served: string;
+  created_at: string;
 }
 
 export interface PrepAttemptInput {

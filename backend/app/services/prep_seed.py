@@ -11,6 +11,8 @@ from sqlmodel import Session
 from app.models import PrepTask
 
 SEED_PATH = Path(__file__).resolve().parent.parent / "data" / "prep_seed.json"
+CONTENT_DIR = SEED_PATH.parent / "prep_content"
+_CONTENT_FIELDS = ("brief", "starter", "tests", "hints", "solution")
 
 _TASK_FIELDS = (
     "type",
@@ -35,6 +37,15 @@ def load_seed() -> dict[str, Any]:
     return json.loads(SEED_PATH.read_text(encoding="utf-8"))
 
 
+@lru_cache
+def load_content() -> dict[str, dict[str, Any]]:
+    """Authored briefs, starters, tests, hints and solutions, keyed by task id."""
+    merged: dict[str, dict[str, Any]] = {}
+    for path in sorted(CONTENT_DIR.glob("*.json")):
+        merged.update(json.loads(path.read_text(encoding="utf-8")))
+    return merged
+
+
 def program() -> dict[str, Any]:
     return load_seed()["program"]
 
@@ -43,12 +54,20 @@ def rules() -> dict[str, Any]:
     return load_seed()["rules"]
 
 
-def sync_seed(session: Session, seed: dict[str, Any] | None = None) -> int:
+def sync_seed(
+    session: Session,
+    seed: dict[str, Any] | None = None,
+    content: dict[str, dict[str, Any]] | None = None,
+) -> int:
     """Insert or update every seed task keyed on its id. Safe to run repeatedly."""
     seed = seed or load_seed()
+    content = load_content() if content is None else content
     count = 0
     for raw in seed["tasks"]:
         values = {field: raw.get(field) for field in _TASK_FIELDS}
+        authored = content.get(raw["id"], {})
+        for field in _CONTENT_FIELDS:
+            values[field] = authored.get(field) or None
         values["order"] = values["order"] or 0
         values["stretch"] = bool(values["stretch"])
         values["editor"] = bool(values["editor"])

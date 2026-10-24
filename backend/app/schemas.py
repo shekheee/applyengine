@@ -630,6 +630,14 @@ class PrepTaskDetailOut(BaseModel):
     rules: dict[str, Any] = Field(default_factory=dict)
     attempts: list[PrepAttemptOut] = Field(default_factory=list)
     open_redos: list[PrepRedoOut] = Field(default_factory=list)
+    brief: str | None = None
+    starter: str | None = None
+    tests: list[dict[str, str]] = Field(default_factory=list)
+    hints_total: int = 0
+    hints_revealed: list[str] = Field(default_factory=list)
+    # The reference solution unlocks once the task has a logged attempt.
+    solution: str | None = None
+    solution_locked: bool = False
 
 
 class PrepPlanTaskOut(BaseModel):
@@ -669,3 +677,27 @@ class PrepReviewTokenOut(BaseModel):
     created_at: datetime | None = None
     last_used_at: datetime | None = None
     token: str | None = None  # Only set in the response that creates it.
+
+
+class PrepHintRevealIn(BaseModel):
+    date: dt.date
+
+
+class PrepHintsOut(BaseModel):
+    total: int
+    revealed: list[str]
+
+
+class PrepTutorMessageOut(BaseModel):
+    id: int
+    role: str
+    content: str
+    model_served: str = ""
+    created_at: datetime
+
+
+class PrepTutorIn(BaseModel):
+    """Empty `message` asks for the attempt review; otherwise it is a follow-up question."""
+
+    message: str = Field(default="", max_length=8_000)
+    model: str | None = None
