@@ -1,0 +1,582 @@
+{
+ "tasks": [
+  {
+   "id": "x-lc-100",
+   "type": "dsa",
+   "week": 5,
+   "order": 0,
+   "slot": "extra",
+   "difficulty": "easy",
+   "title": "100. Same Tree",
+   "pattern": "Trees / tries",
+   "url": "https://leetcode.com/problems/same-tree/",
+   "target_minutes": 20,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-235",
+   "type": "dsa",
+   "week": 5,
+   "order": 1,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "235. Lowest Common Ancestor of a Binary Search Tree",
+   "pattern": "Trees / tries",
+   "url": "https://leetcode.com/problems/lowest-common-ancestor-of-a-binary-search-tree/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-572",
+   "type": "dsa",
+   "week": 5,
+   "order": 2,
+   "slot": "extra",
+   "difficulty": "easy",
+   "title": "572. Subtree of Another Tree",
+   "pattern": "Trees / tries",
+   "url": "https://leetcode.com/problems/subtree-of-another-tree/",
+   "target_minutes": 20,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-105",
+   "type": "dsa",
+   "week": 5,
+   "order": 3,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "105. Construct Binary Tree from Preorder and Inorder Traversal",
+   "pattern": "Trees / tries",
+   "url": "https://leetcode.com/problems/construct-binary-tree-from-preorder-and-inorder-traversal/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-110",
+   "type": "dsa",
+   "week": 5,
+   "order": 4,
+   "slot": "extra",
+   "difficulty": "easy",
+   "title": "110. Balanced Binary Tree",
+   "pattern": "Trees / tries",
+   "url": "https://leetcode.com/problems/balanced-binary-tree/",
+   "target_minutes": 20,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-211",
+   "type": "dsa",
+   "week": 5,
+   "order": 5,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "211. Design Add and Search Words Data Structure",
+   "pattern": "Trees / tries",
+   "url": "https://leetcode.com/problems/design-add-and-search-words-data-structure/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-1448",
+   "type": "dsa",
+   "week": 5,
+   "order": 6,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "1448. Count Good Nodes in Binary Tree",
+   "pattern": "Trees / tries",
+   "url": "https://leetcode.com/problems/count-good-nodes-in-binary-tree/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-101",
+   "type": "dsa",
+   "week": 5,
+   "order": 7,
+   "slot": "extra",
+   "difficulty": "easy",
+   "title": "101. Symmetric Tree",
+   "pattern": "Trees / tries",
+   "url": "https://leetcode.com/problems/symmetric-tree/",
+   "target_minutes": 20,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-103",
+   "type": "dsa",
+   "week": 5,
+   "order": 8,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "103. Binary Tree Zigzag Level Order Traversal",
+   "pattern": "Trees / tries",
+   "url": "https://leetcode.com/problems/binary-tree-zigzag-level-order-traversal/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-437",
+   "type": "dsa",
+   "week": 5,
+   "order": 9,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "437. Path Sum III",
+   "pattern": "Trees / tries",
+   "url": "https://leetcode.com/problems/path-sum-iii/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-1268",
+   "type": "dsa",
+   "week": 5,
+   "order": 10,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "1268. Search Suggestions System",
+   "pattern": "Trees / tries",
+   "url": "https://leetcode.com/problems/search-suggestions-system/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-114",
+   "type": "dsa",
+   "week": 5,
+   "order": 11,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "114. Flatten Binary Tree to Linked List",
+   "pattern": "Trees / tries",
+   "url": "https://leetcode.com/problems/flatten-binary-tree-to-linked-list/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-215",
+   "type": "dsa",
+   "week": 6,
+   "order": 0,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "215. Kth Largest Element in an Array",
+   "pattern": "Heaps / graphs",
+   "url": "https://leetcode.com/problems/kth-largest-element-in-an-array/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-1046",
+   "type": "dsa",
+   "week": 6,
+   "order": 1,
+   "slot": "extra",
+   "difficulty": "easy",
+   "title": "1046. Last Stone Weight",
+   "pattern": "Heaps / graphs",
+   "url": "https://leetcode.com/problems/last-stone-weight/",
+   "target_minutes": 20,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-695",
+   "type": "dsa",
+   "week": 6,
+   "order": 2,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "695. Max Area of Island",
+   "pattern": "Heaps / graphs",
+   "url": "https://leetcode.com/problems/max-area-of-island/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-733",
+   "type": "dsa",
+   "week": 6,
+   "order": 3,
+   "slot": "extra",
+   "difficulty": "easy",
+   "title": "733. Flood Fill",
+   "pattern": "Heaps / graphs",
+   "url": "https://leetcode.com/problems/flood-fill/",
+   "target_minutes": 20,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-417",
+   "type": "dsa",
+   "week": 6,
+   "order": 4,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "417. Pacific Atlantic Water Flow",
+   "pattern": "Heaps / graphs",
+   "url": "https://leetcode.com/problems/pacific-atlantic-water-flow/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-684",
+   "type": "dsa",
+   "week": 6,
+   "order": 5,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "684. Redundant Connection",
+   "pattern": "Heaps / graphs",
+   "url": "https://leetcode.com/problems/redundant-connection/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-997",
+   "type": "dsa",
+   "week": 6,
+   "order": 6,
+   "slot": "extra",
+   "difficulty": "easy",
+   "title": "997. Find the Town Judge",
+   "pattern": "Heaps / graphs",
+   "url": "https://leetcode.com/problems/find-the-town-judge/",
+   "target_minutes": 20,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-130",
+   "type": "dsa",
+   "week": 6,
+   "order": 7,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "130. Surrounded Regions",
+   "pattern": "Heaps / graphs",
+   "url": "https://leetcode.com/problems/surrounded-regions/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-547",
+   "type": "dsa",
+   "week": 6,
+   "order": 8,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "547. Number of Provinces",
+   "pattern": "Heaps / graphs",
+   "url": "https://leetcode.com/problems/number-of-provinces/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-767",
+   "type": "dsa",
+   "week": 6,
+   "order": 9,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "767. Reorganize String",
+   "pattern": "Heaps / graphs",
+   "url": "https://leetcode.com/problems/reorganize-string/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-1971",
+   "type": "dsa",
+   "week": 6,
+   "order": 10,
+   "slot": "extra",
+   "difficulty": "easy",
+   "title": "1971. Find if Path Exists in Graph",
+   "pattern": "Heaps / graphs",
+   "url": "https://leetcode.com/problems/find-if-path-exists-in-graph/",
+   "target_minutes": 20,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-1584",
+   "type": "dsa",
+   "week": 6,
+   "order": 11,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "1584. Min Cost to Connect All Points",
+   "pattern": "Heaps / graphs",
+   "url": "https://leetcode.com/problems/min-cost-to-connect-all-points/",
+   "target_minutes": 35,
+   "stretch": false
+  }
+ ],
+ "content": {
+  "x-lc-100": {
+   "brief": "Drills **simultaneous recursion over two trees**: walk both in lockstep and decide at each pair of nodes. The base cases (both null, exactly one null) carry most of the logic.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Think about what has to be true at a single pair of nodes for the two trees to match there, and how that combines with their children.",
+    "Recurse on the pair (p, q): handle the null cases first, then compare values, then require both the left pair and the right pair to match.",
+    "Both null means True; exactly one null or different values means False; otherwise return same(p.left, q.left) and same(p.right, q.right). Each node is visited once, O(n) time and O(h) stack."
+   ],
+   "solution": "### Key insight\nTwo trees are equal exactly when their roots match and their left subtrees and right subtrees are equal, so the definition is already a recursion.\n\n### Approach\n1. If both nodes are null, return True.\n2. If exactly one is null, or the values differ, return False.\n3. Return the AND of the recursive checks on the left pair and the right pair.\n\n### Solution\n```python\n# Definition for a binary tree node.\n# class TreeNode:\n#     def __init__(self, val=0, left=None, right=None):\n#         self.val = val\n#         self.left = left\n#         self.right = right\nfrom typing import Optional\n\n\nclass Solution:\n    def isSameTree(self, p: Optional[TreeNode], q: Optional[TreeNode]) -> bool:\n        if p is None and q is None:\n            return True\n        if p is None or q is None or p.val != q.val:\n            return False\n        return self.isSameTree(p.left, q.left) and self.isSameTree(p.right, q.right)\n```\n\n### Complexity\nTime O(n) where n is the size of the smaller tree (stops at the first mismatch). Space O(h) for the recursion stack.\n\n### Common mistakes\n- Checking `p.val` before checking for None, which raises AttributeError on a null node.\n- Comparing only the in-order traversals: different shapes can give the same sequence, e.g. [1,2] and [1,null,2].\n\n### Follow-ups\n- Do it iteratively with a queue of (p, q) pairs.\n- Use this as a helper for Subtree of Another Tree (LC 572)."
+  },
+  "x-lc-235": {
+   "brief": "Drills **using the BST ordering to steer a walk**: the values tell you which side both targets live on, so you never search both subtrees. The answer is the first node where the targets split (or one of them is the node).",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "In a BST you can tell from a node's value alone whether p and q are both to the left, both to the right, or neither.",
+    "Start at the root and move left while both values are smaller, right while both are larger; the first node where that stops being true is the answer.",
+    "Loop: if p.val and q.val are both less than node.val go left, if both greater go right, else return node (this also covers node equal to p or q). O(h) time and O(1) space iteratively."
+   ],
+   "solution": "### Key insight\nThe LCA is the split point: the first node on the root path whose value lies between p and q (inclusive). Above it both targets are on the same side; below it they are separated.\n\n### Approach\n1. Set `node = root`.\n2. If both p.val and q.val are smaller than node.val, move to node.left.\n3. Else if both are larger, move to node.right.\n4. Otherwise this node separates them (or equals one of them): return it.\n\n### Solution\n```python\n# Definition for a binary tree node.\n# class TreeNode:\n#     def __init__(self, x):\n#         self.val = x\n#         self.left = None\n#         self.right = None\n\nclass Solution:\n    def lowestCommonAncestor(self, root: 'TreeNode', p: 'TreeNode', q: 'TreeNode') -> 'TreeNode':\n        node = root\n        while node:\n            if p.val < node.val and q.val < node.val:\n                node = node.left\n            elif p.val > node.val and q.val > node.val:\n                node = node.right\n            else:\n                return node\n        return None\n```\n\n### Complexity\nTime O(h): O(log n) on a balanced tree, O(n) on a skewed one. Space O(1) for the iterative version.\n\n### Common mistakes\n- Using strict comparisons the wrong way so that when node is p itself you keep walking past it; a node can be its own ancestor.\n- Solving it like the general binary-tree LCA (LC 236), which works but ignores the BST property and searches both sides.\n\n### Follow-ups\n- How does the answer change for a plain binary tree with no ordering (LC 236)?\n- What if p or q might not be in the tree at all?"
+  },
+  "x-lc-572": {
+   "brief": "Drills **composing two recursions**: an outer traversal that picks a candidate root and an inner same-tree check from that root. It is the standard pattern for 'does this shape appear anywhere'.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "You already know how to test whether two trees are identical. Where could subRoot start inside root?",
+    "Visit every node of root; at each one, test whether the tree rooted there is identical to subRoot. Return True as soon as one matches.",
+    "isSubtree(node) = same(node, subRoot) or isSubtree(node.left) or isSubtree(node.right), with a null node returning False. Worst case O(m * n) time, O(h) stack."
+   ],
+   "solution": "### Key insight\nA subtree must match all the way down to the leaves, so it is an identical-tree check started from some node of root. Try every node as the starting point.\n\n### Approach\n1. Write `same(a, b)`: both null is True, one null is False, else equal values and same children.\n2. If root is null, return False (subRoot is non-empty by the constraints).\n3. Return `same(root, subRoot)` or the recursive result on root.left or root.right.\n\n### Solution\n```python\n# Definition for a binary tree node.\n# class TreeNode:\n#     def __init__(self, val=0, left=None, right=None):\n#         self.val = val\n#         self.left = left\n#         self.right = right\nfrom typing import Optional\n\n\nclass Solution:\n    def isSubtree(self, root: Optional[TreeNode], subRoot: Optional[TreeNode]) -> bool:\n        def same(a, b):\n            if a is None or b is None:\n                return a is b\n            return a.val == b.val and same(a.left, b.left) and same(a.right, b.right)\n\n        if root is None:\n            return subRoot is None\n        if same(root, subRoot):\n            return True\n        return self.isSubtree(root.left, subRoot) or self.isSubtree(root.right, subRoot)\n```\n\n### Complexity\nTime O(m * n) worst case (m, n = sizes of root and subRoot), since each node may start a full comparison. Space O(h) recursion.\n\n### Common mistakes\n- Only matching values at the top and not requiring the subtree to end where root's branch ends: [3,4,5,1,2,null,null,null,null,0] does not contain [4,1,2].\n- Calling the outer function inside `same`, which mixes 'starts here' with 'appears anywhere below'.\n\n### Follow-ups\n- Get O(m + n) by serializing both trees with null markers and running a substring search (KMP), or by Merkle-style subtree hashing.\n- Count how many times subRoot appears."
+  },
+  "x-lc-105": {
+   "brief": "Drills **divide and conquer over traversal orders**: preorder tells you the root, inorder tells you how many nodes go left and right. A value-to-index map turns each split into O(1).",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "What is the very first element of preorder, and where does that value sit in inorder?",
+    "The first preorder value is the root; its position in inorder splits the remaining values into the left subtree and the right subtree. Build the left subtree then the right one recursively.",
+    "Store inorder value to index in a dict, keep a pointer into preorder that advances each time you create a node, and recurse on inorder bounds (lo, hi): return None when lo > hi, otherwise make the root, build left on (lo, mid-1) then right on (mid+1, hi). O(n) time."
+   ],
+   "solution": "### Key insight\nPreorder is root, left, right, so consuming preorder from the front always gives the next root to place. Inorder is left, root, right, so that root's inorder position tells you exactly which values belong to its left and right subtrees.\n\n### Approach\n1. Build `index = {value: position in inorder}` (values are unique).\n2. Keep an iterator over preorder.\n3. `build(lo, hi)`: if lo > hi return None; take the next preorder value as the root; split at `mid = index[value]`.\n4. Build the left subtree on (lo, mid - 1) BEFORE the right one on (mid + 1, hi), because preorder lists the whole left subtree first.\n5. Return `build(0, n - 1)`.\n\n### Solution\n```python\n# Definition for a binary tree node.\n# class TreeNode:\n#     def __init__(self, val=0, left=None, right=None):\n#         self.val = val\n#         self.left = left\n#         self.right = right\nfrom typing import List, Optional\n\n\nclass Solution:\n    def buildTree(self, preorder: List[int], inorder: List[int]) -> Optional[TreeNode]:\n        index = {value: i for i, value in enumerate(inorder)}\n        next_root = iter(preorder)\n\n        def build(lo: int, hi: int) -> Optional[TreeNode]:\n            if lo > hi:\n                return None\n            value = next(next_root)\n            node = TreeNode(value)\n            mid = index[value]\n            node.left = build(lo, mid - 1)\n            node.right = build(mid + 1, hi)\n            return node\n\n        return build(0, len(inorder) - 1)\n```\n\n### Complexity\nTime O(n): each node is created once with an O(1) index lookup. Space O(n) for the map plus O(h) recursion.\n\n### Common mistakes\n- Calling `inorder.index(value)` each time, which makes it O(n^2).\n- Slicing the arrays on every call (also O(n^2) time and memory).\n- Building the right subtree before the left one while consuming preorder in order.\n\n### Follow-ups\n- Build the tree from inorder and postorder instead (LC 106): which end do you consume from, and which side first?\n- Why can't preorder and postorder alone determine a unique binary tree?"
+  },
+  "x-lc-110": {
+   "brief": "Drills **returning two facts from one post-order pass**: height and 'already unbalanced'. Computing height separately at every node is the O(n^2) trap.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Balance at a node depends on the heights of its two subtrees. Can a single traversal give you heights and the verdict together?",
+    "Do a post-order DFS that returns the height of a subtree, or a sentinel such as -1 when any part of it is already unbalanced.",
+    "height(None) = 0; compute left, stop early if it is -1; compute right; if right is -1 or the difference exceeds 1 return -1, else 1 + max. The tree is balanced if the root's result is not -1. O(n) time."
+   ],
+   "solution": "### Key insight\nEvery node needs its subtrees' heights, and the heights are exactly what a post-order traversal computes. Fold the balance check into that same pass and use -1 to mean 'unbalanced somewhere below'.\n\n### Approach\n1. `height(None)` returns 0.\n2. Compute the left height; if it is -1, return -1 immediately.\n3. Compute the right height; if it is -1 or `abs(left - right) > 1`, return -1.\n4. Otherwise return `1 + max(left, right)`.\n5. Answer: `height(root) != -1`.\n\n### Solution\n```python\n# Definition for a binary tree node.\n# class TreeNode:\n#     def __init__(self, val=0, left=None, right=None):\n#         self.val = val\n#         self.left = left\n#         self.right = right\nfrom typing import Optional\n\n\nclass Solution:\n    def isBalanced(self, root: Optional[TreeNode]) -> bool:\n        def height(node: Optional[TreeNode]) -> int:\n            if node is None:\n                return 0\n            left = height(node.left)\n            if left < 0:\n                return -1\n            right = height(node.right)\n            if right < 0 or abs(left - right) > 1:\n                return -1\n            return 1 + max(left, right)\n\n        return height(root) >= 0\n```\n\n### Complexity\nTime O(n), each node visited once. Space O(h) recursion.\n\n### Common mistakes\n- Only checking the root's two subtree heights; every node must satisfy the condition.\n- Calling a separate `height()` from each node, which is O(n^2) on a skewed tree.\n\n### Follow-ups\n- Return a (balanced, height) tuple instead of a sentinel. Which is clearer to an interviewer?\n- How would you rebalance an unbalanced BST (LC 1382)?"
+  },
+  "x-lc-211": {
+   "brief": "Drills **a trie with branching search**: ordinary letters follow one edge, a wildcard fans out to every child. The search is a DFS over (trie node, position in word).",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Plain words fit a trie. What does a '.' mean when you are standing on a trie node?",
+    "Insert words into a trie with an end-of-word mark. To search, recurse with (node, index): a letter follows that child, a '.' tries every child, and at the end you need the end-of-word mark.",
+    "Use nested dicts or a node class with children and is_end. DFS returns False on a missing child, returns any(...) over all children for '.', and at index == len(word) returns is_end. addWord is O(L); search is O(L) without dots and up to O(26^d * L) with d dots."
+   ],
+   "solution": "### Key insight\nA trie answers exact lookups in O(L). The wildcard only changes one step: instead of following a single edge you branch into all of them, which is a small DFS.\n\n### Approach\n1. Represent the trie as nested dicts; a key `'$'` marks the end of a word.\n2. `addWord`: walk from the root creating children, then set the end mark.\n3. `search`: `dfs(node, i)`. If `i == len(word)`, return whether the end mark is present.\n4. If `word[i] == '.'`, return True if any child (skipping the end mark) satisfies `dfs(child, i + 1)`.\n5. Otherwise follow the matching child, returning False if it is missing.\n\n### Solution\n```python\nclass WordDictionary:\n\n    def __init__(self):\n        self.root = {}\n\n    def addWord(self, word: str) -> None:\n        node = self.root\n        for ch in word:\n            node = node.setdefault(ch, {})\n        node['$'] = True\n\n    def search(self, word: str) -> bool:\n        def dfs(node: dict, i: int) -> bool:\n            if i == len(word):\n                return '$' in node\n            ch = word[i]\n            if ch == '.':\n                return any(dfs(child, i + 1) for key, child in node.items() if key != '$')\n            child = node.get(ch)\n            return child is not None and dfs(child, i + 1)\n\n        return dfs(self.root, 0)\n```\n\n### Complexity\naddWord O(L). search O(L) with no dots; worst case O(26^d * L) with d dots (LeetCode caps dots at 2). Space O(total characters added).\n\n### Common mistakes\n- Returning True when the path exists but no word ends there (prefix 'ba' after adding 'bad').\n- Treating the end-of-word marker as a child during the '.' fan-out.\n- Storing words in a list and regex-matching each one, which is O(N * L) per search and times out.\n\n### Follow-ups\n- Word Search II (LC 212): run this trie against a grid.\n- How would you support '*' (any run of letters)?"
+  },
+  "x-lc-1448": {
+   "brief": "Drills **passing state down a DFS**: each node only needs the maximum seen on its root path, carried as a parameter. Nothing has to come back up except a count.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "To decide whether one node is good, what is the only fact about the path above it that you need?",
+    "DFS from the root carrying the largest value seen so far on the path; a node is good when its value is at least that maximum.",
+    "Push (node, path_max) pairs onto a stack (or recurse); count the node if node.val >= path_max, then pass max(path_max, node.val) to both children. O(n) time, O(h) space."
+   ],
+   "solution": "### Key insight\n'No value on the root path is greater than me' only depends on the path maximum, so carry that one number down the tree instead of the whole path.\n\n### Approach\n1. Start a stack with `(root, root.val)` (the root is always good).\n2. Pop `(node, best)`; if `node.val >= best`, count it.\n3. Update `best = max(best, node.val)` and push each non-null child with the new best.\n4. Return the count.\n\n### Solution\n```python\n# Definition for a binary tree node.\n# class TreeNode:\n#     def __init__(self, val=0, left=None, right=None):\n#         self.val = val\n#         self.left = left\n#         self.right = right\n\nclass Solution:\n    def goodNodes(self, root: TreeNode) -> int:\n        count = 0\n        stack = [(root, root.val)]\n        while stack:\n            node, best = stack.pop()\n            if node.val >= best:\n                count += 1\n            best = max(best, node.val)\n            for child in (node.left, node.right):\n                if child:\n                    stack.append((child, best))\n        return count\n```\n\n### Complexity\nTime O(n). Space O(h) for the stack (O(n) worst case).\n\n### Common mistakes\n- Using `>` instead of `>=`: equal values on the path still count as good.\n- Starting the path max at 0 instead of root.val, which breaks with negative values.\n\n### Follow-ups\n- Return the good nodes themselves, or the longest root-to-leaf path made only of good nodes.\n- Do it recursively and explain how the state passed down differs from values returned up."
+  },
+  "x-lc-101": {
+   "brief": "Drills **mirror recursion**: compare a pair of subtrees where the outer children pair up and the inner children pair up. It is Same Tree with crossed arguments.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "A tree is symmetric if its left subtree is a mirror image of its right subtree. What does 'mirror' mean for two nodes and their children?",
+    "Write a helper mirror(a, b): the values must match, a.left must mirror b.right, and a.right must mirror b.left.",
+    "Base cases as in Same Tree: both null is True, one null is False. Call mirror(root.left, root.right). O(n) time, O(h) stack, or iterate with a queue that holds pairs."
+   ],
+   "solution": "### Key insight\nSymmetry is about pairs: the left subtree must be the mirror of the right one. Two trees mirror each other when their roots match and each one's outer child mirrors the other's outer child, and likewise for the inner children.\n\n### Approach\n1. `mirror(a, b)`: if either is null, return whether both are.\n2. Require `a.val == b.val`, `mirror(a.left, b.right)` and `mirror(a.right, b.left)`.\n3. Return `mirror(root.left, root.right)` (an empty tree is symmetric).\n\n### Solution\n```python\n# Definition for a binary tree node.\n# class TreeNode:\n#     def __init__(self, val=0, left=None, right=None):\n#         self.val = val\n#         self.left = left\n#         self.right = right\nfrom typing import Optional\n\n\nclass Solution:\n    def isSymmetric(self, root: Optional[TreeNode]) -> bool:\n        def mirror(a, b):\n            if a is None or b is None:\n                return a is b\n            return a.val == b.val and mirror(a.left, b.right) and mirror(a.right, b.left)\n\n        return root is None or mirror(root.left, root.right)\n```\n\n### Complexity\nTime O(n). Space O(h) recursion.\n\n### Common mistakes\n- Comparing a.left with b.left (that tests equality, not symmetry).\n- Checking only that each level reads as a palindrome while ignoring null positions: [1,2,2,null,3,null,3] is not symmetric.\n\n### Follow-ups\n- Write the iterative version with a queue of node pairs.\n- Invert one subtree (LC 226) and compare with Same Tree: why is that more expensive?"
+  },
+  "x-lc-103": {
+   "brief": "Drills **level-by-level BFS with a per-level twist**: process exactly one level per loop by snapshotting the queue length, then flip direction. The traversal order never changes, only how you emit each level.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Ordinary level order gives you each level left to right. What small change to each level's output gives the zigzag?",
+    "BFS one level at a time: record the queue length, pop that many nodes into a list, enqueue their children, and reverse every second level's list before appending it.",
+    "Keep a left_to_right flag; enqueue children left then right as usual; append level or level[::-1] and toggle the flag. A deque appending at alternate ends avoids the reverse. O(n) time, O(width) space."
+   ],
+   "solution": "### Key insight\nThe zigzag is a presentation detail. Run a normal level-order BFS and only reverse the values of every other level when you record them.\n\n### Approach\n1. Return [] for an empty tree.\n2. Queue = [root], flag `left_to_right = True`.\n3. While the queue is not empty: pop `len(queue)` nodes, collect their values and enqueue their children (left, then right).\n4. Append the level as-is or reversed depending on the flag, then toggle the flag.\n\n### Solution\n```python\n# Definition for a binary tree node.\n# class TreeNode:\n#     def __init__(self, val=0, left=None, right=None):\n#         self.val = val\n#         self.left = left\n#         self.right = right\nfrom collections import deque\nfrom typing import List, Optional\n\n\nclass Solution:\n    def zigzagLevelOrder(self, root: Optional[TreeNode]) -> List[List[int]]:\n        if root is None:\n            return []\n        result, queue, left_to_right = [], deque([root]), True\n        while queue:\n            level = []\n            for _ in range(len(queue)):\n                node = queue.popleft()\n                level.append(node.val)\n                if node.left:\n                    queue.append(node.left)\n                if node.right:\n                    queue.append(node.right)\n            result.append(level if left_to_right else level[::-1])\n            left_to_right = not left_to_right\n        return result\n```\n\n### Complexity\nTime O(n). Space O(w) for the queue, where w is the widest level (up to n/2).\n\n### Common mistakes\n- Changing the order children are enqueued on alternate levels, which scrambles the deeper levels.\n- Reading `len(queue)` inside the loop condition, so the level boundary moves as children are added.\n\n### Follow-ups\n- Do it with two stacks and no reversing.\n- Return the vertical order traversal instead (LC 987)."
+  },
+  "x-lc-437": {
+   "brief": "Drills **prefix sums on a root-to-node path**: the subarray-sum-equals-k trick from Week 1, applied to the current DFS path. Add a prefix on the way down and remove it on the way back up.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "A downward path is a contiguous slice of some root-to-node path. Which array problem counts slices with a given sum?",
+    "Keep a running sum along the current path and a hashmap counting how many times each prefix sum appears on that path. At each node, the number of paths ending here is count[running - target].",
+    "Start with {0: 1}; at a node add its value to running, add count[running - targetSum] to the answer, increment count[running], recurse into both children, then decrement count[running] before returning (backtracking). O(n) time and O(h) space."
+   ],
+   "solution": "### Key insight\nAny downward path ends at some node and starts somewhere above it on the same root path. A path with sum k ending at a node is a pair of prefix sums on that path that differ by k, which is LC 560 done on a tree.\n\n### Approach\n1. `prefix = {0: 1}` (the empty prefix lets paths start at the root).\n2. DFS with a running sum. At each node: `running += node.val`.\n3. Paths ending here: `prefix[running - targetSum]`.\n4. Increment `prefix[running]`, recurse into the children, then decrement it so sibling branches don't see this path.\n\n### Solution\n```python\n# Definition for a binary tree node.\n# class TreeNode:\n#     def __init__(self, val=0, left=None, right=None):\n#         self.val = val\n#         self.left = left\n#         self.right = right\nfrom collections import defaultdict\nfrom typing import Optional\n\n\nclass Solution:\n    def pathSum(self, root: Optional[TreeNode], targetSum: int) -> int:\n        prefix = defaultdict(int)\n        prefix[0] = 1\n\n        def dfs(node: Optional[TreeNode], running: int) -> int:\n            if node is None:\n                return 0\n            running += node.val\n            count = prefix[running - targetSum]\n            prefix[running] += 1\n            count += dfs(node.left, running) + dfs(node.right, running)\n            prefix[running] -= 1\n            return count\n\n        return dfs(root, 0)\n```\n\n### Complexity\nTime O(n). Space O(h) for the recursion plus the prefix map, which only holds sums on the current path.\n\n### Common mistakes\n- Forgetting to decrement on the way back up, so prefixes from one branch leak into its sibling.\n- Reading `prefix[running - targetSum]` after incrementing `prefix[running]`, which counts an empty path when targetSum is 0.\n- The O(n^2) double DFS (start a path search at every node) is accepted but is not the answer interviewers are looking for.\n\n### Follow-ups\n- Return the paths themselves (LC 113 for root-to-leaf).\n- What if paths can go up and then down (any node to any node)?"
+  },
+  "x-lc-1268": {
+   "brief": "Drills **a trie that caches answers at each node**: insert words in sorted order and keep the first three that pass through each prefix node. Each query step is then one edge walk.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Every suggestion list belongs to a prefix of searchWord. Which structure groups words by prefix?",
+    "Sort the products, insert them into a trie, and at each node keep up to three words that pass through it. Then walk searchWord character by character and read each node's list.",
+    "Because insertion is in sorted order, the first three words to reach a node are the three smallest with that prefix. Once the walk falls off the trie, every remaining answer is []. Building is O(total characters), each query step O(1). Sorting plus binary search on the prefix also works."
+   ],
+   "solution": "### Key insight\nThe answer for each typed prefix is 'the three lexicographically smallest products with this prefix'. If you insert products in sorted order into a trie and store the first three words that reach each node, every answer is precomputed.\n\n### Approach\n1. Sort `products`.\n2. Insert each product; at every node on its path append the product to that node's list if it has fewer than three.\n3. Walk `searchWord`: follow the next character; append the node's list, or [] once the path no longer exists.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def suggestedProducts(self, products: List[str], searchWord: str) -> List[List[str]]:\n        root = {}\n        for word in sorted(products):\n            node = root\n            for ch in word:\n                node = node.setdefault(ch, {\"#\": []})\n                if len(node[\"#\"]) < 3:\n                    node[\"#\"].append(word)\n        result, node = [], root\n        for ch in searchWord:\n            node = node.get(ch) if node is not None else None\n            result.append(list(node[\"#\"]) if node is not None else [])\n        return result\n```\n\n### Complexity\nTime O(n log n * L) to sort plus O(total characters) to build; each query step O(1). Space O(total characters) for the trie.\n\n### Common mistakes\n- Forgetting to sort first, so the cached three are not the smallest.\n- Stopping the output early when the prefix disappears; LeetCode expects one list per character of searchWord.\n- Re-scanning all products for every prefix (O(n * m * L)).\n\n### Follow-ups\n- Do it without a trie: sort, then binary-search the prefix and narrow a [lo, hi] window as each character is typed.\n- How would you rank suggestions by popularity instead of alphabetically?"
+  },
+  "x-lc-114": {
+   "brief": "Drills **in-place pointer rewiring in preorder**: splice each left subtree between a node and its right subtree. The Morris-style version does it in O(1) extra space.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "The final list is the preorder traversal. Where does a node's right subtree have to end up once its left subtree is moved to the right?",
+    "For each node with a left child, find the rightmost node of the left subtree, attach the node's right subtree there, move the left subtree to the right, and clear left. Then move to node.right.",
+    "Loop with node = root: if node.left exists, walk pre = node.left down its right pointers to the end, set pre.right = node.right, node.right = node.left, node.left = None; then node = node.right. O(n) total since each edge is walked a bounded number of times, O(1) space."
+   ],
+   "solution": "### Key insight\nIn preorder, a node's whole left subtree comes right after it and before its right subtree. The last node of the left subtree in preorder is its rightmost node, so hang the right subtree there and move the left subtree over.\n\n### Approach\n1. `node = root`.\n2. If `node.left` exists: find `pre`, the rightmost node of `node.left`.\n3. Set `pre.right = node.right`, then `node.right = node.left` and `node.left = None`.\n4. Advance `node = node.right` and repeat until null.\n\n### Solution\n```python\n# Definition for a binary tree node.\n# class TreeNode:\n#     def __init__(self, val=0, left=None, right=None):\n#         self.val = val\n#         self.left = left\n#         self.right = right\nfrom typing import Optional\n\n\nclass Solution:\n    def flatten(self, root: Optional[TreeNode]) -> None:\n        \"\"\"\n        Do not return anything, modify root in-place instead.\n        \"\"\"\n        node = root\n        while node:\n            if node.left:\n                pre = node.left\n                while pre.right:\n                    pre = pre.right\n                pre.right = node.right\n                node.right = node.left\n                node.left = None\n            node = node.right\n```\n\n### Complexity\nTime O(n): each node is the target of at most one rightmost-walk overall. Space O(1).\n\n### Common mistakes\n- Leaving `node.left` set, so the result is not a valid right-only list.\n- Collecting preorder into a list and relinking works (O(n) space) but rebuilding new nodes does not count as in-place.\n\n### Follow-ups\n- Write the recursive reverse-preorder version (right, left, root) with a `prev` pointer.\n- Convert a BST to a sorted circular doubly linked list in place."
+  },
+  "x-lc-215": {
+   "brief": "Drills **the size-k min-heap**: keep only the k largest values seen so far and the heap top is the answer. Quickselect is the average-O(n) alternative to mention.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "You don't need the whole array sorted, only the boundary of the top k. Which structure keeps the smallest of a set at hand?",
+    "Maintain a min-heap of at most k elements: push each number and pop the smallest whenever the size goes over k. After the pass the root is the kth largest.",
+    "heappush then heappop when len > k (or heappushpop); return heap[0]. O(n log k) time and O(k) space. Quickselect with a random pivot is O(n) on average but O(n^2) in the worst case."
+   ],
+   "solution": "### Key insight\nThe kth largest is the smallest member of the top k. A min-heap capped at size k holds exactly the top k seen so far, with that smallest member at the root.\n\n### Approach\n1. Create an empty list `heap`.\n2. For each x: push it; if the heap now has more than k items, pop the minimum.\n3. Return `heap[0]`.\n\n### Solution\n```python\nimport heapq\nfrom typing import List\n\n\nclass Solution:\n    def findKthLargest(self, nums: List[int], k: int) -> int:\n        heap = []\n        for x in nums:\n            heapq.heappush(heap, x)\n            if len(heap) > k:\n                heapq.heappop(heap)\n        return heap[0]\n```\n\n### Complexity\nTime O(n log k). Space O(k).\n\n### Common mistakes\n- Using a max-heap of all n elements and popping k times: correct, but O(n + k log n) time and O(n) space, which loses the point of the exercise.\n- Deduplicating values: duplicates count, so [3,3,3] with k = 2 is 3.\n- An off-by-one in quickselect when converting 'kth largest' to an index (n - k).\n\n### Follow-ups\n- Implement quickselect (Hoare/Lomuto partition, random pivot) and explain the worst case.\n- What if the numbers arrive as a stream? (Kth Largest Element in a Stream, LC 703.)"
+  },
+  "x-lc-1046": {
+   "brief": "Drills **the max-heap in Python**: heapq is a min-heap, so store negated values. A good warm-up for repeatedly taking the two largest items.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Every turn you need the two heaviest stones. What gives you the maximum quickly after each change?",
+    "Put all stones in a max-heap; pop two, and if they differ push back the difference. Stop when at most one stone is left.",
+    "Python's heapq is a min-heap, so push negatives and heapify in O(n). Each turn pops twice and pushes at most once, O(n log n) total; return the remaining stone or 0."
+   ],
+   "solution": "### Key insight\nThe simulation always needs the current two largest stones and inserts one new stone, which is exactly what a max-heap does.\n\n### Approach\n1. Negate every weight and `heapify`.\n2. While more than one stone remains: pop y (largest) and x (second largest).\n3. If `y != x`, push back `-(y - x)`.\n4. Return the last stone's weight, or 0 if none remain.\n\n### Solution\n```python\nimport heapq\nfrom typing import List\n\n\nclass Solution:\n    def lastStoneWeight(self, stones: List[int]) -> int:\n        heap = [-s for s in stones]\n        heapq.heapify(heap)\n        while len(heap) > 1:\n            y = -heapq.heappop(heap)\n            x = -heapq.heappop(heap)\n            if y != x:\n                heapq.heappush(heap, -(y - x))\n        return -heap[0] if heap else 0\n```\n\n### Complexity\nTime O(n log n). Space O(n) (O(1) extra if you negate in place).\n\n### Common mistakes\n- Forgetting to negate when pushing the difference back.\n- Re-sorting the list every turn: O(n^2 log n).\n- Returning `heap[0]` without negating, or crashing when the heap is empty.\n\n### Follow-ups\n- Last Stone Weight II (LC 1049): you choose the pairs, so it becomes a subset-sum DP.\n- If weights are small (<= 1000), can you do it with counting buckets instead of a heap?"
+  },
+  "x-lc-695": {
+   "brief": "Drills **grid flood fill that returns a value**: the Number of Islands traversal, but each DFS/BFS reports the size of the component it consumed.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "You already know how to visit one island completely. What should that visit return?",
+    "Scan every cell; when you find unvisited land, flood-fill the whole island while counting cells, and keep the largest count.",
+    "Mark cells visited as you push them (set them to 0 or use a seen set), use an explicit stack to avoid recursion-depth issues, check bounds on all four neighbours. O(rows * cols) time and space."
+   ],
+   "solution": "### Key insight\nEach island is a connected component of 1-cells. One flood fill per component visits every cell exactly once, and counting during the fill gives that component's area.\n\n### Approach\n1. For each cell that is 1: zero it, push it on a stack, and set area = 0.\n2. Pop cells, incrementing area; push each in-bounds neighbour that is 1, zeroing it as you push.\n3. Track the maximum area. Return it (0 if there is no land).\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def maxAreaOfIsland(self, grid: List[List[int]]) -> int:\n        rows, cols = len(grid), len(grid[0])\n        best = 0\n        for r in range(rows):\n            for c in range(cols):\n                if grid[r][c] != 1:\n                    continue\n                grid[r][c] = 0\n                stack, area = [(r, c)], 0\n                while stack:\n                    i, j = stack.pop()\n                    area += 1\n                    for ni, nj in ((i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)):\n                        if 0 <= ni < rows and 0 <= nj < cols and grid[ni][nj] == 1:\n                            grid[ni][nj] = 0\n                            stack.append((ni, nj))\n                best = max(best, area)\n        return best\n```\n\n### Complexity\nTime O(rows * cols). Space O(rows * cols) worst case for the stack.\n\n### Common mistakes\n- Marking a cell visited when it is popped rather than when it is pushed, so the same cell is pushed (and counted) twice.\n- Counting diagonal neighbours; only the 4 directions connect.\n- Mutating the input without saying so; mention it, or use a seen set.\n\n### Follow-ups\n- Making A Large Island (LC 827): flip at most one 0 to 1.\n- Count distinct island shapes (LC 694, premium) by recording each island's normalized path."
+  },
+  "x-lc-733": {
+   "brief": "Drills **the basic grid traversal**: start from one cell and spread to 4-connected neighbours that share its original colour. It is the building block for every island problem.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Which cells change colour? Think about connectivity and the colour the start cell had before you touched it.",
+    "Remember the starting colour, then DFS or BFS from (sr, sc), recolouring every 4-connected cell that still has that starting colour.",
+    "If the new colour equals the starting colour, return immediately, otherwise the traversal never stops because recoloured cells look unvisited. Recolour when you push, check bounds, O(rows * cols)."
+   ],
+   "solution": "### Key insight\nThe painted region is the connected component of the start cell among cells of its original colour. Recolouring a cell also marks it as visited, so no separate visited set is needed, unless the colour does not change.\n\n### Approach\n1. `start = image[sr][sc]`; if `start == color`, return the image unchanged.\n2. Recolour (sr, sc) and push it on a stack.\n3. Pop a cell; for each in-bounds 4-neighbour still equal to `start`, recolour it and push it.\n4. Return the image.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def floodFill(self, image: List[List[int]], sr: int, sc: int, color: int) -> List[List[int]]:\n        start = image[sr][sc]\n        if start == color:\n            return image\n        rows, cols = len(image), len(image[0])\n        image[sr][sc] = color\n        stack = [(sr, sc)]\n        while stack:\n            r, c = stack.pop()\n            for nr, nc in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):\n                if 0 <= nr < rows and 0 <= nc < cols and image[nr][nc] == start:\n                    image[nr][nc] = color\n                    stack.append((nr, nc))\n        return image\n```\n\n### Complexity\nTime O(rows * cols). Space O(rows * cols) worst case for the stack.\n\n### Common mistakes\n- Skipping the `start == color` check: the loop then revisits cells forever (or recursion overflows).\n- Comparing neighbours to the new colour instead of the original one.\n\n### Follow-ups\n- Return the number of cells changed, or the region's perimeter.\n- How would you flood fill a 10^4 x 10^4 image without a huge stack (scanline fill)?"
+  },
+  "x-lc-417": {
+   "brief": "Drills **multi-source reverse traversal**: instead of asking where each cell's water goes, start from each ocean and climb uphill. Two searches, then intersect.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Running a search from every cell is O((mn)^2). What if you reversed the direction of flow?",
+    "Water reaches an ocean from a cell if, going backwards from the ocean, you can climb to that cell through non-decreasing heights. Run one traversal from all Pacific border cells and one from all Atlantic border cells.",
+    "Seed the first search with the top row and left column, the second with the bottom row and right column; move to a neighbour only if its height is >= the current one. Return cells present in both visited sets. O(m * n) time and space."
+   ],
+   "solution": "### Key insight\nWater flows downhill (or flat) toward an ocean. Reverse it: from the ocean, walk uphill. Every cell you can climb to from an ocean drains into that ocean, and two multi-source searches cover the grid in linear time.\n\n### Approach\n1. `reach(starts)`: DFS from all start cells, stepping to a 4-neighbour only if its height is >= the current cell's.\n2. Pacific starts: row 0 and column 0. Atlantic starts: the last row and the last column.\n3. Return every cell in both reachable sets.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def pacificAtlantic(self, heights: List[List[int]]) -> List[List[int]]:\n        rows, cols = len(heights), len(heights[0])\n\n        def reach(starts):\n            seen = set(starts)\n            stack = list(starts)\n            while stack:\n                r, c = stack.pop()\n                for nr, nc in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):\n                    if (0 <= nr < rows and 0 <= nc < cols and (nr, nc) not in seen\n                            and heights[nr][nc] >= heights[r][c]):\n                        seen.add((nr, nc))\n                        stack.append((nr, nc))\n            return seen\n\n        pacific = reach([(0, c) for c in range(cols)] + [(r, 0) for r in range(rows)])\n        atlantic = reach([(rows - 1, c) for c in range(cols)] + [(r, cols - 1) for r in range(rows)])\n        return [[r, c] for r in range(rows) for c in range(cols) if (r, c) in pacific and (r, c) in atlantic]\n```\n\n### Complexity\nTime O(m * n): each search visits each cell at most once. Space O(m * n) for the two sets.\n\n### Common mistakes\n- Using `>` instead of `>=`: water flows across equal heights.\n- Searching forward from every cell, which is quadratic and also hard to memoize correctly because of plateaus.\n- Seeding an ocean with the wrong edges (the Pacific is top and left).\n\n### Follow-ups\n- Return the cells that reach exactly one ocean.\n- Trapping Rain Water II (LC 407): the same 'from the border inward' idea with a min-heap."
+  },
+  "x-lc-684": {
+   "brief": "Drills **union-find for cycle detection**: add edges one at a time; the first edge whose endpoints are already connected closes a cycle. Path compression plus union by rank makes each operation near O(1).",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "A tree with n nodes has n - 1 edges, and you were given n. When does adding an edge to a forest create a cycle?",
+    "Process edges in order with a disjoint-set structure. If both endpoints already have the same root, that edge is redundant; otherwise union them.",
+    "Parent array of size n + 1 (nodes are 1-indexed), find with path compression, union by attaching one root to the other. Because you return the first edge that closes the cycle while scanning in input order, it is also the last such edge in the input, as required. O(n * alpha(n))."
+   ],
+   "solution": "### Key insight\nAn edge closes a cycle exactly when its two endpoints are already in the same component. Union-find tracks components as edges arrive, so the first edge joining two nodes that are already connected is the answer. It is also the cycle edge that appears last in the input.\n\n### Approach\n1. `parent = list(range(n + 1))`.\n2. `find(x)`: follow parents to the root, halving the path as you go.\n3. For each edge (a, b): if `find(a) == find(b)`, return [a, b]; else set `parent[find(a)] = find(b)`.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def findRedundantConnection(self, edges: List[List[int]]) -> List[int]:\n        parent = list(range(len(edges) + 1))\n\n        def find(x: int) -> int:\n            while parent[x] != x:\n                parent[x] = parent[parent[x]]\n                x = parent[x]\n            return x\n\n        for a, b in edges:\n            ra, rb = find(a), find(b)\n            if ra == rb:\n                return [a, b]\n            parent[ra] = rb\n        return []\n```\n\n### Complexity\nTime O(n * alpha(n)), effectively linear. Space O(n).\n\n### Common mistakes\n- Sizing the parent array as n when nodes are labelled 1..n.\n- Unioning a and b themselves instead of their roots, which breaks the forest.\n- Running a DFS cycle check after each edge: correct but O(n^2).\n\n### Follow-ups\n- Redundant Connection II (LC 685): directed edges, where a node can end up with two parents.\n- Number of connected components (LC 323, premium) with the same structure."
+  },
+  "x-lc-997": {
+   "brief": "Drills **in-degree / out-degree counting on a directed graph**: many graph problems only need degrees, not traversal. One combined score per person is enough.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Describe the judge in graph terms: how many edges go into the judge's node, and how many come out?",
+    "The judge has in-degree n - 1 and out-degree 0. Count both for every person (or a single net score) and look for someone who matches.",
+    "Keep score[p] = in-degree minus out-degree; only the judge can reach n - 1 because anyone who trusts someone loses a point. Return that person or -1. O(n + t) time, O(n) space."
+   ],
+   "solution": "### Key insight\n'Trusted by everybody else, trusts nobody' is in-degree n - 1 and out-degree 0. Subtracting out-degree from in-degree folds both into one number, and only the judge can score exactly n - 1.\n\n### Approach\n1. `score = [0] * (n + 1)`.\n2. For each pair (a, b): `score[a] -= 1`, `score[b] += 1`.\n3. Return the person whose score is `n - 1`, else -1.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def findJudge(self, n: int, trust: List[List[int]]) -> int:\n        score = [0] * (n + 1)\n        for a, b in trust:\n            score[a] -= 1\n            score[b] += 1\n        for person in range(1, n + 1):\n            if score[person] == n - 1:\n                return person\n        return -1\n```\n\n### Complexity\nTime O(n + t) where t = len(trust). Space O(n).\n\n### Common mistakes\n- Mishandling n = 1 with no trust pairs: the single person is the judge (score 0 = n - 1).\n- Checking in-degree only and forgetting that the judge must trust nobody.\n\n### Follow-ups\n- Find the Celebrity (LC 277, premium): only a knows(a, b) API, solved with O(n) calls.\n- What if trust can contain duplicate pairs?"
+  },
+  "x-lc-130": {
+   "brief": "Drills **inverting the question**: rather than proving a region is surrounded, find the regions that are NOT, which are exactly those touching the border, and protect them first.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Which 'O' regions can never be captured? Where must they connect to?",
+    "Flood-fill from every 'O' on the border and mark those cells as safe. Afterwards every remaining 'O' is surrounded and becomes 'X', and the safe cells go back to 'O'.",
+    "Mark safe cells with a temporary character such as 'S' during a DFS/BFS from the border cells, then do one pass: 'O' becomes 'X' and 'S' becomes 'O'. O(m * n) time, modifying the board in place."
+   ],
+   "solution": "### Key insight\nA region escapes capture only if it reaches the border. Marking everything reachable from border 'O's is one multi-source flood fill; whatever 'O' is left afterwards must be surrounded.\n\n### Approach\n1. Push every border cell onto a stack.\n2. Pop: if the cell is in bounds and 'O', mark it 'S' and push its 4 neighbours.\n3. Final pass: 'O' becomes 'X' (captured), 'S' becomes 'O' (restored).\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def solve(self, board: List[List[str]]) -> None:\n        \"\"\"\n        Do not return anything, modify board in-place instead.\n        \"\"\"\n        if not board:\n            return\n        rows, cols = len(board), len(board[0])\n        stack = [(r, c) for r in range(rows) for c in (0, cols - 1)]\n        stack += [(r, c) for r in (0, rows - 1) for c in range(cols)]\n        while stack:\n            r, c = stack.pop()\n            if 0 <= r < rows and 0 <= c < cols and board[r][c] == 'O':\n                board[r][c] = 'S'\n                stack.extend(((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)))\n        for r in range(rows):\n            for c in range(cols):\n                if board[r][c] == 'O':\n                    board[r][c] = 'X'\n                elif board[r][c] == 'S':\n                    board[r][c] = 'O'\n```\n\n### Complexity\nTime O(m * n). Space O(m * n) worst case for the stack.\n\n### Common mistakes\n- Flipping interior regions while exploring them, before you know whether they reach the border.\n- Forgetting single-row or single-column boards, where every cell is on the border.\n- Returning a new board: LeetCode checks the input board, which must be modified in place.\n\n### Follow-ups\n- Solve it with union-find, joining border 'O's to a virtual 'outside' node.\n- Number of Enclaves (LC 1020): count the land cells that cannot walk off the grid."
+  },
+  "x-lc-547": {
+   "brief": "Drills **counting connected components from an adjacency matrix**: each fresh DFS start is one more component. Union-find is the equally standard alternative.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "The matrix is a graph. What does one province correspond to in graph terms?",
+    "Count connected components: loop over cities, and each time you meet an unvisited one, increment the count and DFS to mark its whole component.",
+    "From city i scan row isConnected[i] for unvisited j with a 1 and push them; with a matrix this is O(n^2) total. Alternatively union every connected pair and count the distinct roots."
+   ],
+   "solution": "### Key insight\nA province is a connected component. Every time the outer loop finds an unvisited city, that city starts a new component, and one traversal marks all of it.\n\n### Approach\n1. `seen = [False] * n`, `provinces = 0`.\n2. For each city not yet seen: increment `provinces`, mark it, push it on a stack.\n3. Pop i; for every j with `isConnected[i][j] == 1` and not seen, mark it and push it.\n4. Return `provinces`.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def findCircleNum(self, isConnected: List[List[int]]) -> int:\n        n = len(isConnected)\n        seen = [False] * n\n        provinces = 0\n        for start in range(n):\n            if seen[start]:\n                continue\n            provinces += 1\n            seen[start] = True\n            stack = [start]\n            while stack:\n                i = stack.pop()\n                for j in range(n):\n                    if isConnected[i][j] and not seen[j]:\n                        seen[j] = True\n                        stack.append(j)\n        return provinces\n```\n\n### Complexity\nTime O(n^2) (every matrix cell is read once). Space O(n).\n\n### Common mistakes\n- Treating it like a grid-of-islands problem and flood-filling the matrix cells; the nodes are cities (rows), not cells.\n- Counting the 1s, or the edges, instead of the components.\n\n### Follow-ups\n- Solve it with union-find and explain path compression and union by rank.\n- What if connections arrive one at a time and you must report the province count after each one?"
+  },
+  "x-lc-767": {
+   "brief": "Drills **greedy with a max-heap plus a cooldown slot**: always place the most frequent remaining character, but hold back the one you just used for one step. A close relative of Task Scheduler.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "To avoid getting stuck, which character should you place next, the rarest or the most common? When is the task impossible at all?",
+    "Greedily take the character with the highest remaining count, but never the same one twice in a row: keep the last-used character aside for one turn before pushing it back.",
+    "Max-heap of (-count, char). Each step pops the top, appends it, then pushes the previously held character back (if it still has count) and holds the current one. If the heap empties while a held character still has copies left, return ''. Impossible exactly when the max count > (n + 1) // 2. O(n log k) where k is the alphabet size."
+   ],
+   "solution": "### Key insight\nThe most frequent character is the one most likely to be forced next to itself, so place it as early and as often as allowed. Holding back the last-used character for one step guarantees no two neighbours are equal.\n\n### Approach\n1. Count characters and build a max-heap of `(-count, char)`.\n2. `held = None`. While the heap is non-empty: pop `(cnt, ch)`, append `ch`, and increase cnt toward 0.\n3. Push `held` back if it exists, then set `held = (cnt, ch)` if copies remain, else None.\n4. If `held` still has copies at the end, it is impossible: return ''. Otherwise return the joined string.\n\n### Solution\n```python\nimport heapq\nfrom collections import Counter\n\n\nclass Solution:\n    def reorganizeString(self, s: str) -> str:\n        heap = [(-cnt, ch) for ch, cnt in Counter(s).items()]\n        heapq.heapify(heap)\n        out = []\n        held = None\n        while heap:\n            cnt, ch = heapq.heappop(heap)\n            out.append(ch)\n            cnt += 1  # counts are negative; one copy used\n            if held:\n                heapq.heappush(heap, held)\n            held = (cnt, ch) if cnt < 0 else None\n        return \"\" if held else \"\".join(out)\n```\n\n### Complexity\nTime O(n log k), k <= 26 distinct letters, so effectively O(n). Space O(k).\n\n### Common mistakes\n- Pushing the just-used character straight back, so it can be popped again immediately.\n- Not detecting impossibility (e.g. 'aaab') and returning a partial string.\n- Sorting once by frequency and interleaving without care: works only with the 'fill even indices first' trick.\n\n### Follow-ups\n- Do it in O(n) without a heap: put the most frequent letter on even indices, then fill the rest.\n- Rearrange String k Distance Apart (LC 358, premium) generalizes the cooldown to k."
+  },
+  "x-lc-1971": {
+   "brief": "Drills **building an adjacency list from an edge list and running a reachability search**. It is the template every other graph problem starts from.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "You are given edges, not neighbours. What representation lets you list a node's neighbours quickly?",
+    "Build an adjacency list (edges are undirected, so add both directions), then DFS or BFS from source with a visited set and stop when you reach destination.",
+    "graph[a].append(b) and graph[b].append(a); stack = [source], seen = {source}; mark nodes when you push them. Return True as soon as destination is popped. O(n + e) time and space. Union-find also works."
+   ],
+   "solution": "### Key insight\nReachability is a plain graph search. The only setup is turning the edge list into adjacency lists, adding both directions since the graph is undirected.\n\n### Approach\n1. Build `graph = [[] for _ in range(n)]` and add each edge both ways.\n2. Iterative DFS from `source` with a `seen` set.\n3. Return True when `destination` is popped; False when the stack empties.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def validPath(self, n: int, edges: List[List[int]], source: int, destination: int) -> bool:\n        graph = [[] for _ in range(n)]\n        for a, b in edges:\n            graph[a].append(b)\n            graph[b].append(a)\n        seen = {source}\n        stack = [source]\n        while stack:\n            node = stack.pop()\n            if node == destination:\n                return True\n            for nb in graph[node]:\n                if nb not in seen:\n                    seen.add(nb)\n                    stack.append(nb)\n        return False\n```\n\n### Complexity\nTime O(n + e). Space O(n + e).\n\n### Common mistakes\n- Adding edges in only one direction.\n- Recursive DFS on a 2 * 10^5-node path graph hits Python's recursion limit; use an explicit stack.\n- Forgetting the source == destination case (handled because the source is popped first).\n\n### Follow-ups\n- Answer many (source, destination) queries: precompute components with union-find.\n- Return the actual path, or the shortest one (BFS with parent pointers)."
+  },
+  "x-lc-1584": {
+   "brief": "Drills **minimum spanning trees with Prim's algorithm and a heap**: grow one tree, always adding the cheapest edge that reaches a new point. The graph is complete, so edges are generated lazily.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Connecting every point at minimum total cost with no wasted edges is a classic graph structure. Which one, and which greedy algorithms build it?",
+    "Use Prim's: start from any point, keep a min-heap of (cost, point) for edges leaving the tree, repeatedly take the cheapest one to a point not yet in the tree, and push that point's edges to all remaining points.",
+    "Skip popped entries whose point is already in the tree (lazy deletion). Distance is Manhattan |x1 - x2| + |y1 - y2|. Stop after n points are added. O(n^2 log n) with a heap; the array-based Prim (track the best distance per point, pick the min by a linear scan) is O(n^2), which is optimal for a dense graph."
+   ],
+   "solution": "### Key insight\nThe cheapest way to connect all points is a minimum spanning tree. Prim's algorithm grows it greedily: the cheapest edge crossing from the tree to the rest is always safe to add (the cut property).\n\n### Approach\n1. `heap = [(0, 0)]` (cost to bring point 0 in), `in_tree = [False] * n`.\n2. Pop `(cost, i)`; if i is already in the tree, skip it. Otherwise add it: `total += cost`.\n3. Push `(manhattan(i, j), j)` for every j not yet in the tree.\n4. After n points are added, return `total`.\n\n### Solution\n```python\nimport heapq\nfrom typing import List\n\n\nclass Solution:\n    def minCostConnectPoints(self, points: List[List[int]]) -> int:\n        n = len(points)\n        in_tree = [False] * n\n        heap = [(0, 0)]\n        total = added = 0\n        while added < n:\n            cost, i = heapq.heappop(heap)\n            if in_tree[i]:\n                continue\n            in_tree[i] = True\n            total += cost\n            added += 1\n            xi, yi = points[i]\n            for j in range(n):\n                if not in_tree[j]:\n                    xj, yj = points[j]\n                    heapq.heappush(heap, (abs(xi - xj) + abs(yi - yj), j))\n        return total\n```\n\n### Complexity\nTime O(n^2 log n) with the lazy heap (O(n^2) edges). Space O(n^2) heap entries worst case. The array-based Prim is O(n^2) time and O(n) space.\n\n### Common mistakes\n- Building and sorting all n^2 / 2 edges for Kruskal: valid, but O(n^2 log n) with a much bigger memory footprint; say why you chose either.\n- Not skipping stale heap entries, which adds a point twice.\n- Using Euclidean distance instead of Manhattan.\n\n### Follow-ups\n- Rewrite it as the O(n^2) array-based Prim and explain when that beats the heap version.\n- Solve it with Kruskal plus union-find, and compare the two on sparse vs dense graphs."
+  }
+ }
+}

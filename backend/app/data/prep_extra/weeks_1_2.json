@@ -1,0 +1,582 @@
+{
+ "tasks": [
+  {
+   "id": "x-lc-525",
+   "type": "dsa",
+   "week": 1,
+   "order": 0,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "525. Contiguous Array",
+   "pattern": "Arrays & hashing",
+   "url": "https://leetcode.com/problems/contiguous-array/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-169",
+   "type": "dsa",
+   "week": 1,
+   "order": 1,
+   "slot": "extra",
+   "difficulty": "easy",
+   "title": "169. Majority Element",
+   "pattern": "Arrays & hashing",
+   "url": "https://leetcode.com/problems/majority-element/",
+   "target_minutes": 20,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-523",
+   "type": "dsa",
+   "week": 1,
+   "order": 2,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "523. Continuous Subarray Sum",
+   "pattern": "Arrays & hashing",
+   "url": "https://leetcode.com/problems/continuous-subarray-sum/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-974",
+   "type": "dsa",
+   "week": 1,
+   "order": 3,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "974. Subarray Sums Divisible by K",
+   "pattern": "Arrays & hashing",
+   "url": "https://leetcode.com/problems/subarray-sums-divisible-by-k/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-205",
+   "type": "dsa",
+   "week": 1,
+   "order": 4,
+   "slot": "extra",
+   "difficulty": "easy",
+   "title": "205. Isomorphic Strings",
+   "pattern": "Arrays & hashing",
+   "url": "https://leetcode.com/problems/isomorphic-strings/",
+   "target_minutes": 20,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-454",
+   "type": "dsa",
+   "week": 1,
+   "order": 5,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "454. 4Sum II",
+   "pattern": "Arrays & hashing",
+   "url": "https://leetcode.com/problems/4sum-ii/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-383",
+   "type": "dsa",
+   "week": 1,
+   "order": 6,
+   "slot": "extra",
+   "difficulty": "easy",
+   "title": "383. Ransom Note",
+   "pattern": "Arrays & hashing",
+   "url": "https://leetcode.com/problems/ransom-note/",
+   "target_minutes": 20,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-692",
+   "type": "dsa",
+   "week": 1,
+   "order": 7,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "692. Top K Frequent Words",
+   "pattern": "Arrays & hashing",
+   "url": "https://leetcode.com/problems/top-k-frequent-words/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-229",
+   "type": "dsa",
+   "week": 1,
+   "order": 8,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "229. Majority Element II",
+   "pattern": "Arrays & hashing",
+   "url": "https://leetcode.com/problems/majority-element-ii/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-448",
+   "type": "dsa",
+   "week": 1,
+   "order": 9,
+   "slot": "extra",
+   "difficulty": "easy",
+   "title": "448. Find All Numbers Disappeared in an Array",
+   "pattern": "Arrays & hashing",
+   "url": "https://leetcode.com/problems/find-all-numbers-disappeared-in-an-array/",
+   "target_minutes": 20,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-451",
+   "type": "dsa",
+   "week": 1,
+   "order": 10,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "451. Sort Characters By Frequency",
+   "pattern": "Arrays & hashing",
+   "url": "https://leetcode.com/problems/sort-characters-by-frequency/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-187",
+   "type": "dsa",
+   "week": 1,
+   "order": 11,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "187. Repeated DNA Sequences",
+   "pattern": "Arrays & hashing",
+   "url": "https://leetcode.com/problems/repeated-dna-sequences/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-438",
+   "type": "dsa",
+   "week": 2,
+   "order": 0,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "438. Find All Anagrams in a String",
+   "pattern": "Two pointers / sliding window",
+   "url": "https://leetcode.com/problems/find-all-anagrams-in-a-string/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-283",
+   "type": "dsa",
+   "week": 2,
+   "order": 1,
+   "slot": "extra",
+   "difficulty": "easy",
+   "title": "283. Move Zeroes",
+   "pattern": "Two pointers / sliding window",
+   "url": "https://leetcode.com/problems/move-zeroes/",
+   "target_minutes": 20,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-209",
+   "type": "dsa",
+   "week": 2,
+   "order": 2,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "209. Minimum Size Subarray Sum",
+   "pattern": "Two pointers / sliding window",
+   "url": "https://leetcode.com/problems/minimum-size-subarray-sum/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-1004",
+   "type": "dsa",
+   "week": 2,
+   "order": 3,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "1004. Max Consecutive Ones III",
+   "pattern": "Two pointers / sliding window",
+   "url": "https://leetcode.com/problems/max-consecutive-ones-iii/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-680",
+   "type": "dsa",
+   "week": 2,
+   "order": 4,
+   "slot": "extra",
+   "difficulty": "easy",
+   "title": "680. Valid Palindrome II",
+   "pattern": "Two pointers / sliding window",
+   "url": "https://leetcode.com/problems/valid-palindrome-ii/",
+   "target_minutes": 20,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-75",
+   "type": "dsa",
+   "week": 2,
+   "order": 5,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "75. Sort Colors",
+   "pattern": "Two pointers / sliding window",
+   "url": "https://leetcode.com/problems/sort-colors/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-88",
+   "type": "dsa",
+   "week": 2,
+   "order": 6,
+   "slot": "extra",
+   "difficulty": "easy",
+   "title": "88. Merge Sorted Array",
+   "pattern": "Two pointers / sliding window",
+   "url": "https://leetcode.com/problems/merge-sorted-array/",
+   "target_minutes": 20,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-713",
+   "type": "dsa",
+   "week": 2,
+   "order": 7,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "713. Subarray Product Less Than K",
+   "pattern": "Two pointers / sliding window",
+   "url": "https://leetcode.com/problems/subarray-product-less-than-k/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-904",
+   "type": "dsa",
+   "week": 2,
+   "order": 8,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "904. Fruit Into Baskets",
+   "pattern": "Two pointers / sliding window",
+   "url": "https://leetcode.com/problems/fruit-into-baskets/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-643",
+   "type": "dsa",
+   "week": 2,
+   "order": 9,
+   "slot": "extra",
+   "difficulty": "easy",
+   "title": "643. Maximum Average Subarray I",
+   "pattern": "Two pointers / sliding window",
+   "url": "https://leetcode.com/problems/maximum-average-subarray-i/",
+   "target_minutes": 20,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-16",
+   "type": "dsa",
+   "week": 2,
+   "order": 10,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "16. 3Sum Closest",
+   "pattern": "Two pointers / sliding window",
+   "url": "https://leetcode.com/problems/3sum-closest/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-18",
+   "type": "dsa",
+   "week": 2,
+   "order": 11,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "18. 4Sum",
+   "pattern": "Two pointers / sliding window",
+   "url": "https://leetcode.com/problems/4sum/",
+   "target_minutes": 35,
+   "stretch": false
+  }
+ ],
+ "content": {
+  "x-lc-525": {
+   "brief": "Drills **prefix sum + first-seen index map**: recode 0 as -1 so \"equal count\" becomes \"subarray sum is zero\", then the longest zero-sum span is the gap between two equal prefix sums. Watch the seed entry for an empty prefix.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Equal numbers of 0s and 1s is a balance condition. Can you turn it into a statement about a running total?",
+    "Treat 0 as -1 and keep a running sum. A subarray has equal counts exactly when the running sum at its end equals the running sum just before its start.",
+    "Store the FIRST index at which each running sum appears, seeded with sum 0 at index -1. At each index, if the sum was seen before, the length is i minus that first index; never overwrite an earlier index. O(n) time and space."
+   ],
+   "solution": "### Key insight\nA subarray with as many 0s as 1s has sum 0 once each 0 counts as -1. A zero-sum subarray means two equal prefix sums, and the longest one uses the earliest occurrence of that prefix sum.\n\n### Approach\n1. Set `first = {0: -1}` so a balanced prefix starting at index 0 is counted.\n2. Walk the array, adding +1 for a 1 and -1 for a 0.\n3. If the running sum is already in `first`, update the best length with `i - first[s]`.\n4. Otherwise record `first[s] = i` (only the first time).\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def findMaxLength(self, nums: List[int]) -> int:\n        first = {0: -1}  # running sum -> earliest index\n        s = best = 0\n        for i, x in enumerate(nums):\n            s += 1 if x == 1 else -1\n            if s in first:\n                best = max(best, i - first[s])\n            else:\n                first[s] = i\n        return best\n```\n\n### Complexity\n- **Time:** O(n), one pass.\n- **Space:** O(n) for the map of prefix sums.\n\n### Common mistakes\n- Forgetting the `{0: -1}` seed, which misses balanced prefixes like `[0, 1]`.\n- Overwriting the stored index with later ones, which shrinks the answer.\n- Trying a sliding window: the condition is not monotonic, so shrinking the window is not safe.\n\n### Follow-ups\n- Return the subarray itself, not just its length.\n- Count how many balanced subarrays exist (store counts instead of first indices, as in 560)."
+  },
+  "x-lc-169": {
+   "brief": "Drills **counting with a hash map** and its O(1)-space upgrade, **Boyer-Moore voting**: a value that appears more than n/2 times survives pairwise cancellation. Know both and say why the vote works.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "The majority value appears more than half the time. What happens if you pair it off against every other value?",
+    "A frequency map gives an easy O(n) time, O(n) space answer. For O(1) space, keep one candidate and a counter, cancelling one occurrence of the candidate against each different value.",
+    "Boyer-Moore: when the count is 0, adopt the current value as candidate; add 1 if the value equals the candidate, else subtract 1. Because the majority outnumbers everything else combined, it is the candidate at the end. O(n) time, O(1) space."
+   ],
+   "solution": "### Key insight\nThe majority element appears more than all other elements combined, so if every non-majority value cancels one majority occurrence, the majority still has some left over.\n\n### Approach\n1. Keep `cand` and `count = 0`.\n2. For each value: if `count == 0`, set `cand` to it.\n3. Increment `count` if the value equals `cand`, otherwise decrement it.\n4. Return `cand` (the problem guarantees a majority exists).\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def majorityElement(self, nums: List[int]) -> int:\n        cand, count = None, 0\n        for x in nums:\n            if count == 0:\n                cand = x\n            count += 1 if x == cand else -1\n        return cand\n```\n\n### Complexity\n- **Time:** O(n), one pass.\n- **Space:** O(1).\n\n### Common mistakes\n- Sorting and returning the middle works but costs O(n log n); say so if you choose it.\n- Updating the count before checking for `count == 0`, which keeps a stale candidate.\n- Assuming the vote verifies the answer: if a majority is not guaranteed you need a second counting pass.\n\n### Follow-ups\n- What if a majority is not guaranteed? (Second pass to verify the candidate.)\n- Find all elements appearing more than n/3 times (229)."
+  },
+  "x-lc-523": {
+   "brief": "Drills **prefix sums modulo k**: two prefix sums with the same remainder bracket a subarray whose sum is a multiple of k. The twist is the length-at-least-2 rule, which you enforce with first-seen indices.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "A subarray sum is a difference of two prefix sums. When is a difference of two numbers divisible by k?",
+    "Two prefix sums with the same remainder mod k differ by a multiple of k. Store the first index where each remainder appeared and look for a repeat at least two positions later.",
+    "Seed the map with remainder 0 at index -1. For each i, take the running sum mod k; if the remainder is stored and i minus its index is at least 2, return true; store only the first index of each remainder so the gap is as large as possible. O(n) time, O(min(n, k)) space."
+   ],
+   "solution": "### Key insight\nsum(i+1..j) = P[j] - P[i], which is a multiple of k exactly when P[j] % k == P[i] % k. Keeping the earliest index for each remainder maximises the length, so the length-2 rule is easy to check.\n\n### Approach\n1. Set `first = {0: -1}` to allow subarrays starting at index 0.\n2. Keep a running sum `s` and compute `r = s % k` at each index.\n3. If `r` is in `first` and `i - first[r] >= 2`, return `True`.\n4. If `r` is not in `first`, store `first[r] = i`; never overwrite.\n5. Return `False` after the loop.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def checkSubarraySum(self, nums: List[int], k: int) -> bool:\n        first = {0: -1}  # remainder -> earliest index\n        s = 0\n        for i, x in enumerate(nums):\n            s += x\n            r = s % k\n            if r in first:\n                if i - first[r] >= 2:\n                    return True\n            else:\n                first[r] = i\n        return False\n```\n\n### Complexity\n- **Time:** O(n).\n- **Space:** O(min(n, k)) distinct remainders.\n\n### Common mistakes\n- Overwriting the stored index, so `[0]`-style cases or length checks fail.\n- Missing the `{0: -1}` seed, which misses a prefix like `[2, 4]` with k = 6.\n- Treating a single zero as valid: `[0]` has length 1 and must return False, but `[0, 0]` is True.\n\n### Follow-ups\n- Count the subarrays whose sum is divisible by k (974).\n- What changes if k could be 0 or negative?"
+  },
+  "x-lc-974": {
+   "brief": "Drills **prefix-remainder counting**: the counting version of 523. Each prefix whose remainder matches an earlier one closes a valid subarray, so you add the count of earlier equal remainders.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "How do you express a subarray sum using two prefix sums, and what makes that difference divisible by k?",
+    "Track how many prefixes have produced each remainder mod k. When the current prefix has remainder r, every earlier prefix with remainder r starts a valid subarray ending here.",
+    "Start with count[0] = 1 for the empty prefix. For each element, update the running sum, take it mod k (Python's % is already non-negative), add count[r] to the answer, then increment count[r]. O(n) time, O(k) space."
+   ],
+   "solution": "### Key insight\nA subarray sum is P[j] - P[i], divisible by k when both prefixes share a remainder. So the answer is the number of pairs of prefixes with equal remainders, which you can count on the fly.\n\n### Approach\n1. Keep `count = [0] * k` with `count[0] = 1` for the empty prefix.\n2. For each value, update the running sum and compute `r = s % k`.\n3. Add `count[r]` to the answer (all earlier prefixes with the same remainder).\n4. Increment `count[r]`.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def subarraysDivByK(self, nums: List[int], k: int) -> int:\n        count = [0] * k\n        count[0] = 1  # empty prefix\n        s = ans = 0\n        for x in nums:\n            s += x\n            r = s % k\n            ans += count[r]\n            count[r] += 1\n        return ans\n```\n\n### Complexity\n- **Time:** O(n).\n- **Space:** O(k) for the remainder counts.\n\n### Common mistakes\n- Negative remainders in languages like Java/C++ (`-1 % 5 == -1`); normalise with `(s % k + k) % k`. Python is safe.\n- Forgetting the empty-prefix count, which misses subarrays that start at index 0.\n- Adding to the answer after incrementing, which counts a prefix paired with itself.\n\n### Follow-ups\n- Return the longest such subarray instead of the count.\n- How would you handle a stream of numbers with queries for the count so far?"
+  },
+  "x-lc-205": {
+   "brief": "Drills **bijection checks with two maps**: a character mapping must be consistent in both directions. A single map catches \"a maps to two letters\" but misses \"two letters map to one\".",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Think of building a translation table from s to t as you scan. What two kinds of conflict can appear?",
+    "Keep one map from s-characters to t-characters and another from t-characters to s-characters, and check both at every position.",
+    "At each index, if s[i] is already mapped to something other than t[i], or t[i] is already mapped from something other than s[i], return false; otherwise record both directions. O(n) time, O(alphabet) space."
+   ],
+   "solution": "### Key insight\nIsomorphic means a one-to-one mapping. A forward map alone allows two source letters to land on the same target (`\"ab\"` to `\"aa\"`), so you also need the reverse map.\n\n### Approach\n1. Create `fwd` and `back` dicts.\n2. Walk the strings in parallel with pairs `(a, b)`.\n3. If `fwd.get(a, b) != b` or `back.get(b, a) != a`, return `False`.\n4. Set `fwd[a] = b` and `back[b] = a`; return `True` at the end.\n\n### Solution\n```python\nclass Solution:\n    def isIsomorphic(self, s: str, t: str) -> bool:\n        fwd, back = {}, {}\n        for a, b in zip(s, t):\n            if fwd.get(a, b) != b or back.get(b, a) != a:\n                return False\n            fwd[a] = b\n            back[b] = a\n        return True\n```\n\n### Complexity\n- **Time:** O(n).\n- **Space:** O(1) for a fixed alphabet (at most 256 entries per map).\n\n### Common mistakes\n- Only checking one direction, so `\"badc\"` vs `\"baba\"` wrongly returns True.\n- Comparing sorted character counts, which ignores the order of characters.\n\n### Follow-ups\n- Word Pattern (290): same idea with words instead of characters.\n- Group a list of strings into isomorphism classes (normalise each to a pattern of first-occurrence indices)."
+  },
+  "x-lc-454": {
+   "brief": "Drills **meet in the middle with a hash map**: split four arrays into two pairs, count all pair sums of the first two, then look up the negated sums of the other two. O(n^4) becomes O(n^2).",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Brute force tries every quadruple. Can you split the four choices into two independent halves?",
+    "Count every a + b from the first two arrays in a hash map. Then for every c + d from the last two, the number of matching pairs is the count of -(c + d).",
+    "Build a Counter over all n^2 sums of nums1 and nums2, then loop over nums3 and nums4 adding counter[-(c + d)] to the answer. Counts, not booleans, because many pairs share a sum. O(n^2) time and space."
+   ],
+   "solution": "### Key insight\na + b + c + d = 0 means a + b = -(c + d). Precompute how many (a, b) pairs give each sum, then each (c, d) pair contributes that count directly.\n\n### Approach\n1. Build `ab = Counter(a + b for a in nums1 for b in nums2)`.\n2. For every `c` in `nums3` and `d` in `nums4`, add `ab[-(c + d)]` to the answer.\n3. Return the total.\n\n### Solution\n```python\nfrom collections import Counter\nfrom typing import List\n\n\nclass Solution:\n    def fourSumCount(self, nums1: List[int], nums2: List[int],\n                     nums3: List[int], nums4: List[int]) -> int:\n        ab = Counter(a + b for a in nums1 for b in nums2)\n        return sum(ab[-(c + d)] for c in nums3 for d in nums4)\n```\n\n### Complexity\n- **Time:** O(n^2) for both halves.\n- **Space:** O(n^2) for the pair-sum counter.\n\n### Common mistakes\n- Storing a set of sums instead of counts, which undercounts duplicates.\n- Applying sort + two pointers like 4Sum (18): that solves a different problem (one array, unique quadruplets).\n\n### Follow-ups\n- Generalise to k arrays: split into two halves of k/2 arrays each.\n- What if memory is tight? (Sort one half and binary-search, trading time for space.)"
+  },
+  "x-lc-383": {
+   "brief": "Drills **frequency counting**: compare the multiset of letters needed against the multiset available. A one-line Counter subtraction works, but be ready to write the array-of-26 version.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Order does not matter here, only how many of each letter you have and need.",
+    "Count the letters in the magazine, then walk the note and spend one letter at a time, failing as soon as any count would go negative.",
+    "Use a Counter (or a 26-slot list) of magazine letters; for each note letter decrement its count and return false if it drops below zero. O(m + n) time, O(1) space for lowercase letters."
+   ],
+   "solution": "### Key insight\nThe note can be built exactly when, for every letter, the magazine has at least as many copies as the note needs.\n\n### Approach\n1. Count the magazine letters.\n2. For each letter in the note, decrement its count.\n3. If any count goes negative, return `False`; otherwise return `True`.\n\n### Solution\n```python\nfrom collections import Counter\n\n\nclass Solution:\n    def canConstruct(self, ransomNote: str, magazine: str) -> bool:\n        have = Counter(magazine)\n        for ch in ransomNote:\n            have[ch] -= 1\n            if have[ch] < 0:\n                return False\n        return True\n```\n\n### Complexity\n- **Time:** O(m + n) for the two strings.\n- **Space:** O(1): at most 26 lowercase letters.\n\n### Common mistakes\n- Checking membership only (`ch in magazine`), which ignores how many copies are needed.\n- Removing characters from a string inside the loop, which is O(n) per removal.\n\n### Follow-ups\n- Early exit: if the note is longer than the magazine, return False immediately.\n- What if the magazine is a huge stream you can read only once?"
+  },
+  "x-lc-692": {
+   "brief": "Drills **counting + custom ordering**: count with a hash map, then select the top k by (frequency desc, word asc). The tie-break rule is the whole trap, especially if you use a size-k heap.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Two steps: how often does each word appear, and how do you rank words that tie on frequency?",
+    "Count with a hash map, then sort or heap-select by a key of negative frequency followed by the word itself so ties come out alphabetically.",
+    "heapq.nsmallest(k, counts, key=lambda w: (-counts[w], w)) gives O(n log k). If you hand-roll a size-k min-heap, the eviction order must invert the alphabetical tie-break, which is where most bugs happen. Sorting all unique words is O(u log u) and also acceptable."
+   ],
+   "solution": "### Key insight\nThe answer is a sort by two keys: higher frequency first, then lexicographically smaller word. Counting is O(n); the only design choice is how you select k.\n\n### Approach\n1. Count words with a `Counter`.\n2. Select the k smallest words under the key `(-count, word)`.\n3. Return them in that order.\n\n### Solution\n```python\nimport heapq\nfrom collections import Counter\nfrom typing import List\n\n\nclass Solution:\n    def topKFrequent(self, words: List[str], k: int) -> List[str]:\n        counts = Counter(words)\n        return heapq.nsmallest(k, counts, key=lambda w: (-counts[w], w))\n```\n\n### Complexity\n- **Time:** O(n + u log k) where u is the number of distinct words.\n- **Space:** O(u) for the counts.\n\n### Common mistakes\n- Using `Counter.most_common(k)`, which breaks ties by first appearance, not alphabetically.\n- A size-k min-heap keyed on `(count, word)`: it evicts the alphabetically smaller word on ties, the opposite of what you want.\n\n### Follow-ups\n- Do it in O(n) with bucket sort by frequency (sort each bucket).\n- Top k over a stream of words where you cannot keep every word (Count-Min sketch + heap)."
+  },
+  "x-lc-229": {
+   "brief": "Drills **extended Boyer-Moore voting**: at most two values can appear more than n/3 times, so keep two candidates, cancel triples, then verify with a second pass.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "How many different values can each appear more than n/3 times?",
+    "At most two. Generalise the majority vote: keep two candidates with two counters and cancel three distinct values at a time.",
+    "For each x: if it matches a candidate, bump that count; else if a count is 0, adopt x there; else decrement both counts. The survivors are only candidates, so count them again and keep those above n/3. O(n) time, O(1) space."
+   ],
+   "solution": "### Key insight\nRemoving three distinct values at a time never removes a value that occurs more than n/3 times from contention, and at most two such values exist. So two candidate slots suffice, followed by a verification pass.\n\n### Approach\n1. Keep `c1, n1` and `c2, n2` (candidates and counts).\n2. For each `x`: if `x == c1` increment `n1`; elif `x == c2` increment `n2`; elif `n1 == 0` set `c1 = x, n1 = 1`; elif `n2 == 0` set `c2 = x, n2 = 1`; else decrement both.\n3. Count the real occurrences of `c1` and `c2` and return those above `n // 3`.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def majorityElement(self, nums: List[int]) -> List[int]:\n        c1, c2, n1, n2 = None, None, 0, 0\n        for x in nums:\n            if x == c1:\n                n1 += 1\n            elif x == c2:\n                n2 += 1\n            elif n1 == 0:\n                c1, n1 = x, 1\n            elif n2 == 0:\n                c2, n2 = x, 1\n            else:\n                n1 -= 1\n                n2 -= 1\n        return [c for c in (c1, c2) if c is not None and nums.count(c) > len(nums) // 3]\n```\n\n### Complexity\n- **Time:** O(n), two passes.\n- **Space:** O(1).\n\n### Common mistakes\n- Skipping the verification pass, so a leftover candidate with too few votes is returned.\n- Checking the empty-slot branches before the match branches, which lets both slots hold the same value.\n- Returning the same value twice when c1 == c2 (the match-first order above prevents it).\n\n### Follow-ups\n- Generalise to more than n/k times with k - 1 candidates (Misra-Gries).\n- Why does the hash-map version use O(n) space, and when is that acceptable?"
+  },
+  "x-lc-448": {
+   "brief": "Drills **using the array as its own hash set**: values are in 1..n, so each value can mark its index by flipping a sign. Easy with a set; the interview follow-up asks for O(1) extra space.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "The values all lie in 1..n and the array has n slots. Could each value leave a mark at a matching position?",
+    "With a set it is trivial. For O(1) extra space, use the sign of nums[v - 1] as a 'seen v' flag.",
+    "For each value take abs(v) (it may already be negated) and make nums[abs(v) - 1] negative. Afterwards every index i still holding a positive number means i + 1 never appeared. O(n) time, O(1) extra space excluding the output."
+   ],
+   "solution": "### Key insight\nBecause values map one-to-one onto indices 0..n-1, the array can store a 'seen' bit per value in the sign of the slot, with no extra memory.\n\n### Approach\n1. For each `v` in `nums`, let `i = abs(v) - 1` and set `nums[i] = -abs(nums[i])`.\n2. Collect every `i + 1` where `nums[i] > 0`.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def findDisappearedNumbers(self, nums: List[int]) -> List[int]:\n        for v in nums:\n            i = abs(v) - 1\n            nums[i] = -abs(nums[i])\n        return [i + 1 for i, v in enumerate(nums) if v > 0]\n```\n\n### Complexity\n- **Time:** O(n), two passes.\n- **Space:** O(1) extra (the output list does not count).\n\n### Common mistakes\n- Using `v - 1` instead of `abs(v) - 1`, which indexes with an already-negated value.\n- Toggling with `nums[i] *= -1`, which un-marks a value that appears twice.\n\n### Follow-ups\n- Find All Duplicates in an Array (442): same marking trick, report values whose slot is already negative.\n- Can you restore the original array afterwards? (Take abs of everything.)"
+  },
+  "x-lc-451": {
+   "brief": "Drills **counting + bucket sort**: frequencies are bounded by n, so you can group characters into buckets by count and read them back from high to low in O(n).",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "First find how often each character appears. Then how do you order characters by that number?",
+    "Sorting the distinct characters by count works because there are few of them. For a linear-time version, put characters into buckets indexed by their count.",
+    "Count with a Counter, create n + 1 buckets, append each character to bucket[count], then walk buckets from n down to 1 emitting char * count. O(n) time and space."
+   ],
+   "solution": "### Key insight\nOutput depends only on each character's count, which is at most n, so bucketing by count gives a linear-time ordering.\n\n### Approach\n1. Count characters.\n2. Make `buckets = [[] for _ in range(len(s) + 1)]` and append each character to `buckets[count]`.\n3. Walk the buckets from high to low and append `ch * count` for each character.\n\n### Solution\n```python\nfrom collections import Counter\n\n\nclass Solution:\n    def frequencySort(self, s: str) -> str:\n        counts = Counter(s)\n        buckets = [[] for _ in range(len(s) + 1)]\n        for ch, c in counts.items():\n            buckets[c].append(ch)\n        out = []\n        for c in range(len(s), 0, -1):\n            for ch in buckets[c]:\n                out.append(ch * c)\n        return \"\".join(out)\n```\n\n### Complexity\n- **Time:** O(n).\n- **Space:** O(n) for the buckets and output.\n\n### Common mistakes\n- Sorting the characters of the string by a count key without grouping, which can interleave two characters with equal counts (`\"abab\"`); the output must keep equal characters together.\n- Building the result with repeated string concatenation in a loop instead of a list join.\n\n### Follow-ups\n- Break ties by alphabetical order or by first appearance.\n- What if the alphabet is all of Unicode and the string does not fit in memory?"
+  },
+  "x-lc-187": {
+   "brief": "Drills **hashing fixed-length windows**: slide a length-10 window and track which substrings were seen once and which were already reported. Follow-up: rolling hash or 2-bit encoding.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Every candidate answer is one of the n - 9 substrings of length 10. How do you detect one you have seen before?",
+    "Slide a window of length 10 and keep a set of seen substrings plus a set of repeated ones, so each repeated sequence is reported once.",
+    "For i in range(len(s) - 9): take s[i:i+10]; if it is in seen, add it to repeated; otherwise add it to seen. Return list(repeated). O(n * 10) time; a 2-bit-per-base rolling integer makes each step O(1)."
+   ],
+   "solution": "### Key insight\nThere are only n - 9 windows of length 10, so hashing each one and remembering what you've seen finds the repeats directly. A second set avoids reporting a sequence more than once.\n\n### Approach\n1. Create `seen` and `repeated` sets.\n2. For each start index `i` up to `len(s) - 10`, take `w = s[i:i + 10]`.\n3. If `w` is in `seen`, add it to `repeated`; otherwise add it to `seen`.\n4. Return `list(repeated)`.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def findRepeatedDnaSequences(self, s: str) -> List[str]:\n        seen, repeated = set(), set()\n        for i in range(len(s) - 9):\n            w = s[i:i + 10]\n            if w in seen:\n                repeated.add(w)\n            else:\n                seen.add(w)\n        return list(repeated)\n```\n\n### Complexity\n- **Time:** O(n * L) with L = 10 (each slice and hash costs L).\n- **Space:** O(n * L) for the stored windows.\n\n### Common mistakes\n- Off-by-one in the range so the last window is skipped (`range(len(s) - 10)`).\n- Appending to a result list on every repeat, which reports a sequence 3 times if it occurs 4 times.\n\n### Follow-ups\n- Encode A/C/G/T as 2 bits and keep a rolling 20-bit integer so each step is O(1) and memory is smaller.\n- Generalise to any length L (Rabin-Karp rolling hash)."
+  },
+  "x-lc-438": {
+   "brief": "Drills the **fixed-size sliding window with counts**: keep a character count of the current window, add one char on the right and drop one on the left, and compare to the target counts.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Every anagram of p is a window of s with exactly len(p) characters. What changes when the window moves one step right?",
+    "Keep counts for p and for the current window of length len(p). Each step adds the new right character and removes the one that fell off the left, then compares the two count tables.",
+    "Use two 26-length arrays (or Counters), slide i from len(p) to len(s), and record the start index whenever the arrays match. Comparing fixed-size arrays is O(26) per step; a 'matches' counter makes it O(1). O(n) overall."
+   ],
+   "solution": "### Key insight\nAll windows have the same length, so a window's letter counts change by exactly one add and one remove per step. A window is an anagram when its counts equal p's counts.\n\n### Approach\n1. If `len(p) > len(s)`, return `[]`.\n2. Build count arrays for `p` and for the first `len(p)` characters of `s`.\n3. If they match, record index 0.\n4. For each new right index `i`, add `s[i]`, remove `s[i - len(p)]`, and record `i - len(p) + 1` on a match.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def findAnagrams(self, s: str, p: str) -> List[int]:\n        m = len(p)\n        if m > len(s):\n            return []\n        need, win = [0] * 26, [0] * 26\n        for a, b in zip(p, s[:m]):\n            need[ord(a) - 97] += 1\n            win[ord(b) - 97] += 1\n        res = [0] if need == win else []\n        for i in range(m, len(s)):\n            win[ord(s[i]) - 97] += 1\n            win[ord(s[i - m]) - 97] -= 1\n            if win == need:\n                res.append(i - m + 1)\n        return res\n```\n\n### Complexity\n- **Time:** O(26 * n), i.e. O(n).\n- **Space:** O(1): two arrays of 26.\n\n### Common mistakes\n- Recounting each window from scratch (O(n * m)).\n- Recording `i - m` instead of `i - m + 1` as the start index.\n- Forgetting the `len(p) > len(s)` guard.\n\n### Follow-ups\n- Permutation in String (567) asks only whether one exists.\n- Maintain a single `matches` counter of letters whose counts agree, to get O(1) per step."
+  },
+  "x-lc-283": {
+   "brief": "Drills the **read/write two-pointer partition**: a write pointer marks where the next non-zero belongs while a read pointer scans. It is the in-place stable-filter pattern used in many array problems.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "You must keep the non-zero values in order and do it in place. What if one index tracks where the next non-zero value should go?",
+    "Scan with a read pointer; whenever it finds a non-zero, put it at the write pointer and advance the write pointer.",
+    "Swap nums[write] and nums[read] when nums[read] is non-zero, then increment write. Swapping (rather than overwriting and zero-filling later) does it in one pass with minimal writes. O(n) time, O(1) space."
+   ],
+   "solution": "### Key insight\nEvery non-zero belongs, in order, at the next free front slot. Swapping each non-zero into that slot pushes zeros backward automatically.\n\n### Approach\n1. Set `write = 0`.\n2. For each `read` index: if `nums[read] != 0`, swap `nums[write]` and `nums[read]`, then `write += 1`.\n3. Return nothing; the array is modified in place.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def moveZeroes(self, nums: List[int]) -> None:\n        write = 0\n        for read in range(len(nums)):\n            if nums[read] != 0:\n                nums[write], nums[read] = nums[read], nums[write]\n                write += 1\n```\n\n### Complexity\n- **Time:** O(n).\n- **Space:** O(1).\n\n### Common mistakes\n- Removing zeros with `list.remove` and appending them, which is O(n^2).\n- Returning a new list: the function must modify `nums` in place.\n- Sorting with a key, which is O(n log n) and violates the spirit of the question.\n\n### Follow-ups\n- Minimise the number of writes when zeros are rare.\n- Remove Element (27) and Remove Duplicates from Sorted Array (26) use the same read/write pattern."
+  },
+  "x-lc-209": {
+   "brief": "Drills the **variable-size sliding window (shrink while valid)**: with positive numbers, growing the window only raises the sum and shrinking only lowers it, so each index enters and leaves once.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "All numbers are positive. What does that tell you about how a window's sum changes when you extend or shrink it?",
+    "Expand the right edge, adding to a running sum. While the sum is at least the target, record the window length and shrink from the left.",
+    "Keep left = 0 and total = 0; for each right add nums[right], then while total >= target update the best length with right - left + 1, subtract nums[left] and advance left. Return 0 if nothing was found. O(n) time, O(1) space."
+   ],
+   "solution": "### Key insight\nWith positive numbers, the window sum is monotonic in both edges, so the smallest valid window ending at each right edge can be found by shrinking from the left, and left never moves backward.\n\n### Approach\n1. Set `left = 0`, `total = 0`, `best = inf`.\n2. For each `right`, add `nums[right]` to `total`.\n3. While `total >= target`: update `best`, subtract `nums[left]`, increment `left`.\n4. Return `0` if `best` is still infinite, else `best`.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def minSubArrayLen(self, target: int, nums: List[int]) -> int:\n        left = total = 0\n        best = float(\"inf\")\n        for right, x in enumerate(nums):\n            total += x\n            while total >= target:\n                best = min(best, right - left + 1)\n                total -= nums[left]\n                left += 1\n        return 0 if best == float(\"inf\") else best\n```\n\n### Complexity\n- **Time:** O(n): each index is added and removed at most once.\n- **Space:** O(1).\n\n### Common mistakes\n- Using `if` instead of `while` for the shrink step, which misses shorter windows.\n- Returning `inf` (or the sentinel) when no window exists instead of 0.\n- Applying this window to arrays with negatives, where the monotonic property breaks.\n\n### Follow-ups\n- O(n log n) version with prefix sums and binary search.\n- What if numbers can be negative? (Prefix sums + monotonic deque, LeetCode 862.)"
+  },
+  "x-lc-1004": {
+   "brief": "Drills the **'at most k bad elements' window**: grow the window, count zeros inside it, and shrink only when the count exceeds k. The longest valid window is the answer.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Flipping up to k zeros is the same as finding the longest window containing at most k zeros.",
+    "Slide a window, counting zeros inside it. When the count goes above k, move the left edge right until it is back to k.",
+    "For each right: if nums[right] is 0 increment zeros; while zeros > k, decrement zeros if nums[left] is 0 and advance left; record right - left + 1. O(n) time, O(1) space."
+   ],
+   "solution": "### Key insight\nRephrase as: longest subarray with at most k zeros. That constraint is monotonic (a sub-window of a valid window is valid), so a two-pointer window finds it in one pass.\n\n### Approach\n1. Set `left = 0`, `zeros = 0`, `best = 0`.\n2. For each `right`, increment `zeros` if `nums[right] == 0`.\n3. While `zeros > k`, remove `nums[left]` from the count and advance `left`.\n4. Update `best = max(best, right - left + 1)`.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def longestOnes(self, nums: List[int], k: int) -> int:\n        left = zeros = best = 0\n        for right, x in enumerate(nums):\n            if x == 0:\n                zeros += 1\n            while zeros > k:\n                if nums[left] == 0:\n                    zeros -= 1\n                left += 1\n            best = max(best, right - left + 1)\n        return best\n```\n\n### Complexity\n- **Time:** O(n).\n- **Space:** O(1).\n\n### Common mistakes\n- Trying to actually flip values in the array, which complicates everything.\n- Forgetting the k = 0 case, where the answer is the longest run of ones.\n- Decrementing `zeros` when the element leaving the window is a 1.\n\n### Follow-ups\n- Longest Repeating Character Replacement (424) is the same idea with letters.\n- What if the input is a stream and k is fixed? (Store the indices of the last k + 1 zeros in a deque.)"
+  },
+  "x-lc-680": {
+   "brief": "Drills **converging two pointers with one allowed mistake**: walk inward from both ends; on the first mismatch, try skipping either side once and check the rest is a palindrome.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "A normal palindrome check moves two pointers inward. What decision do you face the first time the characters differ?",
+    "At the first mismatch you may delete either the left or the right character. Check whether either remaining range is a palindrome; you never need to branch again.",
+    "Write a helper is_pal(i, j) for a substring range. Move l and r inward while s[l] == s[r]; on a mismatch return is_pal(l + 1, r) or is_pal(l, r - 1). O(n) time, O(1) space."
+   ],
+   "solution": "### Key insight\nBefore the first mismatch both ends already match, so one deletion must fix that exact pair: either drop s[l] or drop s[r]. Each option is a plain palindrome check of the inner range.\n\n### Approach\n1. Set `l, r = 0, len(s) - 1`.\n2. While `l < r` and `s[l] == s[r]`, move both inward.\n3. If `l >= r`, it is already a palindrome.\n4. Otherwise return `is_pal(l + 1, r) or is_pal(l, r - 1)`.\n\n### Solution\n```python\nclass Solution:\n    def validPalindrome(self, s: str) -> bool:\n        def is_pal(i: int, j: int) -> bool:\n            while i < j:\n                if s[i] != s[j]:\n                    return False\n                i += 1\n                j -= 1\n            return True\n\n        l, r = 0, len(s) - 1\n        while l < r:\n            if s[l] != s[r]:\n                return is_pal(l + 1, r) or is_pal(l, r - 1)\n            l += 1\n            r -= 1\n        return True\n```\n\n### Complexity\n- **Time:** O(n).\n- **Space:** O(1) (the helper uses indices, not slices).\n\n### Common mistakes\n- Trying only one of the two deletions (e.g. `\"cuppucu\"`-style cases need the other side).\n- Deleting each index in turn and checking, which is O(n^2).\n- Using slices `s[l+1:r+1][::-1]`, which works but uses O(n) extra space; mention it.\n\n### Follow-ups\n- Allow up to k deletions (becomes a DP / longest palindromic subsequence problem).\n- Valid Palindrome (125) with non-alphanumeric characters skipped."
+  },
+  "x-lc-75": {
+   "brief": "Drills **three-pointer partitioning (Dutch national flag)**: low, mid and high pointers split the array into 0s, unknowns and 2s in one pass. The trap is not advancing mid after swapping with high.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Only three values exist. Can you keep the 0s growing from the left and the 2s growing from the right in a single scan?",
+    "Use low (next slot for 0), mid (current element) and high (next slot for 2). A 0 swaps to low, a 2 swaps to high, a 1 stays.",
+    "While mid <= high: on 0 swap with low and advance both low and mid; on 1 advance mid; on 2 swap with high and decrement high but do NOT advance mid, because the swapped-in value has not been examined. O(n) time, O(1) space."
+   ],
+   "solution": "### Key insight\nMaintain invariants: `[0, low)` are 0s, `[low, mid)` are 1s, `(high, end]` are 2s, and `[mid, high]` is unknown. Each step shrinks the unknown region by one.\n\n### Approach\n1. Set `low = mid = 0`, `high = len(nums) - 1`.\n2. While `mid <= high`, look at `nums[mid]`.\n3. 0: swap with `nums[low]`, then `low += 1`, `mid += 1`.\n4. 1: `mid += 1`.\n5. 2: swap with `nums[high]`, then `high -= 1` (keep `mid`).\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def sortColors(self, nums: List[int]) -> None:\n        low, mid, high = 0, 0, len(nums) - 1\n        while mid <= high:\n            if nums[mid] == 0:\n                nums[low], nums[mid] = nums[mid], nums[low]\n                low += 1\n                mid += 1\n            elif nums[mid] == 1:\n                mid += 1\n            else:\n                nums[mid], nums[high] = nums[high], nums[mid]\n                high -= 1\n```\n\n### Complexity\n- **Time:** O(n), one pass.\n- **Space:** O(1).\n\n### Common mistakes\n- Advancing `mid` after swapping with `high`, which can leave a 0 or 2 in the middle.\n- Using `mid < high` as the loop condition, which skips the last unknown element.\n- Counting sort works (two passes) but the interviewer usually wants the one-pass version.\n\n### Follow-ups\n- Sort an array with k colours (counting sort, or recursive partitioning).\n- Partition around a pivot value, as in quicksort's 3-way partition."
+  },
+  "x-lc-88": {
+   "brief": "Drills **two pointers from the back**: merging into nums1 from the front would overwrite unread values, but filling from the largest end never does.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "nums1 has empty space at the end. Which end of the merged output can you fill without overwriting anything you still need?",
+    "Fill from the back: compare the last unread elements of both arrays and place the larger one at the last free slot.",
+    "Keep i = m - 1, j = n - 1, k = m + n - 1. While j >= 0, if i >= 0 and nums1[i] > nums2[j] place nums1[i], else place nums2[j]; decrement the used pointer and k. Leftover nums1 values are already in place. O(m + n) time, O(1) space."
+   ],
+   "solution": "### Key insight\nThe free space is at the end of nums1, so writing the largest remaining value at the end is always safe: the write index k is never smaller than the read index i.\n\n### Approach\n1. Set `i = m - 1`, `j = n - 1`, `k = m + n - 1`.\n2. While `j >= 0`: if `i >= 0` and `nums1[i] > nums2[j]`, write `nums1[i]` and decrement `i`; else write `nums2[j]` and decrement `j`.\n3. Decrement `k` after each write. Stop when `nums2` is exhausted.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def merge(self, nums1: List[int], m: int, nums2: List[int], n: int) -> None:\n        i, j, k = m - 1, n - 1, m + n - 1\n        while j >= 0:\n            if i >= 0 and nums1[i] > nums2[j]:\n                nums1[k] = nums1[i]\n                i -= 1\n            else:\n                nums1[k] = nums2[j]\n                j -= 1\n            k -= 1\n```\n\n### Complexity\n- **Time:** O(m + n).\n- **Space:** O(1).\n\n### Common mistakes\n- Merging from the front, which overwrites unread nums1 values.\n- Looping while `i >= 0 and j >= 0` and forgetting to copy the leftover nums2 values.\n- Rebinding `nums1 = sorted(...)` inside the function, which doesn't change the caller's list.\n\n### Follow-ups\n- Merge k sorted arrays (heap).\n- What if nums2 is much smaller than nums1? (Binary search positions.)"
+  },
+  "x-lc-713": {
+   "brief": "Drills **counting subarrays with a sliding window**: for each right edge, every subarray ending there and starting at or after left is valid, so you add right - left + 1 rather than 1.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Numbers are positive, so a product only grows as the window grows. How many valid subarrays end at a given right edge?",
+    "Keep a window with product less than k by shrinking from the left when it gets too big. Every subarray ending at right and starting within the window is valid.",
+    "If k <= 1 return 0 (no product of positive integers is below 1). Otherwise multiply in nums[right], divide out nums[left] while product >= k, and add right - left + 1 to the count. O(n) time, O(1) space."
+   ],
+   "solution": "### Key insight\nFor a fixed right edge, the valid start positions form a contiguous range [left, right], because shrinking a positive-product window only lowers the product. So each step adds the window length to the count.\n\n### Approach\n1. Return 0 if `k <= 1`.\n2. Keep `prod = 1`, `left = 0`, `count = 0`.\n3. For each `right`: multiply in `nums[right]`; while `prod >= k`, divide out `nums[left]` and advance `left`.\n4. Add `right - left + 1` to `count`.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def numSubarrayProductLessThanK(self, nums: List[int], k: int) -> int:\n        if k <= 1:\n            return 0\n        prod, left, count = 1, 0, 0\n        for right, x in enumerate(nums):\n            prod *= x\n            while prod >= k:\n                prod //= nums[left]\n                left += 1\n            count += right - left + 1\n        return count\n```\n\n### Complexity\n- **Time:** O(n).\n- **Space:** O(1).\n\n### Common mistakes\n- Missing the `k <= 1` guard, which makes the shrink loop run past `right` (left overtakes right).\n- Adding 1 per window instead of the window length, which counts only the longest subarray per right edge.\n- Using float division, which can accumulate rounding error; integer division is exact here.\n\n### Follow-ups\n- What if values can be 0 or negative?\n- Use log-sums plus binary search for an O(n log n) alternative that avoids overflow in other languages."
+  },
+  "x-lc-904": {
+   "brief": "Drills the **'at most K distinct' window** with a count map: it is the longest subarray with at most 2 distinct values in disguise. Shrink when the map holds a third key.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Strip away the story: what property must the picked contiguous run of trees have?",
+    "Find the longest subarray with at most two distinct values. Grow the window with a count map and shrink from the left when there are three distinct values.",
+    "For each right, increment count[fruits[right]]; while len(count) > 2, decrement count[fruits[left]], delete the key when it hits 0, and advance left; record the window length. O(n) time, O(1) space (at most 3 keys)."
+   ],
+   "solution": "### Key insight\nTwo baskets each holding one type means the run of trees contains at most two distinct values. The 'at most k distinct' constraint is monotonic, so a sliding window with a count map solves it.\n\n### Approach\n1. Keep `count = {}`, `left = 0`, `best = 0`.\n2. For each `right`, increment `count[fruits[right]]`.\n3. While `len(count) > 2`, decrement `count[fruits[left]]`, delete it at 0, and advance `left`.\n4. Update `best` with `right - left + 1`.\n\n### Solution\n```python\nfrom collections import defaultdict\nfrom typing import List\n\n\nclass Solution:\n    def totalFruit(self, fruits: List[int]) -> int:\n        count = defaultdict(int)\n        left = best = 0\n        for right, f in enumerate(fruits):\n            count[f] += 1\n            while len(count) > 2:\n                g = fruits[left]\n                count[g] -= 1\n                if count[g] == 0:\n                    del count[g]\n                left += 1\n            best = max(best, right - left + 1)\n        return best\n```\n\n### Complexity\n- **Time:** O(n).\n- **Space:** O(1): the map never holds more than 3 keys.\n\n### Common mistakes\n- Not deleting keys whose count drops to 0, so `len(count)` stays too high.\n- Restarting the window from scratch on a third type instead of shrinking, which is O(n^2) in the worst case.\n\n### Follow-ups\n- Generalise to k baskets (Longest Substring with At Most K Distinct Characters).\n- Track the last index of each type to jump `left` in O(1) instead of shrinking step by step."
+  },
+  "x-lc-643": {
+   "brief": "Drills the **fixed-size sliding window sum**: compute the first window's sum, then slide by adding the incoming element and subtracting the outgoing one. The simplest template for every window problem.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Every candidate window has the same length k. How does the sum change when the window moves one position?",
+    "Compute the sum of the first k elements, then for each next index add the new element and subtract the one that left, tracking the maximum sum.",
+    "Maximise the sum, not the average, and divide by k once at the end; this avoids floating-point work in the loop. O(n) time, O(1) space."
+   ],
+   "solution": "### Key insight\nConsecutive windows of size k share k - 1 elements, so each new sum is the previous sum plus one element minus one element. Since k is fixed, the maximum average comes from the maximum sum.\n\n### Approach\n1. Compute `cur = sum(nums[:k])` and set `best = cur`.\n2. For `i` from `k` to `n - 1`: `cur += nums[i] - nums[i - k]` and update `best`.\n3. Return `best / k`.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def findMaxAverage(self, nums: List[int], k: int) -> float:\n        cur = best = sum(nums[:k])\n        for i in range(k, len(nums)):\n            cur += nums[i] - nums[i - k]\n            best = max(best, cur)\n        return best / k\n```\n\n### Complexity\n- **Time:** O(n).\n- **Space:** O(1).\n\n### Common mistakes\n- Initialising `best = 0`, which is wrong when all sums are negative.\n- Re-summing each window with `sum(nums[i:i+k])`, which is O(n * k).\n\n### Follow-ups\n- Maximum Average Subarray II (length at least k) needs binary search on the answer.\n- Return the starting index of the best window as well."
+  },
+  "x-lc-16": {
+   "brief": "Drills **sort + fix one + two pointers**: the 3Sum skeleton, but you track the closest sum instead of collecting exact matches. Moving the pointers toward the target is what makes it O(n^2).",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Brute force checks every triple. If the array were sorted, how could you adjust a pair's sum up or down in a controlled way?",
+    "Sort, fix the first element, and run two pointers on the rest: if the current sum is below the target move the left pointer up, if above move the right pointer down, and track the sum closest to the target.",
+    "Initialise best with the first three elements. For each i, set lo = i + 1 and hi = n - 1; compute s, update best when abs(s - target) is smaller, return immediately if s == target, else move lo or hi. O(n^2) time, O(1) extra space beyond sorting."
+   ],
+   "solution": "### Key insight\nAfter sorting, for a fixed first element the remaining pair's sum moves predictably: advancing left increases it, retreating right decreases it. Steering toward the target visits every pair that could improve the answer.\n\n### Approach\n1. Sort `nums` and set `best = nums[0] + nums[1] + nums[2]`.\n2. For each `i` from 0 to `n - 3`, set `lo = i + 1`, `hi = n - 1`.\n3. While `lo < hi`: compute `s`; update `best` if `s` is closer; if `s == target` return it; if `s < target` increment `lo`, else decrement `hi`.\n4. Return `best`.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def threeSumClosest(self, nums: List[int], target: int) -> int:\n        nums.sort()\n        n = len(nums)\n        best = nums[0] + nums[1] + nums[2]\n        for i in range(n - 2):\n            lo, hi = i + 1, n - 1\n            while lo < hi:\n                s = nums[i] + nums[lo] + nums[hi]\n                if abs(s - target) < abs(best - target):\n                    best = s\n                if s == target:\n                    return s\n                if s < target:\n                    lo += 1\n                else:\n                    hi -= 1\n        return best\n```\n\n### Complexity\n- **Time:** O(n^2) after an O(n log n) sort.\n- **Space:** O(1) extra (ignoring the sort).\n\n### Common mistakes\n- Seeding `best` with 0 or another value that is not a real triple sum, which gets returned when it happens to sit closer to the target than every real triple.\n- Forgetting the early return when the sum equals the target (correct but slower).\n- Comparing distances without `abs`, which picks the wrong side of the target.\n\n### Follow-ups\n- 3Sum Smaller (count triples below target): add `hi - lo` when the sum is small enough.\n- Can you skip duplicate values of `nums[i]` to save time?"
+  },
+  "x-lc-18": {
+   "brief": "Drills **k-Sum reduction to two pointers**: sort, fix two elements with nested loops, then two-pointer the rest, skipping duplicates at every level so each quadruplet appears once.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "You know how to do 3Sum with sort + one fixed element + two pointers. What is one more level of that?",
+    "Sort, loop over the first index, loop over the second, and run the two-pointer pair search for target minus the two fixed values. Skip equal neighbours at each level to avoid duplicate quadruplets.",
+    "Skip nums[i] when it equals nums[i - 1] (for i past the start of its loop), the same for j, and after recording a hit move lo and hi past equal values. A recursive kSum that bottoms out in two pointers generalises it. O(n^3) time, O(1) extra space beyond output."
+   ],
+   "solution": "### Key insight\nSorting lets the innermost pair be found with two pointers in linear time, and lets duplicates be skipped by comparing neighbours. Each extra element in the sum adds one loop level.\n\n### Approach\n1. Sort `nums`.\n2. For each `i`, skip if `i > 0` and `nums[i] == nums[i - 1]`.\n3. For each `j > i`, skip if `j > i + 1` and `nums[j] == nums[j - 1]`.\n4. Two-pointer `lo = j + 1`, `hi = n - 1` toward `target - nums[i] - nums[j]`; on a hit append and move both pointers past duplicates.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def fourSum(self, nums: List[int], target: int) -> List[List[int]]:\n        nums.sort()\n        n, res = len(nums), []\n        for i in range(n - 3):\n            if i > 0 and nums[i] == nums[i - 1]:\n                continue\n            for j in range(i + 1, n - 2):\n                if j > i + 1 and nums[j] == nums[j - 1]:\n                    continue\n                lo, hi = j + 1, n - 1\n                while lo < hi:\n                    s = nums[i] + nums[j] + nums[lo] + nums[hi]\n                    if s == target:\n                        res.append([nums[i], nums[j], nums[lo], nums[hi]])\n                        lo += 1\n                        hi -= 1\n                        while lo < hi and nums[lo] == nums[lo - 1]:\n                            lo += 1\n                        while lo < hi and nums[hi] == nums[hi + 1]:\n                            hi -= 1\n                    elif s < target:\n                        lo += 1\n                    else:\n                        hi -= 1\n        return res\n```\n\n### Complexity\n- **Time:** O(n^3).\n- **Space:** O(1) extra beyond the output (sorting may use O(log n)).\n\n### Common mistakes\n- Skipping duplicates with `j > 0` instead of `j > i + 1`, which drops valid quadruplets like `[2,2,2,2]`.\n- Not skipping duplicates after a hit, which produces repeated quadruplets.\n- Overflow in fixed-width languages (sums can exceed 32 bits); Python is safe but mention it.\n\n### Follow-ups\n- Write a generic `kSum(nums, target, k)` that recurses down to two-sum.\n- 4Sum II (454): four separate arrays and only a count, solved with a hash map in O(n^2)."
+  }
+ }
+}

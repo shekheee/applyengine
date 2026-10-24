@@ -626,6 +626,7 @@ export interface PrepItem {
   week: number;
   target_minutes: number;
   stretch: boolean;
+  difficulty: "easy" | "medium" | null;
   badge: string | null;
   done: boolean;
   redo_id: number | null;
@@ -677,6 +678,7 @@ export interface PrepToday {
   weekend: PrepItem[];
   carried: PrepItem[];
   redos: PrepItem[];
+  extra: PrepItem[];
   dsa_backlog: number;
   done_count: number;
   total_count: number;

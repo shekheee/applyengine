@@ -14,15 +14,29 @@ from pathlib import Path
 
 from app.services.prep_seed import load_seed
 
-CONTENT_DIR = Path(__file__).resolve().parent.parent / "app" / "data" / "prep_content"
+DATA_DIR = Path(__file__).resolve().parent.parent / "app" / "data"
+CONTENT_DIR = DATA_DIR / "prep_content"
+EXTRA_DIR = DATA_DIR / "prep_extra"
+EXTRA_URL = re.compile(r"^https://leetcode\.com/problems/[a-z0-9-]+/$")
 CODE_TYPES = {"python", "drill", "lld"}
 FENCE = re.compile(r"```python\n(.*?)```", re.S)
 
 
+def load_extra_tasks() -> list[dict]:
+    tasks: list[dict] = []
+    for path in sorted(EXTRA_DIR.glob("*.json")):
+        tasks += json.loads(path.read_text(encoding="utf-8"))["tasks"]
+    return tasks
+
+
 def load_content() -> dict[str, dict]:
     merged: dict[str, dict] = {}
-    for path in sorted(CONTENT_DIR.glob("*.json")):
-        for task_id, entry in json.loads(path.read_text(encoding="utf-8")).items():
+    sources = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(CONTENT_DIR.glob("*.json"))]
+    sources += [
+        json.loads(p.read_text(encoding="utf-8"))["content"] for p in sorted(EXTRA_DIR.glob("*.json"))
+    ]
+    for source in sources:
+        for task_id, entry in source.items():
             if task_id in merged:
                 raise AssertionError(f"{task_id} appears in more than one content file")
             merged[task_id] = entry
@@ -61,12 +75,29 @@ def solution_code(entry: dict) -> str:
 class PrepContentTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tasks = {t["id"]: t for t in load_seed()["tasks"]}
+        cls.tasks = {t["id"]: t for t in load_seed()["tasks"] + load_extra_tasks()}
         cls.content = load_content()
 
     def test_every_task_has_content_and_ids_match_the_seed(self):
         self.assertEqual(set(self.content) - set(self.tasks), set(), "unknown task ids")
         self.assertEqual(set(self.tasks) - set(self.content), set(), "tasks without content")
+
+    def test_extra_bank_entries(self):
+        main_numbers = {
+            t["title"].split(".")[0] for t in load_seed()["tasks"] if t["type"] == "dsa"
+        }
+        seen: set[str] = set()
+        for task in load_extra_tasks():
+            with self.subTest(task=task.get("id")):
+                number = task["title"].split(".")[0]
+                self.assertEqual(task["id"], f"x-lc-{number}")
+                self.assertNotIn(number, main_numbers, "already in the main program")
+                self.assertNotIn(task["id"], seen, "duplicate extra problem")
+                seen.add(task["id"])
+                self.assertEqual((task["type"], task["slot"]), ("dsa", "extra"))
+                self.assertIn(task["difficulty"], ("easy", "medium"))
+                self.assertRegex(task["url"], EXTRA_URL)
+                self.assertIn(task["week"], range(1, 9))
 
     def test_shape(self):
         for task_id, entry in self.content.items():

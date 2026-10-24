@@ -15,6 +15,8 @@ from app.models import PrepAttempt, PrepRedo, PrepTask
 PROGRAM_WEEKS = 10
 MORNING_DSA_PER_DAY = 2
 STREAK_MIN_TASKS = 2
+EXTRA_SLOT = "extra"
+EXTRA_MIX = (("easy", 1), ("medium", 2))
 NEETCODE_URL = "https://neetcode.io/practice"
 WEEKDAYS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
@@ -98,6 +100,7 @@ def _task_item(task: PrepTask, *, done: bool, badge: str | None = None) -> dict[
         "week": task.week,
         "target_minutes": task.target_minutes,
         "stretch": task.stretch,
+        "difficulty": task.difficulty,
         "badge": badge,
         "done": done,
         "redo_id": None,
@@ -144,6 +147,8 @@ def build_today(
     done_today = by_date.get(today, set())
     weekday = weekday_label(today)
     by_id = {task.id: task for task in tasks}
+    extras = [t for t in tasks if t.slot == EXTRA_SLOT]
+    tasks = [t for t in tasks if t.slot != EXTRA_SLOT]
     ordered = sorted(tasks, key=lambda t: (t.week, t.order, t.id))
 
     result: dict[str, Any] = {
@@ -160,6 +165,7 @@ def build_today(
         "weekend": [],
         "carried": [],
         "redos": [],
+        "extra": [],
         "dsa_backlog": 0,
     }
     result["streak"] = streaks(attempts, today)
@@ -280,6 +286,12 @@ def build_today(
         if overdue:
             result["carried"].append(item(task, badge="Carried over"))
 
+    # Optional practice: shown daily, never counted in today's or the week's totals.
+    result["extra"] = [
+        _task_item(task, done=task.id in done_today, badge=(task.difficulty or "").title() or None)
+        for task in pick_extras(extras, start_date, today, week, done_before)
+    ]
+
     today_items = result["redos"] + result["morning"] + result["evening"] + result["weekend"]
     result["done_count"] = sum(1 for i in today_items if i["done"])
     result["total_count"] = len(today_items)
@@ -289,6 +301,48 @@ def build_today(
         "total": len(week_tasks),
     }
     return result
+
+
+def pick_extras(
+    extras: list[PrepTask],
+    start_date: date,
+    today: date,
+    week: int,
+    done_before: set[str],
+) -> list[PrepTask]:
+    """One easy and two medium problems on this week's pattern, not done before today.
+
+    The pick rotates daily (skip one and tomorrow shows others) but is stable
+    within a day. When this week's pool runs low, earlier weeks fill in; in
+    weeks 9-10, after the pattern weeks, the whole bank is in play.
+    """
+    if week == 0 or not extras:
+        return []
+    last_bank_week = max(t.week for t in extras)
+    if week > last_bank_week:
+        preference = sorted({t.week for t in extras})
+    else:
+        preference = [week] + list(range(week - 1, 0, -1))
+    day_index = (today - start_date).days
+    picked: list[PrepTask] = []
+    for difficulty, count in EXTRA_MIX:
+        pool = [t for t in extras if t.difficulty == difficulty and t.id not in done_before]
+        ranked = sorted(
+            (t for t in pool if t.week in preference),
+            key=lambda t: (preference.index(t.week), t.order, t.id),
+        )
+        if week > last_bank_week:
+            lead = sorted(ranked, key=lambda t: (t.order, t.week, t.id))
+        else:
+            # This week's remaining problems; once fewer than needed, take the ranked top.
+            lead = [t for t in ranked if t.week == week]
+            if len(lead) < count:
+                lead = ranked[:count]
+        if len(lead) > count:
+            offset = day_index % len(lead)
+            lead = lead[offset:] + lead[:offset]
+        picked += lead[:count]
+    return picked
 
 
 def _week_strip(
@@ -352,6 +406,7 @@ def build_plan(
             "next_redo": pending[0].due_date.isoformat() if pending else None,
         }
 
+    tasks = [t for t in tasks if t.slot != EXTRA_SLOT]
     weeks: dict[int, list[dict[str, Any]]] = {w: [] for w in range(1, PROGRAM_WEEKS + 1)}
     slot_rank = {"morning": 0, "evening": 1, "weekend": 2}
     for task in sorted(tasks, key=lambda t: (t.week, slot_rank.get(t.slot, 3), t.order, t.id)):

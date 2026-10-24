@@ -45,7 +45,15 @@ function toChecklistItem(item: PrepItem): ChecklistItem {
     href: item.url,
     linkLabel: linkLabel(item.url),
     badge: item.badge,
-    badgeTone: item.redo_id ? "amber" : item.badge === "Carried over" ? "red" : "default",
+    badgeTone: item.redo_id
+      ? "amber"
+      : item.badge === "Carried over"
+        ? "red"
+        : item.difficulty === "easy"
+          ? "green"
+          : item.difficulty === "medium"
+            ? "primary"
+            : "default",
     trailing: item.done ? null : (
       <Link
         href={sessionHref(item)}
@@ -136,6 +144,12 @@ export function PrepToday() {
     { title: "Evening", items: today.evening, empty: "Nothing scheduled this evening." },
     { title: "Weekend · Project", items: today.weekend, empty: "" },
     { title: "Carried over", items: today.carried, empty: "" },
+    {
+      title: "Extra practice · optional",
+      items: today.extra,
+      empty: "",
+      note: "One easy and two medium on this week's pattern. They change daily and don't count toward today's total, but finishing them still counts for your streak.",
+    },
   ];
   const upNext = [...today.redos, ...today.morning, ...today.evening, ...today.weekend].find(
     (i) => !i.done

@@ -1,0 +1,582 @@
+{
+ "tasks": [
+  {
+   "id": "x-lc-746",
+   "type": "dsa",
+   "week": 7,
+   "order": 0,
+   "slot": "extra",
+   "difficulty": "easy",
+   "title": "746. Min Cost Climbing Stairs",
+   "pattern": "Shortest paths / DP",
+   "url": "https://leetcode.com/problems/min-cost-climbing-stairs/",
+   "target_minutes": 20,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-213",
+   "type": "dsa",
+   "week": 7,
+   "order": 1,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "213. House Robber II",
+   "pattern": "Shortest paths / DP",
+   "url": "https://leetcode.com/problems/house-robber-ii/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-91",
+   "type": "dsa",
+   "week": 7,
+   "order": 2,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "91. Decode Ways",
+   "pattern": "Shortest paths / DP",
+   "url": "https://leetcode.com/problems/decode-ways/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-62",
+   "type": "dsa",
+   "week": 7,
+   "order": 3,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "62. Unique Paths",
+   "pattern": "Shortest paths / DP",
+   "url": "https://leetcode.com/problems/unique-paths/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-787",
+   "type": "dsa",
+   "week": 7,
+   "order": 4,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "787. Cheapest Flights Within K Stops",
+   "pattern": "Shortest paths / DP",
+   "url": "https://leetcode.com/problems/cheapest-flights-within-k-stops/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-338",
+   "type": "dsa",
+   "week": 7,
+   "order": 5,
+   "slot": "extra",
+   "difficulty": "easy",
+   "title": "338. Counting Bits",
+   "pattern": "Shortest paths / DP",
+   "url": "https://leetcode.com/problems/counting-bits/",
+   "target_minutes": 20,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-416",
+   "type": "dsa",
+   "week": 7,
+   "order": 6,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "416. Partition Equal Subset Sum",
+   "pattern": "Shortest paths / DP",
+   "url": "https://leetcode.com/problems/partition-equal-subset-sum/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-152",
+   "type": "dsa",
+   "week": 7,
+   "order": 7,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "152. Maximum Product Subarray",
+   "pattern": "Shortest paths / DP",
+   "url": "https://leetcode.com/problems/maximum-product-subarray/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-1091",
+   "type": "dsa",
+   "week": 7,
+   "order": 8,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "1091. Shortest Path in Binary Matrix",
+   "pattern": "Shortest paths / DP",
+   "url": "https://leetcode.com/problems/shortest-path-in-binary-matrix/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-118",
+   "type": "dsa",
+   "week": 7,
+   "order": 9,
+   "slot": "extra",
+   "difficulty": "easy",
+   "title": "118. Pascal's Triangle",
+   "pattern": "Shortest paths / DP",
+   "url": "https://leetcode.com/problems/pascals-triangle/",
+   "target_minutes": 20,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-1631",
+   "type": "dsa",
+   "week": 7,
+   "order": 10,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "1631. Path With Minimum Effort",
+   "pattern": "Shortest paths / DP",
+   "url": "https://leetcode.com/problems/path-with-minimum-effort/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-509",
+   "type": "dsa",
+   "week": 7,
+   "order": 11,
+   "slot": "extra",
+   "difficulty": "easy",
+   "title": "509. Fibonacci Number",
+   "pattern": "Shortest paths / DP",
+   "url": "https://leetcode.com/problems/fibonacci-number/",
+   "target_minutes": 20,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-232",
+   "type": "dsa",
+   "week": 8,
+   "order": 0,
+   "slot": "extra",
+   "difficulty": "easy",
+   "title": "232. Implement Queue using Stacks",
+   "pattern": "Design-style",
+   "url": "https://leetcode.com/problems/implement-queue-using-stacks/",
+   "target_minutes": 20,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-1396",
+   "type": "dsa",
+   "week": 8,
+   "order": 1,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "1396. Design Underground System",
+   "pattern": "Design-style",
+   "url": "https://leetcode.com/problems/design-underground-system/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-1472",
+   "type": "dsa",
+   "week": 8,
+   "order": 2,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "1472. Design Browser History",
+   "pattern": "Design-style",
+   "url": "https://leetcode.com/problems/design-browser-history/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-706",
+   "type": "dsa",
+   "week": 8,
+   "order": 3,
+   "slot": "extra",
+   "difficulty": "easy",
+   "title": "706. Design HashMap",
+   "pattern": "Design-style",
+   "url": "https://leetcode.com/problems/design-hashmap/",
+   "target_minutes": 20,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-622",
+   "type": "dsa",
+   "week": 8,
+   "order": 4,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "622. Design Circular Queue",
+   "pattern": "Design-style",
+   "url": "https://leetcode.com/problems/design-circular-queue/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-341",
+   "type": "dsa",
+   "week": 8,
+   "order": 5,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "341. Flatten Nested List Iterator",
+   "pattern": "Design-style",
+   "url": "https://leetcode.com/problems/flatten-nested-list-iterator/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-933",
+   "type": "dsa",
+   "week": 8,
+   "order": 6,
+   "slot": "extra",
+   "difficulty": "easy",
+   "title": "933. Number of Recent Calls",
+   "pattern": "Design-style",
+   "url": "https://leetcode.com/problems/number-of-recent-calls/",
+   "target_minutes": 20,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-284",
+   "type": "dsa",
+   "week": 8,
+   "order": 7,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "284. Peeking Iterator",
+   "pattern": "Design-style",
+   "url": "https://leetcode.com/problems/peeking-iterator/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-729",
+   "type": "dsa",
+   "week": 8,
+   "order": 8,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "729. My Calendar I",
+   "pattern": "Design-style",
+   "url": "https://leetcode.com/problems/my-calendar-i/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-225",
+   "type": "dsa",
+   "week": 8,
+   "order": 9,
+   "slot": "extra",
+   "difficulty": "easy",
+   "title": "225. Implement Stack using Queues",
+   "pattern": "Design-style",
+   "url": "https://leetcode.com/problems/implement-stack-using-queues/",
+   "target_minutes": 20,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-2034",
+   "type": "dsa",
+   "week": 8,
+   "order": 10,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "2034. Stock Price Fluctuation",
+   "pattern": "Design-style",
+   "url": "https://leetcode.com/problems/stock-price-fluctuation/",
+   "target_minutes": 35,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-1352",
+   "type": "dsa",
+   "week": 8,
+   "order": 11,
+   "slot": "extra",
+   "difficulty": "medium",
+   "title": "1352. Product of the Last K Numbers",
+   "pattern": "Design-style",
+   "url": "https://leetcode.com/problems/product-of-the-last-k-numbers/",
+   "target_minutes": 35,
+   "stretch": false
+  }
+ ],
+ "content": {
+  "x-lc-746": {
+   "brief": "Drills the **1-D DP recurrence**: the best cost to reach a step depends only on the two steps before it. Be precise about where the 'top' is (one past the last index) and that you may start on step 0 or 1 for free.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Define what a single number at position i should mean, then ask which earlier positions can reach i in one move.",
+    "Let dp[i] be the cheapest cost to stand on step i (before paying its cost). You can arrive from i-1 or i-2, paying that step's cost; the answer is dp[n] where n is one past the last step.",
+    "dp[0] = dp[1] = 0 and dp[i] = min(dp[i-1] + cost[i-1], dp[i-2] + cost[i-2]). Only the last two values are needed, so two variables give O(n) time and O(1) space."
+   ],
+   "solution": "### Key insight\nThe top is position n (past the last stair). The cheapest way to reach any position only depends on the cheapest ways to reach the two positions just below it.\n\n### Approach\n1. Let `a`, `b` be the min cost to stand on positions i-2 and i-1; both start at 0 (free start on step 0 or 1).\n2. For i from 2 to n: new = min(b + cost[i-1], a + cost[i-2]); shift `a, b = b, new`.\n3. Return `b`, the cost to stand on position n.\n\n### Solution\n```python\nclass Solution:\n    def minCostClimbingStairs(self, cost: List[int]) -> int:\n        a = b = 0  # min cost to stand on i-2 and i-1\n        for i in range(2, len(cost) + 1):\n            a, b = b, min(b + cost[i - 1], a + cost[i - 2])\n        return b\n```\n\n### Complexity\nTime O(n), space O(1).\n\n### Common mistakes\n- Returning dp[n-1] (the last stair) instead of dp[n] (the top past it).\n- Paying the cost of the step you land on instead of the step you leave from, which double-counts or misses the last stair.\n\n### Follow-ups\n- What if you could climb 1, 2 or 3 steps? (Generalise to min over the last k positions.)\n- Reconstruct the actual sequence of steps taken, not just the cost."
+  },
+  "x-lc-213": {
+   "brief": "Drills **reducing a circular DP to linear DP**: break the cycle by considering two cases that can't both include the conflicting endpoints. Reuse the House Robber rob/skip recurrence unchanged.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "The only new constraint versus House Robber is that the first and last houses are neighbours. How can you remove that one conflict?",
+    "At most one of the first and last house is robbed, so solve the linear problem twice: once on houses[0..n-2] and once on houses[1..n-1], and take the max.",
+    "Write a helper with two rolling variables (best including up to previous, best up to the one before) and call it on the two slices. Handle n == 1 separately, because both slices would be empty."
+   ],
+   "solution": "### Key insight\nIn a circle the first and last houses can't both be robbed, so the answer is the best of two straight-line problems: skip the last house, or skip the first.\n\n### Approach\n1. If there is one house, return its value.\n2. Run linear House Robber on `nums[:-1]` and on `nums[1:]`.\n3. The linear helper keeps `prev2, prev1` and for each value sets `cur = max(prev1, prev2 + x)`.\n4. Return the larger of the two runs.\n\n### Solution\n```python\nclass Solution:\n    def rob(self, nums: List[int]) -> int:\n        if len(nums) == 1:\n            return nums[0]\n\n        def line(houses):\n            prev2 = prev1 = 0\n            for x in houses:\n                prev2, prev1 = prev1, max(prev1, prev2 + x)\n            return prev1\n\n        return max(line(nums[:-1]), line(nums[1:]))\n```\n\n### Complexity\nTime O(n), space O(n) for the slices (O(1) if you pass index ranges instead).\n\n### Common mistakes\n- Forgetting the single-house case: both slices are empty and you return 0.\n- Trying to track 'did I rob the first house' inside one pass and getting the state wrong; two passes is simpler and less error-prone.\n\n### Follow-ups\n- House Robber III (LC 337): the houses form a binary tree. What state does each node return?\n- Return which houses to rob, not just the total."
+  },
+  "x-lc-91": {
+   "brief": "Drills **counting DP over a string**: the number of ways to finish from position i depends on taking one or two characters next. The difficulty is the validity rules around '0', not the recurrence.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Look at the first one or two digits: each valid choice leaves a smaller suffix to decode. What's the base case?",
+    "dp[i] = number of ways to decode s[i:]. A single digit is valid if it isn't '0'; a two-digit chunk is valid if it is between 10 and 26. Sum the ways for each valid choice.",
+    "Go right to left with dp[n] = 1. dp[i] = 0 if s[i] == '0'; otherwise dp[i] = dp[i+1] plus dp[i+2] when int(s[i:i+2]) <= 26. Keep two rolling values for O(1) space."
+   ],
+   "solution": "### Key insight\nEach decoding starts by consuming either one valid digit or one valid two-digit number, so the count for a suffix is the sum of the counts for the shorter suffixes those choices leave.\n\n### Approach\n1. Let `nxt1` = ways(s[i+1:]) and `nxt2` = ways(s[i+2:]); start with ways(\"\") = 1.\n2. Walk i from n-1 down to 0. If `s[i] == '0'` there are 0 ways starting here.\n3. Otherwise ways = nxt1, plus nxt2 if `i+1 < n` and `int(s[i:i+2]) <= 26`.\n4. Shift the rolling values and return ways for i = 0.\n\n### Solution\n```python\nclass Solution:\n    def numDecodings(self, s: str) -> int:\n        n = len(s)\n        nxt1, nxt2 = 1, 0  # ways(s[n:]) = 1, ways(s[n+1:]) unused\n        for i in range(n - 1, -1, -1):\n            if s[i] == \"0\":\n                cur = 0\n            else:\n                cur = nxt1\n                if i + 1 < n and int(s[i:i + 2]) <= 26:\n                    cur += nxt2\n            nxt1, nxt2 = cur, nxt1\n        return nxt1\n```\n\n### Complexity\nTime O(n), space O(1).\n\n### Common mistakes\n- Treating '06' as a valid two-digit code; a chunk starting with '0' is never valid.\n- Returning 1 for an input like '0' or '30' (both have 0 decodings).\n- Off-by-one in the base case: the empty suffix has exactly 1 decoding.\n\n### Follow-ups\n- Decode Ways II (LC 639) adds '*' wildcards; how does the recurrence change?\n- The answer can be huge for long strings; return it modulo 1e9+7."
+  },
+  "x-lc-62": {
+   "brief": "Drills **2-D grid DP**: each cell's count comes from the cell above and the cell to the left. A good warm-up for compressing a 2-D table into one row.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "How many ways are there to reach any cell in the top row or left column? How can you reach a general cell?",
+    "paths[r][c] = paths[r-1][c] + paths[r][c-1], with the first row and column all 1s. The answer is the bottom-right cell.",
+    "You only need the previous row: keep one array of length n initialised to 1s and for each new row do row[c] += row[c-1]. O(m*n) time, O(n) space (or use the combination C(m+n-2, m-1))."
+   ],
+   "solution": "### Key insight\nYou can only arrive at a cell from above or from the left, so its path count is the sum of those two cells' counts.\n\n### Approach\n1. Create `row = [1] * n` (the top row: one way to reach each cell).\n2. For each of the remaining m-1 rows, for c from 1 to n-1: `row[c] += row[c-1]` (old `row[c]` is 'from above', `row[c-1]` is 'from the left').\n3. Return `row[-1]`.\n\n### Solution\n```python\nclass Solution:\n    def uniquePaths(self, m: int, n: int) -> int:\n        row = [1] * n\n        for _ in range(m - 1):\n            for c in range(1, n):\n                row[c] += row[c - 1]\n        return row[-1]\n```\n\n### Complexity\nTime O(m*n), space O(n). The closed form C(m+n-2, m-1) is O(min(m, n)).\n\n### Common mistakes\n- Initialising the first row/column to 0 instead of 1.\n- Mixing up rows and columns when compressing to one array (iterate the inner loop over the array's own length).\n\n### Follow-ups\n- Unique Paths II (LC 63): some cells are obstacles. What changes?\n- Minimum Path Sum (LC 64): instead of counting, minimise a weighted cost."
+  },
+  "x-lc-787": {
+   "brief": "Drills **shortest path with a hop limit**: plain Dijkstra breaks because a cheaper route may use too many stops. Bellman-Ford limited to k+1 rounds (or BFS by level) is the clean fix.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Plain Dijkstra finalises a node by cost alone. Why can that be wrong when the number of edges is capped?",
+    "Use Bellman-Ford but only for k+1 rounds (k stops means at most k+1 flights). Each round relaxes every edge once, so after round i you have the cheapest cost using at most i flights.",
+    "In each round copy the price array first and relax from the old copy into the new one, otherwise one round can chain several flights. O(k * E) time, O(n) space; return -1 if dst is still infinity."
+   ],
+   "solution": "### Key insight\nCapping stops means capping edges, which is exactly what Bellman-Ford's rounds measure: after i rounds, `dist` holds the cheapest price using at most i flights.\n\n### Approach\n1. `dist = [inf] * n`, `dist[src] = 0`.\n2. Repeat k+1 times: `tmp = dist[:]`; for each flight (u, v, w) with `dist[u] < inf`, set `tmp[v] = min(tmp[v], dist[u] + w)`; then `dist = tmp`.\n3. Return `dist[dst]`, or -1 if it is still infinite.\n\n### Solution\n```python\nclass Solution:\n    def findCheapestPrice(self, n: int, flights: List[List[int]], src: int, dst: int, k: int) -> int:\n        INF = float(\"inf\")\n        dist = [INF] * n\n        dist[src] = 0\n        for _ in range(k + 1):\n            tmp = dist[:]\n            for u, v, w in flights:\n                if dist[u] != INF and dist[u] + w < tmp[v]:\n                    tmp[v] = dist[u] + w\n            dist = tmp\n        return -1 if dist[dst] == INF else dist[dst]\n```\n\n### Complexity\nTime O((k+1) * E), space O(n).\n\n### Common mistakes\n- Relaxing in place within a round, which lets one round use several flights and exceed k stops.\n- Running k rounds instead of k+1 (k stops = k+1 edges).\n- Using Dijkstra with a visited set keyed only by node; a node reached expensively with fewer stops can still be needed.\n\n### Follow-ups\n- How would you do it with Dijkstra? (State = (node, stops used); prune when stops exceed k.)\n- Return the actual route, not just the price."
+  },
+  "x-lc-338": {
+   "brief": "Drills **DP that reuses smaller answers**: the bit count of i is a smaller number's bit count plus at most one. Spot the sub-problem relation instead of counting bits from scratch.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "How does the binary representation of i relate to that of i // 2?",
+    "Shifting right by one drops the lowest bit, so bits(i) = bits(i >> 1) + (i & 1). Since i >> 1 < i, its answer is already computed.",
+    "Fill an array of size n+1 from 0 upward with ans[i] = ans[i >> 1] + (i & 1). O(n) time, no per-number loop over bits."
+   ],
+   "solution": "### Key insight\n`i >> 1` is `i` without its lowest bit, and it is smaller than `i`, so its count is already known: add back the dropped bit.\n\n### Approach\n1. `ans = [0] * (n + 1)`.\n2. For i from 1 to n: `ans[i] = ans[i >> 1] + (i & 1)`.\n3. Return `ans`.\n\n### Solution\n```python\nclass Solution:\n    def countBits(self, n: int) -> List[int]:\n        ans = [0] * (n + 1)\n        for i in range(1, n + 1):\n            ans[i] = ans[i >> 1] + (i & 1)\n        return ans\n```\n\n### Complexity\nTime O(n), space O(1) extra besides the output.\n\n### Common mistakes\n- Counting bits per number with a loop or `bin(i).count('1')`: correct but O(n log n), and misses the point of the question.\n- Returning a list of length n instead of n+1 (0..n inclusive).\n\n### Follow-ups\n- Use the other recurrence `ans[i] = ans[i & (i - 1)] + 1`; why does `i & (i-1)` clear the lowest set bit?\n- Number of 1 Bits (LC 191) for a single number."
+  },
+  "x-lc-416": {
+   "brief": "Drills **0/1 knapsack as a reachability DP**: reframe 'split into two equal halves' as 'can some subset hit total/2'. The classic trap is iterating the sum in the wrong direction and reusing an item.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "If the two halves are equal, what must each half sum to? When is the answer immediately False?",
+    "If the total is odd, return False. Otherwise you need a subset summing to target = total/2: keep the set (or boolean array) of sums reachable using the numbers seen so far.",
+    "Use a boolean array dp[0..target] with dp[0] = True; for each number x iterate s from target down to x and set dp[s] |= dp[s-x]. Going downward stops x being used twice. O(n * target) time, O(target) space."
+   ],
+   "solution": "### Key insight\nEqual halves means one subset sums to exactly half the total. That is a 0/1 knapsack feasibility question over sums.\n\n### Approach\n1. `total = sum(nums)`; if it is odd, return False. `target = total // 2`.\n2. `dp = [True] + [False] * target` (sum 0 is always reachable).\n3. For each x, for s from target down to x: `dp[s] = dp[s] or dp[s - x]`.\n4. Return `dp[target]` (you can stop early once it becomes True).\n\n### Solution\n```python\nclass Solution:\n    def canPartition(self, nums: List[int]) -> bool:\n        total = sum(nums)\n        if total % 2:\n            return False\n        target = total // 2\n        dp = [True] + [False] * target\n        for x in nums:\n            for s in range(target, x - 1, -1):\n                if dp[s - x]:\n                    dp[s] = True\n            if dp[target]:\n                return True\n        return dp[target]\n```\n\n### Complexity\nTime O(n * total/2), space O(total/2).\n\n### Common mistakes\n- Looping s upward, which lets the same number be reused (that is unbounded knapsack).\n- Not checking for an odd total first.\n- Trying a greedy (sort and fill) approach; it fails on inputs like [3, 3, 2, 2, 2].\n\n### Follow-ups\n- Partition to K Equal Sum Subsets (LC 698).\n- Implement it with a Python int as a bitset: `bits |= bits << x`. Why is that fast?"
+  },
+  "x-lc-152": {
+   "brief": "Drills **DP that tracks more than one state**: a negative number turns the smallest product into the largest. Keep both the max and min product ending at each index.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Kadane's max-sum idea almost works. What breaks when you multiply by a negative number?",
+    "At each index track both the largest and smallest product of a subarray ending there; a negative value swaps their roles. The answer is the largest 'max ending here' seen.",
+    "For each x the candidates are x, x*prev_max and x*prev_min; new max is the max of the three and new min is the min (computed from the old values). Zero resets both naturally. O(n) time, O(1) space."
+   ],
+   "solution": "### Key insight\nThe best product ending at i comes from extending either the largest or the smallest product ending at i-1 (a negative times the most negative is the largest), or from starting fresh at i.\n\n### Approach\n1. `hi = lo = best = nums[0]`.\n2. For each later x: compute `cands = (x, x * hi, x * lo)`, then `hi = max(cands)`, `lo = min(cands)`.\n3. `best = max(best, hi)`; return `best`.\n\n### Solution\n```python\nclass Solution:\n    def maxProduct(self, nums: List[int]) -> int:\n        hi = lo = best = nums[0]\n        for x in nums[1:]:\n            cands = (x, x * hi, x * lo)\n            hi, lo = max(cands), min(cands)\n            best = max(best, hi)\n        return best\n```\n\n### Complexity\nTime O(n), space O(1).\n\n### Common mistakes\n- Updating `hi` first and then using the new `hi` to compute `lo` (compute both from the old values).\n- Initialising `best` to 0, which is wrong for an all-negative single element like [-2].\n- Only tracking the maximum, which misses the negative-times-negative case.\n\n### Follow-ups\n- Return the subarray's start and end indices too.\n- Avoid overflow for very long inputs in a fixed-width language: a prefix/suffix product scan with resets at zero is an alternative."
+  },
+  "x-lc-1091": {
+   "brief": "Drills **BFS as the unweighted shortest path**: every move costs 1, so the first time BFS reaches a cell is its shortest distance. Watch the 8-direction moves and blocked start/end cells.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "All moves cost the same. Which traversal finds the minimum number of moves directly?",
+    "BFS from (0, 0) over clear cells with 8-directional neighbours, counting path length in cells (the start counts as 1). Return the length when you pop (n-1, n-1), or -1 if the queue empties.",
+    "Check grid[0][0] and grid[n-1][n-1] are 0 first. Mark a cell visited when you enqueue it (not when you pop) so it is never queued twice. O(n^2) time and space."
+   ],
+   "solution": "### Key insight\nIn an unweighted grid BFS explores cells in order of distance, so the first time it reaches the bottom-right corner it has the shortest path.\n\n### Approach\n1. If the start or end cell is 1, return -1.\n2. Queue `(0, 0, 1)` (row, col, path length in cells) and mark (0, 0) as seen (overwrite with 1).\n3. Pop a cell; if it is the target, return its length. Otherwise push every in-bounds 0-valued neighbour among the 8 directions, marking it as you push.\n4. If the queue empties, return -1.\n\n### Solution\n```python\nfrom collections import deque\n\n\nclass Solution:\n    def shortestPathBinaryMatrix(self, grid: List[List[int]]) -> int:\n        n = len(grid)\n        if grid[0][0] or grid[n - 1][n - 1]:\n            return -1\n        q = deque([(0, 0, 1)])\n        grid[0][0] = 1  # mark visited\n        while q:\n            r, c, d = q.popleft()\n            if r == n - 1 and c == n - 1:\n                return d\n            for dr in (-1, 0, 1):\n                for dc in (-1, 0, 1):\n                    nr, nc = r + dr, c + dc\n                    if 0 <= nr < n and 0 <= nc < n and grid[nr][nc] == 0:\n                        grid[nr][nc] = 1\n                        q.append((nr, nc, d + 1))\n        return -1\n```\n\n### Complexity\nTime O(n^2), space O(n^2) for the queue.\n\n### Common mistakes\n- Marking cells visited on pop instead of on push, which enqueues the same cell many times.\n- Counting edges instead of cells (the 1x1 grid [[0]] has answer 1).\n- Using only 4 directions; diagonals are allowed here.\n\n### Follow-ups\n- Mutating the input is often frowned on; use a separate visited set.\n- Speed it up with A* using Chebyshev distance as the heuristic."
+  },
+  "x-lc-118": {
+   "brief": "Drills **building a DP table row by row**: each entry is the sum of two entries in the previous row. Practise the edges (1s) and indexing cleanly.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "How is each inner number of a row computed from the row above it?",
+    "Start with [[1]]. Each new row starts and ends with 1 and every inner value is prev[j-1] + prev[j].",
+    "Build row i of length i+1 from the previous row with a loop over j = 1..i-1, appending each row to the result. O(n^2) time, which is the size of the output."
+   ],
+   "solution": "### Key insight\nEvery inner entry is the sum of the two entries directly above it, so each row is built entirely from the previous one.\n\n### Approach\n1. `rows = [[1]]`.\n2. For i from 1 to numRows-1: `prev = rows[-1]`; the new row is `[1] + [prev[j-1] + prev[j] for j in 1..i-1] + [1]`.\n3. Return the first `numRows` rows.\n\n### Solution\n```python\nclass Solution:\n    def generate(self, numRows: int) -> List[List[int]]:\n        rows = [[1]]\n        for i in range(1, numRows):\n            prev = rows[-1]\n            rows.append([1] + [prev[j - 1] + prev[j] for j in range(1, i)] + [1])\n        return rows\n```\n\n### Complexity\nTime O(numRows^2), space O(numRows^2) for the output.\n\n### Common mistakes\n- Producing an extra [1, 1] row when numRows is 1.\n- Off-by-one in the inner loop so a row has the wrong length (row i has i+1 entries).\n\n### Follow-ups\n- Pascal's Triangle II (LC 119): return only row k using O(k) space.\n- Compute a single entry C(n, k) without building the triangle."
+  },
+  "x-lc-1631": {
+   "brief": "Drills **Dijkstra with a non-additive cost**: the path cost is the maximum step, not the sum, but Dijkstra still works because extending a path never makes it cheaper. Binary search + BFS is the alternative.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "The cost of a path is its single largest height difference. Does extending a path ever reduce that cost?",
+    "Run Dijkstra on the grid where the 'distance' to a cell is the smallest possible maximum step to get there; relaxing an edge gives max(current effort, |height difference|).",
+    "Use a min-heap of (effort, r, c); skip stale entries whose effort exceeds the recorded best. Return the effort when you pop the bottom-right cell. O(R*C log(R*C)) time."
+   ],
+   "solution": "### Key insight\nEffort along a path is the max of its steps, which never decreases as the path grows. That monotonicity is all Dijkstra needs, so 'pop the cheapest frontier cell' still finalises cells correctly.\n\n### Approach\n1. `best[r][c] = inf`, `best[0][0] = 0`, heap `[(0, 0, 0)]`.\n2. Pop `(e, r, c)`; if it is the target return `e`; if `e > best[r][c]` skip it (stale).\n3. For each 4-neighbour: `ne = max(e, abs(h[nr][nc] - h[r][c]))`; if `ne < best[nr][nc]`, record it and push.\n\n### Solution\n```python\nimport heapq\n\n\nclass Solution:\n    def minimumEffortPath(self, heights: List[List[int]]) -> int:\n        R, C = len(heights), len(heights[0])\n        best = [[float(\"inf\")] * C for _ in range(R)]\n        best[0][0] = 0\n        heap = [(0, 0, 0)]\n        while heap:\n            e, r, c = heapq.heappop(heap)\n            if (r, c) == (R - 1, C - 1):\n                return e\n            if e > best[r][c]:\n                continue\n            for nr, nc in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):\n                if 0 <= nr < R and 0 <= nc < C:\n                    ne = max(e, abs(heights[nr][nc] - heights[r][c]))\n                    if ne < best[nr][nc]:\n                        best[nr][nc] = ne\n                        heapq.heappush(heap, (ne, nr, nc))\n        return 0\n```\n\n### Complexity\nTime O(R*C * log(R*C)), space O(R*C).\n\n### Common mistakes\n- Summing the differences instead of taking the max.\n- Using plain BFS/DFS with a visited set, which finalises cells by discovery order, not by effort.\n- Not skipping stale heap entries, which is still correct but slow.\n\n### Follow-ups\n- Solve it with binary search on the effort plus a BFS feasibility check, or with union-find over edges sorted by weight.\n- Swim in Rising Water (LC 778) is the same idea with cell heights instead of differences."
+  },
+  "x-lc-509": {
+   "brief": "Drills the **recursion to memo to bottom-up** progression that every DP problem follows. Say why naive recursion is exponential before writing the O(n) loop.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Write the recursive definition. How many times does naive recursion compute F(2) when n is 30?",
+    "Each value depends only on the previous two, so compute from the bottom up: start with F(0) and F(1) and step forward n times.",
+    "Keep two variables a, b = 0, 1 and repeat a, b = b, a + b n times; a is F(n). O(n) time, O(1) space; handle n = 0 and 1 naturally."
+   ],
+   "solution": "### Key insight\nNaive recursion recomputes the same values exponentially often. Since F(n) needs only the two previous values, a bottom-up loop with two variables is enough.\n\n### Approach\n1. `a, b = 0, 1` (F(0), F(1)).\n2. Repeat n times: `a, b = b, a + b`.\n3. Return `a`.\n\n### Solution\n```python\nclass Solution:\n    def fib(self, n: int) -> int:\n        a, b = 0, 1\n        for _ in range(n):\n            a, b = b, a + b\n        return a\n```\n\n### Complexity\nTime O(n), space O(1). Naive recursion is O(2^n); memoised recursion is O(n) time and O(n) stack.\n\n### Common mistakes\n- Returning `b` instead of `a`, which is off by one.\n- Using unmemoised recursion and calling it 'DP'.\n\n### Follow-ups\n- Compute F(n) in O(log n) with fast matrix exponentiation.\n- Climbing Stairs (LC 70) is the same recurrence; explain why."
+  },
+  "x-lc-232": {
+   "brief": "Drills **amortised design with two stacks**: an inbox for pushes and an outbox you refill only when it is empty. Explain why each element moves at most twice.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "A stack reverses order. What happens if you reverse a sequence twice?",
+    "Keep an 'in' stack for push and an 'out' stack for pop/peek. When 'out' is empty, move everything from 'in' to 'out', which puts the oldest element on top.",
+    "Only transfer when 'out' is empty; transferring on every call breaks FIFO order. Each element is pushed and popped at most twice, so every operation is amortised O(1). empty() checks both stacks."
+   ],
+   "solution": "### Key insight\nPouring one stack into another reverses it, so the oldest element ends up on top of the second stack. Refill the second stack only when it runs dry and FIFO order is preserved.\n\n### Approach\n1. `push(x)`: append to `self.inbox`.\n2. `_shift()`: if `self.outbox` is empty, pop everything from `inbox` onto `outbox`.\n3. `pop()` / `peek()`: call `_shift()`, then pop / read `outbox[-1]`.\n4. `empty()`: both stacks are empty.\n\n### Solution\n```python\nclass MyQueue:\n    def __init__(self):\n        self.inbox: List[int] = []\n        self.outbox: List[int] = []\n\n    def push(self, x: int) -> None:\n        self.inbox.append(x)\n\n    def _shift(self) -> None:\n        if not self.outbox:\n            while self.inbox:\n                self.outbox.append(self.inbox.pop())\n\n    def pop(self) -> int:\n        self._shift()\n        return self.outbox.pop()\n\n    def peek(self) -> int:\n        self._shift()\n        return self.outbox[-1]\n\n    def empty(self) -> bool:\n        return not self.inbox and not self.outbox\n```\n\n### Complexity\npush O(1); pop/peek amortised O(1) (worst case O(n) on a transfer); space O(n).\n\n### Common mistakes\n- Moving elements back to the inbox after every pop, making each operation O(n).\n- Transferring while `outbox` still has items, which puts newer elements above older ones.\n- Checking only one stack in `empty()`.\n\n### Follow-ups\n- Implement Stack using Queues (LC 225) is the mirror problem.\n- Can you make every operation worst-case O(1), not just amortised?"
+  },
+  "x-lc-1396": {
+   "brief": "Drills **choosing the right keys for hash maps in a stateful class**: one map for trips in progress, one for aggregated stats per route. Store running totals, not every trip.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "What do you need to remember between checkIn and checkOut, and what does getAverageTime actually need?",
+    "Keep check_ins: id -> (station, time) for open trips, and stats: (start, end) -> [total_time, count] for finished trips. checkOut pops the open trip and updates the route's totals.",
+    "Key the stats map by the ordered tuple (startStation, endStation), since A to B is a different route from B to A. All three operations are O(1); the average is total / count."
+   ],
+   "solution": "### Key insight\nThe average only needs a sum and a count per (start, end) route, so aggregate at checkout time instead of storing every trip.\n\n### Approach\n1. `checkIn(id, station, t)`: `self.open[id] = (station, t)`.\n2. `checkOut(id, station, t)`: pop `(start, t0)` from `open`; add `t - t0` to `self.stats[(start, station)]` and increment its count.\n3. `getAverageTime(start, end)`: `total / count` from `stats[(start, end)]`.\n\n### Solution\n```python\nclass UndergroundSystem:\n    def __init__(self):\n        self.open: Dict[int, Tuple[str, int]] = {}\n        self.stats: Dict[Tuple[str, str], List[int]] = {}\n\n    def checkIn(self, id: int, stationName: str, t: int) -> None:\n        self.open[id] = (stationName, t)\n\n    def checkOut(self, id: int, stationName: str, t: int) -> None:\n        start, t0 = self.open.pop(id)\n        total = self.stats.setdefault((start, stationName), [0, 0])\n        total[0] += t - t0\n        total[1] += 1\n\n    def getAverageTime(self, startStation: str, endStation: str) -> float:\n        total, count = self.stats[(startStation, endStation)]\n        return total / count\n```\n\n### Complexity\nEvery operation O(1); space O(P + S^2) for P open trips and S stations.\n\n### Common mistakes\n- Treating A to B and B to A as the same route.\n- Not removing the open trip on checkout, so stale entries accumulate (a customer can check in again later).\n- Storing every trip duration in a list and averaging on each query (O(n) per query).\n\n### Follow-ups\n- How would you support the median time per route, or average over only the last hour?\n- What changes if check-ins can be lost (a checkout with no check-in)?"
+  },
+  "x-lc-1472": {
+   "brief": "Drills **a cursor over a list with truncation**: visit discards forward history, back/forward move a pointer clamped to the valid range. Using one array plus a 'last valid index' avoids deleting anything.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Think of the history as a list with a current position. What does visiting a new page do to everything after the current position?",
+    "Store pages in an array with a cursor cur and a bound last (index of the last valid page). visit writes at cur+1 and sets last = cur; back and forward move cur by steps, clamped to [0, last].",
+    "Overwrite in place when cur+1 < len(array), otherwise append, so visit is O(1). back(steps) = max(0, cur - steps); forward(steps) = min(last, cur + steps). Return the page at the new cur."
+   ],
+   "solution": "### Key insight\nHistory is a list with a cursor. Visiting cuts off everything after the cursor; back and forward just move the cursor within bounds.\n\n### Approach\n1. `self.pages = [homepage]`, `self.cur = 0`, `self.last = 0`.\n2. `visit(url)`: `cur += 1`; overwrite `pages[cur]` if it exists else append; `last = cur`.\n3. `back(steps)`: `cur = max(0, cur - steps)`; return `pages[cur]`.\n4. `forward(steps)`: `cur = min(last, cur + steps)`; return `pages[cur]`.\n\n### Solution\n```python\nclass BrowserHistory:\n    def __init__(self, homepage: str):\n        self.pages = [homepage]\n        self.cur = 0\n        self.last = 0\n\n    def visit(self, url: str) -> None:\n        self.cur += 1\n        if self.cur < len(self.pages):\n            self.pages[self.cur] = url\n        else:\n            self.pages.append(url)\n        self.last = self.cur\n\n    def back(self, steps: int) -> str:\n        self.cur = max(0, self.cur - steps)\n        return self.pages[self.cur]\n\n    def forward(self, steps: int) -> str:\n        self.cur = min(self.last, self.cur + steps)\n        return self.pages[self.cur]\n```\n\n### Complexity\nAll operations O(1); space O(n) for visited pages.\n\n### Common mistakes\n- Forgetting to clear forward history on visit, so forward() returns a page from an abandoned branch.\n- Clamping forward to `len(pages) - 1` instead of `last`, which exposes overwritten-but-stale entries.\n- Slicing the list on every visit (O(n)).\n\n### Follow-ups\n- Implement it with two stacks or a doubly linked list and compare.\n- How would you persist history across sessions and cap it at N entries?"
+  },
+  "x-lc-706": {
+   "brief": "Drills **what a hash map is under the hood**: an array of buckets plus a hash function, with collisions handled by chaining. Don't use a built-in dict; that defeats the exercise.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Without a dict, how can you turn a key into an array index, and what happens when two keys land at the same index?",
+    "Allocate a fixed array of buckets; bucket index = key % size. Each bucket is a list of [key, value] pairs (separate chaining). put updates an existing pair or appends; get and remove scan just that bucket.",
+    "Pick a prime-ish bucket count like 1009 or 10007 so keys spread out. Operations are O(1 + bucket length) on average. remove can swap the found pair with the bucket's last pair and pop to avoid shifting."
+   ],
+   "solution": "### Key insight\nA hash map is an array of buckets indexed by `hash(key) % size`; collisions live together in the same bucket (chaining).\n\n### Approach\n1. `self.size = 1009`, `self.buckets = [[] for _ in range(size)]`.\n2. `put`: scan the key's bucket; update the value if the key exists, else append `[key, value]`.\n3. `get`: scan the bucket and return the value, or -1.\n4. `remove`: scan the bucket and delete the pair if found.\n\n### Solution\n```python\nclass MyHashMap:\n    def __init__(self):\n        self.size = 1009\n        self.buckets: List[List[List[int]]] = [[] for _ in range(self.size)]\n\n    def _bucket(self, key: int) -> List[List[int]]:\n        return self.buckets[key % self.size]\n\n    def put(self, key: int, value: int) -> None:\n        bucket = self._bucket(key)\n        for pair in bucket:\n            if pair[0] == key:\n                pair[1] = value\n                return\n        bucket.append([key, value])\n\n    def get(self, key: int) -> int:\n        for k, v in self._bucket(key):\n            if k == key:\n                return v\n        return -1\n\n    def remove(self, key: int) -> None:\n        bucket = self._bucket(key)\n        for i, (k, _) in enumerate(bucket):\n            if k == key:\n                bucket[i] = bucket[-1]\n                bucket.pop()\n                return\n```\n\n### Complexity\nAverage O(1 + n/size) per operation; space O(size + n).\n\n### Common mistakes\n- Appending a duplicate pair on put instead of updating the existing key.\n- Using a 10^6 array indexed by key: it passes but avoids the hashing and collision discussion the interviewer wants.\n- Returning None instead of -1 for a missing key.\n\n### Follow-ups\n- Add resizing: when load factor exceeds 0.75, double the bucket count and rehash.\n- Compare chaining with open addressing (linear probing); how do deletes work there?"
+  },
+  "x-lc-622": {
+   "brief": "Drills **ring-buffer index arithmetic**: a fixed array, a head index and a count, with wrap-around via modulo. Tracking the size explicitly removes the full-versus-empty ambiguity.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "With a fixed-size array, how do you reuse slots freed at the front without shifting elements?",
+    "Keep head (index of the front) and count. The rear slot is (head + count - 1) % k; enqueue writes at (head + count) % k; dequeue advances head = (head + 1) % k.",
+    "Using count instead of a separate tail pointer makes isEmpty (count == 0) and isFull (count == k) trivial. Front/Rear return -1 when empty; enQueue/deQueue return False when full/empty. All O(1)."
+   ],
+   "solution": "### Key insight\nA ring buffer reuses slots by wrapping indices with modulo. Storing head plus count (instead of head plus tail) makes full and empty unambiguous.\n\n### Approach\n1. `self.q = [0] * k`, `self.head = 0`, `self.count = 0`.\n2. `enQueue(v)`: if full return False; write `q[(head + count) % k] = v`; `count += 1`.\n3. `deQueue()`: if empty return False; `head = (head + 1) % k`; `count -= 1`.\n4. `Front()` = `q[head]`, `Rear()` = `q[(head + count - 1) % k]`, each -1 when empty.\n\n### Solution\n```python\nclass MyCircularQueue:\n    def __init__(self, k: int):\n        self.q = [0] * k\n        self.k = k\n        self.head = 0\n        self.count = 0\n\n    def enQueue(self, value: int) -> bool:\n        if self.isFull():\n            return False\n        self.q[(self.head + self.count) % self.k] = value\n        self.count += 1\n        return True\n\n    def deQueue(self) -> bool:\n        if self.isEmpty():\n            return False\n        self.head = (self.head + 1) % self.k\n        self.count -= 1\n        return True\n\n    def Front(self) -> int:\n        return -1 if self.isEmpty() else self.q[self.head]\n\n    def Rear(self) -> int:\n        return -1 if self.isEmpty() else self.q[(self.head + self.count - 1) % self.k]\n\n    def isEmpty(self) -> bool:\n        return self.count == 0\n\n    def isFull(self) -> bool:\n        return self.count == self.k\n```\n\n### Complexity\nAll operations O(1); space O(k).\n\n### Common mistakes\n- Using head == tail for both full and empty without a count or a spare slot.\n- Computing Rear as `q[tail]` when tail points one past the last element.\n- Forgetting to wrap with modulo after the index passes k-1.\n\n### Follow-ups\n- Design Circular Deque (LC 641): add insertFront and deleteLast.\n- Make it safe for one producer and one consumer thread without a lock."
+  },
+  "x-lc-341": {
+   "brief": "Drills **lazy iterators with an explicit stack**: unpack nested lists only as far as needed to produce the next integer. hasNext does the work so next stays trivial.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Flattening everything up front works but isn't lazy. How can a stack let you unpack only what you need?",
+    "Push the top-level list onto a stack in reverse order. In hasNext, while the top is a list, pop it and push its children reversed; stop when the top is an integer (True) or the stack is empty (False).",
+    "Do all the unpacking in hasNext and have next call hasNext then pop, which handles empty inner lists like [[]] correctly. Each element is pushed and popped once, so amortised O(1) per call and O(depth + width) space."
+   ],
+   "solution": "### Key insight\nA stack of pending NestedIntegers lets you expand lists lazily: keep unpacking the top until an integer is on top. Putting that loop in `hasNext` correctly skips empty lists.\n\n### Approach\n1. `self.stack = nestedList[::-1]` (reverse so the first element is on top).\n2. `hasNext()`: while the stack is non-empty and the top is a list, pop it and push its `getList()` reversed. Return whether the stack is non-empty.\n3. `next()`: call `hasNext()`, then pop and return `getInteger()`.\n\n### Solution\n```python\nclass NestedIterator:\n    def __init__(self, nestedList: [NestedInteger]):\n        self.stack = nestedList[::-1]\n\n    def next(self) -> int:\n        self.hasNext()\n        return self.stack.pop().getInteger()\n\n    def hasNext(self) -> bool:\n        while self.stack and not self.stack[-1].isInteger():\n            self.stack.extend(reversed(self.stack.pop().getList()))\n        return bool(self.stack)\n```\n\n### Complexity\nAmortised O(1) per call (each NestedInteger is pushed and popped once); space O(n) worst case.\n\n### Common mistakes\n- Returning True from hasNext when the top is an empty list like [[]], so next fails.\n- Pushing children in forward order, which reverses the output.\n- Flattening recursively in the constructor: correct, but the interviewer usually asks for the lazy version next.\n\n### Follow-ups\n- Implement it as a Python generator with `yield from`; what does that buy you?\n- Support a `remove()` of the last returned element."
+  },
+  "x-lc-933": {
+   "brief": "Drills **a sliding time window with a queue**: timestamps arrive in order, so expire from the front and count what's left. The same shape as a rate limiter.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Calls arrive with increasing t. Once a call is outside the window, can it ever come back in?",
+    "Keep a deque of timestamps. On ping(t), append t, then pop from the left while the front is less than t - 3000. The answer is the deque's length.",
+    "Because t is strictly increasing, expired calls are always at the front, so each timestamp is appended and removed once: amortised O(1) per ping, O(W) space for the window."
+   ],
+   "solution": "### Key insight\nTimestamps are increasing, so the oldest calls are always at the front. Drop the ones that fell out of [t - 3000, t] and count the rest.\n\n### Approach\n1. `self.q = deque()`.\n2. `ping(t)`: append t; while `q[0] < t - 3000`, popleft.\n3. Return `len(q)`.\n\n### Solution\n```python\nfrom collections import deque\n\n\nclass RecentCounter:\n    def __init__(self):\n        self.q = deque()\n\n    def ping(self, t: int) -> int:\n        self.q.append(t)\n        while self.q[0] < t - 3000:\n            self.q.popleft()\n        return len(self.q)\n```\n\n### Complexity\nAmortised O(1) per ping; space O(W) where W is calls within 3000 ms.\n\n### Common mistakes\n- Using `<=` and dropping the call at exactly t - 3000 (the window is inclusive).\n- Using a list with `pop(0)`, which is O(n) per removal.\n\n### Follow-ups\n- Turn it into a rate limiter: allow at most N calls per window per user.\n- Timestamps may arrive slightly out of order. What structure would you use then?"
+  },
+  "x-lc-284": {
+   "brief": "Drills **wrapping an iterator with one element of lookahead**: cache the next value so peek doesn't consume it. A common pattern for parsers and merge-style streams.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "peek must not advance the underlying iterator, but the iterator can only move forward. What could you store?",
+    "Keep a cached 'next value' that is always pre-fetched. peek returns the cache; next returns the cache and refills it from the wrapped iterator; hasNext reports whether the cache is filled.",
+    "Pre-fetch in the constructor. Use a separate boolean (or sentinel) for 'cache is filled' rather than None, since None/0 could be a valid value. Every method is O(1)."
+   ],
+   "solution": "### Key insight\nAlways hold the next element in a one-slot cache. `peek` reads it, `next` hands it out and refills it, and `hasNext` checks whether the cache holds anything.\n\n### Approach\n1. Constructor: store the iterator and pre-fetch: `self._has = it.hasNext()`, `self._nxt = it.next() if self._has else None`.\n2. `peek()`: return `self._nxt`.\n3. `next()`: save `self._nxt`, refill from the iterator (updating `_has`), return the saved value.\n4. `hasNext()`: return `self._has`.\n\n### Solution\n```python\nclass PeekingIterator:\n    def __init__(self, iterator):\n        self.it = iterator\n        self._advance()\n\n    def _advance(self):\n        self._has = self.it.hasNext()\n        self._nxt = self.it.next() if self._has else None\n\n    def peek(self):\n        return self._nxt\n\n    def next(self):\n        val = self._nxt\n        self._advance()\n        return val\n\n    def hasNext(self):\n        return self._has\n```\n\n### Complexity\nEvery operation O(1); space O(1).\n\n### Common mistakes\n- Using `self._nxt is not None` as hasNext, which breaks if the iterator can legitimately yield None.\n- Calling the wrapped iterator's next() inside peek without caching, so the element is lost.\n\n### Follow-ups\n- Make it generic over any type (the LeetCode follow-up) and over a Python iterator using a sentinel object.\n- Use a peeking iterator to merge k sorted streams lazily."
+  },
+  "x-lc-729": {
+   "brief": "Drills **interval overlap inside a stateful class**: two half-open intervals [s1, e1) and [s2, e2) overlap iff s1 < e2 and s2 < e1. Start simple (linear scan), then discuss a sorted structure.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Write down the exact condition for two half-open intervals to overlap. It is shorter than listing all the cases.",
+    "Keep a list of booked (start, end) pairs. book(start, end) checks the new interval against each existing one with the overlap condition; if none overlap, store it and return True.",
+    "Overlap iff start < e and s < end for an existing (s, e); touching endpoints don't overlap because end is exclusive. The scan is O(n) per booking; keeping the list sorted and bisecting for the neighbours makes the check O(log n)."
+   ],
+   "solution": "### Key insight\nTwo half-open intervals overlap exactly when each starts before the other ends: `s1 < e2 and s2 < e1`. Check the new booking against existing ones.\n\n### Approach\n1. Keep `self.booked`, a sorted list of (start, end).\n2. `book(start, end)`: find the insertion point `i` with `bisect` on start.\n3. It conflicts with the previous booking if `booked[i-1].end > start`, or with the next if `booked[i].start < end`.\n4. If neither, insert at `i` and return True; else return False.\n\n### Solution\n```python\nimport bisect\n\n\nclass MyCalendar:\n    def __init__(self):\n        self.booked: List[Tuple[int, int]] = []  # sorted, non-overlapping\n\n    def book(self, start: int, end: int) -> bool:\n        i = bisect.bisect_left(self.booked, (start, end))\n        if i > 0 and self.booked[i - 1][1] > start:\n            return False\n        if i < len(self.booked) and self.booked[i][0] < end:\n            return False\n        self.booked.insert(i, (start, end))\n        return True\n```\n\n### Complexity\nO(log n) to find the spot plus O(n) for list insert (a balanced BST or `sortedcontainers` makes it O(log n)); space O(n). A linear scan is O(n) per booking and fine to start with.\n\n### Common mistakes\n- Treating [10, 20) and [20, 30) as overlapping; the end is exclusive.\n- Writing a long case analysis for overlap instead of the two-comparison condition.\n- Only checking the previous neighbour in the sorted version and forgetting the next one.\n\n### Follow-ups\n- My Calendar II (LC 731): allow double bookings but not triple bookings.\n- Return the conflicting booking, or suggest the nearest free slot of the same length."
+  },
+  "x-lc-225": {
+   "brief": "Drills **rotating a queue to change its order**: after pushing, rotate the older elements behind the new one so the newest is at the front. Contrast with the two-stack queue.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "A queue gives you the oldest element. How can you make the newest element the oldest from the queue's point of view?",
+    "Use one queue. On push, append x and then move the previous n-1 elements from the front to the back one at a time; now x is at the front and pop/top are just front operations.",
+    "push is O(n) and pop/top/empty are O(1). The alternative trades this around (O(1) push, O(n) pop); say which you chose and why."
+   ],
+   "solution": "### Key insight\nRotating the queue after each push puts the newest element at the front, so the queue's front always behaves like the top of a stack.\n\n### Approach\n1. `self.q = deque()`.\n2. `push(x)`: append x, then repeat `len(q) - 1` times: `q.append(q.popleft())`.\n3. `pop()`: `q.popleft()`; `top()`: `q[0]`; `empty()`: `not q`.\n\n### Solution\n```python\nfrom collections import deque\n\n\nclass MyStack:\n    def __init__(self):\n        self.q = deque()\n\n    def push(self, x: int) -> None:\n        self.q.append(x)\n        for _ in range(len(self.q) - 1):\n            self.q.append(self.q.popleft())\n\n    def pop(self) -> int:\n        return self.q.popleft()\n\n    def top(self) -> int:\n        return self.q[0]\n\n    def empty(self) -> bool:\n        return not self.q\n```\n\n### Complexity\npush O(n); pop, top, empty O(1); space O(n).\n\n### Common mistakes\n- Rotating n times instead of n-1, which puts the new element back at the end.\n- Using deque methods a real queue doesn't have (like `pop()` from the right), which skips the point of the exercise.\n\n### Follow-ups\n- Do it with two queues and compare the cost split.\n- Implement Queue using Stacks (LC 232) is the mirror problem; why is that one amortised O(1) but this one isn't?"
+  },
+  "x-lc-2034": {
+   "brief": "Drills **heaps with lazy deletion inside a class**: prices can be corrected after the fact, so max/min heaps hold stale entries you discard when they surface. A pattern that comes up whenever 'update' meets 'top-k'.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "A timestamp's price can be corrected later. How do you keep max and min fast when old values become invalid?",
+    "Keep a dict timestamp -> price (the truth), the latest timestamp, and a max-heap and min-heap of (price, timestamp). update writes to the dict and pushes to both heaps without removing anything.",
+    "In maximum/minimum, peek the heap top and pop while its price no longer matches the dict for that timestamp; the first valid top is the answer. Each entry is popped at most once, so updates are O(log n) and queries amortised O(log n)."
+   ],
+   "solution": "### Key insight\nCorrections make old heap entries wrong, but you don't need to delete them immediately: check each heap top against the authoritative dict and discard stale ones when they reach the top (lazy deletion).\n\n### Approach\n1. State: `self.prices = {}`, `self.latest = 0`, `self.max_h = []` (store `(-price, ts)`), `self.min_h = []`.\n2. `update(ts, price)`: set `prices[ts] = price`, `latest = max(latest, ts)`, push to both heaps.\n3. `current()`: `prices[latest]`.\n4. `maximum()`: while the max-heap top's price != `prices[ts]`, pop it; return the top's price. `minimum()` is symmetric.\n\n### Solution\n```python\nimport heapq\n\n\nclass StockPrice:\n    def __init__(self):\n        self.prices: Dict[int, int] = {}\n        self.latest = 0\n        self.max_h: List[Tuple[int, int]] = []\n        self.min_h: List[Tuple[int, int]] = []\n\n    def update(self, timestamp: int, price: int) -> None:\n        self.prices[timestamp] = price\n        self.latest = max(self.latest, timestamp)\n        heapq.heappush(self.max_h, (-price, timestamp))\n        heapq.heappush(self.min_h, (price, timestamp))\n\n    def current(self) -> int:\n        return self.prices[self.latest]\n\n    def maximum(self) -> int:\n        while -self.max_h[0][0] != self.prices[self.max_h[0][1]]:\n            heapq.heappop(self.max_h)\n        return -self.max_h[0][0]\n\n    def minimum(self) -> int:\n        while self.min_h[0][0] != self.prices[self.min_h[0][1]]:\n            heapq.heappop(self.min_h)\n        return self.min_h[0][0]\n```\n\n### Complexity\nupdate O(log n); current O(1); maximum/minimum amortised O(log n). Space O(number of updates).\n\n### Common mistakes\n- Popping the stale entry and forgetting to re-check the new top (use a while loop, not an if).\n- Taking 'current' as the most recently *updated* timestamp rather than the largest timestamp.\n- Rescanning the dict on every max/min query (O(n)).\n\n### Follow-ups\n- Use a sorted multiset of prices (remove old, add new) instead of lazy heaps. What are the trade-offs?\n- Support max price within a time range [t1, t2] (segment tree or sorted structure keyed by time)."
+  },
+  "x-lc-1352": {
+   "brief": "Drills **prefix products in a streaming class**: the product of the last k is a ratio of two prefix products, and zeros are handled by resetting the prefix list. The zero reset is the whole problem.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Range sums use prefix sums. What is the multiplicative version, and what breaks it?",
+    "Keep a list of prefix products starting with [1]. The product of the last k is prefix[-1] / prefix[-1-k]. A zero would make every later ratio 0/0, so on add(0) reset the list to [1].",
+    "After a reset, if k is at least the list length then the window includes that zero, so return 0. Otherwise return prefix[-1] // prefix[-1-k] (exact integer division). add and getProduct are O(1)."
+   ],
+   "solution": "### Key insight\nThe product of the last k numbers is `prefix[n] / prefix[n-k]`. A zero would poison every later prefix, so clear the prefix list on zero; if k reaches back past the reset point, the window contains that zero and the answer is 0.\n\n### Approach\n1. `self.prefix = [1]`.\n2. `add(num)`: if `num == 0`, reset to `[1]`; else append `prefix[-1] * num`.\n3. `getProduct(k)`: if `k >= len(prefix)`, return 0; else return `prefix[-1] // prefix[-1 - k]`.\n\n### Solution\n```python\nclass ProductOfNumbers:\n    def __init__(self):\n        self.prefix = [1]\n\n    def add(self, num: int) -> None:\n        if num == 0:\n            self.prefix = [1]\n        else:\n            self.prefix.append(self.prefix[-1] * num)\n\n    def getProduct(self, k: int) -> int:\n        if k >= len(self.prefix):\n            return 0\n        return self.prefix[-1] // self.prefix[-1 - k]\n```\n\n### Complexity\nadd O(1), getProduct O(1) (Python big ints grow, but the problem guarantees products fit); space O(n).\n\n### Common mistakes\n- Storing 0 in the prefix list and dividing by it.\n- Using `>` instead of `>=` in the reset check, which returns a wrong non-zero product when the window just reaches the zero.\n- Multiplying the last k values on every query (O(k)).\n\n### Follow-ups\n- What if numbers can be negative or fractional? Does division still work?\n- Support getProduct over an arbitrary range [i, j] instead of the last k."
+  }
+ }
+}

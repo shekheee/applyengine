@@ -26,8 +26,8 @@ from app.routers.prep import (
 )
 from app.schemas import PrepAttemptIn, PrepCheckIn, PrepSettingsIn
 from app.services.prep_redos import new_redos, redo_reasons
-from app.services.prep_schedule import build_today, program_week, streaks
-from app.services.prep_seed import load_seed, sync_seed
+from app.services.prep_schedule import build_today, pick_extras, program_week, streaks
+from app.services.prep_seed import load_extra, load_seed, sync_seed
 
 MONDAY = date(2026, 10, 26)
 
@@ -147,6 +147,61 @@ class PrepScheduleTests(unittest.TestCase):
         )
 
 
+def _extra(number: int, week: int, difficulty: str, order: int) -> PrepTask:
+    return PrepTask(
+        id=f"x-lc-{number}",
+        type="dsa",
+        week=week,
+        order=order,
+        slot="extra",
+        difficulty=difficulty,
+        title=f"{number}. Extra",
+        target_minutes=20 if difficulty == "easy" else 35,
+    )
+
+
+EXTRAS = [
+    _extra(1000 + 100 * week + i, week, difficulty, i)
+    for week in (1, 2)
+    for i, difficulty in enumerate(["easy"] * 4 + ["medium"] * 8)
+]
+
+
+class PrepExtraPracticeTests(unittest.TestCase):
+    def test_one_easy_two_medium_from_this_weeks_pattern(self):
+        picked = pick_extras(EXTRAS, MONDAY, MONDAY + timedelta(days=8), 2, set())
+        self.assertEqual([t.difficulty for t in picked], ["easy", "medium", "medium"])
+        self.assertTrue(all(t.week == 2 for t in picked))
+
+    def test_pick_is_stable_within_a_day_and_rotates_daily(self):
+        day = MONDAY + timedelta(days=2)
+        first = [t.id for t in pick_extras(EXTRAS, MONDAY, day, 1, set())]
+        again = [t.id for t in pick_extras(EXTRAS, MONDAY, day, 1, set())]
+        tomorrow = [t.id for t in pick_extras(EXTRAS, MONDAY, day + timedelta(days=1), 1, set())]
+        self.assertEqual(first, again)
+        self.assertNotEqual(first, tomorrow)
+
+    def test_done_problems_drop_out_and_earlier_weeks_fill_in(self):
+        week2_easy = {t.id for t in EXTRAS if t.week == 2 and t.difficulty == "easy"}
+        picked = pick_extras(EXTRAS, MONDAY, MONDAY + timedelta(days=8), 2, week2_easy)
+        self.assertEqual(picked[0].week, 1)
+        self.assertNotIn(picked[0].id, week2_easy)
+
+    def test_weeks_after_the_bank_draw_from_everything_and_none_before_start(self):
+        self.assertEqual(len(pick_extras(EXTRAS, MONDAY, MONDAY + timedelta(days=60), 9, set())), 3)
+        self.assertEqual(pick_extras(EXTRAS, MONDAY, MONDAY - timedelta(days=1), 0, set()), [])
+
+    def test_extras_show_on_today_but_never_count_toward_totals(self):
+        tasks = _tasks() + EXTRAS
+        done = [_attempt(EXTRAS[0].id, MONDAY), _attempt("lc-1", MONDAY)]
+        plan = build_today(tasks, MONDAY, MONDAY, done, [])
+        self.assertEqual(len(plan["extra"]), 3)
+        self.assertEqual(plan["extra"][0]["badge"], "Easy")
+        self.assertEqual((plan["done_count"], plan["total_count"]), (1, 3))
+        self.assertEqual(plan["streak"]["today_count"], 2)
+        self.assertNotIn("x-lc", " ".join(i["task_id"] for i in plan["morning"] + plan["carried"]))
+
+
 class PrepRouterTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -171,16 +226,18 @@ class PrepRouterTests(unittest.TestCase):
 
     def test_reimporting_seed_creates_no_duplicates(self):
         with Session(self.engine) as session:
-            self.assertEqual(sync_seed(session), 109)
-            self.assertEqual(len(session.exec(select(PrepTask)).all()), 109)
+            total = len(load_seed()["tasks"]) + len(load_extra()["tasks"])
+            self.assertEqual(sync_seed(session), total)
+            self.assertEqual(len(session.exec(select(PrepTask)).all()), total)
 
     def test_reimport_updates_changed_fields(self):
         seed = load_seed()
         changed = {**seed, "tasks": [{**seed["tasks"][0], "title": "Renamed"}]}
         with Session(self.engine) as session:
+            before = len(session.exec(select(PrepTask)).all())
             sync_seed(session, changed)
             self.assertEqual(session.get(PrepTask, "lc-1").title, "Renamed")
-            self.assertEqual(len(session.exec(select(PrepTask)).all()), 109)
+            self.assertEqual(len(session.exec(select(PrepTask)).all()), before)
 
     def test_today_is_unconfigured_until_start_date_is_set(self):
         with Session(self.engine) as session:

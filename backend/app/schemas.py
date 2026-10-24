@@ -509,6 +509,7 @@ class PrepItemOut(BaseModel):
     week: int
     target_minutes: int
     stretch: bool = False
+    difficulty: str | None = None
     badge: str | None = None
     done: bool
     redo_id: int | None = None
@@ -557,6 +558,7 @@ class PrepTodayOut(BaseModel):
     weekend: list[PrepItemOut] = Field(default_factory=list)
     carried: list[PrepItemOut] = Field(default_factory=list)
     redos: list[PrepItemOut] = Field(default_factory=list)
+    extra: list[PrepItemOut] = Field(default_factory=list)
     dsa_backlog: int = 0
     done_count: int = 0
     total_count: int = 0

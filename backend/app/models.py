@@ -285,7 +285,7 @@ class PrepTask(SQLModel, table=True):
     week: int = Field(index=True)
     order: int = 0
     day: str | None = None  # Mon..Sun for weekday-bound tasks
-    slot: str = "morning"  # morning | evening | weekend
+    slot: str = "morning"  # morning | evening | weekend | extra (optional practice)
     title: str = ""
     url: str | None = None
     pattern: str | None = None
@@ -295,6 +295,7 @@ class PrepTask(SQLModel, table=True):
     target_minutes: int = 30
     stretch: bool = False
     editor: bool = False
+    difficulty: str | None = None  # easy | medium, for the optional extra bank
     # Authored study content from data/prep_content/*.json.
     brief: str | None = Field(default=None, sa_column=Column(Text))
     starter: str | None = Field(default=None, sa_column=Column(Text))

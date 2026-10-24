@@ -7,7 +7,7 @@ from datetime import date
 from typing import Any
 
 from app.models import PrepAttempt, PrepRedo, PrepTask
-from app.services.prep_schedule import build_today
+from app.services.prep_schedule import EXTRA_SLOT, build_today
 
 TOKEN_PREFIX = "prep_"
 
@@ -68,7 +68,7 @@ def build_daily_log(
     open_redos = sorted(
         (r for r in redos if not r.done and r.due_date <= day), key=lambda r: r.due_date
     )
-    week_ids = {t.id for t in tasks if t.week == plan["week"]}
+    week_ids = {t.id for t in tasks if t.week == plan["week"] and t.slot != EXTRA_SLOT}
     done_ids = {a.task_id for a in attempts if a.date <= day}
     return {
         "program": program.get("name", "Interview Prep"),
@@ -82,6 +82,7 @@ def build_daily_log(
             for i in plan["redos"] + plan["morning"] + plan["evening"] + plan["weekend"]
         ],
         "carried_over": [_planned(i) for i in plan["carried"]],
+        "extra_practice": [_planned(i) for i in plan["extra"]],
         "attempts": [attempt_row(a) for a in todays],
         "streak": plan["streak"],
         "redos_due_or_overdue": [

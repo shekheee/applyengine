@@ -12,6 +12,7 @@ from app.models import PrepTask
 
 SEED_PATH = Path(__file__).resolve().parent.parent / "data" / "prep_seed.json"
 CONTENT_DIR = SEED_PATH.parent / "prep_content"
+EXTRA_DIR = SEED_PATH.parent / "prep_extra"
 _CONTENT_FIELDS = ("brief", "starter", "tests", "hints", "solution")
 
 _TASK_FIELDS = (
@@ -29,6 +30,7 @@ _TASK_FIELDS = (
     "target_minutes",
     "stretch",
     "editor",
+    "difficulty",
 )
 
 
@@ -38,11 +40,24 @@ def load_seed() -> dict[str, Any]:
 
 
 @lru_cache
+def load_extra() -> dict[str, Any]:
+    """The optional extra-practice bank: {"tasks": [...], "content": {id: ...}}."""
+    tasks: list[dict[str, Any]] = []
+    content: dict[str, dict[str, Any]] = {}
+    for path in sorted(EXTRA_DIR.glob("*.json")):
+        part = json.loads(path.read_text(encoding="utf-8"))
+        tasks += part["tasks"]
+        content.update(part["content"])
+    return {"tasks": tasks, "content": content}
+
+
+@lru_cache
 def load_content() -> dict[str, dict[str, Any]]:
     """Authored briefs, starters, tests, hints and solutions, keyed by task id."""
     merged: dict[str, dict[str, Any]] = {}
     for path in sorted(CONTENT_DIR.glob("*.json")):
         merged.update(json.loads(path.read_text(encoding="utf-8")))
+    merged.update(load_extra()["content"])
     return merged
 
 
@@ -60,7 +75,8 @@ def sync_seed(
     content: dict[str, dict[str, Any]] | None = None,
 ) -> int:
     """Insert or update every seed task keyed on its id. Safe to run repeatedly."""
-    seed = seed or load_seed()
+    if seed is None:
+        seed = {"tasks": load_seed()["tasks"] + load_extra()["tasks"]}
     content = load_content() if content is None else content
     count = 0
     for raw in seed["tasks"]:
