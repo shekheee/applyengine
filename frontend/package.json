@@ -11,6 +11,7 @@
     "test:a11y": "playwright test tests/ui/accessibility.spec.ts"
   },
   "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
     "katex": "^0.18.4",
     "next": "16.2.10",
     "react": "19.2.4",

@@ -22,7 +22,8 @@ export function Checklist({
   emptyText = "Nothing here.",
 }: {
   items: ChecklistItem[];
-  onToggle: (id: string, checked: boolean) => void;
+  /** Omit to show checkboxes as read-only state. */
+  onToggle?: (id: string, checked: boolean) => void;
   disabled?: boolean;
   emptyText?: string;
 }) {
@@ -39,9 +40,10 @@ export function Checklist({
               id={inputId}
               type="checkbox"
               checked={item.checked}
-              disabled={disabled}
-              onChange={(event) => onToggle(item.id, event.target.checked)}
-              className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-[var(--primary)] disabled:cursor-not-allowed"
+              disabled={disabled || !onToggle}
+              readOnly={!onToggle}
+              onChange={(event) => onToggle?.(item.id, event.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-[var(--primary)] disabled:cursor-default"
             />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">

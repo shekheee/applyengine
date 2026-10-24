@@ -22,7 +22,10 @@ import type {
   Job,
   Memory,
   Profile,
+  PrepAttemptInput,
+  PrepAttemptResult,
   PrepSettings,
+  PrepTaskDetail,
   PrepToday,
   ReasoningEffort,
   SocialMessage,
@@ -1324,13 +1327,11 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
-  checkPrepItem: (body: {
-    task_id: string;
-    date: string;
-    done: boolean;
-    redo_id?: number | null;
-  }) =>
-    req<PrepToday>("/api/prep/check", {
+  getPrepTask: (taskId: string) =>
+    req<PrepTaskDetail>(`/api/prep/tasks/${encodeURIComponent(taskId)}`),
+
+  logPrepAttempt: (body: PrepAttemptInput) =>
+    req<PrepAttemptResult>("/api/prep/attempts", {
       method: "POST",
       body: JSON.stringify(body),
     }),

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime as dt
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -564,3 +564,69 @@ class PrepTodayOut(BaseModel):
     week_strip: list[PrepDayOut] = Field(default_factory=list)
     week_progress: PrepProgressOut | None = None
     feedback: PrepFeedbackOut | None = None
+
+
+class PrepAttemptIn(BaseModel):
+    task_id: str
+    date: dt.date
+    title: str = Field(default="", max_length=300)
+    started_at: datetime | None = None
+    ended_at: datetime | None = None
+    elapsed_minutes: float = Field(default=0, ge=0, le=24 * 60)
+    hint_used: bool = False
+    solved: Literal["yes", "partial", "no"] = "yes"
+    self_rating: int | None = Field(default=None, ge=1, le=5)
+    code: str = Field(default="", max_length=200_000)
+    notes: str = Field(default="", max_length=20_000)
+    complexity: str = Field(default="", max_length=300)
+
+
+class PrepAttemptOut(BaseModel):
+    id: int
+    task_id: str
+    title: str
+    date: dt.date
+    started_at: datetime | None = None
+    ended_at: datetime | None = None
+    elapsed_minutes: float
+    hint_used: bool
+    solved: str
+    self_rating: int | None = None
+    code: str
+    notes: str
+    complexity: str
+
+
+class PrepRedoOut(BaseModel):
+    id: int
+    task_id: str
+    due_date: dt.date
+    reason: str
+    done: bool
+
+
+class PrepAttemptResultOut(BaseModel):
+    attempt: PrepAttemptOut
+    redos_created: list[PrepRedoOut] = Field(default_factory=list)
+    redos_cleared: int = 0
+
+
+class PrepTaskDetailOut(BaseModel):
+    id: str
+    type: str
+    week: int
+    day: str | None = None
+    slot: str
+    title: str
+    url: str | None = None
+    pattern: str | None = None
+    spec: str | None = None
+    extensions: str | None = None
+    framework: list[str] | None = None
+    target_minutes: int
+    stretch: bool = False
+    editor: bool = False
+    synthetic: bool = False
+    rules: dict[str, Any] = Field(default_factory=dict)
+    attempts: list[PrepAttemptOut] = Field(default_factory=list)
+    open_redos: list[PrepRedoOut] = Field(default_factory=list)

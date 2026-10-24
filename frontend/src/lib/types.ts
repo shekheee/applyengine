@@ -685,3 +685,78 @@ export interface PrepToday {
   week_progress: { done: number; total: number } | null;
   feedback: PrepFeedback | null;
 }
+
+export type PrepSolved = "yes" | "partial" | "no";
+
+export interface PrepAttempt {
+  id: number;
+  task_id: string;
+  title: string;
+  date: string;
+  started_at: string | null;
+  ended_at: string | null;
+  elapsed_minutes: number;
+  hint_used: boolean;
+  solved: PrepSolved;
+  self_rating: number | null;
+  code: string;
+  notes: string;
+  complexity: string;
+}
+
+export interface PrepRedo {
+  id: number;
+  task_id: string;
+  due_date: string;
+  reason: string;
+  done: boolean;
+}
+
+export interface PrepRules {
+  attempt_before_hint_minutes?: number;
+  max_minutes_dsa?: number;
+  redo_offsets_days?: number[];
+  redo_if?: string[];
+}
+
+export interface PrepTaskDetail {
+  id: string;
+  type: PrepTaskType;
+  week: number;
+  day: string | null;
+  slot: string;
+  title: string;
+  url: string | null;
+  pattern: string | null;
+  spec: string | null;
+  extensions: string | null;
+  framework: string[] | null;
+  target_minutes: number;
+  stretch: boolean;
+  editor: boolean;
+  synthetic: boolean;
+  rules: PrepRules;
+  attempts: PrepAttempt[];
+  open_redos: PrepRedo[];
+}
+
+export interface PrepAttemptInput {
+  task_id: string;
+  date: string;
+  title?: string;
+  started_at?: string | null;
+  ended_at?: string | null;
+  elapsed_minutes: number;
+  hint_used: boolean;
+  solved: PrepSolved;
+  self_rating?: number | null;
+  code: string;
+  notes: string;
+  complexity: string;
+}
+
+export interface PrepAttemptResult {
+  attempt: PrepAttempt;
+  redos_created: PrepRedo[];
+  redos_cleared: number;
+}

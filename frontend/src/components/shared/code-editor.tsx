@@ -1,0 +1,98 @@
+"use client";
+
+import Editor, { type EditorProps } from "@monaco-editor/react";
+import { useEffect, useRef } from "react";
+
+/**
+ * Every completion surface is off: no inline (ghost-text) suggestions, no
+ * suggest popup while typing, no word or snippet completions. Practice code
+ * must be the user's own.
+ */
+export const NO_ASSIST_EDITOR_OPTIONS: NonNullable<EditorProps["options"]> = {
+  inlineSuggest: { enabled: false },
+  quickSuggestions: false,
+  suggestOnTriggerCharacters: false,
+  wordBasedSuggestions: "off",
+  snippetSuggestions: "none",
+  parameterHints: { enabled: false },
+  acceptSuggestionOnEnter: "off",
+  tabCompletion: "off",
+  inlayHints: { enabled: "off" },
+  minimap: { enabled: false },
+  fontSize: 13,
+  tabSize: 4,
+  scrollBeyondLastLine: false,
+  automaticLayout: true,
+};
+
+const AUTOSAVE_MS = 5000;
+
+export function loadDraft(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+export function clearDraft(key: string) {
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Storage unavailable; nothing to clear.
+  }
+}
+
+/** Monaco editor with AI assistance off. Autosaves to `draftKey` every 5 s. */
+export function CodeEditor({
+  value,
+  onChange,
+  language = "python",
+  readOnly = false,
+  draftKey,
+  height = 360,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  language?: string;
+  readOnly?: boolean;
+  draftKey?: string;
+  height?: number | string;
+}) {
+  const latest = useRef(value);
+  const saved = useRef(value);
+  useEffect(() => {
+    latest.current = value;
+  }, [value]);
+
+  useEffect(() => {
+    if (!draftKey || readOnly) return;
+    const timer = window.setInterval(() => {
+      if (latest.current === saved.current) return;
+      try {
+        window.localStorage.setItem(draftKey, latest.current);
+        saved.current = latest.current;
+      } catch {
+        // Quota or privacy mode; the in-memory value is still intact.
+      }
+    }, AUTOSAVE_MS);
+    return () => window.clearInterval(timer);
+  }, [draftKey, readOnly]);
+
+  return (
+    <div
+      className="overflow-hidden rounded-[var(--radius-md)] border"
+      style={{ borderColor: "var(--border)" }}
+    >
+      <Editor
+        height={height}
+        language={language}
+        theme="vs-dark"
+        value={value}
+        onChange={(next) => onChange(next ?? "")}
+        options={{ ...NO_ASSIST_EDITOR_OPTIONS, readOnly }}
+        loading={<div className="p-4 text-sm text-[var(--muted)]">Loading editor…</div>}
+      />
+    </div>
+  );
+}

@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import type { PrepItem, PrepToday } from "@/lib/types";
@@ -10,14 +12,7 @@ import { ProgressRing } from "@/components/shared/progress-ring";
 import { StreakBadge } from "@/components/shared/streak-badge";
 import { TaskCard } from "@/components/shared/task-card";
 import { WeekStrip } from "@/components/shared/week-strip";
-
-/** The browser's calendar date as YYYY-MM-DD; the server never guesses "today". */
-export function localISODate(d = new Date()): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
+import { localISODate } from "./dates";
 
 function nextMonday(): string {
   const d = new Date();
@@ -33,6 +28,10 @@ function linkLabel(url: string | null): string {
   return "Open";
 }
 
+export function sessionHref(item: PrepItem): string {
+  return `/prep/session/${encodeURIComponent(item.task_id)}`;
+}
+
 function toChecklistItem(item: PrepItem): ChecklistItem {
   const parts = [item.pattern, `${item.target_minutes} min`];
   if (item.due_date) parts.push(`due ${item.due_date}`);
@@ -46,6 +45,15 @@ function toChecklistItem(item: PrepItem): ChecklistItem {
     linkLabel: linkLabel(item.url),
     badge: item.badge,
     badgeTone: item.redo_id ? "amber" : item.badge === "Carried over" ? "red" : "default",
+    trailing: item.done ? null : (
+      <Link
+        href={sessionHref(item)}
+        className="rounded-[var(--radius-md)] border px-2.5 py-1 text-xs font-medium text-[var(--text)] hover:bg-[var(--panel-2)]"
+        style={{ borderColor: "var(--border)" }}
+      >
+        Start
+      </Link>
+    ),
   };
 }
 
@@ -65,7 +73,7 @@ export function PrepToday() {
   const [date, setDate] = useState(localISODate);
   const [today, setToday] = useState<PrepToday | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const router = useRouter();
 
   const load = useCallback((day: string) => {
     api
@@ -90,20 +98,6 @@ export function PrepToday() {
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, []);
-
-  const toggle = (items: PrepItem[]) => (key: string, checked: boolean) => {
-    const item = items.find((i) => i.key === key);
-    if (!item || !today) return;
-    setSaving(true);
-    api
-      .checkPrepItem({ task_id: item.task_id, date, done: checked, redo_id: item.redo_id })
-      .then((data) => {
-        setToday(data);
-        setError(null);
-      })
-      .catch((err: Error) => setError(err.message))
-      .finally(() => setSaving(false));
-  };
 
   if (!today && !error) return <PageSkeleton />;
   if (!today) {
@@ -205,6 +199,7 @@ export function PrepToday() {
             subtitle: upNext.badge ? `${upNext.badge}${upNext.pattern ? ` · ${upNext.pattern}` : ""}` : upNext.pattern,
           }}
           status="todo"
+          onStart={() => router.push(sessionHref(upNext))}
         />
       )}
 
@@ -220,8 +215,6 @@ export function PrepToday() {
             </div>
             <Checklist
               items={section.items.map(toChecklistItem)}
-              onToggle={toggle(section.items)}
-              disabled={saving}
               emptyText={section.empty}
             />
             {section.note && <p className="mt-1 text-xs text-[var(--muted)]">{section.note}</p>}
