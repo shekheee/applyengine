@@ -110,7 +110,12 @@ def task_context(
         "THE ATTEMPT:",
         f"Time: {round(attempt.elapsed_minutes)} min (target {target} min)",
         f"Hint used: {'yes' if attempt.hint_used else 'no'}"
-        + (f" ({hints_revealed} of the authored hints revealed)" if hints_revealed else ""),
+        + (f" ({hints_revealed} hint tiers opened)" if hints_revealed else "")
+        + (
+            ", including the full solution before finishing"
+            if task and task.hints and hints_revealed > len(task.hints)
+            else ""
+        ),
         f"Solved: {attempt.solved}",
         f"Self-rating: {attempt.self_rating or 'not given'} / 5",
         f"Stated complexity: {attempt.complexity or 'not given'}",

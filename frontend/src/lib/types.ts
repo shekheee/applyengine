@@ -761,11 +761,13 @@ export interface PrepTaskDetail {
   hints_revealed: string[];
   solution: string | null;
   solution_locked: boolean;
+  solution_revealed: boolean;
 }
 
 export interface PrepHints {
   total: number;
   revealed: string[];
+  solution: string | null;
 }
 
 export interface PrepTutorMessage {

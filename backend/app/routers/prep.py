@@ -279,6 +279,12 @@ def list_feedback(
 
 
 
+def _hint_tiers(task: PrepTask) -> int:
+    """Written hints, then the full solution as the final tier when there is one."""
+    hints = len(task.hints or [])
+    return hints + 1 if hints and task.solution else hints
+
+
 def _revealed_hints(user: User, task_id: str, day: date, session: Session) -> list[PrepHintReveal]:
     return list(
         session.exec(
@@ -325,6 +331,8 @@ def get_task(
     if task is not None:
         hints = task.hints or []
         revealed = len(_revealed_hints(user, task_id, day, session)) if day else 0
+        solution_revealed = bool(hints) and revealed > len(hints)
+        unlocked = bool(attempts) or solution_revealed
         content = {
             "statement": task.statement,
             "brief": task.brief,
@@ -332,11 +340,12 @@ def get_task(
             "starter": task.starter,
             "tests": task.tests or [],
             "levels": task.levels,
-            "hints_total": len(hints),
+            "hints_total": _hint_tiers(task),
             "hints_revealed": hints[:revealed],
-            # The ideal solution unlocks once the task has a logged attempt.
-            "solution": task.solution if attempts else None,
-            "solution_locked": bool(task.solution) and not attempts,
+            # The ideal solution unlocks with a logged attempt, or when opened as the last hint.
+            "solution": task.solution if unlocked else None,
+            "solution_locked": bool(task.solution) and not unlocked,
+            "solution_revealed": solution_revealed,
         }
         return PrepTaskDetailOut(
             **task.model_dump(
@@ -575,8 +584,9 @@ def reveal_hint(
     task = session.get(PrepTask, task_id)
     if task is None or not task.hints:
         raise HTTPException(404, "No hints for this task")
+    total = _hint_tiers(task)
     revealed = _revealed_hints(user, task_id, body.date, session)
-    if len(revealed) < len(task.hints):
+    if len(revealed) < total:
         session.add(
             PrepHintReveal(
                 user_id=user.id, task_id=task_id, date=body.date, level=len(revealed) + 1
@@ -584,7 +594,11 @@ def reveal_hint(
         )
         session.commit()
         revealed = _revealed_hints(user, task_id, body.date, session)
-    return PrepHintsOut(total=len(task.hints), revealed=task.hints[: len(revealed)])
+    return PrepHintsOut(
+        total=total,
+        revealed=task.hints[: len(revealed)],
+        solution=task.solution if len(revealed) > len(task.hints) else None,
+    )
 
 
 def _owned_attempt(attempt_id: int, user: User, session: Session) -> PrepAttempt:

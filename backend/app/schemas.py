@@ -655,6 +655,7 @@ class PrepTaskDetailOut(BaseModel):
     # The reference solution unlocks once the task has a logged attempt.
     solution: str | None = None
     solution_locked: bool = False
+    solution_revealed: bool = False  # opened as the last hint, before any attempt
 
 
 class PrepPlanTaskOut(BaseModel):
@@ -701,8 +702,11 @@ class PrepHintRevealIn(BaseModel):
 
 
 class PrepHintsOut(BaseModel):
+    """`total` counts the written hints plus the solution, which is the last tier."""
+
     total: int
     revealed: list[str]
+    solution: str | None = None
 
 
 class PrepTutorMessageOut(BaseModel):

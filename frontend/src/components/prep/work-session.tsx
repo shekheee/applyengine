@@ -111,6 +111,9 @@ function Workspace({
   const board = useRef<BoardElement[]>(initialBoard);
   const [tab, setTab] = useState<Tab>("description");
   const [hintsOpened, setHintsOpened] = useState(task.hints_revealed.length > 0);
+  const [revealedSolution, setRevealedSolution] = useState<string | null>(
+    task.solution_revealed ? task.solution : null
+  );
   const [lastSubmit, setLastSubmit] = useState<{ passed: number; total: number } | null>(null);
   const [finishing, setFinishing] = useState(false);
   const [logged, setLogged] = useState<PrepAttemptResult | null>(null);
@@ -200,7 +203,11 @@ function Workspace({
       levelsDone={levelsDone}
       examples={tests.filter((t) => !t.hidden)}
       hintsOpened={hintsOpened}
-      onHintReveal={() => setHintsOpened(true)}
+      onHintReveal={(solution) => {
+        setHintsOpened(true);
+        if (solution) setRevealedSolution(solution);
+      }}
+      revealedSolution={revealedSolution}
       attempts={attempts}
       reviewAttempt={reviewAttempt}
       autoReview={Boolean(logged)}
@@ -340,6 +347,7 @@ function ProblemPanel({
   examples,
   hintsOpened,
   onHintReveal,
+  revealedSolution,
   attempts,
   reviewAttempt,
   autoReview,
@@ -355,7 +363,8 @@ function ProblemPanel({
   levelsDone: boolean;
   examples: PrepTestCase[];
   hintsOpened: boolean;
-  onHintReveal: () => void;
+  onHintReveal: (solution: string | null) => void;
+  revealedSolution: string | null;
   attempts: PrepAttempt[];
   reviewAttempt: PrepAttempt | null;
   autoReview: boolean;
@@ -364,7 +373,7 @@ function ProblemPanel({
 }) {
   const [steps, setSteps] = useState<Record<string, boolean>>({});
   const [showTopics, setShowTopics] = useState(false);
-  const solutionLocked = !reviewAttempt;
+  const solutionLocked = !reviewAttempt && !revealedSolution;
   const tabs: Array<{ id: Tab; label: string }> = [
     { id: "description", label: "Description" },
     { id: "hints", label: `Hints${task.hints_total ? ` ${hintsOpened ? "·" : ""}` : ""}` },
@@ -525,7 +534,8 @@ function ProblemPanel({
             total={task.hints_total}
             initial={task.hints_revealed}
             waitMinutes={task.type === "dsa" ? task.rules.attempt_before_hint_minutes : undefined}
-            onReveal={onHintReveal}
+            initialSolution={revealedSolution}
+            onReveal={(_, solution) => onHintReveal(solution)}
           />
         )}
 
@@ -538,7 +548,15 @@ function ProblemPanel({
                 follow-up questions unlock here.
               </p>
             </div>
-          ) : (
+          ) : !reviewAttempt && revealedSolution ? (
+            <div className="space-y-3">
+              <p className="text-xs text-amber-300">
+                You opened the solution as the last hint. Press Finish to log the attempt and get a
+                review of your own code.
+              </p>
+              <ChatMarkdown content={revealedSolution} density="compact" />
+            </div>
+          ) : reviewAttempt ? (
             <div className="space-y-3">
               {loggedNote && (
                 <p className="text-xs text-[var(--muted)]">
@@ -550,11 +568,11 @@ function ProblemPanel({
               <TutorPanel
                 key={reviewAttempt.id}
                 attemptId={reviewAttempt.id}
-                solution={task.solution}
+                solution={task.solution ?? revealedSolution}
                 autoStart={autoReview}
               />
             </div>
-          ))}
+          ) : null)}
 
         {tab === "submissions" && <Submissions attempts={attempts} onLoadCode={onLoadCode} />}
       </div>
