@@ -22,8 +22,25 @@ def _same(actual, expected):
     return actual == expected
 
 
+def _repr(value):
+    # Sets print in sorted order so Output and Expected read the same every run.
+    if isinstance(value, (set, frozenset)):
+        if not value:
+            return "set()" if isinstance(value, set) else "frozenset()"
+        inner = "{" + ", ".join(sorted(_repr(v) for v in value)) + "}"
+        return inner if isinstance(value, set) else f"frozenset({inner})"
+    if type(value) is list:
+        return "[" + ", ".join(_repr(v) for v in value) + "]"
+    if type(value) is tuple:
+        items = [_repr(v) for v in value]
+        return "(" + ", ".join(items) + ("," if len(items) == 1 else "") + ")"
+    if type(value) is dict:
+        return "{" + ", ".join(f"{_repr(k)}: {_repr(v)}" for k, v in value.items()) + "}"
+    return repr(value)
+
+
 def _show(value):
-    text = repr(value)
+    text = _repr(value)
     return text if len(text) <= 2000 else text[:2000] + " ..."
 
 

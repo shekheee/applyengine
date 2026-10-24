@@ -914,6 +914,30 @@ class PrepContentAndTutorTests(unittest.TestCase):
         other = self.client.get(f"/api/prep/attempts/{attempt_id}/tutor", headers=self.other_jwt)
         self.assertEqual(other.status_code, 404)
 
+    def test_design_attempt_saves_the_whiteboard_and_the_tutor_reads_it(self):
+        board = [
+            {"id": "a", "type": "rectangle"},
+            {"id": "ta", "type": "text", "text": "API", "containerId": "a"},
+            {"id": "b", "type": "rectangle"},
+            {"id": "tb", "type": "text", "text": "Cache", "containerId": "b"},
+            {"id": "x", "type": "arrow", "startBinding": {"elementId": "a"}, "endBinding": {"elementId": "b"}},
+        ]
+        attempt = self.log(task_id="hld-6.1", code="Shard by tenant", diagram=board)["attempt"]
+        self.assertEqual(len(attempt["diagram"]), 5)
+        fake = FakeTutor()
+        with patch.object(prep_router, "build_coach_provider", return_value=fake):
+            self.stream(attempt["id"])
+        context = fake.calls[0][1]["content"]
+        self.assertIn("Connections: API -> Cache", context)
+        self.assertIn("Design notes:\nShard by tenant", context)
+        too_big = [{"id": str(i), "type": "text", "text": "x" * 2000} for i in range(900)]
+        response = self.client.post(
+            "/api/prep/attempts",
+            json={"task_id": "hld-6.1", "date": self.today.isoformat(), "elapsed_minutes": 5, "diagram": too_big},
+            headers=self.jwt,
+        )
+        self.assertEqual(response.status_code, 422)
+
     def test_tutor_falls_back_to_the_reference_without_a_model(self):
         attempt_id = self.log()["attempt"]["id"]
         with patch.object(prep_router, "build_coach_provider", side_effect=RuntimeError("no keys")):

@@ -37,6 +37,54 @@ example; show code when it helps. Keep answers focused and under 300 words unles
 for more detail."""
 
 
+def describe_diagram(elements: list[dict[str, Any]] | None) -> str:
+    """Excalidraw elements as text: labelled boxes and the arrows between them."""
+    if not elements:
+        return ""
+    live = [e for e in elements if not e.get("isDeleted")]
+    by_id = {e.get("id"): e for e in live}
+    labels: dict[str, str] = {}
+    free_text: list[str] = []
+    for element in live:
+        if element.get("type") != "text":
+            continue
+        text = " ".join(str(element.get("text") or "").split())
+        if not text:
+            continue
+        container = element.get("containerId")
+        if container and container in by_id:
+            labels[container] = text
+        else:
+            free_text.append(text)
+
+    def name(element_id: str | None) -> str:
+        if not element_id or element_id not in by_id:
+            return "(unconnected)"
+        return labels.get(element_id) or by_id[element_id].get("type", "shape")
+
+    boxes = [
+        labels[e["id"]]
+        for e in live
+        if e.get("type") in ("rectangle", "ellipse", "diamond") and e.get("id") in labels
+    ]
+    arrows = []
+    for element in live:
+        if element.get("type") not in ("arrow", "line"):
+            continue
+        start = (element.get("startBinding") or {}).get("elementId")
+        end = (element.get("endBinding") or {}).get("elementId")
+        label = labels.get(element.get("id"))
+        arrows.append(f"{name(start)} -> {name(end)}" + (f" [{label}]" if label else ""))
+    lines = []
+    if boxes:
+        lines.append("Components: " + "; ".join(boxes))
+    if arrows:
+        lines.append("Connections: " + "; ".join(arrows))
+    if free_text:
+        lines.append("Other text on the board: " + "; ".join(free_text))
+    return "\n".join(lines)
+
+
 def task_context(
     task: PrepTask | None, attempt: PrepAttempt, hints_revealed: int
 ) -> str:
@@ -65,9 +113,14 @@ def task_context(
         f"Self-rating: {attempt.self_rating or 'not given'} / 5",
         f"Stated complexity: {attempt.complexity or 'not given'}",
         f"Notes: {attempt.notes or '(none)'}",
-        "Code:",
-        f"```python\n{attempt.code.strip() or '# (no code submitted)'}\n```",
     ]
+    if task and task.type in ("hld", "project"):
+        lines += ["Design notes:", attempt.code.strip() or "(no notes written)"]
+    else:
+        lines += ["Code:", f"```python\n{attempt.code.strip() or '# (no code submitted)'}\n```"]
+    diagram = describe_diagram(attempt.diagram)
+    if diagram:
+        lines += ["", "WHITEBOARD DIAGRAM (from their drawing):", diagram]
     if task and task.solution:
         lines += [
             "",

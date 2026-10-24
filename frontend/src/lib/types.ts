@@ -713,6 +713,7 @@ export interface PrepAttempt {
   code: string;
   notes: string;
   complexity: string;
+  diagram?: Record<string, unknown>[] | null;
 }
 
 export interface PrepRedo {
@@ -785,6 +786,7 @@ export interface PrepAttemptInput {
   code: string;
   notes: string;
   complexity: string;
+  diagram?: Record<string, unknown>[] | null;
 }
 
 export interface PrepAttemptResult {
@@ -839,6 +841,8 @@ export interface PrepTestCase {
   code: string;
   input?: string;
   hidden?: boolean;
+  /** Expected output shown with the example in the problem description. */
+  expected?: string;
 }
 
 export interface PrepStoryInput {

@@ -402,6 +402,7 @@ def create_attempt(
         code=body.code,
         notes=body.notes,
         complexity=body.complexity.strip(),
+        diagram=body.diagram,
     )
     session.add(attempt)
     session.flush()

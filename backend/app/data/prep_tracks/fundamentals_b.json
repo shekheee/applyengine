@@ -106,19 +106,22 @@
      "name": "per-token NLL on a 2-step example",
      "input": "logits = [[2, 1, 0], [0, 0, 0]], targets = [0, 2]",
      "hidden": false,
-     "code": "import numpy as np\nexpect(np.round(token_nll(np.array([[2.0, 1.0, 0.0], [0.0, 0.0, 0.0]]), [0, 2]), 6).tolist(), [0.407606, 1.098612])\n"
+     "code": "import numpy as np\nexpect(np.round(token_nll(np.array([[2.0, 1.0, 0.0], [0.0, 0.0, 0.0]]), [0, 2]), 6).tolist(), [0.407606, 1.098612])\n",
+     "expected": "[0.407606, 1.098612]"
     },
     {
      "name": "sequence log-prob and perplexity",
      "input": "logits = [[2, 1, 0], [0, 0, 0]], targets = [0, 2]",
      "hidden": false,
-     "code": "import numpy as np\nL = np.array([[2.0, 1.0, 0.0], [0.0, 0.0, 0.0]])\nexpect(round(sequence_logprob(L, [0, 2]), 6), -1.506218, label='sequence_logprob')\nexpect(round(perplexity(L, [0, 2]), 6), 2.123592, label='perplexity')\n"
+     "code": "import numpy as np\nL = np.array([[2.0, 1.0, 0.0], [0.0, 0.0, 0.0]])\nexpect(round(sequence_logprob(L, [0, 2]), 6), -1.506218, label='sequence_logprob')\nexpect(round(perplexity(L, [0, 2]), 6), 2.123592, label='perplexity')\n",
+     "expected": "sequence_logprob: -1.506218\nperplexity: 2.123592"
     },
     {
      "name": "log_softmax values",
      "input": "logits = [2, 1, 0]",
      "hidden": false,
-     "code": "import numpy as np\nexpect(np.round(log_softmax(np.array([2.0, 1.0, 0.0])), 6).tolist(), [-0.407606, -1.407606, -2.407606])\n"
+     "code": "import numpy as np\nexpect(np.round(log_softmax(np.array([2.0, 1.0, 0.0])), 6).tolist(), [-0.407606, -1.407606, -2.407606])\n",
+     "expected": "[-0.407606, -1.407606, -2.407606]"
     },
     {
      "name": "uniform model has perplexity V",
@@ -190,19 +193,22 @@
      "name": "KV-cache size for a 7B model at 4k context",
      "input": "n_layers=32, n_kv_heads=32, head_dim=128, seq_len=4096 (fp16)",
      "hidden": false,
-     "code": "expect(kv_cache_bytes(32, 32, 128, 4096), 2147483648)\n"
+     "code": "expect(kv_cache_bytes(32, 32, 128, 4096), 2147483648)\n",
+     "expected": "2147483648"
     },
     {
      "name": "incremental decoding equals full recompute",
      "input": "X = random (5, 4) seed 1, weights = make_weights(4, 3, seed=0)",
      "hidden": false,
-     "code": "import numpy as np\nWq, Wk, Wv = make_weights(4, 3, seed=0)\nX = np.random.default_rng(1).normal(size=(5, 4))\nfull = full_attention(X, Wq, Wk, Wv)\ninc = incremental_attention(X, Wq, Wk, Wv)\nexpect(np.round(inc, 4).tolist(), np.round(full, 4).tolist())\nexpect(bool(np.allclose(inc, full, atol=1e-9)), True, label='allclose')\n"
+     "code": "import numpy as np\nWq, Wk, Wv = make_weights(4, 3, seed=0)\nX = np.random.default_rng(1).normal(size=(5, 4))\nfull = full_attention(X, Wq, Wk, Wv)\ninc = incremental_attention(X, Wq, Wk, Wv)\nexpect(np.round(inc, 4).tolist(), np.round(full, 4).tolist())\nexpect(bool(np.allclose(inc, full, atol=1e-9)), True, label='allclose')\n",
+     "expected": "[[-0.7418, -0.3462, -0.2959], [0.007, -0.1253, -0.2117], [0.0272, -0.0934, -0.1525], [-0.0017, -0.087, -0.1054], [0.1284, -0.0191, -0.0412]]\nallclose: True"
     },
     {
      "name": "full causal attention numbers",
      "input": "X = first 2 rows of random (5, 4) seed 1",
      "hidden": false,
-     "code": "import numpy as np\nWq, Wk, Wv = make_weights(4, 3, seed=0)\nX = np.random.default_rng(1).normal(size=(5, 4))[:2]\nexpect(np.round(full_attention(X, Wq, Wk, Wv), 4).tolist(), [[-0.7418, -0.3462, -0.2959], [0.007, -0.1253, -0.2117]])\n"
+     "code": "import numpy as np\nWq, Wk, Wv = make_weights(4, 3, seed=0)\nX = np.random.default_rng(1).normal(size=(5, 4))[:2]\nexpect(np.round(full_attention(X, Wq, Wk, Wv), 4).tolist(), [[-0.7418, -0.3462, -0.2959], [0.007, -0.1253, -0.2117]])\n",
+     "expected": "[[-0.7418, -0.3462, -0.2959], [0.007, -0.1253, -0.2117]]"
     },
     {
      "name": "first token attends only to itself",
@@ -268,19 +274,22 @@
      "name": "cosine similarity of a query against 4 docs",
      "input": "q = [1, 0.2], docs = [[1, 0.1], [1, 0.12], [0.5, 1], [-1, 0.2]]",
      "hidden": false,
-     "code": "import numpy as np\nq = np.array([1.0, 0.2]); D = np.array([[1, 0.1], [1, 0.12], [0.5, 1], [-1, 0.2]])\nexpect(np.round(cosine_similarity(q, D), 6).tolist(), [[0.995229, 0.996962, 0.613941, -0.923077]])\n"
+     "code": "import numpy as np\nq = np.array([1.0, 0.2]); D = np.array([[1, 0.1], [1, 0.12], [0.5, 1], [-1, 0.2]])\nexpect(np.round(cosine_similarity(q, D), 6).tolist(), [[0.995229, 0.996962, 0.613941, -0.923077]])\n",
+     "expected": "[[0.995229, 0.996962, 0.613941, -0.923077]]"
     },
     {
      "name": "top-k returns near-duplicates",
      "input": "same q, docs; k = 3",
      "hidden": false,
-     "code": "import numpy as np\nq = np.array([1.0, 0.2]); D = np.array([[1, 0.1], [1, 0.12], [0.5, 1], [-1, 0.2]])\nexpect(top_k(q, D, 3), [1, 0, 2])\n"
+     "code": "import numpy as np\nq = np.array([1.0, 0.2]); D = np.array([[1, 0.1], [1, 0.12], [0.5, 1], [-1, 0.2]])\nexpect(top_k(q, D, 3), [1, 0, 2])\n",
+     "expected": "[1, 0, 2]"
     },
     {
      "name": "MMR promotes a diverse doc",
      "input": "same q, docs; k = 3, lam = 0.5",
      "hidden": false,
-     "code": "import numpy as np\nq = np.array([1.0, 0.2]); D = np.array([[1, 0.1], [1, 0.12], [0.5, 1], [-1, 0.2]])\nexpect(mmr(q, D, 3, lam=0.5), [1, 2, 0])\n"
+     "code": "import numpy as np\nq = np.array([1.0, 0.2]); D = np.array([[1, 0.1], [1, 0.12], [0.5, 1], [-1, 0.2]])\nexpect(mmr(q, D, 3, lam=0.5), [1, 2, 0])\n",
+     "expected": "[1, 2, 0]"
     },
     {
      "name": "lam = 1 is plain top-k",
@@ -346,13 +355,15 @@
      "name": "rank-1 delta and forward pass",
      "input": "W = [[1,0,2],[0,1,-1]], A = [[1,2,0]], B = [[1],[-1]], alpha = 2, x = [[1,1,1]]",
      "hidden": false,
-     "code": "import numpy as np\nW = np.array([[1.0, 0, 2], [0, 1, -1]]); A = np.array([[1.0, 2, 0]]); B = np.array([[1.0], [-1]])\nexpect(lora_delta(A, B, 2).tolist(), [[2.0, 4.0, 0.0], [-2.0, -4.0, 0.0]], label='delta')\nexpect(lora_forward(np.array([[1.0, 1, 1]]), W, A, B, 2).tolist(), [[9.0, -6.0]], label='forward')\n"
+     "code": "import numpy as np\nW = np.array([[1.0, 0, 2], [0, 1, -1]]); A = np.array([[1.0, 2, 0]]); B = np.array([[1.0], [-1]])\nexpect(lora_delta(A, B, 2).tolist(), [[2.0, 4.0, 0.0], [-2.0, -4.0, 0.0]], label='delta')\nexpect(lora_forward(np.array([[1.0, 1, 1]]), W, A, B, 2).tolist(), [[9.0, -6.0]], label='forward')\n",
+     "expected": "delta: [[2.0, 4.0, 0.0], [-2.0, -4.0, 0.0]]\nforward: [[9.0, -6.0]]"
     },
     {
      "name": "parameter count vs full fine-tune",
      "input": "d_out = d_in = 4096, r = 8",
      "hidden": false,
-     "code": "expect(lora_param_count(4096, 4096, 8), 65536, label='lora params')\nexpect(trainable_fraction(4096, 4096, 8), 0.00390625, label='fraction')\n"
+     "code": "expect(lora_param_count(4096, 4096, 8), 65536, label='lora params')\nexpect(trainable_fraction(4096, 4096, 8), 0.00390625, label='fraction')\n",
+     "expected": "lora params: 65536\nfraction: 0.00390625"
     },
     {
      "name": "fresh adapter leaves the model unchanged",
@@ -424,19 +435,22 @@
      "name": "cost of one request",
      "input": "prompt = 2000, output = 500, price_in = $3/M, price_out = $15/M",
      "hidden": false,
-     "code": "expect(request_cost(2000, 500, 3, 15), 0.0135)\n"
+     "code": "expect(request_cost(2000, 500, 3, 15), 0.0135)\n",
+     "expected": "0.0135"
     },
     {
      "name": "ttft and total latency",
      "input": "prompt = 2000, output = 500, prefill 5000 tok/s, decode 50 tok/s, overhead 0.2 s",
      "hidden": false,
-     "code": "ttft, total = request_latency(2000, 500, 5000, 50, overhead_s=0.2)\nexpect(round(ttft, 6), 0.6, label='ttft')\nexpect(round(total, 6), 10.6, label='total')\n"
+     "code": "ttft, total = request_latency(2000, 500, 5000, 50, overhead_s=0.2)\nexpect(round(ttft, 6), 0.6, label='ttft')\nexpect(round(total, 6), 10.6, label='total')\n",
+     "expected": "ttft: 0.6\ntotal: 10.6"
     },
     {
      "name": "summary of a chat + RAG mix",
      "input": "chat 1500/300 x800, rag 6000/400 x200; $3/$15; 5000/50 tok/s; 0.2 s",
      "hidden": false,
-     "code": "mix = [{'name': 'chat', 'prompt': 1500, 'output': 300, 'count': 800}, {'name': 'rag', 'prompt': 6000, 'output': 400, 'count': 200}]\ns = mix_summary(mix, 3, 15, 5000, 50, 0.2)\nexpect((s['requests'], s['input_tokens'], s['output_tokens']), (1000, 2400000, 320000), label='counts')\nexpect(round(s['cost'], 6), 12.0, label='cost')\nexpect(round(s['cost_per_request'], 6), 0.012, label='per request')\n"
+     "code": "mix = [{'name': 'chat', 'prompt': 1500, 'output': 300, 'count': 800}, {'name': 'rag', 'prompt': 6000, 'output': 400, 'count': 200}]\ns = mix_summary(mix, 3, 15, 5000, 50, 0.2)\nexpect((s['requests'], s['input_tokens'], s['output_tokens']), (1000, 2400000, 320000), label='counts')\nexpect(round(s['cost'], 6), 12.0, label='cost')\nexpect(round(s['cost_per_request'], 6), 0.012, label='per request')\n",
+     "expected": "counts: (1000, 2400000, 320000)\ncost: 12.0\nper request: 0.012"
     },
     {
      "name": "mix latency statistics",
@@ -502,19 +516,22 @@
      "name": "pass@1 equals c / n",
      "input": "n = 10, c = 3, k = 1",
      "hidden": false,
-     "code": "expect(round(pass_at_k(10, 3, 1), 6), 0.3)\n"
+     "code": "expect(round(pass_at_k(10, 3, 1), 6), 0.3)\n",
+     "expected": "0.3"
     },
     {
      "name": "pass@5 from 10 samples",
      "input": "n = 10, c = 3, k = 5",
      "hidden": false,
-     "code": "expect(round(pass_at_k(10, 3, 5), 6), 0.916667)\n"
+     "code": "expect(round(pass_at_k(10, 3, 5), 6), 0.916667)\n",
+     "expected": "0.916667"
     },
     {
      "name": "bootstrap CI of a constant is a point",
      "input": "values = [0.7] * 20",
      "hidden": false,
-     "code": "expect(tuple(round(x, 6) for x in bootstrap_ci([0.7] * 20)), (0.7, 0.7))\n"
+     "code": "expect(tuple(round(x, 6) for x in bootstrap_ci([0.7] * 20)), (0.7, 0.7))\n",
+     "expected": "(0.7, 0.7)"
     },
     {
      "name": "no correct samples gives 0",
@@ -580,13 +597,15 @@
      "name": "reliability bins for 5 predictions",
      "input": "conf = [0.9, 0.9, 0.8, 0.6, 0.3], correct = [1, 0, 1, 1, 0], n_bins = 5",
      "hidden": false,
-     "code": "import numpy as np\ncounts, conf, acc = reliability_bins([0.9, 0.9, 0.8, 0.6, 0.3], [1, 0, 1, 1, 0], n_bins=5)\nexpect(np.asarray(counts).tolist(), [0, 1, 0, 1, 3], label='counts')\nexpect(np.round(conf, 6).tolist(), [0.0, 0.3, 0.0, 0.6, 0.866667], label='mean confidence')\nexpect(np.round(acc, 6).tolist(), [0.0, 0.0, 0.0, 1.0, 0.666667], label='accuracy')\n"
+     "code": "import numpy as np\ncounts, conf, acc = reliability_bins([0.9, 0.9, 0.8, 0.6, 0.3], [1, 0, 1, 1, 0], n_bins=5)\nexpect(np.asarray(counts).tolist(), [0, 1, 0, 1, 3], label='counts')\nexpect(np.round(conf, 6).tolist(), [0.0, 0.3, 0.0, 0.6, 0.866667], label='mean confidence')\nexpect(np.round(acc, 6).tolist(), [0.0, 0.0, 0.0, 1.0, 0.666667], label='accuracy')\n",
+     "expected": "counts: [0, 1, 0, 1, 3]\nmean confidence: [0.0, 0.3, 0.0, 0.6, 0.866667]\naccuracy: [0.0, 0.0, 0.0, 1.0, 0.666667]"
     },
     {
      "name": "ECE and MCE",
      "input": "same data, n_bins = 5",
      "hidden": false,
-     "code": "c, y = [0.9, 0.9, 0.8, 0.6, 0.3], [1, 0, 1, 1, 0]\nexpect(round(expected_calibration_error(c, y, 5), 6), 0.26, label='ECE')\nexpect(round(max_calibration_error(c, y, 5), 6), 0.4, label='MCE')\n"
+     "code": "c, y = [0.9, 0.9, 0.8, 0.6, 0.3], [1, 0, 1, 1, 0]\nexpect(round(expected_calibration_error(c, y, 5), 6), 0.26, label='ECE')\nexpect(round(max_calibration_error(c, y, 5), 6), 0.4, label='MCE')\n",
+     "expected": "ECE: 0.26\nMCE: 0.4"
     },
     {
      "name": "perfectly calibrated bins give ECE 0",
@@ -658,13 +677,15 @@
      "name": "training reaches 94% accuracy",
      "input": "X, y = make_data(200, seed=0); lr = 0.5, epochs = 300",
      "hidden": false,
-     "code": "X, y = make_data(200, seed=0)\nw, b, losses = train(X, y, lr=0.5, epochs=300)\nexpect(round(losses[0], 6), 0.693147, label='first loss = ln 2')\nexpect(len(losses), 300, label='one loss per epoch')\nexpect(round(accuracy(X, y, w, b), 6), 0.94, label='accuracy')\n"
+     "code": "X, y = make_data(200, seed=0)\nw, b, losses = train(X, y, lr=0.5, epochs=300)\nexpect(round(losses[0], 6), 0.693147, label='first loss = ln 2')\nexpect(len(losses), 300, label='one loss per epoch')\nexpect(round(accuracy(X, y, w, b), 6), 0.94, label='accuracy')\n",
+     "expected": "first loss = ln 2: 0.693147\none loss per epoch: 300\naccuracy: 0.94"
     },
     {
      "name": "sigmoid is stable at extremes",
      "input": "z = [-1000, 0, 1000]",
      "hidden": false,
-     "code": "import numpy as np\nexpect(sigmoid(np.array([-1000.0, 0.0, 1000.0])).tolist(), [0.0, 0.5, 1.0])\n"
+     "code": "import numpy as np\nexpect(sigmoid(np.array([-1000.0, 0.0, 1000.0])).tolist(), [0.0, 0.5, 1.0])\n",
+     "expected": "[0.0, 0.5, 1.0]"
     },
     {
      "name": "loss decreases every epoch",

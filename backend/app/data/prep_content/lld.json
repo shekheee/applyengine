@@ -7,19 +7,22 @@
     "name": "brief example: inner rollback of a delete",
     "input": "ops: set(a,1) → begin → set(a,2) → begin → delete(a) → rollback → get(a) → commit → get(a)",
     "hidden": false,
-    "code": "kv = KVStore(); out = []\nkv.set(\"a\", 1)\nkv.begin(); kv.set(\"a\", 2)\nkv.begin(); kv.delete(\"a\"); kv.rollback()\nout.append(kv.get(\"a\"))\nkv.commit(); out.append(kv.get(\"a\"))\nexpect(out, [2, 2], \"outputs of get(a)\")\nexpect(kv.depth, 0, \"depth after commit\")\n"
+    "code": "kv = KVStore(); out = []\nkv.set(\"a\", 1)\nkv.begin(); kv.set(\"a\", 2)\nkv.begin(); kv.delete(\"a\"); kv.rollback()\nout.append(kv.get(\"a\"))\nkv.commit(); out.append(kv.get(\"a\"))\nexpect(out, [2, 2], \"outputs of get(a)\")\nexpect(kv.depth, 0, \"depth after commit\")\n",
+    "expected": "outputs of get(a): [2, 2]\ndepth after commit: 0"
    },
    {
     "name": "rollback restores sets and deletes",
     "input": "ops: set(a,1) → set(b,2) → begin → set(a,10) → delete(b) → set(c,3) → get(a,b,c) → rollback → get(a,b,c)",
     "hidden": false,
-    "code": "kv = KVStore()\nkv.set(\"a\", 1); kv.set(\"b\", 2)\nkv.begin()\nkv.set(\"a\", 10); kv.delete(\"b\"); kv.set(\"c\", 3)\ninside = [kv.get(\"a\"), kv.get(\"b\"), kv.get(\"c\")]\nkv.rollback()\nafter = [kv.get(\"a\"), kv.get(\"b\"), kv.get(\"c\")]\nexpect(inside + after, [10, None, 3, 1, 2, None], \"gets inside txn, then after rollback\")\n"
+    "code": "kv = KVStore()\nkv.set(\"a\", 1); kv.set(\"b\", 2)\nkv.begin()\nkv.set(\"a\", 10); kv.delete(\"b\"); kv.set(\"c\", 3)\ninside = [kv.get(\"a\"), kv.get(\"b\"), kv.get(\"c\")]\nkv.rollback()\nafter = [kv.get(\"a\"), kv.get(\"b\"), kv.get(\"c\")]\nexpect(inside + after, [10, None, 3, 1, 2, None], \"gets inside txn, then after rollback\")\n",
+    "expected": "[10, None, 3, 1, 2, None]"
    },
    {
     "name": "no transaction: set/get/delete apply immediately",
     "input": "ops: get(x) → get(x, 7) → set(x,1) → get(x) → delete(x) → delete(x) → get(x)",
     "hidden": false,
-    "code": "kv = KVStore()\nout = [kv.get(\"x\"), kv.get(\"x\", 7)]\nkv.set(\"x\", 1)\nout += [kv.get(\"x\"), kv.delete(\"x\"), kv.delete(\"x\"), kv.get(\"x\")]\nexpect(out, [None, 7, 1, True, False, None])\nexpect(kv.depth, 0, \"depth\")\n"
+    "code": "kv = KVStore()\nout = [kv.get(\"x\"), kv.get(\"x\", 7)]\nkv.set(\"x\", 1)\nout += [kv.get(\"x\"), kv.delete(\"x\"), kv.delete(\"x\"), kv.get(\"x\")]\nexpect(out, [None, 7, 1, True, False, None])\nexpect(kv.depth, 0, \"depth\")\n",
+    "expected": "[None, 7, 1, True, False, None]\ndepth: 0"
    },
    {
     "name": "nested rollback discards only the inner transaction",
@@ -91,19 +94,22 @@
     "name": "brief example: token bucket per user with a fake clock",
     "input": "TokenBucket(capacity=2, refill_per_sec=1); t=0: allow(u1)×3, allow(u2); t=1: allow(u1)",
     "hidden": false,
-    "code": "t = [0.0]\nrl = RateLimiter(TokenBucket(capacity=2, refill_per_sec=1.0), clock=lambda: t[0])\nout = [rl.allow(\"u1\"), rl.allow(\"u1\"), rl.allow(\"u1\"), rl.allow(\"u2\")]\nt[0] = 1.0\nout.append(rl.allow(\"u1\"))\nexpect(out, [True, True, False, True, True])\n"
+    "code": "t = [0.0]\nrl = RateLimiter(TokenBucket(capacity=2, refill_per_sec=1.0), clock=lambda: t[0])\nout = [rl.allow(\"u1\"), rl.allow(\"u1\"), rl.allow(\"u1\"), rl.allow(\"u2\")]\nt[0] = 1.0\nout.append(rl.allow(\"u1\"))\nexpect(out, [True, True, False, True, True])\n",
+    "expected": "[True, True, False, True, True]"
    },
    {
     "name": "sliding window log expiry boundary",
     "input": "SlidingWindowLog(limit=2, window_sec=10); allow(u) at t = 0, 1, 5, 9.99, 10, 10.5, 11",
     "hidden": false,
-    "code": "sw = SlidingWindowLog(limit=2, window_sec=10.0)\nout = [sw.allow(\"u\", t) for t in (0.0, 1.0, 5.0, 9.99, 10.0, 10.5, 11.0)]\nexpect(out, [True, True, False, False, True, False, True], \"a request exactly window_sec old has expired\")\n"
+    "code": "sw = SlidingWindowLog(limit=2, window_sec=10.0)\nout = [sw.allow(\"u\", t) for t in (0.0, 1.0, 5.0, 9.99, 10.0, 10.5, 11.0)]\nexpect(out, [True, True, False, False, True, False, True], \"a request exactly window_sec old has expired\")\n",
+    "expected": "[True, True, False, False, True, False, True]"
    },
    {
     "name": "token bucket burst, half token, refill",
     "input": "TokenBucket(capacity=2, refill_per_sec=1); allow(u) at t = 0, 0, 0, 0.5, 1.0, 1.0",
     "hidden": false,
-    "code": "tb = TokenBucket(capacity=2, refill_per_sec=1.0)\nout = [tb.allow(\"u\", t) for t in (0.0, 0.0, 0.0, 0.5, 1.0, 1.0)]\nexpect(out, [True, True, False, False, True, False])\n"
+    "code": "tb = TokenBucket(capacity=2, refill_per_sec=1.0)\nout = [tb.allow(\"u\", t) for t in (0.0, 0.0, 0.0, 0.5, 1.0, 1.0)]\nexpect(out, [True, True, False, False, True, False])\n",
+    "expected": "[True, True, False, False, True, False]"
    },
    {
     "name": "refill is capped at capacity after idling",
@@ -175,19 +181,22 @@
     "name": "brief example: higher priority pulled first",
     "input": "submit(a, priority=1) → submit(b, priority=5) → pull(0) → pull(0) → pull(0)",
     "hidden": false,
-    "code": "s = JobScheduler(base_delay=1.0)\ns.submit(Job(\"a\", lambda: 1, priority=1)); s.submit(Job(\"b\", lambda: 2, priority=5))\nout = [s.pull(0), s.pull(0), s.pull(0)]\nexpect([j.id if j else None for j in out], [\"b\", \"a\", None])\n"
+    "code": "s = JobScheduler(base_delay=1.0)\ns.submit(Job(\"a\", lambda: 1, priority=1)); s.submit(Job(\"b\", lambda: 2, priority=5))\nout = [s.pull(0), s.pull(0), s.pull(0)]\nexpect([j.id if j else None for j in out], [\"b\", \"a\", None])\n",
+    "expected": "['b', 'a', None]"
    },
    {
     "name": "worker runs a job to success",
     "input": "submit(j → 42) → run_once(0) → run_once(0) → get(j)",
     "hidden": false,
-    "code": "s = JobScheduler(); w = Worker(s)\ns.submit(Job(\"j\", lambda: 42))\nruns = [w.run_once(0.0), w.run_once(0.0)]\nj = s.get(\"j\")\nexpect(runs, [True, False], \"run_once results\")\nexpect((j.status, j.result, j.attempts), (\"succeeded\", 42, 1))\n"
+    "code": "s = JobScheduler(); w = Worker(s)\ns.submit(Job(\"j\", lambda: 42))\nruns = [w.run_once(0.0), w.run_once(0.0)]\nj = s.get(\"j\")\nexpect(runs, [True, False], \"run_once results\")\nexpect((j.status, j.result, j.attempts), (\"succeeded\", 42, 1))\n",
+    "expected": "run_once results: [True, False]\n('succeeded', 42, 1)"
    },
    {
     "name": "priority ties run in FIFO order",
     "input": "submit low(1), high(5), mid(3), mid2(3) → pull(0) ×5",
     "hidden": false,
-    "code": "s = JobScheduler()\nfor jid, p in [(\"low\", 1), (\"high\", 5), (\"mid\", 3), (\"mid2\", 3)]:\n    s.submit(Job(jid, lambda: None, priority=p))\norder = [s.pull(0.0) for _ in range(5)]\nexpect([j.id if j else None for j in order], [\"high\", \"mid\", \"mid2\", \"low\", None])\n"
+    "code": "s = JobScheduler()\nfor jid, p in [(\"low\", 1), (\"high\", 5), (\"mid\", 3), (\"mid2\", 3)]:\n    s.submit(Job(jid, lambda: None, priority=p))\norder = [s.pull(0.0) for _ in range(5)]\nexpect([j.id if j else None for j in order], [\"high\", \"mid\", \"mid2\", \"low\", None])\n",
+    "expected": "['high', 'mid', 'mid2', 'low', None]"
    },
    {
     "name": "retries use exponential backoff",
@@ -259,19 +268,22 @@
     "name": "brief example: one example, exact match",
     "input": "records = [{\"id\": \"1\", \"input\": \"2+2\", \"expected\": \"4\"}], model answers {\"2+2\": \"4\"}, ExactMatchGrader",
     "hidden": false,
-    "code": "ds = Dataset.from_records([{\"id\": \"1\", \"input\": \"2+2\", \"expected\": \"4\"}])\nreport = Runner(DictModel({\"2+2\": \"4\"}), ExactMatchGrader()).run(Task(\"math\", ds))\nexpect(report.accuracy, 1.0, \"accuracy\")\nexpect((report.task_name, report.failed_ids(), report.n_errors), (\"math\", [], 0))\n"
+    "code": "ds = Dataset.from_records([{\"id\": \"1\", \"input\": \"2+2\", \"expected\": \"4\"}])\nreport = Runner(DictModel({\"2+2\": \"4\"}), ExactMatchGrader()).run(Task(\"math\", ds))\nexpect(report.accuracy, 1.0, \"accuracy\")\nexpect((report.task_name, report.failed_ids(), report.n_errors), (\"math\", [], 0))\n",
+    "expected": "accuracy: 1.0\n('math', [], 0)"
    },
    {
     "name": "runner end-to-end with a prompt template",
     "input": "template \"Q: {input}\", 3 examples (2+2=4, 3+3=6, 5+5=10), model answers 5+5 with \"11\"",
     "hidden": false,
-    "code": "ds = Dataset.from_records([\n    {\"id\": \"1\", \"input\": \"2+2\", \"expected\": \"4\"},\n    {\"id\": \"2\", \"input\": \"3+3\", \"expected\": \"6\"},\n    {\"id\": \"3\", \"input\": \"5+5\", \"expected\": \"10\"},\n])\nmodel = DictModel({\"Q: 2+2\": \"4\", \"Q: 3+3\": \"6\", \"Q: 5+5\": \"11\"})\nreport = Runner(model, ExactMatchGrader()).run(Task(\"math\", ds, prompt_template=\"Q: {input}\"))\nexpect(model.prompts, [\"Q: 2+2\", \"Q: 3+3\", \"Q: 5+5\"], \"prompts sent\")\nexpect(report.accuracy, 2 / 3, \"accuracy\")\nexpect(report.failed_ids(), [\"3\"])\n"
+    "code": "ds = Dataset.from_records([\n    {\"id\": \"1\", \"input\": \"2+2\", \"expected\": \"4\"},\n    {\"id\": \"2\", \"input\": \"3+3\", \"expected\": \"6\"},\n    {\"id\": \"3\", \"input\": \"5+5\", \"expected\": \"10\"},\n])\nmodel = DictModel({\"Q: 2+2\": \"4\", \"Q: 3+3\": \"6\", \"Q: 5+5\": \"11\"})\nreport = Runner(model, ExactMatchGrader()).run(Task(\"math\", ds, prompt_template=\"Q: {input}\"))\nexpect(model.prompts, [\"Q: 2+2\", \"Q: 3+3\", \"Q: 5+5\"], \"prompts sent\")\nexpect(report.accuracy, 2 / 3, \"accuracy\")\nexpect(report.failed_ids(), [\"3\"])\n",
+    "expected": "prompts sent: ['Q: 2+2', 'Q: 3+3', 'Q: 5+5']\naccuracy: 0.6666666666666666\n['3']"
    },
    {
     "name": "exact and regex graders",
     "input": "exact(\"  paris \", \"Paris\"), exact(\"Paris, France\", \"Paris\"), exact(\"new   york\", \"New York\"), regex(\"It was 1969.\", r\"\\b19\\d\\d\\b\"), regex(\"It was 2001.\", ...)",
     "hidden": false,
-    "code": "g, rx = ExactMatchGrader(), RegexGrader()\nyear = Example(\"3\", \"year?\", r\"\\b19\\d\\d\\b\")\nscores = [\n    g.grade(\"  paris \", Example(\"1\", \"q\", \"Paris\")),\n    g.grade(\"Paris, France\", Example(\"1\", \"q\", \"Paris\")),\n    g.grade(\"new   york\", Example(\"2\", \"q\", \"New York\")),\n    rx.grade(\"It was 1969.\", year),\n    rx.grade(\"It was 2001.\", year),\n]\nexpect(scores, [1.0, 0.0, 1.0, 1.0, 0.0])\n"
+    "code": "g, rx = ExactMatchGrader(), RegexGrader()\nyear = Example(\"3\", \"year?\", r\"\\b19\\d\\d\\b\")\nscores = [\n    g.grade(\"  paris \", Example(\"1\", \"q\", \"Paris\")),\n    g.grade(\"Paris, France\", Example(\"1\", \"q\", \"Paris\")),\n    g.grade(\"new   york\", Example(\"2\", \"q\", \"New York\")),\n    rx.grade(\"It was 1969.\", year),\n    rx.grade(\"It was 2001.\", year),\n]\nexpect(scores, [1.0, 0.0, 1.0, 1.0, 0.0])\n",
+    "expected": "[1.0, 0.0, 1.0, 1.0, 0.0]"
    },
    {
     "name": "from_records rejects missing fields and duplicate ids",
@@ -343,19 +355,22 @@
     "name": "brief example: falls back when the primary fails",
     "input": "routes = [openai(fail=True)/gpt-small, anthropic/claude-small]; complete(\"say hi please\")",
     "hidden": false,
-    "code": "oa, an = FakeOpenAIClient(fail=True), FakeAnthropicClient()\ngw = LLMGateway([Route(OpenAIAdapter(oa), \"gpt-small\"), Route(AnthropicAdapter(an), \"claude-small\")], PRICES)\nc = gw.complete(\"say hi please\")\nexpect((c.provider, c.model, c.text), (\"anthropic\", \"claude-small\", \"hello from anthropic\"))\nexpect((oa.calls, an.calls, len(gw.ledger)), (1, 1, 1), \"calls per vendor, ledger size\")\n"
+    "code": "oa, an = FakeOpenAIClient(fail=True), FakeAnthropicClient()\ngw = LLMGateway([Route(OpenAIAdapter(oa), \"gpt-small\"), Route(AnthropicAdapter(an), \"claude-small\")], PRICES)\nc = gw.complete(\"say hi please\")\nexpect((c.provider, c.model, c.text), (\"anthropic\", \"claude-small\", \"hello from anthropic\"))\nexpect((oa.calls, an.calls, len(gw.ledger)), (1, 1, 1), \"calls per vendor, ledger size\")\n",
+    "expected": "('anthropic', 'claude-small', 'hello from anthropic')\ncalls per vendor, ledger size: (1, 1, 1)"
    },
    {
     "name": "primary route succeeds with the right cost",
     "input": "routes = [openai(reply=\"hello there friend\")/gpt-small, anthropic/claude-small]; complete(\"say hi please\")",
     "hidden": false,
-    "code": "oa, an = FakeOpenAIClient(reply=\"hello there friend\"), FakeAnthropicClient()\ngw = LLMGateway([Route(OpenAIAdapter(oa), \"gpt-small\"), Route(AnthropicAdapter(an), \"claude-small\")], PRICES)\nc = gw.complete(\"say hi please\")\nexpect((c.text, c.provider, c.model, c.input_tokens, c.output_tokens),\n       (\"hello there friend\", \"openai\", \"gpt-small\", 3, 3))\nexpect(c.cost_usd, 3 / 1000 * 0.5 + 3 / 1000 * 1.5, \"cost_usd\")\n"
+    "code": "oa, an = FakeOpenAIClient(reply=\"hello there friend\"), FakeAnthropicClient()\ngw = LLMGateway([Route(OpenAIAdapter(oa), \"gpt-small\"), Route(AnthropicAdapter(an), \"claude-small\")], PRICES)\nc = gw.complete(\"say hi please\")\nexpect((c.text, c.provider, c.model, c.input_tokens, c.output_tokens),\n       (\"hello there friend\", \"openai\", \"gpt-small\", 3, 3))\nexpect(c.cost_usd, 3 / 1000 * 0.5 + 3 / 1000 * 1.5, \"cost_usd\")\n",
+    "expected": "('hello there friend', 'openai', 'gpt-small', 3, 3)\ncost_usd: 0.006"
    },
    {
     "name": "adapters normalise vendor responses",
     "input": "OpenAIAdapter(reply=\"four words right here\").complete(\"one two\"); AnthropicAdapter(reply=\"hi\").complete(\"a b c\")",
     "hidden": false,
-    "code": "o = OpenAIAdapter(FakeOpenAIClient(reply=\"four words right here\")).complete(\"one two\", \"gpt-small\")\na = AnthropicAdapter(FakeAnthropicClient(reply=\"hi\")).complete(\"a b c\", \"claude-small\")\nexpect([o, a], [ProviderResponse(\"four words right here\", 2, 4), ProviderResponse(\"hi\", 3, 1)])\n"
+    "code": "o = OpenAIAdapter(FakeOpenAIClient(reply=\"four words right here\")).complete(\"one two\", \"gpt-small\")\na = AnthropicAdapter(FakeAnthropicClient(reply=\"hi\")).complete(\"a b c\", \"claude-small\")\nexpect([o, a], [ProviderResponse(\"four words right here\", 2, 4), ProviderResponse(\"hi\", 3, 1)])\n",
+    "expected": "[ProviderResponse(text='four words right here', input_tokens=2, output_tokens=4), ProviderResponse(text='hi', input_tokens=3, output_tokens=1)]"
    },
    {
     "name": "later routes are not called after a success",
@@ -427,19 +442,22 @@
     "name": "brief example: render uses the latest version",
     "input": "register(greet, \"Hi {name}!\") → register(greet, \"Hello {name}, welcome to {product}.\") → render(greet, {name: Ana, product: Acme})",
     "hidden": false,
-    "code": "reg = PromptRegistry()\nreg.register(\"greet\", \"Hi {name}!\")\nreg.register(\"greet\", \"Hello {name}, welcome to {product}.\")\nexpect(reg.render(\"greet\", {\"name\": \"Ana\", \"product\": \"Acme\"}),\n       RenderedPrompt(\"Hello Ana, welcome to Acme.\", \"greet\", 2))\n"
+    "code": "reg = PromptRegistry()\nreg.register(\"greet\", \"Hi {name}!\")\nreg.register(\"greet\", \"Hello {name}, welcome to {product}.\")\nexpect(reg.render(\"greet\", {\"name\": \"Ana\", \"product\": \"Acme\"}),\n       RenderedPrompt(\"Hello Ana, welcome to Acme.\", \"greet\", 2))\n",
+    "expected": "RenderedPrompt(text='Hello Ana, welcome to Acme.', name='greet', version=2)"
    },
    {
     "name": "versions increase per name; get latest or a specific one",
     "input": "register(greet) ×2 with different text → versions(greet) → get(greet).version → get(greet, 1).text → register(other)",
     "hidden": false,
-    "code": "reg = PromptRegistry()\nt1 = reg.register(\"greet\", \"Hi {name}!\")\nt2 = reg.register(\"greet\", \"Hello {name} from {team}.\")\nother = reg.register(\"other\", \"x\")\nexpect([t1.version, t2.version, other.version], [1, 2, 1], \"versions start at 1 per name\")\nexpect((reg.versions(\"greet\"), reg.get(\"greet\") == t2, reg.get(\"greet\", 1).text), ([1, 2], True, \"Hi {name}!\"))\nexpect(t2.variables, {\"name\", \"team\"}, \"variables\")\n"
+    "code": "reg = PromptRegistry()\nt1 = reg.register(\"greet\", \"Hi {name}!\")\nt2 = reg.register(\"greet\", \"Hello {name} from {team}.\")\nother = reg.register(\"other\", \"x\")\nexpect([t1.version, t2.version, other.version], [1, 2, 1], \"versions start at 1 per name\")\nexpect((reg.versions(\"greet\"), reg.get(\"greet\") == t2, reg.get(\"greet\", 1).text), ([1, 2], True, \"Hi {name}!\"))\nexpect(t2.variables, {\"name\", \"team\"}, \"variables\")\n",
+    "expected": "versions start at 1 per name: [1, 2, 1]\n([1, 2], True, 'Hi {name}!')\nvariables: {'name', 'team'}"
    },
    {
     "name": "missing variable raises PromptInputError",
     "input": "register(q, \"Answer {question} using {context}.\") → render(q, {question: \"why?\"})",
     "hidden": false,
-    "code": "reg = PromptRegistry()\nreg.register(\"q\", \"Answer {question} using {context}.\")\nerr = expect_raises(PromptInputError, reg.render, \"q\", {\"question\": \"why?\"})\nexpect((\"context\" in str(err), isinstance(err, ValueError)), (True, True), \"names the missing variable; is a ValueError\")\n"
+    "code": "reg = PromptRegistry()\nreg.register(\"q\", \"Answer {question} using {context}.\")\nerr = expect_raises(PromptInputError, reg.render, \"q\", {\"question\": \"why?\"})\nexpect((\"context\" in str(err), isinstance(err, ValueError)), (True, True), \"names the missing variable; is a ValueError\")\n",
+    "expected": "raises PromptInputError\nnames the missing variable; is a ValueError: (True, True)"
    },
    {
     "name": "unexpected variable raises PromptInputError",
@@ -511,19 +529,22 @@
     "name": "brief example: system prompt + newest messages that fit",
     "input": "max_tokens=10, system=\"be brief\"; add user \"hi there\", \"hello you\", \"how are\", \"fine thanks\"",
     "hidden": false,
-    "code": "mem = ConversationMemory(max_tokens=10, system_prompt=\"be brief\")\nfor text in [\"hi there\", \"hello you\", \"how are\", \"fine thanks\"]:\n    mem.add(\"user\", text)\nexpect([m.content for m in mem.context()], [\"be brief\", \"how are\", \"fine thanks\"])\n"
+    "code": "mem = ConversationMemory(max_tokens=10, system_prompt=\"be brief\")\nfor text in [\"hi there\", \"hello you\", \"how are\", \"fine thanks\"]:\n    mem.add(\"user\", text)\nexpect([m.content for m in mem.context()], [\"be brief\", \"how are\", \"fine thanks\"])\n",
+    "expected": "['be brief', 'how are', 'fine thanks']"
    },
    {
     "name": "everything fits: context equals history",
     "input": "max_tokens=100; add(user, \"hello\") → add(assistant, \"hi, how can I help\")",
     "hidden": false,
-    "code": "mem = ConversationMemory(max_tokens=100)\nmem.add(\"user\", \"hello\"); mem.add(\"assistant\", \"hi, how can I help\")\nexpect([(m.role, m.content) for m in mem.context()], [(\"user\", \"hello\"), (\"assistant\", \"hi, how can I help\")])\nexpect(mem.context_tokens(), 8, \"2 + 6 tokens\")\n"
+    "code": "mem = ConversationMemory(max_tokens=100)\nmem.add(\"user\", \"hello\"); mem.add(\"assistant\", \"hi, how can I help\")\nexpect([(m.role, m.content) for m in mem.context()], [(\"user\", \"hello\"), (\"assistant\", \"hi, how can I help\")])\nexpect(mem.context_tokens(), 8, \"2 + 6 tokens\")\n",
+    "expected": "[('user', 'hello'), ('assistant', 'hi, how can I help')]\n2 + 6 tokens: 8"
    },
    {
     "name": "sliding window drops the oldest; history keeps all",
     "input": "max_tokens=10; add user \"one a\", \"two b\", \"three c\", \"four d\" (3 tokens each)",
     "hidden": false,
-    "code": "mem = ConversationMemory(max_tokens=10)\nfor text in [\"one a\", \"two b\", \"three c\", \"four d\"]:\n    mem.add(\"user\", text)\nexpect([m.content for m in mem.context()], [\"two b\", \"three c\", \"four d\"])\nexpect((mem.context_tokens(), len(mem.history)), (9, 4), \"tokens used, history length\")\n"
+    "code": "mem = ConversationMemory(max_tokens=10)\nfor text in [\"one a\", \"two b\", \"three c\", \"four d\"]:\n    mem.add(\"user\", text)\nexpect([m.content for m in mem.context()], [\"two b\", \"three c\", \"four d\"])\nexpect((mem.context_tokens(), len(mem.history)), (9, 4), \"tokens used, history length\")\n",
+    "expected": "['two b', 'three c', 'four d']\ntokens used, history length: (9, 4)"
    },
    {
     "name": "window is contiguous: stop at the first misfit",
@@ -595,19 +616,22 @@
     "name": "brief example: one tool call then a final answer",
     "input": "tool add(a:int, b:int); script [ToolCall(add, {a:2, b:3}), FinalAnswer(\"5\")]; run(\"2+3?\")",
     "hidden": false,
-    "code": "reg = ToolRegistry()\n@reg.register(\"add\", \"Add two ints\", {\"a\": int, \"b\": int})\ndef add(a, b):\n    return a + b\nresult = Agent(ScriptedModel([ToolCall(\"add\", {\"a\": 2, \"b\": 3}), FinalAnswer(\"5\")]), reg).run(\"2+3?\")\nexpect((result.answer, result.stop_reason), (\"5\", \"final\"))\n"
+    "code": "reg = ToolRegistry()\n@reg.register(\"add\", \"Add two ints\", {\"a\": int, \"b\": int})\ndef add(a, b):\n    return a + b\nresult = Agent(ScriptedModel([ToolCall(\"add\", {\"a\": 2, \"b\": 3}), FinalAnswer(\"5\")]), reg).run(\"2+3?\")\nexpect((result.answer, result.stop_reason), (\"5\", \"final\"))\n",
+    "expected": "('5', 'final')"
    },
    {
     "name": "steps, observations and messages the model sees",
     "input": "tool add; script [ToolCall(add, {a:2, b:3}), FinalAnswer(\"It is 5\")]; run(\"what is 2+3?\")",
     "hidden": false,
-    "code": "reg = ToolRegistry()\n@reg.register(\"add\", \"Add two ints\", {\"a\": int, \"b\": int})\ndef add(a, b):\n    return a + b\nmodel = ScriptedModel([ToolCall(\"add\", {\"a\": 2, \"b\": 3}), FinalAnswer(\"It is 5\")])\nresult = Agent(model, reg).run(\"what is 2+3?\")\nexpect([(s.index, s.observation, s.error) for s in result.steps], [(0, \"5\", False), (1, None, False)])\nexpect(model.seen[0] if model.seen else None, [{\"role\": \"user\", \"content\": \"what is 2+3?\"}], \"first decision\")\nexpect(model.seen[1][-1] if len(model.seen) > 1 else None, {\"role\": \"tool\", \"name\": \"add\", \"content\": \"5\"}, \"tool observation\")\nexpect(model.tools_seen[0] == reg.schemas(), True, \"model is given the schemas\")\n"
+    "code": "reg = ToolRegistry()\n@reg.register(\"add\", \"Add two ints\", {\"a\": int, \"b\": int})\ndef add(a, b):\n    return a + b\nmodel = ScriptedModel([ToolCall(\"add\", {\"a\": 2, \"b\": 3}), FinalAnswer(\"It is 5\")])\nresult = Agent(model, reg).run(\"what is 2+3?\")\nexpect([(s.index, s.observation, s.error) for s in result.steps], [(0, \"5\", False), (1, None, False)])\nexpect(model.seen[0] if model.seen else None, [{\"role\": \"user\", \"content\": \"what is 2+3?\"}], \"first decision\")\nexpect(model.seen[1][-1] if len(model.seen) > 1 else None, {\"role\": \"tool\", \"name\": \"add\", \"content\": \"5\"}, \"tool observation\")\nexpect(model.tools_seen[0] == reg.schemas(), True, \"model is given the schemas\")\n",
+    "expected": "[(0, '5', False), (1, None, False)]\nfirst decision: [{'role': 'user', 'content': 'what is 2+3?'}]\ntool observation: {'role': 'tool', 'name': 'add', 'content': '5'}\nmodel is given the schemas: True"
    },
    {
     "name": "tool schema uses JSON-schema type names",
     "input": "register(\"scale\", \"Multiply x by k\", {x: float, k: int, label: str}) → schemas()",
     "hidden": false,
-    "code": "reg = ToolRegistry()\n@reg.register(\"scale\", \"Multiply x by k\", {\"x\": float, \"k\": int, \"label\": str})\ndef scale(x, k, label):\n    return f\"{label}={x * k}\"\ns = reg.schemas()[0]\nexpect(s[\"parameters\"][\"properties\"], {\"x\": {\"type\": \"number\"}, \"k\": {\"type\": \"integer\"}, \"label\": {\"type\": \"string\"}})\nexpect((s[\"name\"], s[\"description\"], s[\"parameters\"][\"type\"], sorted(s[\"parameters\"][\"required\"])),\n       (\"scale\", \"Multiply x by k\", \"object\", [\"k\", \"label\", \"x\"]))\n"
+    "code": "reg = ToolRegistry()\n@reg.register(\"scale\", \"Multiply x by k\", {\"x\": float, \"k\": int, \"label\": str})\ndef scale(x, k, label):\n    return f\"{label}={x * k}\"\ns = reg.schemas()[0]\nexpect(s[\"parameters\"][\"properties\"], {\"x\": {\"type\": \"number\"}, \"k\": {\"type\": \"integer\"}, \"label\": {\"type\": \"string\"}})\nexpect((s[\"name\"], s[\"description\"], s[\"parameters\"][\"type\"], sorted(s[\"parameters\"][\"required\"])),\n       (\"scale\", \"Multiply x by k\", \"object\", [\"k\", \"label\", \"x\"]))\n",
+    "expected": "{'x': {'type': 'number'}, 'k': {'type': 'integer'}, 'label': {'type': 'string'}}\n('scale', 'Multiply x by k', 'object', ['k', 'label', 'x'])"
    },
    {
     "name": "call validates arguments",
@@ -679,19 +703,22 @@
     "name": "brief example: ingest HTML then search",
     "input": "FixedSizeChunker(50, 10); ingest(\"refunds.html\", \"<p>Refunds take 5 days &amp; need a receipt</p>\") → search(\"refund receipt\", k=1)",
     "hidden": false,
-    "code": "p = IngestionPipeline(LoaderFactory.default(), FixedSizeChunker(50, 10), HashEmbedder(), InMemoryVectorStore())\nn = p.ingest(\"refunds.html\", \"<p>Refunds take 5 days &amp; need a receipt</p>\")\ntop = p.search(\"refund receipt\", k=1)\nexpect((n, [c.doc_id for c in top], top[0].text if top else None),\n       (1, [\"refunds.html\"], \"Refunds take 5 days & need a receipt\"))\n"
+    "code": "p = IngestionPipeline(LoaderFactory.default(), FixedSizeChunker(50, 10), HashEmbedder(), InMemoryVectorStore())\nn = p.ingest(\"refunds.html\", \"<p>Refunds take 5 days &amp; need a receipt</p>\")\ntop = p.search(\"refund receipt\", k=1)\nexpect((n, [c.doc_id for c in top], top[0].text if top else None),\n       (1, [\"refunds.html\"], \"Refunds take 5 days & need a receipt\"))\n",
+    "expected": "(1, ['refunds.html'], 'Refunds take 5 days & need a receipt')"
    },
    {
     "name": "text, HTML and PDF loaders",
     "input": "TextLoader(\"  hello world \\n\"); HTMLLoader(<style>,<script>,<h1>Title</h1><p>Fish &amp; chips</p>); PDFLoader(\"page one \\fpage two\\f page three\")",
     "hidden": false,
-    "code": "t = TextLoader().load(\"a.txt\", \"  hello world \\n\")\nh = HTMLLoader().load(\"b.html\", \"<html><head><style>p{color:red}</style><script>var x=1;</script></head><body><h1>Title</h1><p>Fish &amp; chips\\n  today</p></body></html>\")\np = PDFLoader().load(\"c.pdf\", \"page one \\fpage two\\f page three\")\nexpect([t.text, h.text, p.text], [\"hello world\", \"Title Fish & chips today\", \"page one\\npage two\\npage three\"])\nexpect([t.metadata, h.metadata[\"format\"], h.metadata[\"source\"], p.metadata[\"pages\"], p.metadata[\"format\"]],\n       [{\"source\": \"a.txt\", \"format\": \"text\"}, \"html\", \"b.html\", 3, \"pdf\"])\n"
+    "code": "t = TextLoader().load(\"a.txt\", \"  hello world \\n\")\nh = HTMLLoader().load(\"b.html\", \"<html><head><style>p{color:red}</style><script>var x=1;</script></head><body><h1>Title</h1><p>Fish &amp; chips\\n  today</p></body></html>\")\np = PDFLoader().load(\"c.pdf\", \"page one \\fpage two\\f page three\")\nexpect([t.text, h.text, p.text], [\"hello world\", \"Title Fish & chips today\", \"page one\\npage two\\npage three\"])\nexpect([t.metadata, h.metadata[\"format\"], h.metadata[\"source\"], p.metadata[\"pages\"], p.metadata[\"format\"]],\n       [{\"source\": \"a.txt\", \"format\": \"text\"}, \"html\", \"b.html\", 3, \"pdf\"])\n",
+    "expected": "['hello world', 'Title Fish & chips today', 'page one\\npage two\\npage three']\n[{'source': 'a.txt', 'format': 'text'}, 'html', 'b.html', 3, 'pdf']"
    },
    {
     "name": "fixed-size chunker with overlap",
     "input": "doc = \"w0 ... w9\" (10 words); FixedSizeChunker(size=4, overlap=1)",
     "hidden": false,
-    "code": "doc = Document(\"d1\", \" \".join(f\"w{i}\" for i in range(10)), {\"source\": \"d1.txt\"})\nchunks = FixedSizeChunker(size=4, overlap=1).chunk(doc)\nexpect([c.text for c in chunks], [\"w0 w1 w2 w3\", \"w3 w4 w5 w6\", \"w6 w7 w8 w9\"])\nexpect([(c.index, c.doc_id, c.metadata) for c in chunks], [(i, \"d1\", {\"source\": \"d1.txt\"}) for i in range(3)])\n"
+    "code": "doc = Document(\"d1\", \" \".join(f\"w{i}\" for i in range(10)), {\"source\": \"d1.txt\"})\nchunks = FixedSizeChunker(size=4, overlap=1).chunk(doc)\nexpect([c.text for c in chunks], [\"w0 w1 w2 w3\", \"w3 w4 w5 w6\", \"w6 w7 w8 w9\"])\nexpect([(c.index, c.doc_id, c.metadata) for c in chunks], [(i, \"d1\", {\"source\": \"d1.txt\"}) for i in range(3)])\n",
+    "expected": "['w0 w1 w2 w3', 'w3 w4 w5 w6', 'w6 w7 w8 w9']\n[(0, 'd1', {'source': 'd1.txt'}), (1, 'd1', {'source': 'd1.txt'}), (2, 'd1', {'source': 'd1.txt'})]"
    },
    {
     "name": "factory picks by extension, case-insensitively",

@@ -207,6 +207,10 @@ tasks in `backend/app/data/prep_seed.json` load at startup; re-loading is idempo
   Python runner (Pyodide), a timer, and a finish form. A hint, overtime or a partial
   solve schedules redos at +3 and +7 days.
 - **Plan** and **Feedback** screens list every week's tasks and past reviews.
+- **Content** lives in `backend/app/data/` (`prep_content/`, `prep_extra/`, `prep_tracks/`).
+  `tests/test_prep_content.py` runs every task's tests against its reference solution.
+  After editing tests, run `python scripts/annotate_prep_examples.py` from `backend/` to
+  refresh the example Outputs shown in each problem description.
 
 ### Nightly Claude review (macOS)
 

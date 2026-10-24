@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.models import ApplicationStatus
 
@@ -582,6 +583,14 @@ class PrepAttemptIn(BaseModel):
     code: str = Field(default="", max_length=200_000)
     notes: str = Field(default="", max_length=20_000)
     complexity: str = Field(default="", max_length=300)
+    diagram: list[dict[str, Any]] | None = Field(default=None, max_length=2_000)
+
+    @field_validator("diagram")
+    @classmethod
+    def _diagram_size(cls, value: list[dict[str, Any]] | None):
+        if value is not None and len(json.dumps(value)) > 1_500_000:
+            raise ValueError("The whiteboard is too large to save (over 1.5 MB)")
+        return value or None
 
 
 class PrepAttemptOut(BaseModel):
@@ -598,6 +607,7 @@ class PrepAttemptOut(BaseModel):
     code: str
     notes: str
     complexity: str
+    diagram: list[dict[str, Any]] | None = None
 
 
 class PrepRedoOut(BaseModel):

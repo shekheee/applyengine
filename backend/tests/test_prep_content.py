@@ -77,6 +77,19 @@ def runner_prelude() -> str:
 
 def run_tests(code: str, tests: list[dict]) -> list[tuple[str, str | None, int]]:
     """(name, error or None, number of expect() records) per test."""
+    return [(name, error, len(records)) for name, error, records in run_cases(code, tests)]
+
+
+def example_output(records: list[dict]) -> str:
+    """How an example's Output reads in the problem description."""
+    return "\n".join(
+        f"{r['label']}: {r['expected']}" if r.get("label") and len(records) > 1 else r["expected"]
+        for r in records
+    )
+
+
+def run_cases(code: str, tests: list[dict]) -> list[tuple[str, str | None, list[dict]]]:
+    """(name, error or None, expect() records) per test."""
     loop = asyncio.new_event_loop()
     try:
         namespace: dict = {"__name__": "__main__"}
@@ -90,7 +103,7 @@ def run_tests(code: str, tests: list[dict]) -> list[tuple[str, str | None, int]]
                 error = None
             except Exception as exc:  # noqa: BLE001 - a failing test is data here
                 error = f"{type(exc).__name__}: {exc}"
-            outcomes.append((test["name"], error, len(namespace["_EXPECTS"])))
+            outcomes.append((test["name"], error, list(namespace["_EXPECTS"])))
         return outcomes
     finally:
         loop.close()
@@ -133,7 +146,7 @@ class PrepContentTests(unittest.TestCase):
                 self.assertIn(task["week"], range(1, 9))
 
     def test_track_entries(self):
-        prefixes = {"challenge": "ch-", "fundamentals": "fu-"}
+        prefixes = {"challenge": "ch-", "fundamentals": "fu-", "hld": "hld-c", "lld": "lld-c"}
         seen: set[str] = set()
         for task in load_track_tasks():
             with self.subTest(task=task.get("id")):
@@ -144,6 +157,8 @@ class PrepContentTests(unittest.TestCase):
                 self.assertEqual(task["slot"], "weekly")
                 self.assertIn(task["week"], range(1, 11))
                 self.assertTrue(task["title"] and task["target_minutes"] >= 20)
+                if task["type"] == "hld":
+                    self.assertEqual(len(task.get("framework") or []), 7, "HLD uses the 7-step framework")
 
     def test_shape(self):
         for task_id, entry in self.content.items():
@@ -211,6 +226,28 @@ class PrepContentTests(unittest.TestCase):
                     self.assertEqual(silent, [], "each case must call expect()")
                 starter = run_tests(entry["starter"], entry["levels"][0]["tests"])
                 self.assertTrue(any(e for _, e, _ in starter), "starter must fail level 1")
+
+    def test_examples_show_the_reference_output(self):
+        """Visible cases carry `expected`, the Output shown in the description."""
+        for task_id, entry in self.content.items():
+            groups = [lvl["tests"] for lvl in entry.get("levels") or []] or [entry.get("tests") or []]
+            if not any(groups):
+                continue
+            with self.subTest(task=task_id):
+                cumulative: list[dict] = []
+                for group in groups:
+                    cumulative += group
+                    outcomes = dict(
+                        (name, records) for name, _, records in run_cases(solution_code(entry), cumulative)
+                    )
+                    for test in group:
+                        if test.get("hidden"):
+                            continue
+                        self.assertEqual(
+                            test.get("expected"),
+                            example_output(outcomes[test["name"]]),
+                            f"{test['name']}: run scripts/annotate_prep_examples.py",
+                        )
 
     def test_reference_solutions_pass_and_starters_fail(self):
         for task_id, entry in self.content.items():

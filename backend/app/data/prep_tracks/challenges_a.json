@@ -62,7 +62,8 @@
        "name": "set, get and scan",
        "input": "ops: set(1,user1,name,ada) → set(2,user1,age,36) → get(3,user1,name) → scan(4,user1)",
        "hidden": false,
-       "code": "db = InMemoryDB()\ndb.set(1, \"user1\", \"name\", \"ada\")\ndb.set(2, \"user1\", \"age\", \"36\")\nexpect(db.get(3, \"user1\", \"name\"), \"ada\")\nexpect(db.scan(4, \"user1\"), [\"age(36)\", \"name(ada)\"])\n"
+       "code": "db = InMemoryDB()\ndb.set(1, \"user1\", \"name\", \"ada\")\ndb.set(2, \"user1\", \"age\", \"36\")\nexpect(db.get(3, \"user1\", \"name\"), \"ada\")\nexpect(db.scan(4, \"user1\"), [\"age(36)\", \"name(ada)\"])\n",
+       "expected": "'ada'\n['age(36)', 'name(ada)']"
       },
       {
        "name": "missing key or field is None",
@@ -98,13 +99,15 @@
        "name": "field expires at timestamp + ttl",
        "input": "ops: set_with_ttl(10,s,token,abc,5) → get(14,s,token) → get(15,s,token)",
        "hidden": false,
-       "code": "db = InMemoryDB()\ndb.set_with_ttl(10, \"s\", \"token\", \"abc\", 5)\nexpect(db.get(14, \"s\", \"token\"), \"abc\", label=\"t=14\")\nexpect(db.get(15, \"s\", \"token\"), None, label=\"t=15\")\n"
+       "code": "db = InMemoryDB()\ndb.set_with_ttl(10, \"s\", \"token\", \"abc\", 5)\nexpect(db.get(14, \"s\", \"token\"), \"abc\", label=\"t=14\")\nexpect(db.get(15, \"s\", \"token\"), None, label=\"t=15\")\n",
+       "expected": "t=14: 'abc'\nt=15: None"
       },
       {
        "name": "scan_by_prefix filters and sorts",
        "input": "ops: set(1,k,ab,1) → set(2,k,b,2) → set(3,k,aa,3) → scan_by_prefix(4,k,\"a\")",
        "hidden": false,
-       "code": "db = InMemoryDB()\ndb.set(1, \"k\", \"ab\", \"1\")\ndb.set(2, \"k\", \"b\", \"2\")\ndb.set(3, \"k\", \"aa\", \"3\")\nexpect(db.scan_by_prefix(4, \"k\", \"a\"), [\"aa(3)\", \"ab(1)\"])\n"
+       "code": "db = InMemoryDB()\ndb.set(1, \"k\", \"ab\", \"1\")\ndb.set(2, \"k\", \"b\", \"2\")\ndb.set(3, \"k\", \"aa\", \"3\")\nexpect(db.scan_by_prefix(4, \"k\", \"a\"), [\"aa(3)\", \"ab(1)\"])\n",
+       "expected": "['aa(3)', 'ab(1)']"
       },
       {
        "name": "scan hides expired fields",
@@ -140,7 +143,8 @@
        "name": "rollback undoes changes",
        "input": "ops: set(1,a,x,1) → begin(2) → set(3,a,x,2) → set(3,a,y,3) → rollback(4) → scan(5,a)",
        "hidden": false,
-       "code": "db = InMemoryDB()\ndb.set(1, \"a\", \"x\", \"1\")\ndb.begin(2)\ndb.set(3, \"a\", \"x\", \"2\")\ndb.set(3, \"a\", \"y\", \"3\")\ndb.rollback(4)\nexpect(db.scan(5, \"a\"), [\"x(1)\"])\n"
+       "code": "db = InMemoryDB()\ndb.set(1, \"a\", \"x\", \"1\")\ndb.begin(2)\ndb.set(3, \"a\", \"x\", \"2\")\ndb.set(3, \"a\", \"y\", \"3\")\ndb.rollback(4)\nexpect(db.scan(5, \"a\"), [\"x(1)\"])\n",
+       "expected": "['x(1)']"
       },
       {
        "name": "commit keeps changes",
@@ -182,7 +186,8 @@
        "name": "restore recomputes ttl from remaining time",
        "input": "ops: set_with_ttl(1,a,x,1,10) → backup(5) → delete(6,a,x) → restore(20,5) → get(25,a,x) → get(26,a,x)",
        "hidden": false,
-       "code": "db = InMemoryDB()\ndb.set_with_ttl(1, \"a\", \"x\", \"1\", 10)\nexpect(db.backup(5), 1, label=\"backup count\")\ndb.delete(6, \"a\", \"x\")\ndb.restore(20, 5)\nexpect(db.get(25, \"a\", \"x\"), \"1\", label=\"t=25\")\nexpect(db.get(26, \"a\", \"x\"), None, label=\"t=26\")\n"
+       "code": "db = InMemoryDB()\ndb.set_with_ttl(1, \"a\", \"x\", \"1\", 10)\nexpect(db.backup(5), 1, label=\"backup count\")\ndb.delete(6, \"a\", \"x\")\ndb.restore(20, 5)\nexpect(db.get(25, \"a\", \"x\"), \"1\", label=\"t=25\")\nexpect(db.get(26, \"a\", \"x\"), None, label=\"t=26\")\n",
+       "expected": "backup count: 1\nt=25: '1'\nt=26: None"
       },
       {
        "name": "backup counts keys with live fields",
@@ -237,7 +242,8 @@
        "name": "deposit and transfer",
        "input": "ops: create(1,a) → create(2,b) → deposit(3,a,100) → transfer(4,a,b,30) → get_balance(5,b)",
        "hidden": false,
-       "code": "bank = Bank()\nbank.create_account(1, \"a\")\nbank.create_account(2, \"b\")\nexpect(bank.deposit(3, \"a\", 100), 100, label=\"deposit\")\nexpect(bank.transfer(4, \"a\", \"b\", 30), 70, label=\"transfer\")\nexpect(bank.get_balance(5, \"b\"), 30, label=\"balance b\")\n"
+       "code": "bank = Bank()\nbank.create_account(1, \"a\")\nbank.create_account(2, \"b\")\nexpect(bank.deposit(3, \"a\", 100), 100, label=\"deposit\")\nexpect(bank.transfer(4, \"a\", \"b\", 30), 70, label=\"transfer\")\nexpect(bank.get_balance(5, \"b\"), 30, label=\"balance b\")\n",
+       "expected": "deposit: 100\ntransfer: 70\nbalance b: 30"
       },
       {
        "name": "duplicate account is rejected",
@@ -279,7 +285,8 @@
        "name": "payment runs at its due time",
        "input": "ops: create(1,a) → deposit(2,a,100) → schedule(3,a,40,5) → get_balance(7,a) → get_balance(8,a)",
        "hidden": false,
-       "code": "bank = Bank()\nbank.create_account(1, \"a\")\nbank.deposit(2, \"a\", 100)\nexpect(bank.schedule_payment(3, \"a\", 40, 5), \"payment1\", label=\"id\")\nexpect(bank.get_balance(7, \"a\"), 100, label=\"t=7\")\nexpect(bank.get_balance(8, \"a\"), 60, label=\"t=8\")\n"
+       "code": "bank = Bank()\nbank.create_account(1, \"a\")\nbank.deposit(2, \"a\", 100)\nexpect(bank.schedule_payment(3, \"a\", 40, 5), \"payment1\", label=\"id\")\nexpect(bank.get_balance(7, \"a\"), 100, label=\"t=7\")\nexpect(bank.get_balance(8, \"a\"), 60, label=\"t=8\")\n",
+       "expected": "id: 'payment1'\nt=7: 100\nt=8: 60"
       },
       {
        "name": "cancel only by the owner, only while pending",
@@ -321,7 +328,8 @@
        "name": "merge moves balance and payments",
        "input": "ops: create a,b → deposit(3,a,10) → deposit(4,b,20) → schedule(5,b,25,5) → merge(6,a,b) → get_balance(10,a)",
        "hidden": false,
-       "code": "bank = Bank()\nbank.create_account(1, \"a\")\nbank.create_account(2, \"b\")\nbank.deposit(3, \"a\", 10)\nbank.deposit(4, \"b\", 20)\nbank.schedule_payment(5, \"b\", 25, 5)\nexpect(bank.merge_accounts(6, \"a\", \"b\"), True, label=\"merge\")\nexpect(bank.get_balance(7, \"a\"), 30, label=\"t=7\")\nexpect(bank.get_balance(10, \"a\"), 5, label=\"t=10\")\nexpect(bank.get_balance(10, \"b\"), None, label=\"b closed\")\n"
+       "code": "bank = Bank()\nbank.create_account(1, \"a\")\nbank.create_account(2, \"b\")\nbank.deposit(3, \"a\", 10)\nbank.deposit(4, \"b\", 20)\nbank.schedule_payment(5, \"b\", 25, 5)\nexpect(bank.merge_accounts(6, \"a\", \"b\"), True, label=\"merge\")\nexpect(bank.get_balance(7, \"a\"), 30, label=\"t=7\")\nexpect(bank.get_balance(10, \"a\"), 5, label=\"t=10\")\nexpect(bank.get_balance(10, \"b\"), None, label=\"b closed\")\n",
+       "expected": "merge: True\nt=7: 30\nt=10: 5\nb closed: None"
       },
       {
        "name": "invalid merges return False",
@@ -357,7 +365,8 @@
        "name": "history includes payments at their due time",
        "input": "ops: create(1,a) → deposit(2,a,50) → schedule(3,a,20,4) → get_balance_at(10,a,6) → get_balance_at(10,a,7) → get_balance_at(10,a,0)",
        "hidden": false,
-       "code": "bank = Bank()\nbank.create_account(1, \"a\")\nbank.deposit(2, \"a\", 50)\nbank.schedule_payment(3, \"a\", 20, 4)\nexpect(bank.get_balance_at(10, \"a\", 6), 50, label=\"t=6\")\nexpect(bank.get_balance_at(10, \"a\", 7), 30, label=\"t=7\")\nexpect(bank.get_balance_at(10, \"a\", 0), None, label=\"before creation\")\n"
+       "code": "bank = Bank()\nbank.create_account(1, \"a\")\nbank.deposit(2, \"a\", 50)\nbank.schedule_payment(3, \"a\", 20, 4)\nexpect(bank.get_balance_at(10, \"a\", 6), 50, label=\"t=6\")\nexpect(bank.get_balance_at(10, \"a\", 7), 30, label=\"t=7\")\nexpect(bank.get_balance_at(10, \"a\", 0), None, label=\"before creation\")\n",
+       "expected": "t=6: 50\nt=7: 30\nbefore creation: None"
       },
       {
        "name": "history after transfers",
@@ -412,7 +421,8 @@
        "name": "add, get and delete",
        "input": "ops: add(/docs/a.txt,10) → add(/docs/a.txt,5) → size(/docs/a.txt) → delete(/docs/a.txt)",
        "hidden": false,
-       "code": "fs = FileSystem()\nexpect(fs.add_file(\"/docs/a.txt\", 10), True, label=\"add\")\nexpect(fs.add_file(\"/docs/a.txt\", 5), False, label=\"duplicate\")\nexpect(fs.get_file_size(\"/docs/a.txt\"), 10, label=\"size\")\nexpect(fs.delete_file(\"/docs/a.txt\"), 10, label=\"delete\")\n"
+       "code": "fs = FileSystem()\nexpect(fs.add_file(\"/docs/a.txt\", 10), True, label=\"add\")\nexpect(fs.add_file(\"/docs/a.txt\", 5), False, label=\"duplicate\")\nexpect(fs.get_file_size(\"/docs/a.txt\"), 10, label=\"size\")\nexpect(fs.delete_file(\"/docs/a.txt\"), 10, label=\"delete\")\n",
+       "expected": "add: True\nduplicate: False\nsize: 10\ndelete: 10"
       },
       {
        "name": "missing files give None",
@@ -448,7 +458,8 @@
        "name": "largest files under a prefix",
        "input": "ops: add(/docs/a,10) → add(/docs/b,30) → add(/img/c,20) → largest_files(/docs,5) → total_size(/)",
        "hidden": false,
-       "code": "fs = FileSystem()\nfs.add_file(\"/docs/a\", 10)\nfs.add_file(\"/docs/b\", 30)\nfs.add_file(\"/img/c\", 20)\nexpect(fs.largest_files(\"/docs\", 5), [\"/docs/b(30)\", \"/docs/a(10)\"], label=\"largest\")\nexpect(fs.total_size(\"/\"), 60, label=\"total\")\n"
+       "code": "fs = FileSystem()\nfs.add_file(\"/docs/a\", 10)\nfs.add_file(\"/docs/b\", 30)\nfs.add_file(\"/img/c\", 20)\nexpect(fs.largest_files(\"/docs\", 5), [\"/docs/b(30)\", \"/docs/a(10)\"], label=\"largest\")\nexpect(fs.total_size(\"/\"), 60, label=\"total\")\n",
+       "expected": "largest: ['/docs/b(30)', '/docs/a(10)']\ntotal: 60"
       },
       {
        "name": "ties break by path",
@@ -484,7 +495,8 @@
        "name": "quota is enforced",
        "input": "ops: add_user(u1,100) → add_file_by(u1,/u1/a,60) → add_file_by(u1,/u1/b,50) → add_file_by(u1,/u1/b,40)",
        "hidden": false,
-       "code": "fs = FileSystem()\nexpect(fs.add_user(\"u1\", 100), True, label=\"add user\")\nexpect(fs.add_file_by(\"u1\", \"/u1/a\", 60), 40, label=\"first file\")\nexpect(fs.add_file_by(\"u1\", \"/u1/b\", 50), None, label=\"over quota\")\nexpect(fs.add_file_by(\"u1\", \"/u1/b\", 40), 0, label=\"exactly fits\")\n"
+       "code": "fs = FileSystem()\nexpect(fs.add_user(\"u1\", 100), True, label=\"add user\")\nexpect(fs.add_file_by(\"u1\", \"/u1/a\", 60), 40, label=\"first file\")\nexpect(fs.add_file_by(\"u1\", \"/u1/b\", 50), None, label=\"over quota\")\nexpect(fs.add_file_by(\"u1\", \"/u1/b\", 40), 0, label=\"exactly fits\")\n",
+       "expected": "add user: True\nfirst file: 40\nover quota: None\nexactly fits: 0"
       },
       {
        "name": "delete frees capacity",
@@ -526,7 +538,8 @@
        "name": "restore brings back the backed-up files only",
        "input": "ops: add_user(u,100) → add_file_by(u,/a,10) → backup(u) → add_file_by(u,/b,20) → delete(/a) → restore(u)",
        "hidden": false,
-       "code": "fs = FileSystem()\nfs.add_user(\"u\", 100)\nfs.add_file_by(\"u\", \"/a\", 10)\nexpect(fs.backup_user(\"u\"), 1, label=\"backup\")\nfs.add_file_by(\"u\", \"/b\", 20)\nfs.delete_file(\"/a\")\nexpect(fs.restore_user(\"u\"), 1, label=\"restored\")\nexpect([fs.get_file_size(\"/a\"), fs.get_file_size(\"/b\")], [10, None], label=\"files\")\n"
+       "code": "fs = FileSystem()\nfs.add_user(\"u\", 100)\nfs.add_file_by(\"u\", \"/a\", 10)\nexpect(fs.backup_user(\"u\"), 1, label=\"backup\")\nfs.add_file_by(\"u\", \"/b\", 20)\nfs.delete_file(\"/a\")\nexpect(fs.restore_user(\"u\"), 1, label=\"restored\")\nexpect([fs.get_file_size(\"/a\"), fs.get_file_size(\"/b\")], [10, None], label=\"files\")\n",
+       "expected": "backup: 1\nrestored: 1\nfiles: [10, None]"
       },
       {
        "name": "restore without a backup wipes the user",
@@ -581,7 +594,8 @@
        "name": "highest priority first, ties FIFO",
        "input": "ops: add(1,a,1) → add(2,b,5) → add(3,c,5) → pop(4) → pop(5) → size()",
        "hidden": false,
-       "code": "q = TaskQueue()\nq.add(1, \"a\", 1)\nq.add(2, \"b\", 5)\nq.add(3, \"c\", 5)\nexpect(q.pop(4), \"b\", label=\"first pop\")\nexpect(q.pop(5), \"c\", label=\"second pop\")\nexpect(q.size(), 1, label=\"size\")\n"
+       "code": "q = TaskQueue()\nq.add(1, \"a\", 1)\nq.add(2, \"b\", 5)\nq.add(3, \"c\", 5)\nexpect(q.pop(4), \"b\", label=\"first pop\")\nexpect(q.pop(5), \"c\", label=\"second pop\")\nexpect(q.size(), 1, label=\"size\")\n",
+       "expected": "first pop: 'b'\nsecond pop: 'c'\nsize: 1"
       },
       {
        "name": "peek does not remove",
@@ -623,7 +637,8 @@
        "name": "backoff doubles",
        "input": "TaskQueue(max_retries=2, base_delay=10); ops: add(0,a,1) → pop(0) → fail(5,a) → pop(14) → pop(15) → fail(15,a)",
        "hidden": false,
-       "code": "q = TaskQueue(max_retries=2, base_delay=10)\nq.add(0, \"a\", 1)\nq.pop(0)\nexpect(q.fail(5, \"a\"), 15, label=\"first failure\")\nexpect(q.pop(14), None, label=\"still backing off\")\nexpect(q.pop(15), \"a\", label=\"available again\")\nexpect(q.fail(15, \"a\"), 35, label=\"second failure\")\n"
+       "code": "q = TaskQueue(max_retries=2, base_delay=10)\nq.add(0, \"a\", 1)\nq.pop(0)\nexpect(q.fail(5, \"a\"), 15, label=\"first failure\")\nexpect(q.pop(14), None, label=\"still backing off\")\nexpect(q.pop(15), \"a\", label=\"available again\")\nexpect(q.fail(15, \"a\"), 35, label=\"second failure\")\n",
+       "expected": "first failure: 15\nstill backing off: None\navailable again: 'a'\nsecond failure: 35"
       },
       {
        "name": "too many failures dead-letters",
@@ -665,7 +680,8 @@
        "name": "dependents wait for completion",
        "input": "ops: add(0,build,1) → add(0,test,9,deps=[build]) → pop(1) → pop(1) → complete(2,build) → pop(3)",
        "hidden": false,
-       "code": "q = TaskQueue()\nq.add(0, \"build\", 1)\nq.add(0, \"test\", 9, depends_on=(\"build\",))\nexpect(q.pop(1), \"build\", label=\"test is blocked\")\nexpect(q.pop(1), None, label=\"still blocked while build runs\")\nq.complete(2, \"build\")\nexpect(q.pop(3), \"test\", label=\"unblocked\")\n"
+       "code": "q = TaskQueue()\nq.add(0, \"build\", 1)\nq.add(0, \"test\", 9, depends_on=(\"build\",))\nexpect(q.pop(1), \"build\", label=\"test is blocked\")\nexpect(q.pop(1), None, label=\"still blocked while build runs\")\nq.complete(2, \"build\")\nexpect(q.pop(3), \"test\", label=\"unblocked\")\n",
+       "expected": "test is blocked: 'build'\nstill blocked while build runs: None\nunblocked: 'test'"
       },
       {
        "name": "unknown dependency raises and adds nothing",
@@ -707,13 +723,15 @@
        "name": "expired lease is a failure",
        "input": "TaskQueue(lease_timeout=5, base_delay=2); ops: add(0,a,1) → pop(0) → complete(6,a) → pop(6) → pop(7)",
        "hidden": false,
-       "code": "q = TaskQueue(lease_timeout=5, base_delay=2)\nq.add(0, \"a\", 1)\nq.pop(0)\nexpect(q.complete(6, \"a\"), False, label=\"lease expired at 5\")\nexpect(q.pop(6), None, label=\"backoff until 7\")\nexpect(q.pop(7), \"a\", label=\"retried\")\n"
+       "code": "q = TaskQueue(lease_timeout=5, base_delay=2)\nq.add(0, \"a\", 1)\nq.pop(0)\nexpect(q.complete(6, \"a\"), False, label=\"lease expired at 5\")\nexpect(q.pop(6), None, label=\"backoff until 7\")\nexpect(q.pop(7), \"a\", label=\"retried\")\n",
+       "expected": "lease expired at 5: False\nbackoff until 7: None\nretried: 'a'"
       },
       {
        "name": "stats reports every state",
        "input": "ops: add a,b,c,d → pop a → complete a → pop b → cancel(c) → stats(5)",
        "hidden": false,
-       "code": "q = TaskQueue()\nfor name in \"abcd\":\n    q.add(0, name, 1)\nq.pop(1)\nq.complete(1, \"a\")\nq.pop(2)\nq.cancel(3, \"c\")\nexpect(q.stats(5), {\"queued\": 1, \"running\": 1, \"done\": 1, \"dead\": 0, \"cancelled\": 1})\n"
+       "code": "q = TaskQueue()\nfor name in \"abcd\":\n    q.add(0, name, 1)\nq.pop(1)\nq.complete(1, \"a\")\nq.pop(2)\nq.cancel(3, \"c\")\nexpect(q.stats(5), {\"queued\": 1, \"running\": 1, \"done\": 1, \"dead\": 0, \"cancelled\": 1})\n",
+       "expected": "{'queued': 1, 'running': 1, 'done': 1, 'dead': 0, 'cancelled': 1}"
       },
       {
        "name": "completing inside the lease works",

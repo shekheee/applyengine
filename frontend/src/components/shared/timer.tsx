@@ -31,6 +31,19 @@ function format(ms: number): string {
   return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
+/** Seconds on a stored timer, counting a running one up to now. */
+export function timerElapsedSeconds(key: string): number {
+  const state = readState(key);
+  const running = state.runningSince !== null ? Date.now() - state.runningSince : 0;
+  return Math.round((state.accumulatedMs + Math.max(running, 0)) / 1000);
+}
+
+/** When a stored timer was first started, if it ever was. */
+export function timerStartedAt(key: string): Date | null {
+  const state = readState(key);
+  return state.firstStartedAt !== null ? new Date(state.firstStartedAt) : null;
+}
+
 export function clearTimer(key: string) {
   try {
     window.localStorage.removeItem(key);
@@ -49,13 +62,16 @@ export function Timer({
   onStart,
   storageKey,
   stopLabel = "Stop",
+  compact = false,
 }: {
   targetMinutes: number;
   /** `startedAt` is when the timer first started, kept across reloads. */
-  onStop: (elapsedSeconds: number, startedAt: Date | null) => void;
+  onStop?: (elapsedSeconds: number, startedAt: Date | null) => void;
   onStart?: () => void;
   storageKey?: string;
   stopLabel?: string;
+  /** A one-line toolbar timer with start/pause only. */
+  compact?: boolean;
 }) {
   const [state, setState] = useState<TimerState>(() => readState(storageKey));
   const [now, setNow] = useState(() => Date.now());
@@ -103,11 +119,48 @@ export function Timer({
       state.accumulatedMs + (state.runningSince !== null ? at - state.runningSince : 0);
     setNow(at);
     setState((s) => ({ ...s, accumulatedMs: total, runningSince: null }));
-    onStop(
+    onStop?.(
       Math.round(total / 1000),
       state.firstStartedAt !== null ? new Date(state.firstStartedAt) : null
     );
   };
+
+  if (compact) {
+    return (
+      <div
+        className={cn(
+          "inline-flex items-center gap-2 rounded-[var(--radius-md)] border px-2 py-1",
+          tone === "red" && "border-red-500/40 bg-red-500/10",
+          tone === "amber" && "border-amber-500/40 bg-amber-500/10",
+          tone === "normal" && "bg-[var(--panel-2)]"
+        )}
+        style={tone === "normal" ? { borderColor: "var(--border)" } : undefined}
+        title={`Target ${targetMinutes} min`}
+      >
+        <span
+          role="timer"
+          aria-live="off"
+          className={cn(
+            "font-mono text-sm font-semibold tabular-nums",
+            tone === "red" && "text-red-300",
+            tone === "amber" && "text-amber-300",
+            tone === "normal" && "text-[var(--text)]"
+          )}
+        >
+          {format(elapsedMs)}
+        </span>
+        <span className="text-[11px] text-[var(--muted)]">/ {targetMinutes}m</span>
+        <button
+          type="button"
+          onClick={running ? pause : start}
+          aria-label={running ? "Pause timer" : started ? "Resume timer" : "Start timer"}
+          className="rounded px-1.5 py-0.5 text-xs font-medium text-[var(--primary-2)] hover:bg-[var(--panel-3)]"
+        >
+          {running ? "Pause" : started ? "Resume" : "Start"}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div

@@ -42,6 +42,7 @@ def init_db() -> None:
     _migrate_social_studio()
     _migrate_buddy_practice()
     _migrate_prep_task_content()
+    _migrate_prep_attempt_diagram()
     _seed_prep_tasks()
 
 
@@ -67,6 +68,19 @@ def _migrate_prep_task_content() -> None:
             return
         for definition in columns:
             conn.execute(text(f"ALTER TABLE preptask ADD COLUMN IF NOT EXISTS {definition}"))
+
+
+def _migrate_prep_attempt_diagram() -> None:
+    """Add the whiteboard column to prepattempt tables created before it."""
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        if is_sqlite:
+            existing = {row[1] for row in conn.execute(text("PRAGMA table_info(prepattempt)"))}
+            if "diagram" not in existing:
+                conn.execute(text("ALTER TABLE prepattempt ADD COLUMN diagram JSON"))
+            return
+        conn.execute(text("ALTER TABLE prepattempt ADD COLUMN IF NOT EXISTS diagram JSON"))
 
 
 def _seed_prep_tasks() -> None:

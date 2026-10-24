@@ -206,6 +206,8 @@ function AuthenticatedShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isLogin = pathname === "/login";
   const wide = pathname === "/coach" || pathname === "/buddy" || pathname.startsWith("/applications/") || pathname === "/social" || pathname.startsWith("/skills");
+  // Practice sessions use the whole viewport, like an IDE.
+  const workspace = pathname.startsWith("/prep/session/");
 
   return (
     <div className="relative min-h-screen overflow-x-hidden">
@@ -213,7 +215,7 @@ function AuthenticatedShell({ children }: { children: ReactNode }) {
       <div className={cn(user && !isLogin && "xl:pl-60")}>
         <main className={cn(
           "relative mx-auto min-w-0",
-          isLogin ? "max-w-none p-0" : wide ? "max-w-[1600px] px-3 py-3 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-5 lg:px-6 lg:py-5 xl:pb-6" : "max-w-7xl px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 lg:px-8 lg:py-8 xl:pb-8"
+          isLogin ? "max-w-none p-0" : workspace ? "max-w-none px-2 py-2 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-3 xl:pb-2" : wide ? "max-w-[1600px] px-3 py-3 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-5 lg:px-6 lg:py-5 xl:pb-6" : "max-w-7xl px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 lg:px-8 lg:py-8 xl:pb-8"
         )}>
           <Gate>{children}</Gate>
         </main>

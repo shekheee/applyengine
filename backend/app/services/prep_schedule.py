@@ -19,7 +19,12 @@ EXTRA_SLOT = "extra"
 WEEKLY_SLOT = "weekly"
 EXTRA_MIX = (("easy", 1), ("medium", 2))
 HARD_FROM_WEEK = 3
-WEEKLY_BADGES = {"challenge": "Challenge", "fundamentals": "Fundamentals"}
+WEEKLY_BADGES = {
+    "challenge": "Challenge",
+    "fundamentals": "Fundamentals",
+    "hld": "System design",
+    "lld": "OOD",
+}
 NEETCODE_URL = "https://neetcode.io/practice"
 WEEKDAYS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 

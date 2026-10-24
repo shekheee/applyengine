@@ -63,7 +63,8 @@
        "name": "route charges the budget",
        "input": "add_model(gpt-big, 3) → set_budget(search, 20) → route(search, gpt-big, \"summarise this ticket please\", 1)",
        "hidden": false,
-       "code": "r = Router()\nr.add_model(\"gpt-big\", 3)\nr.set_budget(\"search\", 20)\nexpect(r.route(\"search\", \"gpt-big\", \"summarise this ticket please\", 1), {\"status\": \"ok\", \"model\": \"gpt-big\", \"cost\": 12})\nexpect(r.remaining(\"search\"), 8)"
+       "code": "r = Router()\nr.add_model(\"gpt-big\", 3)\nr.set_budget(\"search\", 20)\nexpect(r.route(\"search\", \"gpt-big\", \"summarise this ticket please\", 1), {\"status\": \"ok\", \"model\": \"gpt-big\", \"cost\": 12})\nexpect(r.remaining(\"search\"), 8)",
+       "expected": "{'status': 'ok', 'model': 'gpt-big', 'cost': 12}\n8"
       },
       {
        "name": "over budget is rejected, nothing charged",
@@ -105,7 +106,8 @@
        "name": "falls back when the model is down",
        "input": "big(5), small(1); fallbacks big→[small]; mark_down(big, 100); route at t=50 then t=100",
        "hidden": false,
-       "code": "r = Router()\nr.add_model(\"big\", 5)\nr.add_model(\"small\", 1)\nr.set_budget(\"t\", 100)\nr.set_fallbacks(\"big\", [\"small\"])\nr.mark_down(\"big\", 100)\nexpect(r.route(\"t\", \"big\", \"hello world\", 50), {\"status\": \"ok\", \"model\": \"small\", \"cost\": 2})\nexpect(r.route(\"t\", \"big\", \"hello world\", 100), {\"status\": \"ok\", \"model\": \"big\", \"cost\": 10})"
+       "code": "r = Router()\nr.add_model(\"big\", 5)\nr.add_model(\"small\", 1)\nr.set_budget(\"t\", 100)\nr.set_fallbacks(\"big\", [\"small\"])\nr.mark_down(\"big\", 100)\nexpect(r.route(\"t\", \"big\", \"hello world\", 50), {\"status\": \"ok\", \"model\": \"small\", \"cost\": 2})\nexpect(r.route(\"t\", \"big\", \"hello world\", 100), {\"status\": \"ok\", \"model\": \"big\", \"cost\": 10})",
+       "expected": "{'status': 'ok', 'model': 'small', 'cost': 2}\n{'status': 'ok', 'model': 'big', 'cost': 10}"
       },
       {
        "name": "falls back to a cheaper model when budget is low",
@@ -147,7 +149,8 @@
        "name": "cache hit is free and shared across tenants",
        "input": "enable_cache(60); a routes \"what is rag\" at 0; b same at 59 and 60",
        "hidden": false,
-       "code": "r = Router()\nr.add_model(\"m\", 1)\nr.set_budget(\"a\", 10)\nr.set_budget(\"b\", 10)\nr.enable_cache(60)\nexpect(r.route(\"a\", \"m\", \"what is rag\", 0)[\"status\"], \"ok\")\nexpect(r.route(\"b\", \"m\", \"what is rag\", 59), {\"status\": \"cached\", \"model\": \"m\", \"cost\": 0})\nexpect(r.route(\"b\", \"m\", \"what is rag\", 60), {\"status\": \"ok\", \"model\": \"m\", \"cost\": 3})\nexpect([r.remaining(\"a\"), r.remaining(\"b\")], [7, 7])"
+       "code": "r = Router()\nr.add_model(\"m\", 1)\nr.set_budget(\"a\", 10)\nr.set_budget(\"b\", 10)\nr.enable_cache(60)\nexpect(r.route(\"a\", \"m\", \"what is rag\", 0)[\"status\"], \"ok\")\nexpect(r.route(\"b\", \"m\", \"what is rag\", 59), {\"status\": \"cached\", \"model\": \"m\", \"cost\": 0})\nexpect(r.route(\"b\", \"m\", \"what is rag\", 60), {\"status\": \"ok\", \"model\": \"m\", \"cost\": 3})\nexpect([r.remaining(\"a\"), r.remaining(\"b\")], [7, 7])",
+       "expected": "'ok'\n{'status': 'cached', 'model': 'm', 'cost': 0}\n{'status': 'ok', 'model': 'm', 'cost': 3}\n[7, 7]"
       },
       {
        "name": "no caching until enabled",
@@ -189,7 +192,8 @@
        "name": "metrics count every outcome",
        "input": "ok, cached, rejected in [0, 100)",
        "hidden": false,
-       "code": "r = Router()\nr.add_model(\"m\", 1)\nr.set_budget(\"t\", 2)\nr.enable_cache(50)\nr.route(\"t\", \"m\", \"a b\", 1)\nr.route(\"t\", \"m\", \"a b\", 2)\nr.route(\"t\", \"m\", \"c d\", 3)\nexpect(r.metrics(0, 100), {\"requests\": 3, \"ok\": 1, \"cached\": 1, \"rejected\": 1, \"unavailable\": 0, \"fallbacks\": 0, \"spend\": 2, \"by_model\": {\"m\": 2}})"
+       "code": "r = Router()\nr.add_model(\"m\", 1)\nr.set_budget(\"t\", 2)\nr.enable_cache(50)\nr.route(\"t\", \"m\", \"a b\", 1)\nr.route(\"t\", \"m\", \"a b\", 2)\nr.route(\"t\", \"m\", \"c d\", 3)\nexpect(r.metrics(0, 100), {\"requests\": 3, \"ok\": 1, \"cached\": 1, \"rejected\": 1, \"unavailable\": 0, \"fallbacks\": 0, \"spend\": 2, \"by_model\": {\"m\": 2}})",
+       "expected": "{'requests': 3, 'ok': 1, 'cached': 1, 'rejected': 1, 'unavailable': 0, 'fallbacks': 0, 'spend': 2, 'by_model': {'m': 2}}"
       },
       {
        "name": "window is half-open and fallbacks are counted",
@@ -244,7 +248,8 @@
        "name": "newest messages that fit",
        "input": "max_tokens=5; add \"hi there\", \"hello how can I help\"",
        "hidden": false,
-       "code": "s = ChatStore(5)\nexpect(s.add(\"c1\", \"user\", \"hi there\", 1), 1)\nexpect(s.add(\"c1\", \"assistant\", \"hello how can I help\", 2), 2)\nexpect(s.context(\"c1\"), [{\"role\": \"assistant\", \"text\": \"hello how can I help\"}])\nexpect(s.token_count(\"c1\"), 7)"
+       "code": "s = ChatStore(5)\nexpect(s.add(\"c1\", \"user\", \"hi there\", 1), 1)\nexpect(s.add(\"c1\", \"assistant\", \"hello how can I help\", 2), 2)\nexpect(s.context(\"c1\"), [{\"role\": \"assistant\", \"text\": \"hello how can I help\"}])\nexpect(s.token_count(\"c1\"), 7)",
+       "expected": "1\n2\n[{'role': 'assistant', 'text': 'hello how can I help'}]\n7"
       },
       {
        "name": "everything fits, oldest first",
@@ -286,7 +291,8 @@
        "name": "summary leads the context and uses budget first",
        "input": "max_tokens=7; 4 two-word msgs; summarize(upto 2, \"user said a to d\")",
        "hidden": false,
-       "code": "s = ChatStore(7)\nfor i, t in enumerate([\"a b\", \"c d\", \"e f\", \"g h\"], 1):\n    s.add(\"c\", \"user\", t, i)\nexpect(s.summarize(\"c\", 2, \"user said a to d\"), 2)\nexpect(s.context(\"c\"), [{\"role\": \"summary\", \"text\": \"user said a to d\"}, {\"role\": \"user\", \"text\": \"g h\"}])\nexpect(s.token_count(\"c\"), 9)"
+       "code": "s = ChatStore(7)\nfor i, t in enumerate([\"a b\", \"c d\", \"e f\", \"g h\"], 1):\n    s.add(\"c\", \"user\", t, i)\nexpect(s.summarize(\"c\", 2, \"user said a to d\"), 2)\nexpect(s.context(\"c\"), [{\"role\": \"summary\", \"text\": \"user said a to d\"}, {\"role\": \"user\", \"text\": \"g h\"}])\nexpect(s.token_count(\"c\"), 9)",
+       "expected": "2\n[{'role': 'summary', 'text': 'user said a to d'}, {'role': 'user', 'text': 'g h'}]\n9"
       },
       {
        "name": "second summary replaces the first",
@@ -322,7 +328,8 @@
        "name": "all words must match, newest first",
        "input": "msgs: \"Use a vector DB\", \"vector search\", \"the DB is down, vector index fine\"; search(\"vector db\")",
        "hidden": false,
-       "code": "s = ChatStore(100)\ns.add(\"c1\", \"user\", \"Use a vector DB\", 1)\ns.add(\"c1\", \"assistant\", \"vector search\", 2)\ns.add(\"c2\", \"user\", \"the DB is down, vector index fine\", 3)\nexpect(s.search(\"vector db\"), [3, 1])\nexpect(s.search(\"VECTOR\", \"c1\"), [2, 1])"
+       "code": "s = ChatStore(100)\ns.add(\"c1\", \"user\", \"Use a vector DB\", 1)\ns.add(\"c1\", \"assistant\", \"vector search\", 2)\ns.add(\"c2\", \"user\", \"the DB is down, vector index fine\", 3)\nexpect(s.search(\"vector db\"), [3, 1])\nexpect(s.search(\"VECTOR\", \"c1\"), [2, 1])",
+       "expected": "[3, 1]\n[2, 1]"
       },
       {
        "name": "whole words, punctuation ignored",
@@ -358,7 +365,8 @@
        "name": "expire removes old messages everywhere",
        "input": "msgs at t=10, 50, 150; expire(before=100)",
        "hidden": false,
-       "code": "s = ChatStore(100)\ns.add(\"c\", \"user\", \"old secret\", 10)\ns.add(\"c\", \"user\", \"older secret\", 50)\ns.add(\"c\", \"user\", \"new secret\", 150)\nexpect(s.expire(100), 2)\nexpect(s.search(\"secret\"), [3])\nexpect(s.context(\"c\"), [{\"role\": \"user\", \"text\": \"new secret\"}])"
+       "code": "s = ChatStore(100)\ns.add(\"c\", \"user\", \"old secret\", 10)\ns.add(\"c\", \"user\", \"older secret\", 50)\ns.add(\"c\", \"user\", \"new secret\", 150)\nexpect(s.expire(100), 2)\nexpect(s.search(\"secret\"), [3])\nexpect(s.context(\"c\"), [{\"role\": \"user\", \"text\": \"new secret\"}])",
+       "expected": "2\n[3]\n[{'role': 'user', 'text': 'new secret'}]"
       },
       {
        "name": "expire reaches folded messages but keeps the summary",
@@ -407,7 +415,8 @@
        "name": "totals, top and rank",
        "input": "ann+10, bob+30, ann+25; top(2), rank(bob)",
        "hidden": false,
-       "code": "lb = Leaderboard()\nexpect(lb.add_score(\"ann\", 10, 1), 10)\nlb.add_score(\"bob\", 30, 2)\nexpect(lb.add_score(\"ann\", 25, 3), 35)\nexpect(lb.top(2), [(\"ann\", 35), (\"bob\", 30)])\nexpect(lb.rank(\"bob\"), 2)"
+       "code": "lb = Leaderboard()\nexpect(lb.add_score(\"ann\", 10, 1), 10)\nlb.add_score(\"bob\", 30, 2)\nexpect(lb.add_score(\"ann\", 25, 3), 35)\nexpect(lb.top(2), [(\"ann\", 35), (\"bob\", 30)])\nexpect(lb.rank(\"bob\"), 2)",
+       "expected": "10\n35\n[('ann', 35), ('bob', 30)]\n2"
       },
       {
        "name": "ties broken by name",
@@ -443,7 +452,8 @@
        "name": "window board vs all-time board",
        "input": "ann 10@1, bob 5@8, ann 1@9; top_in_window(5, 5, 10)",
        "hidden": false,
-       "code": "lb = Leaderboard()\nlb.add_score(\"ann\", 10, 1)\nlb.add_score(\"bob\", 5, 8)\nlb.add_score(\"ann\", 1, 9)\nexpect(lb.top_in_window(5, 5, 10), [(\"bob\", 5), (\"ann\", 1)])\nexpect(lb.top(5), [(\"ann\", 11), (\"bob\", 5)])"
+       "code": "lb = Leaderboard()\nlb.add_score(\"ann\", 10, 1)\nlb.add_score(\"bob\", 5, 8)\nlb.add_score(\"ann\", 1, 9)\nexpect(lb.top_in_window(5, 5, 10), [(\"bob\", 5), (\"ann\", 1)])\nexpect(lb.top(5), [(\"ann\", 11), (\"bob\", 5)])",
+       "expected": "[('bob', 5), ('ann', 1)]\n[('ann', 11), ('bob', 5)]"
       },
       {
        "name": "half-open boundaries",
@@ -479,7 +489,8 @@
        "name": "competition rank and pages",
        "input": "ann 9, bob 9, cy 5; rank_info(bob), page(2, 2)",
        "hidden": false,
-       "code": "lb = Leaderboard()\nlb.add_score(\"bob\", 9, 1)\nlb.add_score(\"ann\", 9, 2)\nlb.add_score(\"cy\", 5, 3)\nexpect(lb.rank_info(\"bob\"), {\"rank\": 1, \"score\": 9, \"tied_with\": [\"ann\"]})\nexpect(lb.page(2, 2), {\"items\": [(3, \"cy\", 5)], \"total_players\": 3, \"total_pages\": 2})\nexpect(lb.rank(\"bob\"), 2)"
+       "code": "lb = Leaderboard()\nlb.add_score(\"bob\", 9, 1)\nlb.add_score(\"ann\", 9, 2)\nlb.add_score(\"cy\", 5, 3)\nexpect(lb.rank_info(\"bob\"), {\"rank\": 1, \"score\": 9, \"tied_with\": [\"ann\"]})\nexpect(lb.page(2, 2), {\"items\": [(3, \"cy\", 5)], \"total_players\": 3, \"total_pages\": 2})\nexpect(lb.rank(\"bob\"), 2)",
+       "expected": "{'rank': 1, 'score': 9, 'tied_with': ['ann']}\n{'items': [(3, 'cy', 5)], 'total_players': 3, 'total_pages': 2}\n2"
       },
       {
        "name": "1, 2, 2, 4 ranking",
@@ -515,7 +526,8 @@
        "name": "ban hides a player and ranks close up",
        "input": "a 50, b 40, c 30; ban(a); top(3), rank(b), page(1, 5)",
        "hidden": false,
-       "code": "lb = Leaderboard()\nlb.add_score(\"a\", 50, 1)\nlb.add_score(\"b\", 40, 1)\nlb.add_score(\"c\", 30, 1)\nexpect(lb.ban(\"a\"), True)\nexpect(lb.top(3), [(\"b\", 40), (\"c\", 30)])\nexpect([lb.rank(\"b\"), lb.rank(\"a\"), lb.rank_info(\"a\")], [1, None, None])\nexpect(lb.page(1, 5)[\"items\"], [(1, \"b\", 40), (2, \"c\", 30)])"
+       "code": "lb = Leaderboard()\nlb.add_score(\"a\", 50, 1)\nlb.add_score(\"b\", 40, 1)\nlb.add_score(\"c\", 30, 1)\nexpect(lb.ban(\"a\"), True)\nexpect(lb.top(3), [(\"b\", 40), (\"c\", 30)])\nexpect([lb.rank(\"b\"), lb.rank(\"a\"), lb.rank_info(\"a\")], [1, None, None])\nexpect(lb.page(1, 5)[\"items\"], [(1, \"b\", 40), (2, \"c\", 30)])",
+       "expected": "True\n[('b', 40), ('c', 30)]\n[1, None, None]\n[(1, 'b', 40), (2, 'c', 30)]"
       },
       {
        "name": "banned player cannot score; raw score still visible",
@@ -570,7 +582,8 @@
        "name": "rule match vs default",
        "input": "new-checkout default False; rule country in [IN, SG] → True; users IN and US",
        "hidden": false,
-       "code": "f = FlagService()\nf.create_flag(\"new-checkout\", False)\nf.add_rule(\"new-checkout\", \"country\", [\"IN\", \"SG\"], True)\nexpect(f.evaluate(\"new-checkout\", {\"id\": \"u1\", \"country\": \"IN\"}), True)\nexpect(f.evaluate(\"new-checkout\", {\"id\": \"u2\", \"country\": \"US\"}), False)"
+       "code": "f = FlagService()\nf.create_flag(\"new-checkout\", False)\nf.add_rule(\"new-checkout\", \"country\", [\"IN\", \"SG\"], True)\nexpect(f.evaluate(\"new-checkout\", {\"id\": \"u1\", \"country\": \"IN\"}), True)\nexpect(f.evaluate(\"new-checkout\", {\"id\": \"u2\", \"country\": \"US\"}), False)",
+       "expected": "True\nFalse"
       },
       {
        "name": "first matching rule wins",
@@ -606,7 +619,8 @@
        "name": "rollout uses the stable bucket",
        "input": "set_rollout(new-checkout, 20); users u1 (18), u3 (94)",
        "hidden": false,
-       "code": "f = FlagService()\nf.create_flag(\"new-checkout\", False)\nf.set_rollout(\"new-checkout\", 20)\nexpect(f.bucket(\"new-checkout\", \"u1\"), 18)\nexpect(f.evaluate(\"new-checkout\", {\"id\": \"u1\"}), True)\nexpect(f.evaluate(\"new-checkout\", {\"id\": \"u3\"}), False)"
+       "code": "f = FlagService()\nf.create_flag(\"new-checkout\", False)\nf.set_rollout(\"new-checkout\", 20)\nexpect(f.bucket(\"new-checkout\", \"u1\"), 18)\nexpect(f.evaluate(\"new-checkout\", {\"id\": \"u1\"}), True)\nexpect(f.evaluate(\"new-checkout\", {\"id\": \"u3\"}), False)",
+       "expected": "18\nTrue\nFalse"
       },
       {
        "name": "rules still win over rollout",
@@ -648,7 +662,8 @@
        "name": "global sequence across flags",
        "input": "create a, create b, add_rule a; audit_log(a)",
        "hidden": false,
-       "code": "f = FlagService()\nf.create_flag(\"a\", False)\nf.create_flag(\"b\", True)\nf.add_rule(\"a\", \"plan\", [\"pro\"], True)\nexpect(f.audit_log(\"a\"), [{\"seq\": 1, \"action\": \"create\"}, {\"seq\": 3, \"action\": \"add_rule\"}])\nexpect(f.audit_log(\"b\"), [{\"seq\": 2, \"action\": \"create\"}])"
+       "code": "f = FlagService()\nf.create_flag(\"a\", False)\nf.create_flag(\"b\", True)\nf.add_rule(\"a\", \"plan\", [\"pro\"], True)\nexpect(f.audit_log(\"a\"), [{\"seq\": 1, \"action\": \"create\"}, {\"seq\": 3, \"action\": \"add_rule\"}])\nexpect(f.audit_log(\"b\"), [{\"seq\": 2, \"action\": \"create\"}])",
+       "expected": "[{'seq': 1, 'action': 'create'}, {'seq': 3, 'action': 'add_rule'}]\n[{'seq': 2, 'action': 'create'}]"
       },
       {
        "name": "rollback restores the full config",
@@ -684,7 +699,8 @@
        "name": "prerequisite gates the flag",
        "input": "agent-mode (default True) requires new-model == True; new-model rule plan pro",
        "hidden": false,
-       "code": "f = FlagService()\nf.create_flag(\"new-model\", False)\nf.add_rule(\"new-model\", \"plan\", [\"pro\"], True)\nf.create_flag(\"agent-mode\", True)\nf.add_prerequisite(\"agent-mode\", \"new-model\", True)\nexpect(f.evaluate(\"agent-mode\", {\"id\": \"u1\", \"plan\": \"pro\"}), True)\nexpect(f.evaluate(\"agent-mode\", {\"id\": \"u1\", \"plan\": \"free\"}), False)"
+       "code": "f = FlagService()\nf.create_flag(\"new-model\", False)\nf.add_rule(\"new-model\", \"plan\", [\"pro\"], True)\nf.create_flag(\"agent-mode\", True)\nf.add_prerequisite(\"agent-mode\", \"new-model\", True)\nexpect(f.evaluate(\"agent-mode\", {\"id\": \"u1\", \"plan\": \"pro\"}), True)\nexpect(f.evaluate(\"agent-mode\", {\"id\": \"u1\", \"plan\": \"free\"}), False)",
+       "expected": "True\nFalse"
       },
       {
        "name": "required=False and chained prerequisites",

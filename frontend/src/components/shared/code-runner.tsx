@@ -157,12 +157,15 @@ export function CodeRunner({
   tests,
   timeoutMs = 10_000,
   onResult,
+  fill = false,
 }: {
   code: string;
   tests?: RunnerTest[];
   timeoutMs?: number;
   /** Called after every run with how many cases passed. */
   onResult?: (outcome: { mode: "run" | "submit"; passed: number; total: number }) => void;
+  /** Fill the parent's height and scroll inside, for a docked console. */
+  fill?: boolean;
 }) {
   const workerRef = useRef<Worker | null>(null);
   const loadedRef = useRef(false);
@@ -256,7 +259,10 @@ export function CodeRunner({
   const current = result?.cases[selectedResult];
 
   return (
-    <div className="overflow-hidden rounded-[var(--radius-md)] border bg-[var(--panel)]" style={{ borderColor: "var(--border)" }}>
+    <div
+      className={cn("overflow-hidden rounded-[var(--radius-md)] border bg-[var(--panel)]", fill && "flex h-full flex-col")}
+      style={{ borderColor: "var(--border)" }}
+    >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2" style={{ borderColor: "var(--border)" }}>
         <div role="tablist" className="flex gap-1">
           {hasTests && (
@@ -298,7 +304,7 @@ export function CodeRunner({
         </div>
       </div>
 
-      <div className="min-h-[180px] p-3" aria-live="polite">
+      <div className={cn("p-3", fill ? "min-h-0 flex-1 overflow-auto" : "min-h-[180px]")} aria-live="polite">
         {hasTests && tab === "cases" && (
           <div className="space-y-3">
             <div className="flex flex-wrap gap-1.5">

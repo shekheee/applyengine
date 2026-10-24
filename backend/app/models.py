@@ -335,6 +335,8 @@ class PrepAttempt(SQLModel, table=True):
     code: str = Field(default="", sa_column=Column(Text))
     notes: str = Field(default="", sa_column=Column(Text))
     complexity: str = ""
+    # Whiteboard elements (Excalidraw JSON) for design attempts.
+    diagram: list[dict[str, Any]] | None = Field(default=None, sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=_now)
 
 

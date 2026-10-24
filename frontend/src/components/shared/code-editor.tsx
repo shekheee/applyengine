@@ -2,6 +2,7 @@
 
 import Editor, { type EditorProps } from "@monaco-editor/react";
 import { useEffect, useRef } from "react";
+import { cn } from "@/components/ui";
 
 /**
  * Every completion surface is off: no inline (ghost-text) suggestions, no
@@ -61,6 +62,9 @@ export function CodeEditor({
 }) {
   const latest = useRef(value);
   const saved = useRef(value);
+  const box = useRef<HTMLDivElement>(null);
+  const observer = useRef<ResizeObserver | null>(null);
+  useEffect(() => () => observer.current?.disconnect(), []);
   useEffect(() => {
     latest.current = value;
   }, [value]);
@@ -81,7 +85,8 @@ export function CodeEditor({
 
   return (
     <div
-      className="overflow-hidden rounded-[var(--radius-md)] border"
+      ref={box}
+      className={cn("overflow-hidden rounded-[var(--radius-md)] border", height === "100%" && "h-full")}
       style={{ borderColor: "var(--border)" }}
     >
       <Editor
@@ -91,6 +96,22 @@ export function CodeEditor({
         value={value}
         onChange={(next) => onChange(next ?? "")}
         options={{ ...NO_ASSIST_EDITOR_OPTIONS, readOnly }}
+        onMount={(editor) => {
+          // Monaco can mount while its container is still hidden (0-5px tall) and
+          // then never re-measure; lay out again whenever the container resizes.
+          const relayout = () => {
+            const node = editor.getContainerDomNode();
+            editor.layout({ width: node.clientWidth, height: node.clientHeight });
+          };
+          observer.current?.disconnect();
+          observer.current = new ResizeObserver(relayout);
+          const node = editor.getContainerDomNode();
+          observer.current.observe(node);
+          if (node.parentElement) observer.current.observe(node.parentElement);
+          if (box.current) observer.current.observe(box.current);
+          // The wrapper un-hides itself after mount without always resizing; re-check briefly.
+          for (const delay of [0, 50, 250, 1000]) window.setTimeout(relayout, delay);
+        }}
         loading={<div className="p-4 text-sm text-[var(--muted)]">Loading editor…</div>}
       />
     </div>

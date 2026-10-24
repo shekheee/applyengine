@@ -7,19 +7,22 @@
     "name": "group words by first letter",
     "input": "group_by_first_letter(words = [\"apple\", \"Avocado\", \"banana\", \"\"])",
     "hidden": false,
-    "code": "expect(group_by_first_letter([\"apple\", \"Avocado\", \"banana\", \"\"]), {\"a\": [\"apple\", \"Avocado\"], \"b\": [\"banana\"]})\n"
+    "code": "expect(group_by_first_letter([\"apple\", \"Avocado\", \"banana\", \"\"]), {\"a\": [\"apple\", \"Avocado\"], \"b\": [\"banana\"]})\n",
+    "expected": "{'a': ['apple', 'Avocado'], 'b': ['banana']}"
    },
    {
     "name": "sort by score desc, name asc",
     "input": "sort_records(records = [{\"name\": \"bo\", \"score\": 2}, {\"name\": \"al\", \"score\": 2}, {\"name\": \"cy\", \"score\": 5}])",
     "hidden": false,
-    "code": "got = sort_records([{\"name\": \"bo\", \"score\": 2}, {\"name\": \"al\", \"score\": 2}, {\"name\": \"cy\", \"score\": 5}])\nexpect(got, [{\"name\": \"cy\", \"score\": 5}, {\"name\": \"al\", \"score\": 2}, {\"name\": \"bo\", \"score\": 2}])\n"
+    "code": "got = sort_records([{\"name\": \"bo\", \"score\": 2}, {\"name\": \"al\", \"score\": 2}, {\"name\": \"cy\", \"score\": 5}])\nexpect(got, [{\"name\": \"cy\", \"score\": 5}, {\"name\": \"al\", \"score\": 2}, {\"name\": \"bo\", \"score\": 2}])\n",
+    "expected": "[{'name': 'cy', 'score': 5}, {'name': 'al', 'score': 2}, {'name': 'bo', 'score': 2}]"
    },
    {
     "name": "dedupe keeps first occurrences",
     "input": "dedupe_keep_order(items = [3, 1, 3, 2, 1])",
     "hidden": false,
-    "code": "expect(dedupe_keep_order([3, 1, 3, 2, 1]), [3, 1, 2])\n"
+    "code": "expect(dedupe_keep_order([3, 1, 3, 2, 1]), [3, 1, 2])\n",
+    "expected": "[3, 1, 2]"
    },
    {
     "name": "group: empty input",
@@ -91,19 +94,22 @@
     "name": "top-k frequent words",
     "input": "words = [\"b\", \"a\", \"b\", \"c\", \"a\", \"d\"], k = 2",
     "hidden": false,
-    "code": "expect(top_k_frequent([\"b\", \"a\", \"b\", \"c\", \"a\", \"d\"], 2), [\"a\", \"b\"])\n"
+    "code": "expect(top_k_frequent([\"b\", \"a\", \"b\", \"c\", \"a\", \"d\"], 2), [\"a\", \"b\"])\n",
+    "expected": "['a', 'b']"
    },
    {
     "name": "sliding window max",
     "input": "nums = [1, 3, -1, -3, 5, 3, 6, 7], k = 3",
     "hidden": false,
-    "code": "expect(sliding_window_max([1, 3, -1, -3, 5, 3, 6, 7], 3), [3, 3, 5, 5, 6, 7])\n"
+    "code": "expect(sliding_window_max([1, 3, -1, -3, 5, 3, 6, 7], 3), [3, 3, 5, 5, 6, 7])\n",
+    "expected": "[3, 3, 5, 5, 6, 7]"
    },
    {
     "name": "task queue: priority then FIFO",
     "input": "ops: push(2,\"write\") → push(1,\"read\") → push(1,\"eval\") → pop → pop → len",
     "hidden": false,
-    "code": "q = TaskQueue()\nq.push(2, \"write\")\nq.push(1, \"read\")\nq.push(1, \"eval\")\nexpect((q.pop(), q.pop(), len(q)), (\"read\", \"eval\", 1))\n"
+    "code": "q = TaskQueue()\nq.push(2, \"write\")\nq.push(1, \"read\")\nq.push(1, \"eval\")\nexpect((q.pop(), q.pop(), len(q)), (\"read\", \"eval\", 1))\n",
+    "expected": "('read', 'eval', 1)"
    },
    {
     "name": "top-k: ties broken alphabetically",
@@ -175,19 +181,22 @@
     "name": "deposit, withdraw, repr",
     "input": "acct = BankAccount(\"Ann\", 10); deposit(5); withdraw(2.5)",
     "hidden": false,
-    "code": "acct = BankAccount(\"Ann\", 10)\nexpect(acct.deposit(5), 15, label=\"deposit(5)\")\nexpect(acct.withdraw(2.5), 12.5, label=\"withdraw(2.5)\")\nexpect(repr(acct), \"BankAccount(owner='Ann', balance=12.50)\")\n"
+    "code": "acct = BankAccount(\"Ann\", 10)\nexpect(acct.deposit(5), 15, label=\"deposit(5)\")\nexpect(acct.withdraw(2.5), 12.5, label=\"withdraw(2.5)\")\nexpect(repr(acct), \"BankAccount(owner='Ann', balance=12.50)\")\n",
+    "expected": "deposit(5): 15\nwithdraw(2.5): 12.5\n\"BankAccount(owner='Ann', balance=12.50)\""
    },
    {
     "name": "ContainsGrader run and mean",
     "input": "ContainsGrader().run([(\"The answer is Paris\", \"paris\"), (\"Rome\", \"paris\")])",
     "hidden": false,
-    "code": "rep = ContainsGrader().run([(\"The answer is Paris\", \"paris\"), (\"Rome\", \"paris\")])\nexpect(rep.scores, [1.0, 0.0])\nexpect(rep.mean, 0.5)\n"
+    "code": "rep = ContainsGrader().run([(\"The answer is Paris\", \"paris\"), (\"Rome\", \"paris\")])\nexpect(rep.scores, [1.0, 0.0])\nexpect(rep.mean, 0.5)\n",
+    "expected": "[1.0, 0.0]\n0.5"
    },
    {
     "name": "Grader is abstract",
     "input": "Grader()",
     "hidden": false,
-    "code": "expect_raises(TypeError, Grader)\nexpect((isinstance(ExactMatchGrader(), Grader), isinstance(ContainsGrader(), Grader)), (True, True))\n"
+    "code": "expect_raises(TypeError, Grader)\nexpect((isinstance(ExactMatchGrader(), Grader), isinstance(ContainsGrader(), Grader)), (True, True))\n",
+    "expected": "raises TypeError\n(True, True)"
    },
    {
     "name": "repr: default balance and two decimals",
@@ -259,13 +268,15 @@
     "name": "read records, skip blank lines",
     "input": "lines = io.StringIO('{\"id\": 1}\\n\\n   \\n{\"id\": 2}\\n')",
     "hidden": false,
-    "code": "import io\nexpect(list(read_jsonl(io.StringIO('{\"id\": 1}\\n\\n   \\n{\"id\": 2}\\n'))), [{\"id\": 1}, {\"id\": 2}])\n"
+    "code": "import io\nexpect(list(read_jsonl(io.StringIO('{\"id\": 1}\\n\\n   \\n{\"id\": 2}\\n'))), [{\"id\": 1}, {\"id\": 2}])\n",
+    "expected": "[{'id': 1}, {'id': 2}]"
    },
    {
     "name": "Timer with an injected clock",
     "input": "clock ticks 10.0 at enter, 12.5 at exit",
     "hidden": false,
-    "code": "ticks = iter([10.0, 12.5])\nwith Timer(clock=lambda: next(ticks)) as t:\n    pass\nexpect(t.elapsed, 2.5)\n"
+    "code": "ticks = iter([10.0, 12.5])\nwith Timer(clock=lambda: next(ticks)) as t:\n    pass\nexpect(t.elapsed, 2.5)\n",
+    "expected": "2.5"
    },
    {
     "name": "empty and whitespace-only input",
@@ -343,19 +354,22 @@
     "name": "valid JSON fills defaults",
     "input": "raw = '{\"label\": \"positive\", \"confidence\": 0.9}'",
     "hidden": false,
-    "code": "ans, err = parse_llm_output('{\"label\": \"positive\", \"confidence\": 0.9}')\nexpect((type(ans).__name__, ans.label, ans.confidence, ans.reasons, ans.citation, err),\n       (\"Answer\", \"positive\", 0.9, [], None, None))\n"
+    "code": "ans, err = parse_llm_output('{\"label\": \"positive\", \"confidence\": 0.9}')\nexpect((type(ans).__name__, ans.label, ans.confidence, ans.reasons, ans.citation, err),\n       (\"Answer\", \"positive\", 0.9, [], None, None))\n",
+    "expected": "('Answer', 'positive', 0.9, [], None, None)"
    },
    {
     "name": "schema errors name every bad field",
     "input": "raw = '{\"label\": \"great\", \"confidence\": 2}'",
     "hidden": false,
-    "code": "def fields(err):\n    \"\"\"Field paths named in a 'validation failed: ...' message.\"\"\"\n    return [p.split(\": \")[0] for p in err[len(\"validation failed: \"):].split(\"; \")]\n\nans, err = parse_llm_output('{\"label\": \"great\", \"confidence\": 2}')\nexpect(ans, None)\nexpect(err.startswith(\"validation failed: \"), True, label=err)\nexpect(fields(err), [\"label\", \"confidence\"])\n"
+    "code": "def fields(err):\n    \"\"\"Field paths named in a 'validation failed: ...' message.\"\"\"\n    return [p.split(\": \")[0] for p in err[len(\"validation failed: \"):].split(\"; \")]\n\nans, err = parse_llm_output('{\"label\": \"great\", \"confidence\": 2}')\nexpect(ans, None)\nexpect(err.startswith(\"validation failed: \"), True, label=err)\nexpect(fields(err), [\"label\", \"confidence\"])\n",
+    "expected": "None\nvalidation failed: label: Input should be 'positive', 'negative' or 'neutral'; confidence: Input should be less than or equal to 1: True\n['label', 'confidence']"
    },
    {
     "name": "markdown fence with json tag",
     "input": "raw = ```json\\n{\"label\": \"negative\", \"confidence\": 0.2}\\n```\\n",
     "hidden": false,
-    "code": "fence = \"`\" * 3\nans, err = parse_llm_output(fence + 'json\\n{\"label\": \"negative\", \"confidence\": 0.2}\\n' + fence + \"\\n\")\nexpect((ans.label if ans else None, err), (\"negative\", None))\n"
+    "code": "fence = \"`\" * 3\nans, err = parse_llm_output(fence + 'json\\n{\"label\": \"negative\", \"confidence\": 0.2}\\n' + fence + \"\\n\")\nexpect((ans.label if ans else None, err), (\"negative\", None))\n",
+    "expected": "('negative', None)"
    },
    {
     "name": "fence without a language tag",
@@ -427,13 +441,15 @@
     "name": "50 URLs, max 5 in flight, input order",
     "input": "urls = [\"https://api.example.com/item/0\" … \"/item/49\"], max_in_flight = 5",
     "hidden": false,
-    "code": "client = FakeClient()\nurls = [f\"https://api.example.com/item/{i}\" for i in range(50)]\nresults = await fetch_all(client, urls, max_in_flight=5)\nexpect((len(results), results[0], results[-1]),\n       (50, \"body of https://api.example.com/item/0\", \"body of https://api.example.com/item/49\"))\nexpect(results == [f\"body of {u}\" for u in urls], True, label=\"all 50 bodies in input order\")\nexpect(client.peak, 5, label=\"client.peak\")\n"
+    "code": "client = FakeClient()\nurls = [f\"https://api.example.com/item/{i}\" for i in range(50)]\nresults = await fetch_all(client, urls, max_in_flight=5)\nexpect((len(results), results[0], results[-1]),\n       (50, \"body of https://api.example.com/item/0\", \"body of https://api.example.com/item/49\"))\nexpect(results == [f\"body of {u}\" for u in urls], True, label=\"all 50 bodies in input order\")\nexpect(client.peak, 5, label=\"client.peak\")\n",
+    "expected": "(50, 'body of https://api.example.com/item/0', 'body of https://api.example.com/item/49')\nall 50 bodies in input order: True\nclient.peak: 5"
    },
    {
     "name": "failures returned in place",
     "input": "urls = [\"a\", \"bad-1\", \"b\", \"bad-2\", \"c\"]",
     "hidden": false,
-    "code": "def show(results):\n    return [r if isinstance(r, str) else type(r).__name__ for r in results]\n\nresults = await fetch_all(FakeClient(), [\"a\", \"bad-1\", \"b\", \"bad-2\", \"c\"])\nexpect(show(results), [\"body of a\", \"ConnectionError\", \"body of b\", \"ConnectionError\", \"body of c\"])\n"
+    "code": "def show(results):\n    return [r if isinstance(r, str) else type(r).__name__ for r in results]\n\nresults = await fetch_all(FakeClient(), [\"a\", \"bad-1\", \"b\", \"bad-2\", \"c\"])\nexpect(show(results), [\"body of a\", \"ConnectionError\", \"body of b\", \"ConnectionError\", \"body of c\"])\n",
+    "expected": "['body of a', 'ConnectionError', 'body of b', 'ConnectionError', 'body of c']"
    },
    {
     "name": "a different limit",
@@ -511,19 +527,22 @@
     "name": "make_client returns a scripted Mock",
     "input": "client = make_client(201, {\"a\": 1}); client.get(\"https://x\", timeout=1)",
     "hidden": false,
-    "code": "from unittest.mock import Mock, call\nclient = make_client(201, {\"a\": 1})\nexpect(type(client).__name__, \"Mock\")\nresp = client.get(\"https://x\", timeout=1)\nexpect((resp.status_code, resp.json()), (201, {\"a\": 1}))\nexpect(client.get.call_args_list, [call(\"https://x\", timeout=1)], label=\"client.get calls\")\n"
+    "code": "from unittest.mock import Mock, call\nclient = make_client(201, {\"a\": 1})\nexpect(type(client).__name__, \"Mock\")\nresp = client.get(\"https://x\", timeout=1)\nexpect((resp.status_code, resp.json()), (201, {\"a\": 1}))\nexpect(client.get.call_args_list, [call(\"https://x\", timeout=1)], label=\"client.get calls\")\n",
+    "expected": "'Mock'\n(201, {'a': 1})\nclient.get calls: [call('https://x', timeout=1)]"
    },
    {
     "name": "test_dedupe passes on the correct dedupe",
     "input": "run_test(test_dedupe, {\"dedupe\": dedupe_keep_order})",
     "hidden": false,
-    "code": "expect(run_test(test_dedupe, {\"dedupe\": dedupe_keep_order}), [])\n"
+    "code": "expect(run_test(test_dedupe, {\"dedupe\": dedupe_keep_order}), [])\n",
+    "expected": "[]"
    },
    {
     "name": "fetch_title tests pass on the correct fetch_title",
     "input": "run_test(test_fetch_title_ok / test_fetch_title_http_error, {\"fetch_title\": fetch_title})",
     "hidden": false,
-    "code": "fx = {\"fetch_title\": fetch_title}\nexpect(run_test(test_fetch_title_ok, fx), [], label=\"test_fetch_title_ok\")\nexpect(run_test(test_fetch_title_http_error, fx), [], label=\"test_fetch_title_http_error\")\n"
+    "code": "fx = {\"fetch_title\": fetch_title}\nexpect(run_test(test_fetch_title_ok, fx), [], label=\"test_fetch_title_ok\")\nexpect(run_test(test_fetch_title_http_error, fx), [], label=\"test_fetch_title_http_error\")\n",
+    "expected": "test_fetch_title_ok: []\ntest_fetch_title_http_error: []"
    },
    {
     "name": "test_dedupe table: >= 4 cases incl. empty input",

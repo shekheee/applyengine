@@ -152,7 +152,7 @@ export function PrepToday() {
       title: "This week",
       items: today.weekly,
       empty: "",
-      note: "Fundamentals exercises and the multi-level challenge. Do them any day this week; they count toward the week's progress.",
+      note: "Fundamentals, the multi-level challenge, and classic system design and OOD problems. Do them any day this week; they count toward the week's progress.",
     },
     {
       title: "Extra practice · optional",
