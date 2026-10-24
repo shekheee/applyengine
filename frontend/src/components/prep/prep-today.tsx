@@ -58,13 +58,18 @@ function toChecklistItem(item: PrepItem): ChecklistItem {
               : item.slot === "weekly"
                 ? "primary"
                 : "default",
-    trailing: item.done ? null : (
+    // Finished items stay openable: their review, solution and submissions live there.
+    trailing: (
       <Link
         href={sessionHref(item)}
-        className="rounded-[var(--radius-md)] border px-2.5 py-1 text-xs font-medium text-[var(--text)] hover:bg-[var(--panel-2)]"
-        style={{ borderColor: "var(--border)" }}
+        className={
+          item.done
+            ? "rounded-[var(--radius-md)] px-2.5 py-1 text-xs font-medium text-[var(--muted)] hover:bg-[var(--panel-2)] hover:text-[var(--text)]"
+            : "rounded-[var(--radius-md)] border px-2.5 py-1 text-xs font-medium text-[var(--text)] hover:bg-[var(--panel-2)]"
+        }
+        style={item.done ? undefined : { borderColor: "var(--border)" }}
       >
-        Start
+        {item.done ? "Review" : "Start"}
       </Link>
     ),
   };
