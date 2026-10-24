@@ -760,3 +760,37 @@ export interface PrepAttemptResult {
   redos_created: PrepRedo[];
   redos_cleared: number;
 }
+
+export type PrepPlanStatus = "todo" | "done" | "redo";
+
+export interface PrepPlanTask {
+  task_id: string;
+  type: PrepTaskType;
+  title: string;
+  url: string | null;
+  pattern: string | null;
+  day: string | null;
+  slot: string;
+  target_minutes: number;
+  stretch: boolean;
+  status: PrepPlanStatus;
+  attempts: number;
+  last_date: string | null;
+  last_minutes: number | null;
+  last_hint: boolean | null;
+  last_solved: PrepSolved | null;
+  next_redo: string | null;
+}
+
+export interface PrepPlanWeek {
+  week: number;
+  start_date: string | null;
+  tasks: PrepPlanTask[];
+  done: number;
+}
+
+export interface PrepPlan {
+  configured: boolean;
+  current_week: number;
+  weeks: PrepPlanWeek[];
+}

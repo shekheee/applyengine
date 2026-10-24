@@ -630,3 +630,35 @@ class PrepTaskDetailOut(BaseModel):
     rules: dict[str, Any] = Field(default_factory=dict)
     attempts: list[PrepAttemptOut] = Field(default_factory=list)
     open_redos: list[PrepRedoOut] = Field(default_factory=list)
+
+
+class PrepPlanTaskOut(BaseModel):
+    task_id: str
+    type: str
+    title: str
+    url: str | None = None
+    pattern: str | None = None
+    day: str | None = None
+    slot: str
+    target_minutes: int
+    stretch: bool = False
+    status: str  # todo | done | redo
+    attempts: int = 0
+    last_date: str | None = None
+    last_minutes: int | None = None
+    last_hint: bool | None = None
+    last_solved: str | None = None
+    next_redo: str | None = None
+
+
+class PrepPlanWeekOut(BaseModel):
+    week: int
+    start_date: str | None = None
+    tasks: list[PrepPlanTaskOut]
+    done: int
+
+
+class PrepPlanOut(BaseModel):
+    configured: bool
+    current_week: int
+    weeks: list[PrepPlanWeekOut]

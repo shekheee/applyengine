@@ -6,12 +6,14 @@ from pathlib import Path
 from fastapi import HTTPException
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from app.models import PrepAttempt, PrepRedo, PrepTask, User
+from app.models import PrepAttempt, PrepFeedback, PrepRedo, PrepTask, User
 from app.routers.prep import (
     check_item,
     create_attempt,
+    get_plan,
     get_settings,
     get_task,
+    list_feedback,
     get_today,
     put_settings,
 )
@@ -423,6 +425,100 @@ class PrepAttemptRouterTests(unittest.TestCase):
             self.log(session, user, hint_used=True)
             theirs = get_task("lc-1", session, other)
             self.assertEqual((theirs.attempts, theirs.open_redos), ([], []))
+
+
+class PrepPlanTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.engine = create_engine(
+            f"sqlite:///{Path(self.tmp.name) / 'test.db'}",
+            connect_args={"check_same_thread": False},
+        )
+        SQLModel.metadata.create_all(self.engine)
+        self.today = datetime.now(timezone.utc).date()
+        with Session(self.engine) as session:
+            sync_seed(session)
+            user = User(email="one@example.com", name="One")
+            other = User(email="two@example.com", name="Two")
+            session.add(user)
+            session.add(other)
+            session.commit()
+            self.user_id = user.id
+            self.other_id = other.id
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_plan_lists_all_weeks_and_tasks_before_setup(self):
+        with Session(self.engine) as session:
+            plan = get_plan(self.today, session, session.get(User, self.user_id))
+            self.assertFalse(plan.configured)
+            self.assertEqual([w.week for w in plan.weeks], list(range(1, 11)))
+            self.assertEqual(sum(len(w.tasks) for w in plan.weeks), 109)
+            self.assertEqual(plan.weeks[0].tasks[0].title, "1. Two Sum")
+
+    def test_plan_status_reflects_attempts_and_queued_redos(self):
+        with Session(self.engine) as session:
+            user = session.get(User, self.user_id)
+            put_settings(PrepSettingsIn(start_date=self.today), session, user)
+            create_attempt(
+                PrepAttemptIn(task_id="lc-1", date=self.today, elapsed_minutes=20), session, user
+            )
+            create_attempt(
+                PrepAttemptIn(
+                    task_id="lc-217", date=self.today, elapsed_minutes=50, hint_used=True
+                ),
+                session,
+                user,
+            )
+            plan = get_plan(self.today, session, user)
+            week1 = {t.task_id: t for t in plan.weeks[0].tasks}
+            self.assertEqual(week1["lc-1"].status, "done")
+            self.assertEqual(week1["lc-217"].status, "redo")
+            self.assertEqual(week1["lc-217"].next_redo, (self.today + timedelta(days=3)).isoformat())
+            self.assertTrue(week1["lc-217"].last_hint)
+            self.assertEqual(week1["lc-242"].status, "todo")
+            self.assertEqual(plan.weeks[0].done, 2)
+            self.assertEqual(plan.current_week, 1)
+
+            other = get_plan(self.today, session, session.get(User, self.other_id))
+            self.assertTrue(all(t.status == "todo" for w in other.weeks for t in w.tasks))
+
+    def test_neetcode_attempts_appear_under_their_week(self):
+        with Session(self.engine) as session:
+            user = session.get(User, self.user_id)
+            put_settings(
+                PrepSettingsIn(start_date=self.today - timedelta(days=60)), session, user
+            )
+            create_attempt(
+                PrepAttemptIn(
+                    task_id=f"nc-{self.today.isoformat()}",
+                    date=self.today,
+                    title="Koko Eating Bananas",
+                    elapsed_minutes=30,
+                ),
+                session,
+                user,
+            )
+            plan = get_plan(self.today, session, user)
+            self.assertEqual(plan.current_week, 9)
+            self.assertEqual([t.title for t in plan.weeks[8].tasks], ["Koko Eating Bananas"])
+
+    def test_feedback_history_is_newest_first_and_private(self):
+        with Session(self.engine) as session:
+            user = session.get(User, self.user_id)
+            for offset in (2, 1):
+                session.add(
+                    PrepFeedback(
+                        user_id=user.id,
+                        date=self.today - timedelta(days=offset),
+                        markdown=f"day -{offset}",
+                    )
+                )
+            session.commit()
+            history = list_feedback(30, session, user)
+            self.assertEqual([f.markdown for f in history], ["day -1", "day -2"])
+            self.assertEqual(list_feedback(30, session, session.get(User, self.other_id)), [])
 
 if __name__ == "__main__":
     unittest.main()

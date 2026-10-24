@@ -15,6 +15,7 @@ from app.schemas import (
     PrepAttemptResultOut,
     PrepCheckIn,
     PrepFeedbackOut,
+    PrepPlanOut,
     PrepRedoOut,
     PrepSettingsIn,
     PrepSettingsOut,
@@ -22,7 +23,7 @@ from app.schemas import (
     PrepTodayOut,
 )
 from app.services.prep_redos import new_redos
-from app.services.prep_schedule import NEETCODE_URL, build_today, neetcode_task_id
+from app.services.prep_schedule import NEETCODE_URL, build_plan, build_today, neetcode_task_id
 from app.services.prep_seed import program, rules
 
 router = APIRouter(prefix="/api/prep", tags=["prep"])
@@ -349,3 +350,17 @@ def create_attempt(
         redos_created=[_redo_out(r) for r in created],
         redos_cleared=cleared,
     )
+
+
+@router.get("/plan", response_model=PrepPlanOut)
+def get_plan(
+    day: date = Query(alias="date"),
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    settings = _settings(user, session)
+    tasks = list(session.exec(select(PrepTask)).all())
+    attempts = list(session.exec(select(PrepAttempt).where(PrepAttempt.user_id == user.id)).all())
+    redos = list(session.exec(select(PrepRedo).where(PrepRedo.user_id == user.id)).all())
+    plan = build_plan(tasks, settings.start_date if settings else None, day, attempts, redos)
+    return PrepPlanOut(configured=settings is not None, **plan)

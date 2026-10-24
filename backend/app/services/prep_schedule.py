@@ -313,3 +313,98 @@ def _week_strip(
             {"date": day.isoformat(), "label": weekday_label(day), "status": status, "count": count}
         )
     return strip
+
+
+def build_plan(
+    tasks: list[PrepTask],
+    start_date: date | None,
+    today: date,
+    attempts: list[PrepAttempt],
+    redos: list[PrepRedo],
+) -> dict[str, Any]:
+    """Every week's tasks with the user's status on each.
+
+    Status is "redo" while redos are queued, "done" once attempted with none
+    left, and "todo" otherwise. NeetCode attempts from weeks 9-10 are listed
+    under the week they were logged in.
+    """
+    by_task: dict[str, list[PrepAttempt]] = defaultdict(list)
+    for attempt in sorted(attempts, key=lambda a: (a.date, a.id or 0)):
+        by_task[attempt.task_id].append(attempt)
+    open_redos: dict[str, list[PrepRedo]] = defaultdict(list)
+    for redo in redos:
+        if not redo.done:
+            open_redos[redo.task_id].append(redo)
+
+    def row(task_id: str, base: dict[str, Any]) -> dict[str, Any]:
+        logged = by_task.get(task_id, [])
+        pending = sorted(open_redos.get(task_id, []), key=lambda r: r.due_date)
+        last = logged[-1] if logged else None
+        status = "redo" if pending else "done" if logged else "todo"
+        return {
+            **base,
+            "status": status,
+            "attempts": len(logged),
+            "last_date": last.date.isoformat() if last else None,
+            "last_minutes": round(last.elapsed_minutes) if last else None,
+            "last_hint": last.hint_used if last else None,
+            "last_solved": last.solved if last else None,
+            "next_redo": pending[0].due_date.isoformat() if pending else None,
+        }
+
+    weeks: dict[int, list[dict[str, Any]]] = {w: [] for w in range(1, PROGRAM_WEEKS + 1)}
+    slot_rank = {"morning": 0, "evening": 1, "weekend": 2}
+    for task in sorted(tasks, key=lambda t: (t.week, slot_rank.get(t.slot, 3), t.order, t.id)):
+        weeks.setdefault(task.week, []).append(
+            row(
+                task.id,
+                {
+                    "task_id": task.id,
+                    "type": task.type,
+                    "title": task.title,
+                    "url": task.url,
+                    "pattern": task.pattern,
+                    "day": task.day,
+                    "slot": task.slot,
+                    "target_minutes": task.target_minutes,
+                    "stretch": task.stretch,
+                },
+            )
+        )
+    if start_date:
+        seen: set[str] = set()
+        for attempt in attempts:
+            if not attempt.task_id.startswith("nc-") or attempt.task_id in seen:
+                continue
+            seen.add(attempt.task_id)
+            week = program_week(start_date, attempt.date) or PROGRAM_WEEKS
+            weeks.setdefault(week, []).append(
+                row(
+                    attempt.task_id,
+                    {
+                        "task_id": attempt.task_id,
+                        "type": "dsa",
+                        "title": attempt.title or "NeetCode 150 medium",
+                        "url": NEETCODE_URL,
+                        "pattern": "NeetCode 150",
+                        "day": None,
+                        "slot": "morning",
+                        "target_minutes": 40,
+                        "stretch": False,
+                    },
+                )
+            )
+
+    week_rows = [
+        {
+            "week": week,
+            "start_date": week_start(start_date, week).isoformat() if start_date else None,
+            "tasks": rows,
+            "done": sum(1 for r in rows if r["status"] != "todo"),
+        }
+        for week, rows in sorted(weeks.items())
+    ]
+    return {
+        "current_week": program_week(start_date, today) if start_date else 0,
+        "weeks": week_rows,
+    }

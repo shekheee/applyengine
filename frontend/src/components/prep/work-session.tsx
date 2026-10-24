@@ -7,6 +7,7 @@ import type { PrepAttemptResult, PrepSolved, PrepTaskDetail } from "@/lib/types"
 import { Badge, Button, Card, Input, Label, PageSkeleton, Textarea, cn } from "@/components/ui";
 import { Checklist } from "@/components/shared/checklist";
 import { CodeEditor, clearDraft, loadDraft } from "@/components/shared/code-editor";
+import { CodeRunner } from "@/components/shared/code-runner";
 import { RatingInput } from "@/components/shared/rating-input";
 import { Timer, clearTimer } from "@/components/shared/timer";
 import { localISODate, shortDate } from "./dates";
@@ -20,6 +21,8 @@ const DSA_STEPS = [
 ];
 
 const EXCALIDRAW_URL = "https://excalidraw.com";
+
+const RUNNABLE_TYPES = new Set(["drill", "lld", "python"]);
 
 const TYPE_LABEL: Record<string, string> = {
   dsa: "DSA",
@@ -281,6 +284,11 @@ function SessionBody({ task, date }: { task: PrepTaskDetail; date: string }) {
                   : "Write it here. Completions are off; drafts save every 5 seconds."}
               </p>
               <CodeEditor value={code} onChange={setCode} draftKey={draftKey} height={420} />
+              {RUNNABLE_TYPES.has(task.type) && (
+                <div className="mt-3">
+                  <CodeRunner code={code} />
+                </div>
+              )}
             </div>
           )}
         </div>

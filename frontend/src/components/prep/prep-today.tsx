@@ -12,7 +12,8 @@ import { ProgressRing } from "@/components/shared/progress-ring";
 import { StreakBadge } from "@/components/shared/streak-badge";
 import { TaskCard } from "@/components/shared/task-card";
 import { WeekStrip } from "@/components/shared/week-strip";
-import { localISODate } from "./dates";
+import { localISODate, shortDate } from "./dates";
+import { PrepNav } from "./prep-nav";
 
 function nextMonday(): string {
   const d = new Date();
@@ -143,6 +144,7 @@ export function PrepToday() {
 
   return (
     <div className="page-shell mx-auto max-w-4xl space-y-5 pb-12">
+      <PrepNav />
       <PageHeader
         title={today.program_name}
         description={`Week ${today.week} of ${today.weeks} · ${today.weekday} ${today.date}`}
@@ -162,7 +164,7 @@ export function PrepToday() {
 
       {today.feedback && (
         <MarkdownPanel
-          title={`Feedback for ${today.feedback.date}`}
+          title={`Feedback for ${shortDate(today.feedback.date)}`}
           markdown={today.feedback.markdown}
           collapsible
         />

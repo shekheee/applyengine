@@ -24,6 +24,8 @@ import type {
   Profile,
   PrepAttemptInput,
   PrepAttemptResult,
+  PrepFeedback,
+  PrepPlan,
   PrepSettings,
   PrepTaskDetail,
   PrepToday,
@@ -1326,6 +1328,11 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(body),
     }),
+
+  getPrepPlan: (date: string) =>
+    req<PrepPlan>(`/api/prep/plan?date=${encodeURIComponent(date)}`),
+
+  listPrepFeedback: () => req<PrepFeedback[]>("/api/prep/feedback"),
 
   getPrepTask: (taskId: string) =>
     req<PrepTaskDetail>(`/api/prep/tasks/${encodeURIComponent(taskId)}`),
