@@ -4,8 +4,12 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import HTTPException
+from fastapi.testclient import TestClient
 from sqlmodel import Session, SQLModel, create_engine, select
 
+from app.auth import create_access_token
+from app.db import get_session
+from app.main import app
 from app.models import PrepAttempt, PrepFeedback, PrepRedo, PrepTask, User
 from app.routers.prep import (
     check_item,
@@ -519,6 +523,137 @@ class PrepPlanTests(unittest.TestCase):
             history = list_feedback(30, session, user)
             self.assertEqual([f.markdown for f in history], ["day -1", "day -2"])
             self.assertEqual(list_feedback(30, session, session.get(User, self.other_id)), [])
+
+
+class PrepReviewLoopTests(unittest.TestCase):
+    """The nightly script's path: review token -> daily log -> feedback upload."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.engine = create_engine(
+            f"sqlite:///{Path(self.tmp.name) / 'test.db'}",
+            connect_args={"check_same_thread": False},
+        )
+        SQLModel.metadata.create_all(self.engine)
+        self.today = datetime.now(timezone.utc).date()
+        with Session(self.engine) as session:
+            sync_seed(session)
+            user = User(email="one@example.com", name="One")
+            other = User(email="two@example.com", name="Two")
+            session.add(user)
+            session.add(other)
+            session.commit()
+            self.user_id = user.id
+            self.other_id = other.id
+            put_settings(PrepSettingsIn(start_date=self.today), session, user)
+            put_settings(PrepSettingsIn(start_date=self.today), session, other)
+
+        def override():
+            with Session(self.engine) as session:
+                yield session
+
+        app.dependency_overrides[get_session] = override
+        self.client = TestClient(app)
+        self.jwt = {"Authorization": f"Bearer {create_access_token(self.user_id)}"}
+        self.other_jwt = {"Authorization": f"Bearer {create_access_token(self.other_id)}"}
+
+    def tearDown(self):
+        app.dependency_overrides.clear()
+        self.tmp.cleanup()
+
+    def issue_token(self, headers=None):
+        response = self.client.post("/api/prep/review-token", headers=headers or self.jwt)
+        self.assertEqual(response.status_code, 200)
+        token = response.json()["token"]
+        self.assertTrue(token.startswith("prep_"))
+        return {"Authorization": f"Bearer {token}"}
+
+    def test_token_is_shown_once_and_reissuing_revokes_the_old_one(self):
+        first = self.issue_token()
+        status = self.client.get("/api/prep/review-token", headers=self.jwt).json()
+        self.assertTrue(status["exists"])
+        self.assertIsNone(status["token"])
+        self.assertTrue(status["created_at"].endswith(("Z", "+00:00")))
+        second = self.issue_token()
+        day = self.today.isoformat()
+        self.assertEqual(self.client.get(f"/api/prep/log?date={day}", headers=first).status_code, 401)
+        self.assertEqual(self.client.get(f"/api/prep/log?date={day}", headers=second).status_code, 200)
+        self.client.delete("/api/prep/review-token", headers=self.jwt)
+        self.assertEqual(self.client.get(f"/api/prep/log?date={day}", headers=second).status_code, 401)
+
+    def test_review_token_only_reaches_log_and_feedback(self):
+        token = self.issue_token()
+        day = self.today.isoformat()
+        self.assertEqual(self.client.get(f"/api/prep/today?date={day}", headers=token).status_code, 401)
+        self.assertEqual(self.client.get("/api/prep/settings", headers=token).status_code, 401)
+        self.assertEqual(self.client.post("/api/prep/review-token", headers=token).status_code, 401)
+        self.assertEqual(self.client.get("/api/auth/me", headers=token).status_code, 401)
+
+    def test_daily_log_has_plan_attempts_code_redos_and_totals(self):
+        with Session(self.engine) as session:
+            user = session.get(User, self.user_id)
+            create_attempt(
+                PrepAttemptIn(
+                    task_id="lc-1",
+                    date=self.today,
+                    elapsed_minutes=48,
+                    hint_used=True,
+                    code="def two_sum(nums, target): ...",
+                    notes="Forgot the complement trick",
+                    complexity="O(n) time",
+                ),
+                session,
+                user,
+            )
+        token = self.issue_token()
+        log = self.client.get(f"/api/prep/log?date={self.today.isoformat()}", headers=token).json()
+        self.assertEqual(log["week"], 1)
+        self.assertEqual(
+            [(p["task_id"], p["done"]) for p in log["planned"]][:2],
+            [("lc-1", True), ("lc-217", False)],
+        )
+        attempt = log["attempts"][0]
+        self.assertEqual(attempt["code"], "def two_sum(nums, target): ...")
+        self.assertEqual(attempt["notes"], "Forgot the complement trick")
+        self.assertTrue(attempt["hint_used"])
+        self.assertEqual(attempt["target_minutes"], 40)
+        self.assertEqual(log["streak"]["today_count"], 1)
+        self.assertEqual(log["totals"]["week_done"], 1)
+        self.assertEqual(log["totals"]["week_planned"], 16)
+        later = (self.today + timedelta(days=3)).isoformat()
+        later_log = self.client.get(f"/api/prep/log?date={later}", headers=token).json()
+        self.assertEqual([r["task_id"] for r in later_log["redos_due_or_overdue"]], ["lc-1"])
+
+    def test_feedback_upload_shows_next_day_and_rerun_replaces_it(self):
+        token = self.issue_token()
+        day = self.today.isoformat()
+        first = self.client.put(
+            f"/api/prep/feedback/{day}", content="# Verdict\nGood day.", headers=token
+        )
+        self.assertEqual(first.status_code, 200)
+        rerun = self.client.put(
+            f"/api/prep/feedback/{day}", content="# Verdict\nRe-run.", headers=token
+        )
+        self.assertEqual(rerun.status_code, 200)
+        history = self.client.get("/api/prep/feedback", headers=self.jwt).json()
+        self.assertEqual([h["markdown"] for h in history], ["# Verdict\nRe-run."])
+        tomorrow = (self.today + timedelta(days=1)).isoformat()
+        today_screen = self.client.get(f"/api/prep/today?date={tomorrow}", headers=self.jwt).json()
+        self.assertEqual(today_screen["feedback"]["markdown"], "# Verdict\nRe-run.")
+        self.assertEqual(
+            self.client.put(f"/api/prep/feedback/{day}", content="  ", headers=token).status_code,
+            422,
+        )
+
+    def test_tokens_are_per_user(self):
+        mine = self.issue_token()
+        self.client.put(f"/api/prep/feedback/{self.today.isoformat()}", content="mine", headers=mine)
+        self.assertEqual(self.client.get("/api/prep/feedback", headers=self.other_jwt).json(), [])
+        theirs = self.issue_token(self.other_jwt)
+        self.assertNotEqual(mine, theirs)
+        self.assertEqual(
+            self.client.get("/api/prep/feedback", headers=self.jwt).json()[0]["markdown"], "mine"
+        )
 
 if __name__ == "__main__":
     unittest.main()

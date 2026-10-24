@@ -26,6 +26,7 @@ import type {
   PrepAttemptResult,
   PrepFeedback,
   PrepPlan,
+  PrepReviewToken,
   PrepSettings,
   PrepTaskDetail,
   PrepToday,
@@ -1333,6 +1334,17 @@ export const api = {
     req<PrepPlan>(`/api/prep/plan?date=${encodeURIComponent(date)}`),
 
   listPrepFeedback: () => req<PrepFeedback[]>("/api/prep/feedback"),
+
+  getPrepReviewToken: () => req<PrepReviewToken>("/api/prep/review-token"),
+
+  createPrepReviewToken: () =>
+    req<PrepReviewToken>("/api/prep/review-token", { method: "POST" }),
+
+  deletePrepReviewToken: () =>
+    req<void>("/api/prep/review-token", { method: "DELETE" }),
+
+  getPrepLog: (date: string) =>
+    req<Record<string, unknown>>(`/api/prep/log?date=${encodeURIComponent(date)}`),
 
   getPrepTask: (taskId: string) =>
     req<PrepTaskDetail>(`/api/prep/tasks/${encodeURIComponent(taskId)}`),

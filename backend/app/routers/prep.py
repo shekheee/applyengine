@@ -3,12 +3,20 @@ from __future__ import annotations
 import re
 from datetime import date, datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlmodel import Session, select
 
-from app.auth import get_current_user
+from app.auth import get_current_user, oauth2_scheme
 from app.db import get_session
-from app.models import PrepAttempt, PrepFeedback, PrepRedo, PrepSettings, PrepTask, User
+from app.models import (
+    PrepAttempt,
+    PrepFeedback,
+    PrepRedo,
+    PrepReviewToken,
+    PrepSettings,
+    PrepTask,
+    User,
+)
 from app.schemas import (
     PrepAttemptIn,
     PrepAttemptOut,
@@ -17,6 +25,7 @@ from app.schemas import (
     PrepFeedbackOut,
     PrepPlanOut,
     PrepRedoOut,
+    PrepReviewTokenOut,
     PrepSettingsIn,
     PrepSettingsOut,
     PrepTaskDetailOut,
@@ -24,6 +33,12 @@ from app.schemas import (
 )
 from app.services.prep_redos import new_redos
 from app.services.prep_schedule import NEETCODE_URL, build_plan, build_today, neetcode_task_id
+from app.services.prep_review import (
+    TOKEN_PREFIX,
+    build_daily_log,
+    hash_review_token,
+    new_review_token,
+)
 from app.services.prep_seed import program, rules
 
 router = APIRouter(prefix="/api/prep", tags=["prep"])
@@ -49,6 +64,29 @@ def _attempt_out(attempt: PrepAttempt) -> PrepAttemptOut:
 
 def _redo_out(redo: PrepRedo) -> PrepRedoOut:
     return PrepRedoOut.model_validate(redo, from_attributes=True)
+
+
+def get_prep_user(
+    token: str | None = Depends(oauth2_scheme),
+    session: Session = Depends(get_session),
+) -> User:
+    """A signed-in user, or the nightly script presenting its review token."""
+    if token and token.startswith(TOKEN_PREFIX):
+        row = session.exec(
+            select(PrepReviewToken).where(
+                PrepReviewToken.token_hash == hash_review_token(token)
+            )
+        ).first()
+        user = session.get(User, row.user_id) if row else None
+        if not row or not user:
+            raise HTTPException(
+                401, "Invalid review token", headers={"WWW-Authenticate": "Bearer"}
+            )
+        row.last_used_at = datetime.now(timezone.utc)
+        session.add(row)
+        session.commit()
+        return user
+    return get_current_user(token, session)
 
 
 def _settings(user: User, session: Session) -> PrepSettings | None:
@@ -364,3 +402,110 @@ def get_plan(
     redos = list(session.exec(select(PrepRedo).where(PrepRedo.user_id == user.id)).all())
     plan = build_plan(tasks, settings.start_date if settings else None, day, attempts, redos)
     return PrepPlanOut(configured=settings is not None, **plan)
+
+
+def _utc(moment: datetime | None) -> datetime | None:
+    """SQLite drops tzinfo; these timestamps are always stored in UTC."""
+    if moment is None or moment.tzinfo is not None:
+        return moment
+    return moment.replace(tzinfo=timezone.utc)
+
+
+def _token_out(row: PrepReviewToken | None, token: str | None = None) -> PrepReviewTokenOut:
+    if not row:
+        return PrepReviewTokenOut(exists=False)
+    return PrepReviewTokenOut(
+        exists=True,
+        created_at=_utc(row.created_at),
+        last_used_at=_utc(row.last_used_at),
+        token=token,
+    )
+
+
+def _token_row(user: User, session: Session) -> PrepReviewToken | None:
+    return session.exec(
+        select(PrepReviewToken).where(PrepReviewToken.user_id == user.id)
+    ).first()
+
+
+@router.get("/review-token", response_model=PrepReviewTokenOut)
+def get_review_token(
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    return _token_out(_token_row(user, session))
+
+
+@router.post("/review-token", response_model=PrepReviewTokenOut)
+def create_review_token(
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Issue a new token, replacing any earlier one. The plain token is returned once."""
+    token, token_hash = new_review_token()
+    row = _token_row(user, session) or PrepReviewToken(user_id=user.id, token_hash=token_hash)
+    row.token_hash = token_hash
+    row.created_at = datetime.now(timezone.utc)
+    row.last_used_at = None
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    return _token_out(row, token)
+
+
+@router.delete("/review-token", status_code=204)
+def delete_review_token(
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    row = _token_row(user, session)
+    if row:
+        session.delete(row)
+        session.commit()
+
+
+@router.get("/log")
+def get_daily_log(
+    day: date = Query(alias="date"),
+    session: Session = Depends(get_session),
+    user: User = Depends(get_prep_user),
+) -> dict:
+    """The day's plan, attempts (with code), streak, redos and totals for the review."""
+    settings = _settings(user, session)
+    if not settings:
+        raise HTTPException(409, "Set a start date first")
+    tasks = list(session.exec(select(PrepTask)).all())
+    attempts = list(
+        session.exec(
+            select(PrepAttempt).where(PrepAttempt.user_id == user.id, PrepAttempt.date <= day)
+        ).all()
+    )
+    redos = list(session.exec(select(PrepRedo).where(PrepRedo.user_id == user.id)).all())
+    return build_daily_log(program(), tasks, settings.start_date, day, attempts, redos)
+
+
+@router.put("/feedback/{day}", response_model=PrepFeedbackOut)
+async def put_feedback(
+    day: date,
+    request: Request,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_prep_user),
+):
+    """Store the review's markdown (raw request body) for a day, replacing any earlier one."""
+    markdown = (await request.body()).decode("utf-8", errors="replace").strip()
+    if not markdown:
+        raise HTTPException(422, "Feedback is empty")
+    if len(markdown) > 50_000:
+        raise HTTPException(413, "Feedback is too long")
+    rows = session.exec(
+        select(PrepFeedback).where(PrepFeedback.user_id == user.id, PrepFeedback.date == day)
+    ).all()
+    for row in rows:
+        session.delete(row)
+    feedback = PrepFeedback(user_id=user.id, date=day, markdown=markdown)
+    session.add(feedback)
+    session.commit()
+    session.refresh(feedback)
+    return PrepFeedbackOut(
+        date=feedback.date, markdown=feedback.markdown, created_at=feedback.created_at
+    )

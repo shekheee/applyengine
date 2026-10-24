@@ -794,3 +794,10 @@ export interface PrepPlan {
   current_week: number;
   weeks: PrepPlanWeek[];
 }
+
+export interface PrepReviewToken {
+  exists: boolean;
+  created_at: string | null;
+  last_used_at: string | null;
+  token: string | null;
+}

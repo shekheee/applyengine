@@ -37,3 +37,6 @@ storage/
 .vscode/
 .vercel
 .env*
+
+# Interview Prep review output (logs + feedback)
+prep_data/

@@ -662,3 +662,10 @@ class PrepPlanOut(BaseModel):
     configured: bool
     current_week: int
     weeks: list[PrepPlanWeekOut]
+
+
+class PrepReviewTokenOut(BaseModel):
+    exists: bool
+    created_at: datetime | None = None
+    last_used_at: datetime | None = None
+    token: str | None = None  # Only set in the response that creates it.

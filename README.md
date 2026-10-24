@@ -196,6 +196,55 @@ All endpoints below (except auth) require a `Bearer` token from login/register.
 - **Persistence:** production uses **Neon Postgres** (`DATABASE_URL`) so accounts and
   memory survive redeploys — SQLite on ephemeral hosts resets on every deploy.
 
+## Interview Prep
+
+A 10-week Applied AI prep program at `/prep` (spec: `PREP_MODULE_SPEC.md`). The 109
+tasks in `backend/app/data/prep_seed.json` load at startup; re-loading is idempotent.
+
+- **Today:** due redos, two DSA problems, the evening task and weekend project, with
+  streak (a day counts at 2 finished tasks), progress ring and week strip.
+- **Work session:** Monaco editor with every completion surface off, an in-browser
+  Python runner (Pyodide), a timer, and a finish form. A hint, overtime or a partial
+  solve schedules redos at +3 and +7 days.
+- **Plan** and **Feedback** screens list every week's tasks and past reviews.
+
+### Nightly Claude review (macOS)
+
+`scripts/prep_daily_review.sh` fetches the day's log from the API, runs Claude Code
+headless on it, and uploads the review, which shows on the next day's Today screen.
+It talks to the API with a review token that can only read the log and write feedback.
+
+1. In the app, open **Interview Prep → Settings** and create a review token.
+2. Save the config (`chmod 600` it; the token is a credential):
+
+   ```bash
+   mkdir -p ~/.config/applyengine
+   cat > ~/.config/applyengine/prep-review.env <<'EOF'
+   PREP_API_URL=https://applyengine-api.onrender.com
+   PREP_REVIEW_TOKEN=prep_...
+   CLAUDE_BIN=/absolute/path/to/claude   # output of `which claude`
+   EOF
+   chmod 600 ~/.config/applyengine/prep-review.env
+   ```
+
+3. Try it once by hand: `scripts/prep_daily_review.sh` (or pass a date, `YYYY-MM-DD`).
+   Logs and reviews are kept in `prep_data/` (git-ignored).
+4. Schedule it daily at 21:30:
+
+   ```bash
+   mkdir -p prep_data
+   sed "s#__REPO_DIR__#$PWD#g" scripts/com.applyengine.prepreview.plist \
+     > ~/Library/LaunchAgents/com.applyengine.prepreview.plist
+   launchctl load ~/Library/LaunchAgents/com.applyengine.prepreview.plist
+   ```
+
+   Output goes to `prep_data/review.log`. To stop it:
+   `launchctl unload ~/Library/LaunchAgents/com.applyengine.prepreview.plist`.
+
+macOS blocks background jobs from reading `~/Downloads`, `~/Documents` and `~/Desktop`
+unless `/bin/bash` is granted access, so keep the repo elsewhere (for example `~/code`)
+before loading the agent.
+
 ## Roadmap
 
 - [ ] RAG over your project history so cover letters cite real work

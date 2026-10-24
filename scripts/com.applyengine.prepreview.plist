@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Runs the Interview Prep review every day at 21:30 (on wake, if the Mac was asleep).
+  __REPO_DIR__ is replaced with the repo's absolute path on install; see README.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.applyengine.prepreview</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__REPO_DIR__/scripts/prep_daily_review.sh</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>21</integer>
+    <key>Minute</key>
+    <integer>30</integer>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>__REPO_DIR__/prep_data/review.log</string>
+  <key>StandardErrorPath</key>
+  <string>__REPO_DIR__/prep_data/review.log</string>
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>

@@ -7,6 +7,7 @@ const LINKS = [
   { href: "/prep", label: "Today" },
   { href: "/prep/plan", label: "Plan" },
   { href: "/prep/feedback", label: "Feedback" },
+  { href: "/prep/settings", label: "Settings" },
 ];
 
 /** Switches between the Interview Prep screens; styled like TabBar. */
