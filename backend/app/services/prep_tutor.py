@@ -100,6 +100,8 @@ def task_context(
         lines.append(f"Pattern: {task.pattern}")
     if task and task.spec:
         lines.append(f"Spec: {task.spec}")
+    if task and task.statement:
+        lines += ["", "PROBLEM:", task.statement.strip()]
     if task and task.brief:
         lines += ["", "BRIEF:", task.brief.strip()]
     target = task.target_minutes if task else 40

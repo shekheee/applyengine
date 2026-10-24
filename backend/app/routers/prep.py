@@ -326,7 +326,9 @@ def get_task(
         hints = task.hints or []
         revealed = len(_revealed_hints(user, task_id, day, session)) if day else 0
         content = {
+            "statement": task.statement,
             "brief": task.brief,
+            "learn": task.learn,
             "starter": task.starter,
             "tests": task.tests or [],
             "levels": task.levels,

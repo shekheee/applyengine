@@ -298,7 +298,9 @@ class PrepTask(SQLModel, table=True):
     editor: bool = False
     difficulty: str | None = None  # easy | medium | hard, for the optional extra bank
     # Authored study content from data/prep_content/*.json.
+    statement: str | None = Field(default=None, sa_column=Column(Text))  # DSA problem text
     brief: str | None = Field(default=None, sa_column=Column(Text))
+    learn: str | None = Field(default=None, sa_column=Column(Text))  # optional background
     starter: str | None = Field(default=None, sa_column=Column(Text))
     tests: list[dict[str, Any]] | None = Field(default=None, sa_column=Column(JSON))
     hints: list[str] | None = Field(default=None, sa_column=Column(JSON))

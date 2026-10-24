@@ -757,7 +757,8 @@ class PrepReviewLoopTests(unittest.TestCase):
 
 CONTENT = {
     "lc-1": {
-        "brief": "Hash map warm-up.",
+        "statement": "Return the indices of two numbers that add up to the target.",
+        "learn": "Background reading.",
         "hints": ["Think about lookups.", "Store what you have seen.", "Map value to index."],
         "solution": "Use a dict of complements.",
     },
@@ -865,6 +866,10 @@ class PrepContentAndTutorTests(unittest.TestCase):
         detail = self.detail("py-mon")
         self.assertIn("NotImplementedError", detail["starter"])
         self.assertEqual([t.get("hidden", False) for t in detail["tests"]], [False, True])
+        dsa = self.detail("lc-1")
+        self.assertTrue(dsa["statement"].startswith("Return the indices"))
+        self.assertEqual(dsa["learn"], "Background reading.")
+        self.assertIsNone(dsa["brief"])
         self.assertEqual(detail["hints_total"], 3)
         self.assertEqual(detail["hints_revealed"], [])
 

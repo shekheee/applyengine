@@ -163,7 +163,6 @@ function Workspace({
         </Link>
         <h1 className="truncate text-sm font-semibold text-[var(--text)] sm:text-base">{task.title}</h1>
         <Badge tone="primary">{TYPE_LABEL[task.type] ?? task.type}</Badge>
-        {task.pattern && <Badge>{task.pattern}</Badge>}
         {dueRedo && <Badge tone="amber">Redo</Badge>}
       </div>
       <div className="flex flex-wrap items-center gap-2">
@@ -364,6 +363,7 @@ function ProblemPanel({
   onLoadCode?: (code: string) => void;
 }) {
   const [steps, setSteps] = useState<Record<string, boolean>>({});
+  const [showTopics, setShowTopics] = useState(false);
   const solutionLocked = !reviewAttempt;
   const tabs: Array<{ id: Tab; label: string }> = [
     { id: "description", label: "Description" },
@@ -417,7 +417,9 @@ function ProblemPanel({
               />
             )}
 
-            {task.brief ? (
+            {task.statement ? (
+              <ChatMarkdown content={task.statement} density="compact" />
+            ) : task.brief ? (
               <ChatMarkdown content={task.brief} density="compact" />
             ) : (
               (task.spec || task.extensions) && (
@@ -428,7 +430,7 @@ function ProblemPanel({
               )
             )}
 
-            {examples.length > 0 && (
+            {!task.statement && examples.length > 0 && (
               <div className="space-y-3">
                 {examples.map((example, index) => (
                   <div key={`${example.name}-${index}`}>
@@ -467,6 +469,17 @@ function ProblemPanel({
               </div>
             )}
 
+            {task.learn && (
+              <details className="rounded-[var(--radius-md)] border px-3 py-2" style={{ borderColor: "var(--border)" }}>
+                <summary className="cursor-pointer text-sm font-medium text-[var(--text)]">
+                  Concepts to review <span className="font-normal text-[var(--muted)]">(optional)</span>
+                </summary>
+                <div className="mt-2">
+                  <ChatMarkdown content={task.learn} density="compact" />
+                </div>
+              </details>
+            )}
+
             {task.framework && (
               <div>
                 <p className="text-sm font-semibold text-[var(--text)]">Framework (45 min)</p>
@@ -482,6 +495,24 @@ function ProblemPanel({
                   })}
                   onToggle={(id, checked) => setSteps((s) => ({ ...s, [id]: checked }))}
                 />
+              </div>
+            )}
+
+            {(task.pattern || task.difficulty) && (
+              <div className="border-t pt-3" style={{ borderColor: "var(--border)" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowTopics((v) => !v)}
+                  className="text-xs font-medium text-[var(--muted)] hover:text-[var(--text)]"
+                >
+                  {showTopics ? "Hide topics" : "Show topics"}
+                </button>
+                {showTopics && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {task.difficulty && <Badge>{task.difficulty}</Badge>}
+                    {task.pattern && <Badge>{task.pattern}</Badge>}
+                  </div>
+                )}
               </div>
             )}
           </div>

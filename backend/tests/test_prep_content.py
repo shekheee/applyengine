@@ -24,6 +24,44 @@ PRELUDE_FILE = (
 )
 EXTRA_URL = re.compile(r"^https://leetcode\.com/problems/[a-z0-9-]+/$")
 CODE_TYPES = {"python", "drill", "lld", "fundamentals"}
+
+# The description states the problem; how to solve it belongs in hints and the solution.
+# A banned phrase is allowed when it is part of the task's own title.
+DSA_SPOILERS = (
+    "hash map", "hashmap", "hash set", "hashset", "dictionary", "prefix sum", "sliding window",
+    "two pointer", "two-pointer", "monotonic", "binary search", "heap", "priority queue",
+    "dynamic programming", "memoiz", "bfs", "dfs", "breadth-first", "depth-first",
+    "union find", "union-find", "disjoint set", "topological", "backtrack", "greedy", "trie",
+    "dijkstra", "bellman", "kadane", "bucket sort", "quickselect", "bit manipulation",
+    "stack", "queue", "deque", "recursi", "pointer", "pointers", "o(n", "o(log", "o(1",
+)
+DESIGN_SPOILERS = (
+    "strategy", "factory", "observer", "state pattern", "decorator", "adapter",
+    "template method", "singleton", "command pattern", "chain of responsibility",
+    "design pattern", "### patterns",
+)
+HLD_SPOILERS = (
+    "what the interviewer probes", "base62", "base-62", "fan-out", "fanout",
+    "consistent hashing", "quorum", "geohash", "bloom filter", "token bucket",
+    "leaky bucket", "snowflake", "trie", "websocket", "long polling", "kafka", "redis",
+    "cassandra", "dynamodb", "### model answer", "deep dive:",
+)
+BRIEF_SPOILER_HEADINGS = ("key insight", "### approach", "### solution", "the trick")
+
+
+# Bans that should also catch longer words starting with them (memoize, backtracking...).
+PREFIX_BANS = {"memoiz", "backtrack", "recursi", "o(n", "o(log", "o(1", "### patterns"}
+
+
+def _phrase(banned: str) -> re.Pattern[str]:
+    tail = "" if banned in PREFIX_BANS else r"(?![a-z0-9])"
+    return re.compile(r"(?<![a-z0-9])" + re.escape(banned) + tail)
+
+
+def spoilers(text: str, banned: tuple[str, ...], title: str) -> list[str]:
+    """Banned phrases present as whole words (so "trie" does not match "retrieval")."""
+    lowered, allowed = text.lower(), title.lower()
+    return [b for b in banned if _phrase(b).search(lowered) and not _phrase(b).search(allowed)]
 FENCE = re.compile(r"```python\n(.*?)```", re.S)
 
 
@@ -172,8 +210,26 @@ class PrepContentTests(unittest.TestCase):
                     self.assertGreater(len(hint.strip()), 20)
                     self.assertNotIn("```", hint, "hints must not contain code blocks")
                 self.assertGreater(len(entry.get("solution", "").strip()), 80)
-                if task_type != "dsa":
-                    self.assertGreater(len(entry.get("brief", "").strip()), 150)
+                title = self.tasks[task_id]["title"]
+                if task_type == "dsa":
+                    statement = entry.get("statement", "")
+                    self.assertFalse(entry.get("brief"), "DSA tasks show a statement, not a brief")
+                    self.assertGreater(len(statement), 200, "DSA tasks need a problem statement")
+                    for part in ("Example 1", "Constraints"):
+                        self.assertIn(part, statement)
+                    self.assertEqual(spoilers(statement, DSA_SPOILERS, title), [], "statement gives away the approach")
+                else:
+                    brief = entry.get("brief", "")
+                    self.assertGreater(len(brief.strip()), 150)
+                    self.assertEqual(spoilers(brief, BRIEF_SPOILER_HEADINGS, title), [])
+                    if task_type == "lld":
+                        self.assertEqual(spoilers(brief, DESIGN_SPOILERS, title), [], "brief names the design")
+                    if task_type == "hld":
+                        self.assertEqual(spoilers(brief, HLD_SPOILERS, title), [], "brief gives away the design")
+                for level in entry.get("levels") or []:
+                    self.assertEqual(spoilers(level["brief"], DESIGN_SPOILERS + BRIEF_SPOILER_HEADINGS, title), [])
+                if entry.get("learn") is not None:
+                    self.assertIsInstance(entry["learn"], str)
                 if task_type == "challenge":
                     self.check_levels(entry)
                 if task_type in CODE_TYPES:

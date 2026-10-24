@@ -747,10 +747,13 @@ export interface PrepTaskDetail {
   stretch: boolean;
   editor: boolean;
   synthetic: boolean;
+  difficulty: string | null;
   rules: PrepRules;
   attempts: PrepAttempt[];
   open_redos: PrepRedo[];
+  statement: string | null;
   brief: string | null;
+  learn: string | null;
   starter: string | null;
   tests: PrepTestCase[];
   levels: { title: string; brief: string; tests: PrepTestCase[] }[] | null;

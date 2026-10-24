@@ -640,10 +640,13 @@ class PrepTaskDetailOut(BaseModel):
     stretch: bool = False
     editor: bool = False
     synthetic: bool = False
+    difficulty: str | None = None
     rules: dict[str, Any] = Field(default_factory=dict)
     attempts: list[PrepAttemptOut] = Field(default_factory=list)
     open_redos: list[PrepRedoOut] = Field(default_factory=list)
+    statement: str | None = None
     brief: str | None = None
+    learn: str | None = None
     starter: str | None = None
     tests: list[dict[str, Any]] = Field(default_factory=list)
     levels: list[dict[str, Any]] | None = None

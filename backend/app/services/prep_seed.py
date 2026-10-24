@@ -14,7 +14,16 @@ SEED_PATH = Path(__file__).resolve().parent.parent / "data" / "prep_seed.json"
 CONTENT_DIR = SEED_PATH.parent / "prep_content"
 EXTRA_DIR = SEED_PATH.parent / "prep_extra"
 TRACKS_DIR = SEED_PATH.parent / "prep_tracks"
-_CONTENT_FIELDS = ("brief", "starter", "tests", "hints", "solution", "levels")
+_CONTENT_FIELDS = (
+    "statement",
+    "brief",
+    "learn",
+    "starter",
+    "tests",
+    "hints",
+    "solution",
+    "levels",
+)
 
 _TASK_FIELDS = (
     "type",

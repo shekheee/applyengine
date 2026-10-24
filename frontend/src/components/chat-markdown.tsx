@@ -67,7 +67,13 @@ export function ChatMarkdown({
           code: ({ className, children }) => {
             const isBlock = className?.includes("language-");
             if (isBlock) {
-              return <code className={d.codeBlock}>{children}</code>;
+              // Plain-text blocks (problem examples) wrap like prose; code keeps its lines.
+              const prose = className?.includes("language-text");
+              return (
+                <code className={prose ? `${d.codeBlock} sm:!whitespace-pre-wrap` : d.codeBlock}>
+                  {children}
+                </code>
+              );
             }
             return (
               <code className="break-words rounded bg-[#0d0d12] px-1 py-0.5 text-[13px] leading-[1.4] text-[var(--primary-2)]">
