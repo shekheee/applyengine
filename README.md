@@ -223,8 +223,17 @@ It talks to the API with a review token that can only read the log and write fee
    PREP_API_URL=https://applyengine-api.onrender.com
    PREP_REVIEW_TOKEN=prep_...
    CLAUDE_BIN=/absolute/path/to/claude   # output of `which claude`
+   CLAUDE_CONFIG_DIR=$HOME/.config/applyengine/claude
    EOF
    chmod 600 ~/.config/applyengine/prep-review.env
+   ```
+
+   `CLAUDE_CONFIG_DIR` gives the review its own Claude Code login, separate from your
+   everyday one (and from any `apiKeyHelper` in `~/.claude/settings.json`). Log in to it
+   once, choosing your Claude subscription, then `/exit`:
+
+   ```bash
+   CLAUDE_CONFIG_DIR=$HOME/.config/applyengine/claude claude
    ```
 
 3. Try it once by hand: `scripts/prep_daily_review.sh` (or pass a date, `YYYY-MM-DD`).

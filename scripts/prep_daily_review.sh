@@ -15,6 +15,11 @@ CONFIG="${PREP_REVIEW_CONFIG:-$HOME/.config/applyengine/prep-review.env}"
 : "${PREP_API_URL:?Set PREP_API_URL in $CONFIG}"
 : "${PREP_REVIEW_TOKEN:?Set PREP_REVIEW_TOKEN in $CONFIG}"
 CLAUDE_BIN="${CLAUDE_BIN:-claude}"
+# A separate Claude Code config dir keeps the review on its own login and
+# out of reach of the main config's settings (e.g. an apiKeyHelper).
+if [ -n "${CLAUDE_CONFIG_DIR:-}" ]; then
+  export CLAUDE_CONFIG_DIR
+fi
 # launchd starts with a bare PATH; make claude's own directory (and its node) findable.
 case "$CLAUDE_BIN" in
   /*) export PATH="$(dirname "$CLAUDE_BIN"):$PATH" ;;
