@@ -1,0 +1,754 @@
+{
+ "tasks": [
+  {
+   "id": "ch-1",
+   "type": "challenge",
+   "week": 3,
+   "order": 0,
+   "slot": "weekly",
+   "title": "Challenge 1: In-memory database",
+   "pattern": "Progressive practical",
+   "target_minutes": 75,
+   "stretch": false,
+   "editor": true
+  },
+  {
+   "id": "ch-2",
+   "type": "challenge",
+   "week": 4,
+   "order": 0,
+   "slot": "weekly",
+   "title": "Challenge 2: Bank account system",
+   "pattern": "Progressive practical",
+   "target_minutes": 75,
+   "stretch": false,
+   "editor": true
+  },
+  {
+   "id": "ch-3",
+   "type": "challenge",
+   "week": 5,
+   "order": 0,
+   "slot": "weekly",
+   "title": "Challenge 3: File system with quotas",
+   "pattern": "Progressive practical",
+   "target_minutes": 75,
+   "stretch": false,
+   "editor": true
+  },
+  {
+   "id": "ch-4",
+   "type": "challenge",
+   "week": 6,
+   "order": 0,
+   "slot": "weekly",
+   "title": "Challenge 4: Task queue with retries",
+   "pattern": "Progressive practical",
+   "target_minutes": 75,
+   "stretch": false,
+   "editor": true
+  }
+ ],
+ "content": {
+  "ch-1": {
+   "brief": "### Scenario\nYou are building the storage layer of a small cache service, the way a lab-style round at an AI infra company would ask it: an in-memory key → field → value store. It grows from basic CRUD (level 1) to expiring fields (level 2), nested transactions (level 3) and point-in-time backups (level 4).\n\n### How the levels work\nThis is a lab-style practical round: one problem, four levels. Start from the starter's `InMemoryDB` shell; later levels name the exact methods to add.\nEach level's tests include **all earlier levels' tests**, so a later change must not break earlier behaviour. Keep one class and grow it; refactor when a level asks for something your first design can't hold.\n\n### Time guidance (75 min total)\n- Level 1: ~15 min\n- Level 2: ~15 min\n- Level 3: ~20 min\n- Level 4: ~25 min\n\n### Interview tips\n- Narrate: say what state you keep and why before typing.\n- Make level 1 simple and correct first; do not pre-build later levels.\n- Timestamps are plain ints passed into each method, so behaviour is deterministic.\n- Read each level brief twice: return values for the \"missing\" cases (None / False) are where points are lost.\n",
+   "starter": "class InMemoryDB:\n    \"\"\"Level 1: records of key -> field -> value. Timestamps are plain ints.\"\"\"\n\n    def __init__(self) -> None:\n        pass\n\n    def set(self, timestamp: int, key: str, field: str, value: str) -> None:\n        \"\"\"Insert or overwrite field in record key.\"\"\"\n        raise NotImplementedError\n\n    def get(self, timestamp: int, key: str, field: str) -> str | None:\n        \"\"\"Value of field in record key, or None.\"\"\"\n        raise NotImplementedError\n\n    def delete(self, timestamp: int, key: str, field: str) -> bool:\n        \"\"\"Remove field; True if it existed.\"\"\"\n        raise NotImplementedError\n\n    def scan(self, timestamp: int, key: str) -> list[str]:\n        \"\"\"All fields of key as \"field(value)\", sorted by field.\"\"\"\n        raise NotImplementedError\n",
+   "levels": [
+    {
+     "title": "Level 1: records and fields",
+     "brief": "### Add\n`InMemoryDB` storing records: each **key** holds several **fields**, each field holds a string value. Every method takes an int `timestamp` first (unused until level 2).\n\n- `set(timestamp, key, field, value) -> None` — insert or overwrite.\n- `get(timestamp, key, field) -> str | None` — the value, or `None` if the key or field is missing.\n- `delete(timestamp, key, field) -> bool` — remove the field; `True` if it existed, else `False`. A key with no fields left disappears.\n- `scan(timestamp, key) -> list[str]` — every field of `key` as `\"field(value)\"`, sorted by field name; `[]` for a missing key.\n\n### Example\n```\ndb = InMemoryDB()\ndb.set(1, \"user1\", \"name\", \"ada\")\ndb.set(2, \"user1\", \"age\", \"36\")\ndb.get(3, \"user1\", \"name\")   # \"ada\"\ndb.scan(4, \"user1\")          # [\"age(36)\", \"name(ada)\"]\ndb.delete(5, \"user1\", \"age\") # True\n```",
+     "tests": [
+      {
+       "name": "set, get and scan",
+       "input": "ops: set(1,user1,name,ada) → set(2,user1,age,36) → get(3,user1,name) → scan(4,user1)",
+       "hidden": false,
+       "code": "db = InMemoryDB()\ndb.set(1, \"user1\", \"name\", \"ada\")\ndb.set(2, \"user1\", \"age\", \"36\")\nexpect(db.get(3, \"user1\", \"name\"), \"ada\")\nexpect(db.scan(4, \"user1\"), [\"age(36)\", \"name(ada)\"])\n"
+      },
+      {
+       "name": "missing key or field is None",
+       "input": "ops: set(1,a,x,1) → get(2,a,y) → get(3,b,x)",
+       "hidden": true,
+       "code": "db = InMemoryDB()\ndb.set(1, \"a\", \"x\", \"1\")\nexpect(db.get(2, \"a\", \"y\"), None, label=\"missing field\")\nexpect(db.get(3, \"b\", \"x\"), None, label=\"missing key\")\n"
+      },
+      {
+       "name": "overwrite keeps one field",
+       "input": "ops: set(1,a,x,1) → set(2,a,x,2) → scan(3,a)",
+       "hidden": true,
+       "code": "db = InMemoryDB()\ndb.set(1, \"a\", \"x\", \"1\")\ndb.set(2, \"a\", \"x\", \"2\")\nexpect(db.scan(3, \"a\"), [\"x(2)\"])\n"
+      },
+      {
+       "name": "delete returns whether it existed",
+       "input": "ops: set(1,a,x,1) → delete(2,a,x) → delete(3,a,x) → delete(4,zz,x) → scan(5,a)",
+       "hidden": true,
+       "code": "db = InMemoryDB()\ndb.set(1, \"a\", \"x\", \"1\")\nexpect(db.delete(2, \"a\", \"x\"), True, label=\"first delete\")\nexpect(db.delete(3, \"a\", \"x\"), False, label=\"second delete\")\nexpect(db.delete(4, \"zz\", \"x\"), False, label=\"unknown key\")\nexpect(db.scan(5, \"a\"), [])\n"
+      },
+      {
+       "name": "two databases do not share state",
+       "input": "ops: db1.set(1,k,f,v) → db2.get(2,k,f)",
+       "hidden": true,
+       "code": "db1, db2 = InMemoryDB(), InMemoryDB()\ndb1.set(1, \"k\", \"f\", \"v\")\nexpect(db2.get(2, \"k\", \"f\"), None)\nexpect(db1.get(2, \"k\", \"f\"), \"v\")\n"
+      }
+     ]
+    },
+    {
+     "title": "Level 2: TTL and prefix scans",
+     "brief": "### Add\nFields can expire.\n\n- `set_with_ttl(timestamp, key, field, value, ttl) -> None` — like `set`, but the field is alive only while `timestamp_now < timestamp + ttl` (it is gone **at** `timestamp + ttl`). `ttl <= 0` raises `ValueError`.\n- `scan_by_prefix(timestamp, key, prefix) -> list[str]` — like `scan`, only fields whose name starts with `prefix`.\n\n### Rules\n- `get`, `scan`, `scan_by_prefix` and `delete` all ignore expired fields: `delete` of an expired field returns `False`.\n- A plain `set` over a TTL field makes it permanent again.\n\n### Example\n```\ndb.set_with_ttl(10, \"s\", \"token\", \"abc\", 5)\ndb.get(14, \"s\", \"token\")  # \"abc\"\ndb.get(15, \"s\", \"token\")  # None (expired at 15)\n```",
+     "tests": [
+      {
+       "name": "field expires at timestamp + ttl",
+       "input": "ops: set_with_ttl(10,s,token,abc,5) → get(14,s,token) → get(15,s,token)",
+       "hidden": false,
+       "code": "db = InMemoryDB()\ndb.set_with_ttl(10, \"s\", \"token\", \"abc\", 5)\nexpect(db.get(14, \"s\", \"token\"), \"abc\", label=\"t=14\")\nexpect(db.get(15, \"s\", \"token\"), None, label=\"t=15\")\n"
+      },
+      {
+       "name": "scan_by_prefix filters and sorts",
+       "input": "ops: set(1,k,ab,1) → set(2,k,b,2) → set(3,k,aa,3) → scan_by_prefix(4,k,\"a\")",
+       "hidden": false,
+       "code": "db = InMemoryDB()\ndb.set(1, \"k\", \"ab\", \"1\")\ndb.set(2, \"k\", \"b\", \"2\")\ndb.set(3, \"k\", \"aa\", \"3\")\nexpect(db.scan_by_prefix(4, \"k\", \"a\"), [\"aa(3)\", \"ab(1)\"])\n"
+      },
+      {
+       "name": "scan hides expired fields",
+       "input": "ops: set(1,k,a,1) → set_with_ttl(1,k,b,2,3) → scan(3,k) → scan(4,k)",
+       "hidden": true,
+       "code": "db = InMemoryDB()\ndb.set(1, \"k\", \"a\", \"1\")\ndb.set_with_ttl(1, \"k\", \"b\", \"2\", 3)\nexpect(db.scan(3, \"k\"), [\"a(1)\", \"b(2)\"], label=\"t=3\")\nexpect(db.scan(4, \"k\"), [\"a(1)\"], label=\"t=4\")\n"
+      },
+      {
+       "name": "delete of expired field is False",
+       "input": "ops: set_with_ttl(1,k,a,1,2) → delete(5,k,a)",
+       "hidden": true,
+       "code": "db = InMemoryDB()\ndb.set_with_ttl(1, \"k\", \"a\", \"1\", 2)\nexpect(db.delete(5, \"k\", \"a\"), False)\n"
+      },
+      {
+       "name": "plain set clears the ttl",
+       "input": "ops: set_with_ttl(1,k,a,1,2) → set(2,k,a,9) → get(100,k,a)",
+       "hidden": true,
+       "code": "db = InMemoryDB()\ndb.set_with_ttl(1, \"k\", \"a\", \"1\", 2)\ndb.set(2, \"k\", \"a\", \"9\")\nexpect(db.get(100, \"k\", \"a\"), \"9\")\n"
+      },
+      {
+       "name": "non-positive ttl raises",
+       "input": "ops: set_with_ttl(1,k,a,1,0)",
+       "hidden": true,
+       "code": "db = InMemoryDB()\nexpect_raises(ValueError, db.set_with_ttl, 1, \"k\", \"a\", \"1\", 0)\n"
+      }
+     ]
+    },
+    {
+     "title": "Level 3: transactions",
+     "brief": "### Add\nNestable transactions.\n\n- `begin(timestamp) -> None` — open a transaction (they nest).\n- `commit(timestamp) -> None` — keep the changes made since the matching `begin`; with nesting, they become part of the outer transaction.\n- `rollback(timestamp) -> None` — undo every change since the matching `begin`.\n- `commit` / `rollback` with no open transaction raise `RuntimeError`.\n\n### Rules\n- Rolling back restores fields exactly, TTLs included (an expiry time is absolute, so a restored field may already be expired at a later timestamp).\n- Rolling back the outer transaction also undoes an inner one that was committed.\n\n### Example\n```\ndb.set(1, \"a\", \"x\", \"1\")\ndb.begin(2); db.set(3, \"a\", \"x\", \"2\"); db.rollback(4)\ndb.get(5, \"a\", \"x\")  # \"1\"\n```",
+     "tests": [
+      {
+       "name": "rollback undoes changes",
+       "input": "ops: set(1,a,x,1) → begin(2) → set(3,a,x,2) → set(3,a,y,3) → rollback(4) → scan(5,a)",
+       "hidden": false,
+       "code": "db = InMemoryDB()\ndb.set(1, \"a\", \"x\", \"1\")\ndb.begin(2)\ndb.set(3, \"a\", \"x\", \"2\")\ndb.set(3, \"a\", \"y\", \"3\")\ndb.rollback(4)\nexpect(db.scan(5, \"a\"), [\"x(1)\"])\n"
+      },
+      {
+       "name": "commit keeps changes",
+       "input": "ops: begin(1) → set(2,a,x,1) → commit(3) → get(4,a,x)",
+       "hidden": true,
+       "code": "db = InMemoryDB()\ndb.begin(1)\ndb.set(2, \"a\", \"x\", \"1\")\ndb.commit(3)\nexpect(db.get(4, \"a\", \"x\"), \"1\")\n"
+      },
+      {
+       "name": "outer rollback undoes committed inner",
+       "input": "ops: begin(1) → set(2,a,x,1) → begin(3) → set(4,a,x,2) → commit(5) → rollback(6) → get(7,a,x)",
+       "hidden": true,
+       "code": "db = InMemoryDB()\ndb.begin(1)\ndb.set(2, \"a\", \"x\", \"1\")\ndb.begin(3)\ndb.set(4, \"a\", \"x\", \"2\")\ndb.commit(5)\nexpect(db.get(5, \"a\", \"x\"), \"2\", label=\"after inner commit\")\ndb.rollback(6)\nexpect(db.get(7, \"a\", \"x\"), None, label=\"after outer rollback\")\n"
+      },
+      {
+       "name": "inner rollback keeps outer changes",
+       "input": "ops: begin(1) → set(2,a,x,1) → begin(3) → delete(4,a,x) → rollback(5) → commit(6) → get(7,a,x)",
+       "hidden": true,
+       "code": "db = InMemoryDB()\ndb.begin(1)\ndb.set(2, \"a\", \"x\", \"1\")\ndb.begin(3)\ndb.delete(4, \"a\", \"x\")\ndb.rollback(5)\ndb.commit(6)\nexpect(db.get(7, \"a\", \"x\"), \"1\")\n"
+      },
+      {
+       "name": "commit/rollback without begin raise",
+       "input": "ops: commit(1) ; rollback(1) on a fresh db",
+       "hidden": true,
+       "code": "db = InMemoryDB()\nexpect_raises(RuntimeError, db.commit, 1, label=\"commit\")\nexpect_raises(RuntimeError, db.rollback, 1, label=\"rollback\")\n"
+      },
+      {
+       "name": "rollback restores the ttl",
+       "input": "ops: set_with_ttl(1,k,a,1,10) → begin(2) → set(3,k,a,2) → rollback(4) → get(10,k,a) → get(11,k,a)",
+       "hidden": true,
+       "code": "db = InMemoryDB()\ndb.set_with_ttl(1, \"k\", \"a\", \"1\", 10)\ndb.begin(2)\ndb.set(3, \"k\", \"a\", \"2\")\ndb.rollback(4)\nexpect(db.get(10, \"k\", \"a\"), \"1\", label=\"t=10\")\nexpect(db.get(11, \"k\", \"a\"), None, label=\"t=11\")\n"
+      }
+     ]
+    },
+    {
+     "title": "Level 4: backups and restore",
+     "brief": "### Add\nPoint-in-time backups.\n\n- `backup(timestamp) -> int` — save every **live** field; return the number of keys that have at least one live field. For TTL fields, save the **remaining** lifetime (`expires_at - timestamp`), not the absolute expiry.\n- `restore(timestamp, timestamp_to_restore) -> None` — replace the whole database with the latest backup taken at or before `timestamp_to_restore`. TTL fields get `expires_at = timestamp + remaining`. If no such backup exists, raise `ValueError` and change nothing.\n\n### Example\n```\ndb.set_with_ttl(1, \"a\", \"x\", \"1\", 10)   # expires at 11\ndb.backup(5)                            # 1 (remaining 6)\ndb.delete(6, \"a\", \"x\")\ndb.restore(20, 5)\ndb.get(25, \"a\", \"x\")  # \"1\"  (expires at 26)\ndb.get(26, \"a\", \"x\")  # None\n```",
+     "tests": [
+      {
+       "name": "restore recomputes ttl from remaining time",
+       "input": "ops: set_with_ttl(1,a,x,1,10) → backup(5) → delete(6,a,x) → restore(20,5) → get(25,a,x) → get(26,a,x)",
+       "hidden": false,
+       "code": "db = InMemoryDB()\ndb.set_with_ttl(1, \"a\", \"x\", \"1\", 10)\nexpect(db.backup(5), 1, label=\"backup count\")\ndb.delete(6, \"a\", \"x\")\ndb.restore(20, 5)\nexpect(db.get(25, \"a\", \"x\"), \"1\", label=\"t=25\")\nexpect(db.get(26, \"a\", \"x\"), None, label=\"t=26\")\n"
+      },
+      {
+       "name": "backup counts keys with live fields",
+       "input": "ops: set(1,a,x,1) → set(1,b,y,2) → set_with_ttl(1,c,z,3,2) → backup(5)",
+       "hidden": true,
+       "code": "db = InMemoryDB()\ndb.set(1, \"a\", \"x\", \"1\")\ndb.set(1, \"b\", \"y\", \"2\")\ndb.set_with_ttl(1, \"c\", \"z\", \"3\", 2)\nexpect(db.backup(5), 2)\n"
+      },
+      {
+       "name": "restore picks the latest backup at or before",
+       "input": "ops: set(1,a,x,1) → backup(2) → set(3,a,x,2) → backup(4) → set(5,a,x,3) → restore(6,3) → get(6,a,x)",
+       "hidden": true,
+       "code": "db = InMemoryDB()\ndb.set(1, \"a\", \"x\", \"1\")\ndb.backup(2)\ndb.set(3, \"a\", \"x\", \"2\")\ndb.backup(4)\ndb.set(5, \"a\", \"x\", \"3\")\ndb.restore(6, 3)\nexpect(db.get(6, \"a\", \"x\"), \"1\", label=\"restore to 3\")\ndb.restore(7, 4)\nexpect(db.get(7, \"a\", \"x\"), \"2\", label=\"restore to 4\")\n"
+      },
+      {
+       "name": "restore removes keys added after the backup",
+       "input": "ops: set(1,a,x,1) → backup(2) → set(3,b,y,2) → restore(4,2) → scan(5,b)",
+       "hidden": true,
+       "code": "db = InMemoryDB()\ndb.set(1, \"a\", \"x\", \"1\")\ndb.backup(2)\ndb.set(3, \"b\", \"y\", \"2\")\ndb.restore(4, 2)\nexpect(db.scan(5, \"b\"), [])\n"
+      },
+      {
+       "name": "no backup early enough raises and keeps data",
+       "input": "ops: set(1,a,x,1) → backup(5) → restore(6,4) → get(7,a,x)",
+       "hidden": true,
+       "code": "db = InMemoryDB()\ndb.set(1, \"a\", \"x\", \"1\")\ndb.backup(5)\nexpect_raises(ValueError, db.restore, 6, 4)\nexpect(db.get(7, \"a\", \"x\"), \"1\")\n"
+      },
+      {
+       "name": "restored data is independent of later writes",
+       "input": "ops: set(1,a,x,1) → backup(2) → restore(3,2) → set(4,a,x,9) → restore(5,2) → get(6,a,x)",
+       "hidden": true,
+       "code": "db = InMemoryDB()\ndb.set(1, \"a\", \"x\", \"1\")\ndb.backup(2)\ndb.restore(3, 2)\ndb.set(4, \"a\", \"x\", \"9\")\ndb.restore(5, 2)\nexpect(db.get(6, \"a\", \"x\"), \"1\")\n"
+      }
+     ]
+    }
+   ],
+   "hints": [
+    "Pick one representation that can carry every later level: a dict of key to a dict of field to (value, expires_at). Absolute expiry times make TTL checks a single comparison.",
+    "Do not delete expired data eagerly; check liveness on every read. Transactions are easiest as a stack of deep copies of the data taken at begin; rollback pops and restores, commit just pops.",
+    "Backups must store remaining lifetime (expires_at minus backup time) so a restore can rebuild absolute expiry from the restore time. Keep backups in a list in timestamp order and scan for the last one at or before the requested time; copy on restore so later writes cannot mutate the backup."
+   ],
+   "solution": "### Key insight\nStore each field as `(value, expires_at | None)` with an **absolute** expiry. Every read filters with `now < expires_at`, so TTL never needs a background sweeper, and snapshots (transactions, backups) are just copies of one dict.\n\n### Reference implementation\n```python\nimport copy\n\n\nclass InMemoryDB:\n    def __init__(self) -> None:\n        self._data: dict[str, dict[str, tuple[str, int | None]]] = {}  # key -> field -> (value, expires_at)\n        self._tx: list[dict] = []  # stack of snapshots, one per open transaction\n        self._backups: list[tuple[int, dict]] = []  # (timestamp, {key: {field: (value, remaining)}})\n\n    @staticmethod\n    def _alive(record: tuple[str, int | None], timestamp: int) -> bool:\n        return record[1] is None or timestamp < record[1]\n\n    def _live(self, timestamp: int, key: str) -> dict[str, tuple[str, int | None]]:\n        fields = self._data.get(key, {})\n        return {f: r for f, r in fields.items() if self._alive(r, timestamp)}\n\n    # ---- level 1\n    def set(self, timestamp: int, key: str, field: str, value: str) -> None:\n        self._data.setdefault(key, {})[field] = (value, None)\n\n    def get(self, timestamp: int, key: str, field: str) -> str | None:\n        record = self._data.get(key, {}).get(field)\n        if record is None or not self._alive(record, timestamp):\n            return None\n        return record[0]\n\n    def delete(self, timestamp: int, key: str, field: str) -> bool:\n        fields = self._data.get(key)\n        if not fields or field not in fields:\n            return False\n        record = fields.pop(field)\n        if not fields:\n            del self._data[key]\n        return self._alive(record, timestamp)\n\n    def scan(self, timestamp: int, key: str) -> list[str]:\n        live = self._live(timestamp, key)\n        return [f\"{f}({live[f][0]})\" for f in sorted(live)]\n\n    # ---- level 2\n    def set_with_ttl(self, timestamp: int, key: str, field: str, value: str, ttl: int) -> None:\n        if ttl <= 0:\n            raise ValueError(\"ttl must be positive\")\n        self._data.setdefault(key, {})[field] = (value, timestamp + ttl)\n\n    def scan_by_prefix(self, timestamp: int, key: str, prefix: str) -> list[str]:\n        return [item for item in self.scan(timestamp, key) if item.startswith(prefix)]\n```\n\n```python\n    # ---- level 3 (methods of InMemoryDB, continued)\n    def begin(self, timestamp: int) -> None:\n        self._tx.append(copy.deepcopy(self._data))\n\n    def commit(self, timestamp: int) -> None:\n        if not self._tx:\n            raise RuntimeError(\"no open transaction\")\n        self._tx.pop()  # changes stay; they now belong to the enclosing transaction (if any)\n\n    def rollback(self, timestamp: int) -> None:\n        if not self._tx:\n            raise RuntimeError(\"no open transaction\")\n        self._data = self._tx.pop()\n\n    # ---- level 4\n    def backup(self, timestamp: int) -> int:\n        snapshot = {}\n        for key in self._data:\n            live = self._live(timestamp, key)\n            if live:\n                snapshot[key] = {\n                    f: (v, None if exp is None else exp - timestamp) for f, (v, exp) in live.items()\n                }\n        self._backups.append((timestamp, snapshot))\n        return len(snapshot)\n\n    def restore(self, timestamp: int, timestamp_to_restore: int) -> None:\n        chosen = None\n        for taken_at, snapshot in self._backups:\n            if taken_at <= timestamp_to_restore:\n                chosen = snapshot\n        if chosen is None:\n            raise ValueError(\"no backup at or before that time\")\n        self._data = {\n            key: {f: (v, None if rem is None else timestamp + rem) for f, (v, rem) in fields.items()}\n            for key, fields in chosen.items()\n        }\n```\n\n### Design notes per level\n- **Level 1:** nested dicts; `scan` sorts field names. Drop the key when its last field is deleted.\n- **Level 2:** absolute expiry, lazy filtering. `set` writes `None` expiry so it clears a TTL. `scan_by_prefix` reuses `scan`.\n- **Level 3:** a snapshot stack. `begin` pushes `deepcopy(data)`; `rollback` replaces data with the popped copy; `commit` discards the copy. Nesting works because an outer snapshot predates the inner commit. O(n) per begin; a production version would keep an undo log instead (say so in the interview).\n- **Level 4:** backups store remaining TTL, restore rebuilds `restore_time + remaining`. Rebuilding new dicts on restore keeps the saved backup immutable.\n\n### Common pitfalls\n- Off-by-one on expiry: a field set at 10 with ttl 5 is gone **at** 15.\n- `delete` returning `True` for an expired field.\n- Shallow-copying in `begin`, so inner dicts are shared and rollback restores nothing.\n- Restoring the absolute expiry from the backup time (the field would already be dead).\n- Handing out the stored backup dict itself, so writes after a restore corrupt the backup.\n",
+   "tests": []
+  },
+  "ch-2": {
+   "brief": "### Scenario\nA fintech team needs the core of a ledger service: accounts with integer balances (level 1), scheduled payments (level 2), account merges (level 3) and point-in-time balance queries (level 4). It is the classic progressive-assessment format: each level is small, but your level 1 data model decides how painful level 4 is.\n\n### How the levels work\nThis is a lab-style practical round: one problem, four levels. Start from the starter's `Bank` shell; later levels name the exact methods to add.\nEach level's tests include **all earlier levels' tests**, so a later change must not break earlier behaviour. Keep one class and grow it; refactor when a level asks for something your first design can't hold.\n\n### Time guidance (75 min total)\n- Level 1: ~15 min\n- Level 2: ~15 min\n- Level 3: ~20 min\n- Level 4: ~25 min\n\n### Interview tips\n- Narrate: say what state you keep and why before typing.\n- Make level 1 simple and correct first; do not pre-build later levels.\n- Timestamps are plain ints passed into each method, so behaviour is deterministic.\n- Read each level brief twice: return values for the \"missing\" cases (None / False) are where points are lost.\n",
+   "starter": "class Bank:\n    \"\"\"Level 1: accounts, deposits, transfers. Amounts are positive ints.\"\"\"\n\n    def __init__(self) -> None:\n        pass\n\n    def create_account(self, timestamp: int, account_id: str) -> bool:\n        \"\"\"True if created, False if the id already exists.\"\"\"\n        raise NotImplementedError\n\n    def deposit(self, timestamp: int, account_id: str, amount: int) -> int | None:\n        \"\"\"New balance, or None if the account does not exist.\"\"\"\n        raise NotImplementedError\n\n    def transfer(self, timestamp: int, source_id: str, target_id: str, amount: int) -> int | None:\n        \"\"\"Source's new balance, or None if the transfer is not allowed.\"\"\"\n        raise NotImplementedError\n\n    def get_balance(self, timestamp: int, account_id: str) -> int | None:\n        \"\"\"Current balance, or None if the account does not exist.\"\"\"\n        raise NotImplementedError\n",
+   "levels": [
+    {
+     "title": "Level 1: accounts and transfers",
+     "brief": "### Add\n`Bank` with integer balances. Every method takes an int `timestamp` first; timestamps never decrease.\n\n- `create_account(timestamp, account_id) -> bool` — `False` if the id already exists.\n- `deposit(timestamp, account_id, amount) -> int | None` — new balance, `None` if no such account.\n- `transfer(timestamp, source_id, target_id, amount) -> int | None` — move money; return the **source's** new balance. Return `None` (and change nothing) if either account is missing, `source_id == target_id`, or the source has less than `amount`.\n- `get_balance(timestamp, account_id) -> int | None`.\n- Any `amount <= 0` raises `ValueError`.\n\n### Example\n```\nbank.create_account(1, \"a\"); bank.create_account(2, \"b\")\nbank.deposit(3, \"a\", 100)       # 100\nbank.transfer(4, \"a\", \"b\", 30)  # 70\nbank.get_balance(5, \"b\")        # 30\n```",
+     "tests": [
+      {
+       "name": "deposit and transfer",
+       "input": "ops: create(1,a) → create(2,b) → deposit(3,a,100) → transfer(4,a,b,30) → get_balance(5,b)",
+       "hidden": false,
+       "code": "bank = Bank()\nbank.create_account(1, \"a\")\nbank.create_account(2, \"b\")\nexpect(bank.deposit(3, \"a\", 100), 100, label=\"deposit\")\nexpect(bank.transfer(4, \"a\", \"b\", 30), 70, label=\"transfer\")\nexpect(bank.get_balance(5, \"b\"), 30, label=\"balance b\")\n"
+      },
+      {
+       "name": "duplicate account is rejected",
+       "input": "ops: create(1,a) → create(2,a)",
+       "hidden": true,
+       "code": "bank = Bank()\nexpect(bank.create_account(1, \"a\"), True, label=\"first\")\nexpect(bank.create_account(2, \"a\"), False, label=\"duplicate\")\n"
+      },
+      {
+       "name": "missing accounts give None",
+       "input": "ops: deposit(1,x,5) → get_balance(2,x) → create(3,a) → transfer(4,a,x,1)",
+       "hidden": true,
+       "code": "bank = Bank()\nexpect(bank.deposit(1, \"x\", 5), None, label=\"deposit\")\nexpect(bank.get_balance(2, \"x\"), None, label=\"balance\")\nbank.create_account(3, \"a\")\nexpect(bank.transfer(4, \"a\", \"x\", 1), None, label=\"transfer\")\n"
+      },
+      {
+       "name": "insufficient funds and self-transfer change nothing",
+       "input": "ops: create a,b → deposit(3,a,10) → transfer(4,a,b,11) → transfer(5,a,a,1) → balances",
+       "hidden": true,
+       "code": "bank = Bank()\nbank.create_account(1, \"a\")\nbank.create_account(2, \"b\")\nbank.deposit(3, \"a\", 10)\nexpect(bank.transfer(4, \"a\", \"b\", 11), None, label=\"insufficient\")\nexpect(bank.transfer(5, \"a\", \"a\", 1), None, label=\"self\")\nexpect([bank.get_balance(6, \"a\"), bank.get_balance(6, \"b\")], [10, 0])\n"
+      },
+      {
+       "name": "transfer of the whole balance is allowed",
+       "input": "ops: create a,b → deposit(3,a,10) → transfer(4,a,b,10)",
+       "hidden": true,
+       "code": "bank = Bank()\nbank.create_account(1, \"a\")\nbank.create_account(2, \"b\")\nbank.deposit(3, \"a\", 10)\nexpect(bank.transfer(4, \"a\", \"b\", 10), 0)\n"
+      },
+      {
+       "name": "non-positive amount raises",
+       "input": "ops: create(1,a) → deposit(2,a,0)",
+       "hidden": true,
+       "code": "bank = Bank()\nbank.create_account(1, \"a\")\nexpect_raises(ValueError, bank.deposit, 2, \"a\", 0)\n"
+      }
+     ]
+    },
+    {
+     "title": "Level 2: scheduled payments",
+     "brief": "### Add\nPayments that leave an account later.\n\n- `schedule_payment(timestamp, account_id, amount, delay) -> str | None` — schedule a withdrawal due at `timestamp + delay`. Returns ids `\"payment1\"`, `\"payment2\"`, ... (one global counter, incremented only on success). `None` if the account is missing. `amount <= 0` or `delay < 0` raise `ValueError`.\n- `cancel_payment(timestamp, account_id, payment_id) -> bool` — `True` if that payment is still pending **and** belongs to `account_id`.\n\n### Rules\n- **Every** operation first executes all pending payments due at or before its timestamp, in order of due time, ties by creation order.\n- A payment the account cannot fully cover is skipped (no partial payment) and is gone; it is not retried.\n\n### Example\n```\nbank.deposit(2, \"a\", 100)\nbank.schedule_payment(3, \"a\", 40, 5)   # \"payment1\", due at 8\nbank.get_balance(7, \"a\")               # 100\nbank.get_balance(8, \"a\")               # 60\n```",
+     "tests": [
+      {
+       "name": "payment runs at its due time",
+       "input": "ops: create(1,a) → deposit(2,a,100) → schedule(3,a,40,5) → get_balance(7,a) → get_balance(8,a)",
+       "hidden": false,
+       "code": "bank = Bank()\nbank.create_account(1, \"a\")\nbank.deposit(2, \"a\", 100)\nexpect(bank.schedule_payment(3, \"a\", 40, 5), \"payment1\", label=\"id\")\nexpect(bank.get_balance(7, \"a\"), 100, label=\"t=7\")\nexpect(bank.get_balance(8, \"a\"), 60, label=\"t=8\")\n"
+      },
+      {
+       "name": "cancel only by the owner, only while pending",
+       "input": "ops: create a,b → deposit(3,a,50) → schedule(4,a,10,10) → cancel(5,b,payment1) → cancel(6,a,payment1) → cancel(7,a,payment1)",
+       "hidden": true,
+       "code": "bank = Bank()\nbank.create_account(1, \"a\")\nbank.create_account(2, \"b\")\nbank.deposit(3, \"a\", 50)\npid = bank.schedule_payment(4, \"a\", 10, 10)\nexpect(bank.cancel_payment(5, \"b\", pid), False, label=\"wrong owner\")\nexpect(bank.cancel_payment(6, \"a\", pid), True, label=\"owner\")\nexpect(bank.cancel_payment(7, \"a\", pid), False, label=\"again\")\nexpect(bank.get_balance(20, \"a\"), 50, label=\"never charged\")\n"
+      },
+      {
+       "name": "payments run oldest due first; unaffordable one skipped",
+       "input": "ops: create(1,a) → deposit(2,a,50) → schedule(3,a,40,10)=p1 → schedule(4,a,30,5)=p2 → get_balance(20,a)",
+       "hidden": true,
+       "code": "bank = Bank()\nbank.create_account(1, \"a\")\nbank.deposit(2, \"a\", 50)\nbank.schedule_payment(3, \"a\", 40, 10)  # due 13\nbank.schedule_payment(4, \"a\", 30, 5)   # due 9, runs first\nexpect(bank.get_balance(20, \"a\"), 20)\n"
+      },
+      {
+       "name": "due payments run before the operation at that time",
+       "input": "ops: create(1,a) → deposit(2,a,10) → schedule(3,a,10,2) → create(4,b) → transfer(5,a,b,5)",
+       "hidden": true,
+       "code": "bank = Bank()\nbank.create_account(1, \"a\")\nbank.deposit(2, \"a\", 10)\nbank.schedule_payment(3, \"a\", 10, 2)  # due 5\nbank.create_account(4, \"b\")\nexpect(bank.transfer(5, \"a\", \"b\", 5), None, label=\"payment took the money first\")\nexpect(bank.get_balance(5, \"a\"), 0)\n"
+      },
+      {
+       "name": "skipped payment cannot be cancelled later",
+       "input": "ops: create(1,a) → schedule(2,a,5,1) → get_balance(3,a) → cancel(4,a,payment1)",
+       "hidden": true,
+       "code": "bank = Bank()\nbank.create_account(1, \"a\")\npid = bank.schedule_payment(2, \"a\", 5, 1)\nexpect(bank.get_balance(3, \"a\"), 0, label=\"skipped\")\nexpect(bank.cancel_payment(4, \"a\", pid), False, label=\"gone\")\n"
+      },
+      {
+       "name": "missing account and bad args",
+       "input": "ops: schedule(1,x,5,1) → schedule(2,a,5,-1) → next id after failures",
+       "hidden": true,
+       "code": "bank = Bank()\nexpect(bank.schedule_payment(1, \"x\", 5, 1), None, label=\"missing account\")\nbank.create_account(2, \"a\")\nexpect_raises(ValueError, bank.schedule_payment, 2, \"a\", 5, -1, label=\"negative delay\")\nexpect(bank.schedule_payment(3, \"a\", 5, 1), \"payment1\", label=\"counter only counts successes\")\n"
+      }
+     ]
+    },
+    {
+     "title": "Level 3: merging accounts",
+     "brief": "### Add\n- `merge_accounts(timestamp, account_id_1, account_id_2) -> bool` — fold account 2 into account 1: account 1's balance increases by account 2's balance, account 2's pending payments now belong to (and are charged to) account 1, and account 2 is closed (it no longer exists for any method, and its id may be created again later). Return `False` if the ids are equal or either account is missing.\n\n### Rules\n- Due payments run first, as always.\n- After the merge, cancelling a payment that came from account 2 needs `account_id_1`.\n\n### Example\n```\nbank.deposit(3, \"a\", 10); bank.deposit(4, \"b\", 20)\npid = bank.schedule_payment(5, \"b\", 25, 5)    # due 10\nbank.merge_accounts(6, \"a\", \"b\")              # True, a has 30\nbank.get_balance(10, \"a\")                     # 5\nbank.get_balance(10, \"b\")                     # None\n```",
+     "tests": [
+      {
+       "name": "merge moves balance and payments",
+       "input": "ops: create a,b → deposit(3,a,10) → deposit(4,b,20) → schedule(5,b,25,5) → merge(6,a,b) → get_balance(10,a)",
+       "hidden": false,
+       "code": "bank = Bank()\nbank.create_account(1, \"a\")\nbank.create_account(2, \"b\")\nbank.deposit(3, \"a\", 10)\nbank.deposit(4, \"b\", 20)\nbank.schedule_payment(5, \"b\", 25, 5)\nexpect(bank.merge_accounts(6, \"a\", \"b\"), True, label=\"merge\")\nexpect(bank.get_balance(7, \"a\"), 30, label=\"t=7\")\nexpect(bank.get_balance(10, \"a\"), 5, label=\"t=10\")\nexpect(bank.get_balance(10, \"b\"), None, label=\"b closed\")\n"
+      },
+      {
+       "name": "invalid merges return False",
+       "input": "ops: create(1,a) → merge(2,a,a) → merge(3,a,x) → merge(4,x,a)",
+       "hidden": true,
+       "code": "bank = Bank()\nbank.create_account(1, \"a\")\nexpect([bank.merge_accounts(2, \"a\", \"a\"), bank.merge_accounts(3, \"a\", \"x\"), bank.merge_accounts(4, \"x\", \"a\")], [False, False, False])\n"
+      },
+      {
+       "name": "cancel a merged payment via the new owner",
+       "input": "ops: create a,b → deposit(3,b,10) → schedule(4,b,5,10)=p1 → merge(5,a,b) → cancel(6,b,p1) → cancel(7,a,p1)",
+       "hidden": true,
+       "code": "bank = Bank()\nbank.create_account(1, \"a\")\nbank.create_account(2, \"b\")\nbank.deposit(3, \"b\", 10)\npid = bank.schedule_payment(4, \"b\", 5, 10)\nbank.merge_accounts(5, \"a\", \"b\")\nexpect(bank.cancel_payment(6, \"b\", pid), False, label=\"old owner\")\nexpect(bank.cancel_payment(7, \"a\", pid), True, label=\"new owner\")\nexpect(bank.get_balance(30, \"a\"), 10)\n"
+      },
+      {
+       "name": "closed account rejects operations, id can be reused",
+       "input": "ops: create a,b → merge(3,a,b) → deposit(4,b,5) → create(5,b) → get_balance(6,b)",
+       "hidden": true,
+       "code": "bank = Bank()\nbank.create_account(1, \"a\")\nbank.create_account(2, \"b\")\nbank.merge_accounts(3, \"a\", \"b\")\nexpect(bank.deposit(4, \"b\", 5), None, label=\"deposit to closed\")\nexpect(bank.create_account(5, \"b\"), True, label=\"re-create\")\nexpect(bank.get_balance(6, \"b\"), 0, label=\"fresh balance\")\n"
+      },
+      {
+       "name": "payment due at merge time runs before the merge",
+       "input": "ops: create a,b → deposit(3,b,10) → schedule(4,b,10,2) → merge(6,a,b) → get_balance(7,a)",
+       "hidden": true,
+       "code": "bank = Bank()\nbank.create_account(1, \"a\")\nbank.create_account(2, \"b\")\nbank.deposit(3, \"b\", 10)\nbank.schedule_payment(4, \"b\", 10, 2)  # due 6\nbank.merge_accounts(6, \"a\", \"b\")\nexpect(bank.get_balance(7, \"a\"), 0)\n"
+      }
+     ]
+    },
+    {
+     "title": "Level 4: balance history",
+     "brief": "### Add\n- `get_balance_at(timestamp, account_id, time_at) -> int | None` — the balance `account_id` had at time `time_at` (`time_at <= timestamp`), i.e. after every operation and payment at or before `time_at`. `None` if the account did not exist then.\n\n### Rules\n- A scheduled payment changes the balance **at its due time**, even though it is processed lazily by a later call.\n- A merged-away account has its old history before the merge time and `None` from the merge on. The surviving account's history includes the merged money from the merge time on.\n- If an id is closed and created again, each period answers with the account that existed then.\n\n### Example\n```\nbank.create_account(1, \"a\"); bank.deposit(2, \"a\", 50)\nbank.schedule_payment(3, \"a\", 20, 4)  # due 7\nbank.get_balance_at(10, \"a\", 6)       # 50\nbank.get_balance_at(10, \"a\", 7)       # 30\nbank.get_balance_at(10, \"a\", 0)       # None\n```",
+     "tests": [
+      {
+       "name": "history includes payments at their due time",
+       "input": "ops: create(1,a) → deposit(2,a,50) → schedule(3,a,20,4) → get_balance_at(10,a,6) → get_balance_at(10,a,7) → get_balance_at(10,a,0)",
+       "hidden": false,
+       "code": "bank = Bank()\nbank.create_account(1, \"a\")\nbank.deposit(2, \"a\", 50)\nbank.schedule_payment(3, \"a\", 20, 4)\nexpect(bank.get_balance_at(10, \"a\", 6), 50, label=\"t=6\")\nexpect(bank.get_balance_at(10, \"a\", 7), 30, label=\"t=7\")\nexpect(bank.get_balance_at(10, \"a\", 0), None, label=\"before creation\")\n"
+      },
+      {
+       "name": "history after transfers",
+       "input": "ops: create a,b → deposit(3,a,100) → transfer(5,a,b,40) → at(9,a,4) → at(9,a,5) → at(9,b,5)",
+       "hidden": true,
+       "code": "bank = Bank()\nbank.create_account(1, \"a\")\nbank.create_account(2, \"b\")\nbank.deposit(3, \"a\", 100)\nbank.transfer(5, \"a\", \"b\", 40)\nexpect([bank.get_balance_at(9, \"a\", 4), bank.get_balance_at(9, \"a\", 5), bank.get_balance_at(9, \"b\", 5)], [100, 60, 40])\n"
+      },
+      {
+       "name": "merged account history",
+       "input": "ops: create a,b → deposit(3,a,5) → deposit(4,b,7) → merge(6,a,b) → at(9,b,5) → at(9,b,6) → at(9,a,5) → at(9,a,6)",
+       "hidden": true,
+       "code": "bank = Bank()\nbank.create_account(1, \"a\")\nbank.create_account(2, \"b\")\nbank.deposit(3, \"a\", 5)\nbank.deposit(4, \"b\", 7)\nbank.merge_accounts(6, \"a\", \"b\")\nexpect(bank.get_balance_at(9, \"b\", 5), 7, label=\"b before merge\")\nexpect(bank.get_balance_at(9, \"b\", 6), None, label=\"b at merge\")\nexpect(bank.get_balance_at(9, \"a\", 5), 5, label=\"a before merge\")\nexpect(bank.get_balance_at(9, \"a\", 6), 12, label=\"a at merge\")\n"
+      },
+      {
+       "name": "re-created id answers per period",
+       "input": "ops: create a,b → deposit(3,b,9) → merge(4,a,b) → create(6,b) → at(10,b,3) → at(10,b,5) → at(10,b,6)",
+       "hidden": true,
+       "code": "bank = Bank()\nbank.create_account(1, \"a\")\nbank.create_account(2, \"b\")\nbank.deposit(3, \"b\", 9)\nbank.merge_accounts(4, \"a\", \"b\")\nbank.create_account(6, \"b\")\nexpect([bank.get_balance_at(10, \"b\", 3), bank.get_balance_at(10, \"b\", 5), bank.get_balance_at(10, \"b\", 6)], [9, None, 0])\n"
+      },
+      {
+       "name": "unknown account has no history",
+       "input": "ops: get_balance_at(5,zz,3)",
+       "hidden": true,
+       "code": "bank = Bank()\nexpect(bank.get_balance_at(5, \"zz\", 3), None)\n"
+      },
+      {
+       "name": "skipped payment leaves history unchanged",
+       "input": "ops: create(1,a) → deposit(2,a,5) → schedule(3,a,10,1) → at(9,a,4) → at(9,a,8)",
+       "hidden": true,
+       "code": "bank = Bank()\nbank.create_account(1, \"a\")\nbank.deposit(2, \"a\", 5)\nbank.schedule_payment(3, \"a\", 10, 1)\nexpect([bank.get_balance_at(9, \"a\", 4), bank.get_balance_at(9, \"a\", 8)], [5, 5])\n"
+      }
+     ]
+    }
+   ],
+   "hints": [
+    "Funnel every public method through one 'process due payments up to now' step, and keep the money state (balances) separate from the audit state (a per-account history of changes).",
+    "Pending payments are a dict from id to account, amount, due time and creation order; processing sorts the due ones by (due, creation order). A merge is: add balances, reassign pending payments, remove the closed account from the active balances.",
+    "For history, append (time, balance) to a per-id list whenever a balance changes, using the payment's due time rather than the call time, and append (time, None) when an account is merged away. A query walks to the last entry at or before time_at; never delete history lists, so re-created ids keep their old periods."
+   ],
+   "solution": "### Key insight\nTwo pieces of state: **active balances** (what exists now) and **append-only history per id** (what was true when). Every method starts with `_process(timestamp)`, which runs due payments in `(due, created)` order and logs each change at the payment's **due** time, so lazy processing still produces the right history.\n\n### Reference implementation\n```python\nclass Bank:\n    def __init__(self) -> None:\n        self._balances: dict[str, int] = {}                     # active accounts only\n        self._history: dict[str, list[tuple[int, int | None]]] = {}  # id -> [(time, balance or None)]\n        self._payments: dict[str, dict] = {}                    # pending payment id -> details\n        self._payment_count = 0\n\n    @staticmethod\n    def _check_amount(amount: int) -> None:\n        if amount <= 0:\n            raise ValueError(\"amount must be positive\")\n\n    def _record(self, timestamp: int, account_id: str) -> None:\n        self._history.setdefault(account_id, []).append((timestamp, self._balances.get(account_id)))\n\n    def _process(self, timestamp: int) -> None:\n        \"\"\"Run every pending payment due at or before timestamp, oldest due first.\"\"\"\n        due = sorted(\n            (p[\"due\"], p[\"seq\"], pid) for pid, p in self._payments.items() if p[\"due\"] <= timestamp\n        )\n        for due_at, _, pid in due:\n            payment = self._payments.pop(pid)\n            account = payment[\"account\"]\n            if self._balances[account] >= payment[\"amount\"]:\n                self._balances[account] -= payment[\"amount\"]\n                self._record(due_at, account)\n\n    # ---- level 1\n    def create_account(self, timestamp: int, account_id: str) -> bool:\n        self._process(timestamp)\n        if account_id in self._balances:\n            return False\n        self._balances[account_id] = 0\n        self._record(timestamp, account_id)\n        return True\n\n    def deposit(self, timestamp: int, account_id: str, amount: int) -> int | None:\n        self._check_amount(amount)\n        self._process(timestamp)\n        if account_id not in self._balances:\n            return None\n        self._balances[account_id] += amount\n        self._record(timestamp, account_id)\n        return self._balances[account_id]\n\n    def transfer(self, timestamp: int, source_id: str, target_id: str, amount: int) -> int | None:\n        self._check_amount(amount)\n        self._process(timestamp)\n        if source_id == target_id or source_id not in self._balances or target_id not in self._balances:\n            return None\n        if self._balances[source_id] < amount:\n            return None\n        self._balances[source_id] -= amount\n        self._balances[target_id] += amount\n        self._record(timestamp, source_id)\n        self._record(timestamp, target_id)\n        return self._balances[source_id]\n\n    def get_balance(self, timestamp: int, account_id: str) -> int | None:\n        self._process(timestamp)\n        return self._balances.get(account_id)\n```\n\n```python\n    # ---- level 2 (methods of Bank, continued)\n    def schedule_payment(self, timestamp: int, account_id: str, amount: int, delay: int) -> str | None:\n        self._check_amount(amount)\n        if delay < 0:\n            raise ValueError(\"delay must be >= 0\")\n        self._process(timestamp)\n        if account_id not in self._balances:\n            return None\n        self._payment_count += 1\n        pid = f\"payment{self._payment_count}\"\n        self._payments[pid] = {\n            \"account\": account_id, \"amount\": amount,\n            \"due\": timestamp + delay, \"seq\": self._payment_count,\n        }\n        return pid\n\n    def cancel_payment(self, timestamp: int, account_id: str, payment_id: str) -> bool:\n        self._process(timestamp)\n        payment = self._payments.get(payment_id)\n        if payment is None or payment[\"account\"] != account_id:\n            return False\n        del self._payments[payment_id]\n        return True\n\n    # ---- level 3\n    def merge_accounts(self, timestamp: int, account_id_1: str, account_id_2: str) -> bool:\n        self._process(timestamp)\n        if account_id_1 == account_id_2:\n            return False\n        if account_id_1 not in self._balances or account_id_2 not in self._balances:\n            return False\n        self._balances[account_id_1] += self._balances.pop(account_id_2)\n        for payment in self._payments.values():\n            if payment[\"account\"] == account_id_2:\n                payment[\"account\"] = account_id_1\n        self._record(timestamp, account_id_1)\n        self._record(timestamp, account_id_2)  # records None: closed from here on\n        return True\n\n    # ---- level 4\n    def get_balance_at(self, timestamp: int, account_id: str, time_at: int) -> int | None:\n        self._process(timestamp)\n        result = None\n        for at, balance in self._history.get(account_id, []):\n            if at > time_at:\n                break\n            result = balance\n        return result\n```\n\n### Design notes per level\n- **Level 1:** dict of balances; validate amounts before touching state; `transfer` checks every failure case before mutating.\n- **Level 2:** pending payments keyed by id; a global counter that increments only on success. Processing is O(p log p) per call, fine for an interview; mention a heap keyed by `(due, seq)` for scale.\n- **Level 3:** a merge reassigns pending payments by rewriting their `account` field, so `cancel_payment` and `_process` need no special case.\n- **Level 4:** history entries are appended in time order (unprocessed payments are always due after the last call), so a query is a linear walk or a `bisect`. Recording `None` at merge time gives the \"closed\" period for free.\n\n### Common pitfalls\n- Running due payments **after** the operation at the same timestamp.\n- Partial payments, or retrying skipped ones.\n- Logging a lazily processed payment at the call time instead of its due time.\n- Deleting the merged account's history, so earlier queries return None.\n- Incrementing the payment counter on a failed schedule.\n",
+   "tests": []
+  },
+  "ch-3": {
+   "brief": "### Scenario\nYou are building the metadata service behind a cloud drive (think of the storage layer that holds uploaded datasets and model checkpoints): files with sizes (level 1), prefix queries (level 2), per-user quotas and account merges (level 3), and per-user backups (level 4).\n\n### How the levels work\nThis is a lab-style practical round: one problem, four levels. Start from the starter's `FileSystem` shell; later levels name the exact methods to add.\nEach level's tests include **all earlier levels' tests**, so a later change must not break earlier behaviour. Keep one class and grow it; refactor when a level asks for something your first design can't hold.\n\n### Time guidance (75 min total)\n- Level 1: ~15 min\n- Level 2: ~15 min\n- Level 3: ~20 min\n- Level 4: ~25 min\n\n### Interview tips\n- Narrate: say what state you keep and why before typing.\n- Make level 1 simple and correct first; do not pre-build later levels.\n- Timestamps are plain ints passed into each method, so behaviour is deterministic.\n- Read each level brief twice: return values for the \"missing\" cases (None / False) are where points are lost.\n",
+   "starter": "class FileSystem:\n    \"\"\"Level 1: a flat map of absolute paths to file sizes.\"\"\"\n\n    def __init__(self) -> None:\n        pass\n\n    def add_file(self, path: str, size: int) -> bool:\n        \"\"\"True if added, False if the path already exists.\"\"\"\n        raise NotImplementedError\n\n    def get_file_size(self, path: str) -> int | None:\n        \"\"\"Size of the file, or None if it does not exist.\"\"\"\n        raise NotImplementedError\n\n    def delete_file(self, path: str) -> int | None:\n        \"\"\"Size of the deleted file, or None if it did not exist.\"\"\"\n        raise NotImplementedError\n",
+   "levels": [
+    {
+     "title": "Level 1: files and sizes",
+     "brief": "### Add\n`FileSystem` storing files by absolute path (a string starting with `/`, e.g. `\"/docs/a.txt\"`; treat it as an opaque key, no directory objects).\n\n- `add_file(path, size) -> bool` — `False` if the path already exists.\n- `get_file_size(path) -> int | None`.\n- `delete_file(path) -> int | None` — size of the deleted file, `None` if missing.\n- A path not starting with `/`, or `size < 0`, raises `ValueError`. Size `0` is allowed.\n\n### Example\n```\nfs = FileSystem()\nfs.add_file(\"/docs/a.txt\", 10)   # True\nfs.add_file(\"/docs/a.txt\", 5)    # False\nfs.get_file_size(\"/docs/a.txt\")  # 10\nfs.delete_file(\"/docs/a.txt\")    # 10\n```",
+     "tests": [
+      {
+       "name": "add, get and delete",
+       "input": "ops: add(/docs/a.txt,10) → add(/docs/a.txt,5) → size(/docs/a.txt) → delete(/docs/a.txt)",
+       "hidden": false,
+       "code": "fs = FileSystem()\nexpect(fs.add_file(\"/docs/a.txt\", 10), True, label=\"add\")\nexpect(fs.add_file(\"/docs/a.txt\", 5), False, label=\"duplicate\")\nexpect(fs.get_file_size(\"/docs/a.txt\"), 10, label=\"size\")\nexpect(fs.delete_file(\"/docs/a.txt\"), 10, label=\"delete\")\n"
+      },
+      {
+       "name": "missing files give None",
+       "input": "ops: size(/nope) → delete(/nope)",
+       "hidden": true,
+       "code": "fs = FileSystem()\nexpect([fs.get_file_size(\"/nope\"), fs.delete_file(\"/nope\")], [None, None])\n"
+      },
+      {
+       "name": "deleted path can be added again",
+       "input": "ops: add(/a,1) → delete(/a) → add(/a,2) → size(/a)",
+       "hidden": true,
+       "code": "fs = FileSystem()\nfs.add_file(\"/a\", 1)\nfs.delete_file(\"/a\")\nexpect(fs.add_file(\"/a\", 2), True, label=\"re-add\")\nexpect(fs.get_file_size(\"/a\"), 2)\n"
+      },
+      {
+       "name": "invalid path or size raises",
+       "input": "ops: add(a.txt,1) → add(/a,-1) → add(/zero,0)",
+       "hidden": true,
+       "code": "fs = FileSystem()\nexpect_raises(ValueError, fs.add_file, \"a.txt\", 1, label=\"relative path\")\nexpect_raises(ValueError, fs.add_file, \"/a\", -1, label=\"negative size\")\nexpect(fs.add_file(\"/zero\", 0), True, label=\"zero size ok\")\n"
+      },
+      {
+       "name": "instances are independent",
+       "input": "ops: fs1.add(/a,1) → fs2.size(/a)",
+       "hidden": true,
+       "code": "fs1, fs2 = FileSystem(), FileSystem()\nfs1.add_file(\"/a\", 1)\nexpect(fs2.get_file_size(\"/a\"), None)\n"
+      }
+     ]
+    },
+    {
+     "title": "Level 2: prefix queries",
+     "brief": "### Add\n- `largest_files(prefix, n) -> list[str]` — the `n` largest files whose path starts with `prefix`, as `\"path(size)\"`, sorted by size descending, ties by path ascending. Fewer than `n` matches returns them all; `n <= 0` returns `[]`.\n- `total_size(prefix) -> int` — sum of sizes of files whose path starts with `prefix` (`0` if none).\n\n`prefix` is a plain string prefix (`\"/docs\"` also matches `\"/docs2/x\"`).\n\n### Example\n```\nfs.add_file(\"/docs/a\", 10); fs.add_file(\"/docs/b\", 30); fs.add_file(\"/img/c\", 20)\nfs.largest_files(\"/docs\", 5)  # [\"/docs/b(30)\", \"/docs/a(10)\"]\nfs.total_size(\"/\")            # 60\n```",
+     "tests": [
+      {
+       "name": "largest files under a prefix",
+       "input": "ops: add(/docs/a,10) → add(/docs/b,30) → add(/img/c,20) → largest_files(/docs,5) → total_size(/)",
+       "hidden": false,
+       "code": "fs = FileSystem()\nfs.add_file(\"/docs/a\", 10)\nfs.add_file(\"/docs/b\", 30)\nfs.add_file(\"/img/c\", 20)\nexpect(fs.largest_files(\"/docs\", 5), [\"/docs/b(30)\", \"/docs/a(10)\"], label=\"largest\")\nexpect(fs.total_size(\"/\"), 60, label=\"total\")\n"
+      },
+      {
+       "name": "ties break by path",
+       "input": "ops: add(/b,5) → add(/a,5) → add(/c,7) → largest_files(/,2)",
+       "hidden": true,
+       "code": "fs = FileSystem()\nfs.add_file(\"/b\", 5)\nfs.add_file(\"/a\", 5)\nfs.add_file(\"/c\", 7)\nexpect(fs.largest_files(\"/\", 2), [\"/c(7)\", \"/a(5)\"])\n"
+      },
+      {
+       "name": "no matches and non-positive n",
+       "input": "ops: add(/a,1) → largest_files(/x,3) → largest_files(/,0) → total_size(/x)",
+       "hidden": true,
+       "code": "fs = FileSystem()\nfs.add_file(\"/a\", 1)\nexpect([fs.largest_files(\"/x\", 3), fs.largest_files(\"/\", 0), fs.total_size(\"/x\")], [[], [], 0])\n"
+      },
+      {
+       "name": "deleted files leave the queries",
+       "input": "ops: add(/a,4) → add(/b,6) → delete(/b) → largest_files(/,5) → total_size(/)",
+       "hidden": true,
+       "code": "fs = FileSystem()\nfs.add_file(\"/a\", 4)\nfs.add_file(\"/b\", 6)\nfs.delete_file(\"/b\")\nexpect([fs.largest_files(\"/\", 5), fs.total_size(\"/\")], [[\"/a(4)\"], 4])\n"
+      },
+      {
+       "name": "prefix is a plain string prefix",
+       "input": "ops: add(/docs/a,1) → add(/docs2/b,2) → total_size(/docs) → total_size(/docs/)",
+       "hidden": true,
+       "code": "fs = FileSystem()\nfs.add_file(\"/docs/a\", 1)\nfs.add_file(\"/docs2/b\", 2)\nexpect([fs.total_size(\"/docs\"), fs.total_size(\"/docs/\")], [3, 1])\n"
+      }
+     ]
+    },
+    {
+     "title": "Level 3: users and quotas",
+     "brief": "### Add\nFiles now have owners. Files from `add_file` belong to the built-in user `\"admin\"` (unlimited capacity, exists from the start).\n\n- `add_user(user_id, capacity) -> bool` — `False` if the user exists; `capacity < 0` raises `ValueError`.\n- `add_file_by(user_id, path, size) -> int | None` — add a file owned by `user_id` and return the user's **remaining** capacity. `None` (nothing added) if the user is missing, the path exists, or the file would exceed the remaining capacity. Same path/size validation as `add_file`. For `\"admin\"` the file is added and the return is `None`.\n- `remaining_capacity(user_id) -> int | None` — capacity minus sizes of owned files; `None` for unknown users and for `\"admin\"`.\n- `merge_users(user_id_1, user_id_2) -> int | None` — user 1 takes over user 2's files and capacity (capacities add up); user 2 is removed. Return user 1's remaining capacity, or `None` if the ids are equal, either is missing, or either is `\"admin\"`.\n\nDeleting a file frees its owner's capacity.\n\n### Example\n```\nfs.add_user(\"u1\", 100)\nfs.add_file_by(\"u1\", \"/u1/a\", 60)  # 40\nfs.add_file_by(\"u1\", \"/u1/b\", 50)  # None (over quota)\n```",
+     "tests": [
+      {
+       "name": "quota is enforced",
+       "input": "ops: add_user(u1,100) → add_file_by(u1,/u1/a,60) → add_file_by(u1,/u1/b,50) → add_file_by(u1,/u1/b,40)",
+       "hidden": false,
+       "code": "fs = FileSystem()\nexpect(fs.add_user(\"u1\", 100), True, label=\"add user\")\nexpect(fs.add_file_by(\"u1\", \"/u1/a\", 60), 40, label=\"first file\")\nexpect(fs.add_file_by(\"u1\", \"/u1/b\", 50), None, label=\"over quota\")\nexpect(fs.add_file_by(\"u1\", \"/u1/b\", 40), 0, label=\"exactly fits\")\n"
+      },
+      {
+       "name": "delete frees capacity",
+       "input": "ops: add_user(u,10) → add_file_by(u,/a,10) → delete(/a) → remaining_capacity(u)",
+       "hidden": true,
+       "code": "fs = FileSystem()\nfs.add_user(\"u\", 10)\nfs.add_file_by(\"u\", \"/a\", 10)\nfs.delete_file(\"/a\")\nexpect(fs.remaining_capacity(\"u\"), 10)\n"
+      },
+      {
+       "name": "unknown user, existing path, duplicate user",
+       "input": "ops: add_file_by(x,/a,1) → add(/a,1) → add_user(u,5) → add_file_by(u,/a,1) → add_user(u,9)",
+       "hidden": true,
+       "code": "fs = FileSystem()\nexpect(fs.add_file_by(\"x\", \"/a\", 1), None, label=\"unknown user\")\nfs.add_file(\"/a\", 1)\nfs.add_user(\"u\", 5)\nexpect(fs.add_file_by(\"u\", \"/a\", 1), None, label=\"path taken\")\nexpect(fs.add_user(\"u\", 9), False, label=\"duplicate user\")\nexpect(fs.remaining_capacity(\"u\"), 5, label=\"unchanged\")\n"
+      },
+      {
+       "name": "merge adds capacity and moves files",
+       "input": "ops: add_user(a,10) → add_user(b,20) → add_file_by(a,/x,4) → add_file_by(b,/y,15) → merge(a,b) → delete(/y) → remaining(a)",
+       "hidden": true,
+       "code": "fs = FileSystem()\nfs.add_user(\"a\", 10)\nfs.add_user(\"b\", 20)\nfs.add_file_by(\"a\", \"/x\", 4)\nfs.add_file_by(\"b\", \"/y\", 15)\nexpect(fs.merge_users(\"a\", \"b\"), 11, label=\"after merge\")\nexpect(fs.remaining_capacity(\"b\"), None, label=\"b removed\")\nfs.delete_file(\"/y\")\nexpect(fs.remaining_capacity(\"a\"), 26, label=\"b's file freed a's capacity\")\n"
+      },
+      {
+       "name": "invalid merges return None",
+       "input": "ops: add_user(a,1) → merge(a,a) → merge(a,zz) → merge(admin,a)",
+       "hidden": true,
+       "code": "fs = FileSystem()\nfs.add_user(\"a\", 1)\nexpect([fs.merge_users(\"a\", \"a\"), fs.merge_users(\"a\", \"zz\"), fs.merge_users(\"admin\", \"a\")], [None, None, None])\n"
+      },
+      {
+       "name": "admin files do not count against users",
+       "input": "ops: add(/big,1000) → add_user(u,5) → remaining(u) → remaining(admin) → add_user(u2,-1)",
+       "hidden": true,
+       "code": "fs = FileSystem()\nfs.add_file(\"/big\", 1000)\nfs.add_user(\"u\", 5)\nexpect([fs.remaining_capacity(\"u\"), fs.remaining_capacity(\"admin\")], [5, None])\nexpect_raises(ValueError, fs.add_user, \"u2\", -1, label=\"negative capacity\")\n"
+      }
+     ]
+    },
+    {
+     "title": "Level 4: backups",
+     "brief": "### Add\n- `backup_user(user_id) -> int | None` — save the user's current files (path and size), replacing any earlier backup of that user; return the number of files saved. `None` if the user is missing.\n- `restore_user(user_id) -> int | None` — delete all of the user's current files, then re-create the files from their latest backup and return how many were restored. A backed-up path that now belongs to **another** user is skipped. No backup means the user just ends up with no files (return `0`). `None` if the user is missing.\n\n### Rules\n- Backups are per user and independent of other users.\n- When users merge, user 2's backup is discarded; user 1's backup is kept as is.\n- Works for `\"admin\"` too.\n\n### Example\n```\nfs.add_user(\"u\", 100)\nfs.add_file_by(\"u\", \"/a\", 10)\nfs.backup_user(\"u\")             # 1\nfs.add_file_by(\"u\", \"/b\", 20)\nfs.restore_user(\"u\")            # 1  (/b deleted, /a restored)\n```",
+     "tests": [
+      {
+       "name": "restore brings back the backed-up files only",
+       "input": "ops: add_user(u,100) → add_file_by(u,/a,10) → backup(u) → add_file_by(u,/b,20) → delete(/a) → restore(u)",
+       "hidden": false,
+       "code": "fs = FileSystem()\nfs.add_user(\"u\", 100)\nfs.add_file_by(\"u\", \"/a\", 10)\nexpect(fs.backup_user(\"u\"), 1, label=\"backup\")\nfs.add_file_by(\"u\", \"/b\", 20)\nfs.delete_file(\"/a\")\nexpect(fs.restore_user(\"u\"), 1, label=\"restored\")\nexpect([fs.get_file_size(\"/a\"), fs.get_file_size(\"/b\")], [10, None], label=\"files\")\n"
+      },
+      {
+       "name": "restore without a backup wipes the user",
+       "input": "ops: add_user(u,9) → add_file_by(u,/a,3) → restore(u) → size(/a) → remaining(u)",
+       "hidden": true,
+       "code": "fs = FileSystem()\nfs.add_user(\"u\", 9)\nfs.add_file_by(\"u\", \"/a\", 3)\nexpect(fs.restore_user(\"u\"), 0, label=\"restored\")\nexpect([fs.get_file_size(\"/a\"), fs.remaining_capacity(\"u\")], [None, 9])\n"
+      },
+      {
+       "name": "path taken by another user is skipped",
+       "input": "ops: add_user(u,10) → add_user(v,10) → add_file_by(u,/a,2) → add_file_by(u,/b,3) → backup(u) → delete(/a) → add_file_by(v,/a,1) → restore(u)",
+       "hidden": true,
+       "code": "fs = FileSystem()\nfs.add_user(\"u\", 10)\nfs.add_user(\"v\", 10)\nfs.add_file_by(\"u\", \"/a\", 2)\nfs.add_file_by(\"u\", \"/b\", 3)\nfs.backup_user(\"u\")\nfs.delete_file(\"/a\")\nfs.add_file_by(\"v\", \"/a\", 1)\nexpect(fs.restore_user(\"u\"), 1, label=\"restored\")\nexpect(fs.get_file_size(\"/a\"), 1, label=\"v keeps /a\")\n"
+      },
+      {
+       "name": "missing user gives None",
+       "input": "ops: backup(zz) → restore(zz)",
+       "hidden": true,
+       "code": "fs = FileSystem()\nexpect([fs.backup_user(\"zz\"), fs.restore_user(\"zz\")], [None, None])\n"
+      },
+      {
+       "name": "a new backup replaces the old one",
+       "input": "ops: add_user(u,10) → add_file_by(u,/a,1) → backup(u) → add_file_by(u,/b,1) → backup(u) → restore(u)",
+       "hidden": true,
+       "code": "fs = FileSystem()\nfs.add_user(\"u\", 10)\nfs.add_file_by(\"u\", \"/a\", 1)\nfs.backup_user(\"u\")\nfs.add_file_by(\"u\", \"/b\", 1)\nexpect(fs.backup_user(\"u\"), 2, label=\"second backup\")\nexpect(fs.restore_user(\"u\"), 2, label=\"restored\")\n"
+      },
+      {
+       "name": "merge discards user 2's backup",
+       "input": "ops: add_user(a,5) → add_user(b,5) → add_file_by(b,/x,2) → backup(b) → merge(a,b) → restore(a) → size(/x)",
+       "hidden": true,
+       "code": "fs = FileSystem()\nfs.add_user(\"a\", 5)\nfs.add_user(\"b\", 5)\nfs.add_file_by(\"b\", \"/x\", 2)\nfs.backup_user(\"b\")\nfs.merge_users(\"a\", \"b\")\nexpect(fs.restore_user(\"a\"), 0, label=\"a had no backup\")\nexpect(fs.get_file_size(\"/x\"), None, label=\"merged file wiped\")\nexpect(fs.backup_user(\"b\"), None, label=\"b gone\")\n"
+      }
+     ]
+    }
+   ],
+   "hints": [
+    "Keep one source of truth: a dict from path to (size, owner). Treat paths as opaque strings and avoid building a directory tree; prefix queries are just startswith filters.",
+    "Do not store 'used space' as a counter that you have to keep in sync; derive remaining capacity as capacity minus the sizes of the files the user owns. Admin is just a user with unlimited (None) capacity, created in the constructor.",
+    "A backup is a copy of {path: size} for one user. Restore deletes the user's current files first, then re-adds each backed-up path that is free, counting successes; merge rewrites owners, adds capacities and drops the second user's backup."
+   ],
+   "solution": "### Key insight\nOne dict `path -> (size, owner)` answers every query. Quotas are **derived** (capacity minus owned sizes), so deletes, merges and restores never have to update a counter, and that is where most bugs in this problem come from.\n\n### Reference implementation\n```python\nclass FileSystem:\n    ADMIN = \"admin\"\n\n    def __init__(self) -> None:\n        self._files: dict[str, tuple[int, str]] = {}          # path -> (size, owner)\n        self._capacity: dict[str, int | None] = {self.ADMIN: None}  # None = unlimited\n        self._backups: dict[str, dict[str, int]] = {}         # user -> {path: size}\n\n    @staticmethod\n    def _check(path: str, size: int) -> None:\n        if not isinstance(path, str) or not path.startswith(\"/\"):\n            raise ValueError(\"path must start with '/'\")\n        if size < 0:\n            raise ValueError(\"size must be >= 0\")\n\n    # ---- level 1\n    def add_file(self, path: str, size: int) -> bool:\n        self._check(path, size)\n        if path in self._files:\n            return False\n        self._files[path] = (size, self.ADMIN)\n        return True\n\n    def get_file_size(self, path: str) -> int | None:\n        entry = self._files.get(path)\n        return None if entry is None else entry[0]\n\n    def delete_file(self, path: str) -> int | None:\n        entry = self._files.pop(path, None)\n        return None if entry is None else entry[0]\n\n    # ---- level 2\n    def largest_files(self, prefix: str, n: int) -> list[str]:\n        if n <= 0:\n            return []\n        matches = [(size, path) for path, (size, _) in self._files.items() if path.startswith(prefix)]\n        matches.sort(key=lambda item: (-item[0], item[1]))\n        return [f\"{path}({size})\" for size, path in matches[:n]]\n\n    def total_size(self, prefix: str) -> int:\n        return sum(size for path, (size, _) in self._files.items() if path.startswith(prefix))\n```\n\n```python\n    # ---- level 3 (methods of FileSystem, continued)\n    def _used(self, user_id: str) -> int:\n        return sum(size for size, owner in self._files.values() if owner == user_id)\n\n    def add_user(self, user_id: str, capacity: int) -> bool:\n        if capacity < 0:\n            raise ValueError(\"capacity must be >= 0\")\n        if user_id in self._capacity:\n            return False\n        self._capacity[user_id] = capacity\n        return True\n\n    def remaining_capacity(self, user_id: str) -> int | None:\n        capacity = self._capacity.get(user_id)\n        if capacity is None:  # unknown user, or admin (unlimited)\n            return None\n        return capacity - self._used(user_id)\n\n    def add_file_by(self, user_id: str, path: str, size: int) -> int | None:\n        self._check(path, size)\n        if user_id not in self._capacity or path in self._files:\n            return None\n        if user_id == self.ADMIN:\n            self._files[path] = (size, user_id)\n            return None\n        remaining = self.remaining_capacity(user_id)\n        if size > remaining:\n            return None\n        self._files[path] = (size, user_id)\n        return remaining - size\n\n    def merge_users(self, user_id_1: str, user_id_2: str) -> int | None:\n        if user_id_1 == user_id_2 or self.ADMIN in (user_id_1, user_id_2):\n            return None\n        if user_id_1 not in self._capacity or user_id_2 not in self._capacity:\n            return None\n        self._capacity[user_id_1] += self._capacity.pop(user_id_2)\n        for path, (size, owner) in list(self._files.items()):\n            if owner == user_id_2:\n                self._files[path] = (size, user_id_1)\n        self._backups.pop(user_id_2, None)\n        return self.remaining_capacity(user_id_1)\n\n    # ---- level 4\n    def backup_user(self, user_id: str) -> int | None:\n        if user_id not in self._capacity:\n            return None\n        snapshot = {path: size for path, (size, owner) in self._files.items() if owner == user_id}\n        self._backups[user_id] = snapshot\n        return len(snapshot)\n\n    def restore_user(self, user_id: str) -> int | None:\n        if user_id not in self._capacity:\n            return None\n        for path in [p for p, (_, owner) in self._files.items() if owner == user_id]:\n            del self._files[path]\n        restored = 0\n        for path, size in sorted(self._backups.get(user_id, {}).items()):\n            if path not in self._files:  # taken by someone else meanwhile: skip\n                self._files[path] = (size, user_id)\n                restored += 1\n        return restored\n```\n\n### Design notes per level\n- **Level 1:** validate before mutating; the admin owner is set even though level 1 doesn't need it yet (cheap to plan for).\n- **Level 2:** filter by `startswith`, sort by `(-size, path)`. O(n log n) per query; mention a sorted structure or per-directory aggregates if they push on scale.\n- **Level 3:** capacity dict with `None` for admin; `_used` is O(n), fine at interview scale; a per-user running total is the optimisation once correctness is proven.\n- **Level 4:** a backup is an independent dict copy. Restore = delete current files, re-add free paths. Merge drops user 2's backup.\n\n### Common pitfalls\n- Checking `size > capacity` instead of `size > remaining`.\n- A running \"used\" counter that is not updated by `delete_file` or merges.\n- `restore_user` overwriting a path another user now owns.\n- Returning `None` instead of `0` when the user has no backup.\n- Letting `\"admin\"` be merged or treated as an unknown user.\n",
+   "tests": []
+  },
+  "ch-4": {
+   "brief": "### Scenario\nYou are building the job queue that feeds an LLM batch-inference worker pool: tasks have priorities (level 1), flaky calls are retried with exponential backoff and end up in a dead-letter list (level 2), pipelines declare dependencies (level 3), and crashed workers are detected with leases (level 4).\n\n### How the levels work\nThis is a lab-style practical round: one problem, four levels. Start from the starter's `TaskQueue` shell; later levels name the exact methods and constructor arguments to add.\nEach level's tests include **all earlier levels' tests**, so a later change must not break earlier behaviour. Keep one class and grow it; refactor when a level asks for something your first design can't hold.\n\n### Time guidance (75 min total)\n- Level 1: ~15 min\n- Level 2: ~15 min\n- Level 3: ~20 min\n- Level 4: ~25 min\n\n### Interview tips\n- Narrate: say what state you keep and why before typing.\n- Make level 1 simple and correct first; do not pre-build later levels.\n- Timestamps are plain ints passed into each method, so behaviour is deterministic.\n- Read each level brief twice: return values for the \"missing\" cases (None / False) are where points are lost.\n",
+   "starter": "class TaskQueue:\n    \"\"\"Level 1: a priority queue of task ids. Timestamps are plain ints.\"\"\"\n\n    def __init__(self) -> None:\n        pass\n\n    def add(self, timestamp: int, task_id: str, priority: int) -> bool:\n        \"\"\"Queue a task; False if the id was ever used before.\"\"\"\n        raise NotImplementedError\n\n    def peek(self, timestamp: int) -> str | None:\n        \"\"\"The task pop() would return, without removing it.\"\"\"\n        raise NotImplementedError\n\n    def pop(self, timestamp: int) -> str | None:\n        \"\"\"Start the highest-priority task (ties: added first); None if none.\"\"\"\n        raise NotImplementedError\n\n    def complete(self, timestamp: int, task_id: str) -> bool:\n        \"\"\"Mark a running task done.\"\"\"\n        raise NotImplementedError\n\n    def cancel(self, timestamp: int, task_id: str) -> bool:\n        \"\"\"Cancel a queued (not running) task.\"\"\"\n        raise NotImplementedError\n\n    def size(self) -> int:\n        \"\"\"Number of queued tasks.\"\"\"\n        raise NotImplementedError\n",
+   "levels": [
+    {
+     "title": "Level 1: priorities",
+     "brief": "### Add\n`TaskQueue` with a task lifecycle: **queued → running → done** (or **cancelled** from queued). Every method except `size` takes an int `timestamp` first.\n\n- `add(timestamp, task_id, priority) -> bool` — queue a task. `False` if the id was **ever** used (ids are unique for the queue's lifetime).\n- `pop(timestamp) -> str | None` — take the queued task with the **highest** priority (ties: added first), mark it running, return its id; `None` if nothing is queued.\n- `peek(timestamp) -> str | None` — what `pop` would return, without changing anything.\n- `complete(timestamp, task_id) -> bool` — running → done; `False` if the task isn't running.\n- `cancel(timestamp, task_id) -> bool` — queued → cancelled; `False` otherwise (unknown, running, done...).\n- `size() -> int` — number of queued tasks.\n\n### Example\n```\nq = TaskQueue()\nq.add(1, \"a\", 1); q.add(2, \"b\", 5); q.add(3, \"c\", 5)\nq.pop(4)   # \"b\"\nq.pop(5)   # \"c\"\nq.size()   # 1\n```",
+     "tests": [
+      {
+       "name": "highest priority first, ties FIFO",
+       "input": "ops: add(1,a,1) → add(2,b,5) → add(3,c,5) → pop(4) → pop(5) → size()",
+       "hidden": false,
+       "code": "q = TaskQueue()\nq.add(1, \"a\", 1)\nq.add(2, \"b\", 5)\nq.add(3, \"c\", 5)\nexpect(q.pop(4), \"b\", label=\"first pop\")\nexpect(q.pop(5), \"c\", label=\"second pop\")\nexpect(q.size(), 1, label=\"size\")\n"
+      },
+      {
+       "name": "peek does not remove",
+       "input": "ops: add(1,a,2) → peek(2) → peek(3) → size()",
+       "hidden": true,
+       "code": "q = TaskQueue()\nq.add(1, \"a\", 2)\nexpect([q.peek(2), q.peek(3), q.size()], [\"a\", \"a\", 1])\n"
+      },
+      {
+       "name": "empty queue gives None",
+       "input": "ops: pop(1) → peek(1)",
+       "hidden": true,
+       "code": "q = TaskQueue()\nexpect([q.pop(1), q.peek(1)], [None, None])\n"
+      },
+      {
+       "name": "ids are unique forever",
+       "input": "ops: add(1,a,1) → pop(2) → complete(3,a) → add(4,a,1)",
+       "hidden": true,
+       "code": "q = TaskQueue()\nq.add(1, \"a\", 1)\nq.pop(2)\nexpect(q.complete(3, \"a\"), True, label=\"complete\")\nexpect(q.add(4, \"a\", 1), False, label=\"reuse id\")\n"
+      },
+      {
+       "name": "cancel only queued tasks",
+       "input": "ops: add(1,a,1) → add(2,b,9) → pop(3) → cancel(4,b) → cancel(5,a) → cancel(6,a) → pop(7)",
+       "hidden": true,
+       "code": "q = TaskQueue()\nq.add(1, \"a\", 1)\nq.add(2, \"b\", 9)\nq.pop(3)\nexpect([q.cancel(4, \"b\"), q.cancel(5, \"a\"), q.cancel(6, \"a\"), q.pop(7)], [False, True, False, None])\n"
+      },
+      {
+       "name": "complete requires running; negative priorities order correctly",
+       "input": "ops: add(1,x,-5) → add(2,y,-1) → complete(3,x) → pop(4)",
+       "hidden": true,
+       "code": "q = TaskQueue()\nq.add(1, \"x\", -5)\nq.add(2, \"y\", -1)\nexpect(q.complete(3, \"x\"), False, label=\"not running\")\nexpect(q.pop(4), \"y\", label=\"-1 beats -5\")\n"
+      }
+     ]
+    },
+    {
+     "title": "Level 2: retries with exponential backoff",
+     "brief": "### Add\nThe constructor becomes `TaskQueue(max_retries=3, base_delay=1)` (defaults keep level 1 working).\n\n- `fail(timestamp, task_id) -> int` — a running task failed. Count the failure; if the task has now failed **more than** `max_retries` times it becomes **dead** and `fail` returns `-1`. Otherwise it is queued again but only available from `timestamp + base_delay * 2 ** (failures - 1)`; return that time. Raises `KeyError` if the task is not running.\n- `dead_letters() -> list[str]` — dead task ids in the order they died.\n\n### Rules\n- `pop` / `peek` only consider tasks whose available time is `<= timestamp`.\n- A retried task keeps its priority and its original add order for tie-breaks.\n- `size()` counts queued tasks, including ones waiting out a backoff.\n\n### Example\n```\nq = TaskQueue(max_retries=2, base_delay=10)\nq.add(0, \"a\", 1); q.pop(0)\nq.fail(5, \"a\")   # 15\nq.pop(14)        # None\nq.pop(15)        # \"a\"\nq.fail(15, \"a\")  # 35\n```",
+     "tests": [
+      {
+       "name": "backoff doubles",
+       "input": "TaskQueue(max_retries=2, base_delay=10); ops: add(0,a,1) → pop(0) → fail(5,a) → pop(14) → pop(15) → fail(15,a)",
+       "hidden": false,
+       "code": "q = TaskQueue(max_retries=2, base_delay=10)\nq.add(0, \"a\", 1)\nq.pop(0)\nexpect(q.fail(5, \"a\"), 15, label=\"first failure\")\nexpect(q.pop(14), None, label=\"still backing off\")\nexpect(q.pop(15), \"a\", label=\"available again\")\nexpect(q.fail(15, \"a\"), 35, label=\"second failure\")\n"
+      },
+      {
+       "name": "too many failures dead-letters",
+       "input": "TaskQueue(max_retries=1); ops: add(0,a,1) → pop(0) → fail(1,a) → pop(2) → fail(2,a) → dead_letters()",
+       "hidden": true,
+       "code": "q = TaskQueue(max_retries=1)\nq.add(0, \"a\", 1)\nq.pop(0)\nexpect(q.fail(1, \"a\"), 2, label=\"retry\")\nq.pop(2)\nexpect(q.fail(2, \"a\"), -1, label=\"dead\")\nexpect([q.dead_letters(), q.size(), q.pop(100)], [[\"a\"], 0, None])\n"
+      },
+      {
+       "name": "fail on a non-running task raises",
+       "input": "ops: add(0,a,1) → fail(1,a) → fail(1,zz)",
+       "hidden": true,
+       "code": "q = TaskQueue()\nq.add(0, \"a\", 1)\nexpect_raises(KeyError, q.fail, 1, \"a\", label=\"queued, not running\")\nexpect_raises(KeyError, q.fail, 1, \"zz\", label=\"unknown\")\n"
+      },
+      {
+       "name": "lower priority runs while the other backs off",
+       "input": "ops: add(0,hi,9) → add(0,lo,1) → pop(0) → fail(0,hi) → pop(0) → pop(1)",
+       "hidden": true,
+       "code": "q = TaskQueue()\nq.add(0, \"hi\", 9)\nq.add(0, \"lo\", 1)\nq.pop(0)\nq.fail(0, \"hi\")  # available at 1\nexpect([q.pop(0), q.pop(1)], [\"lo\", \"hi\"])\n"
+      },
+      {
+       "name": "retried task keeps its add order on ties",
+       "input": "ops: add(0,a,5) → add(0,b,5) → pop(0) → fail(0,a) → pop(1)",
+       "hidden": true,
+       "code": "q = TaskQueue()\nq.add(0, \"a\", 5)\nq.add(0, \"b\", 5)\nq.pop(0)            # a\nq.fail(0, \"a\")      # available at 1\nexpect(q.pop(1), \"a\")\n"
+      },
+      {
+       "name": "size counts backing-off tasks; max_retries=0",
+       "input": "TaskQueue(max_retries=0); ops: add(0,a,1) → add(0,b,1) → pop(0) → fail(0,a) ; TaskQueue() add/pop/fail → size()",
+       "hidden": true,
+       "code": "q0 = TaskQueue(max_retries=0)\nq0.add(0, \"a\", 1)\nq0.pop(0)\nexpect(q0.fail(0, \"a\"), -1, label=\"no retries allowed\")\nq = TaskQueue()\nq.add(0, \"x\", 1)\nq.pop(0)\nq.fail(0, \"x\")\nexpect(q.size(), 1, label=\"waiting retry is still queued\")\n"
+      }
+     ]
+    },
+    {
+     "title": "Level 3: dependencies",
+     "brief": "### Add\n`add(timestamp, task_id, priority, depends_on=())` — a task may list ids it depends on.\n\n### Rules\n- Every id in `depends_on` must already have been added; otherwise raise `ValueError` and add nothing.\n- A task is ready only when **all** its dependencies are **done** (plus the usual available-time rule).\n- If a dependency becomes dead or cancelled, every queued task that depends on it (directly or transitively) becomes **dead** too and is appended to `dead_letters()` after it, in add order. Adding a task whose dependency is already dead/cancelled makes it dead immediately (`add` still returns `True`).\n\n### Example\n```\nq.add(0, \"build\", 1)\nq.add(0, \"test\", 9, depends_on=(\"build\",))\nq.pop(1)                # \"build\" (test is blocked)\nq.complete(2, \"build\")\nq.pop(3)                # \"test\"\n```",
+     "tests": [
+      {
+       "name": "dependents wait for completion",
+       "input": "ops: add(0,build,1) → add(0,test,9,deps=[build]) → pop(1) → pop(1) → complete(2,build) → pop(3)",
+       "hidden": false,
+       "code": "q = TaskQueue()\nq.add(0, \"build\", 1)\nq.add(0, \"test\", 9, depends_on=(\"build\",))\nexpect(q.pop(1), \"build\", label=\"test is blocked\")\nexpect(q.pop(1), None, label=\"still blocked while build runs\")\nq.complete(2, \"build\")\nexpect(q.pop(3), \"test\", label=\"unblocked\")\n"
+      },
+      {
+       "name": "unknown dependency raises and adds nothing",
+       "input": "ops: add(0,a,1,deps=[zz]) → size() → add(1,a,1)",
+       "hidden": true,
+       "code": "q = TaskQueue()\nexpect_raises(ValueError, q.add, 0, \"a\", 1, depends_on=(\"zz\",))\nexpect([q.size(), q.add(1, \"a\", 1)], [0, True])\n"
+      },
+      {
+       "name": "dead dependency cascades transitively",
+       "input": "TaskQueue(max_retries=0); ops: add a; add b(deps a); add c(deps b); add d → pop(1) → fail(1,a) → dead_letters()",
+       "hidden": true,
+       "code": "q = TaskQueue(max_retries=0)\nq.add(0, \"a\", 1)\nq.add(0, \"b\", 1, depends_on=(\"a\",))\nq.add(0, \"c\", 1, depends_on=(\"b\",))\nq.add(0, \"d\", 1)\nq.pop(1)\nq.fail(1, \"a\")\nexpect(q.dead_letters(), [\"a\", \"b\", \"c\"])\nexpect(q.pop(2), \"d\", label=\"independent task still runs\")\n"
+      },
+      {
+       "name": "cancel cascades to dependents",
+       "input": "ops: add a; add b(deps a) → cancel(1,a) → dead_letters() → size()",
+       "hidden": true,
+       "code": "q = TaskQueue()\nq.add(0, \"a\", 1)\nq.add(0, \"b\", 1, depends_on=(\"a\",))\nq.cancel(1, \"a\")\nexpect([q.dead_letters(), q.size()], [[\"b\"], 0])\n"
+      },
+      {
+       "name": "depending on an already dead task",
+       "input": "ops: add a → cancel(1,a) → add(2,b,1,deps=[a]) → dead_letters()",
+       "hidden": true,
+       "code": "q = TaskQueue()\nq.add(0, \"a\", 1)\nq.cancel(1, \"a\")\nexpect(q.add(2, \"b\", 1, depends_on=(\"a\",)), True, label=\"add\")\nexpect(q.dead_letters(), [\"b\"], label=\"dead on arrival\")\n"
+      },
+      {
+       "name": "needs all dependencies done",
+       "input": "ops: add a; add b; add c(deps a,b) → pop a → complete a → pop(2) → pop(3)",
+       "hidden": true,
+       "code": "q = TaskQueue()\nq.add(0, \"a\", 5)\nq.add(0, \"b\", 1)\nq.add(0, \"c\", 9, depends_on=(\"a\", \"b\"))\nq.pop(1)\nq.complete(1, \"a\")\nexpect(q.pop(2), \"b\", label=\"c still blocked by b\")\nq.complete(2, \"b\")\nexpect(q.pop(3), \"c\")\n"
+      }
+     ]
+    },
+    {
+     "title": "Level 4: leases and stats",
+     "brief": "### Add\nHarden the queue against workers that crash silently.\n\n- The constructor becomes `TaskQueue(max_retries=3, base_delay=1, lease_timeout=None)`. With a `lease_timeout`, a task popped at time `p` that is neither completed nor failed by time `p + lease_timeout` counts as **failed at `p + lease_timeout`** (same retry/backoff/dead rules as `fail`).\n- Expired leases are applied at the start of every timestamped call, oldest expiry first (ties: add order). After expiry, `complete` returns `False` and `fail` raises `KeyError` for that task.\n- `stats(timestamp) -> dict[str, int]` — counts for **all five** states: `{\"queued\", \"running\", \"done\", \"dead\", \"cancelled\"}` (zeros included).\n\n### Example\n```\nq = TaskQueue(lease_timeout=5, base_delay=2)\nq.add(0, \"a\", 1); q.pop(0)\nq.complete(6, \"a\")   # False: lease expired at 5, retry available at 7\nq.pop(7)             # \"a\"\n```",
+     "tests": [
+      {
+       "name": "expired lease is a failure",
+       "input": "TaskQueue(lease_timeout=5, base_delay=2); ops: add(0,a,1) → pop(0) → complete(6,a) → pop(6) → pop(7)",
+       "hidden": false,
+       "code": "q = TaskQueue(lease_timeout=5, base_delay=2)\nq.add(0, \"a\", 1)\nq.pop(0)\nexpect(q.complete(6, \"a\"), False, label=\"lease expired at 5\")\nexpect(q.pop(6), None, label=\"backoff until 7\")\nexpect(q.pop(7), \"a\", label=\"retried\")\n"
+      },
+      {
+       "name": "stats reports every state",
+       "input": "ops: add a,b,c,d → pop a → complete a → pop b → cancel(c) → stats(5)",
+       "hidden": false,
+       "code": "q = TaskQueue()\nfor name in \"abcd\":\n    q.add(0, name, 1)\nq.pop(1)\nq.complete(1, \"a\")\nq.pop(2)\nq.cancel(3, \"c\")\nexpect(q.stats(5), {\"queued\": 1, \"running\": 1, \"done\": 1, \"dead\": 0, \"cancelled\": 1})\n"
+      },
+      {
+       "name": "completing inside the lease works",
+       "input": "TaskQueue(lease_timeout=5); ops: add(0,a,1) → pop(0) → complete(4,a) → stats(100)",
+       "hidden": true,
+       "code": "q = TaskQueue(lease_timeout=5)\nq.add(0, \"a\", 1)\nq.pop(0)\nexpect(q.complete(4, \"a\"), True, label=\"in time\")\nexpect(q.stats(100)[\"done\"], 1, label=\"done\")\n"
+      },
+      {
+       "name": "repeated expiry dead-letters and cascades",
+       "input": "TaskQueue(max_retries=1, lease_timeout=2); ops: add a; add b(deps a) → pop(0) → pop(10) → stats(20) → dead_letters()",
+       "hidden": true,
+       "code": "q = TaskQueue(max_retries=1, lease_timeout=2)\nq.add(0, \"a\", 1)\nq.add(0, \"b\", 1, depends_on=(\"a\",))\nq.pop(0)          # lease expires at 2 -> retry at 3\nexpect(q.pop(10), \"a\", label=\"retry\")\nexpect(q.stats(20), {\"queued\": 0, \"running\": 0, \"done\": 0, \"dead\": 2, \"cancelled\": 0}, label=\"stats\")\nexpect(q.dead_letters(), [\"a\", \"b\"], label=\"dead letters\")\n"
+      },
+      {
+       "name": "fail after expiry raises; without lease nothing expires",
+       "input": "TaskQueue(lease_timeout=1) vs TaskQueue(); ops: add(0,a,1) → pop(0) → fail(5,a)",
+       "hidden": true,
+       "code": "q = TaskQueue(lease_timeout=1)\nq.add(0, \"a\", 1)\nq.pop(0)\nexpect_raises(KeyError, q.fail, 5, \"a\", label=\"already expired\")\nplain = TaskQueue()\nplain.add(0, \"a\", 1)\nplain.pop(0)\nexpect(plain.stats(10**9)[\"running\"], 1, label=\"no lease, still running\")\n"
+      },
+      {
+       "name": "expiries apply oldest first, not add order",
+       "input": "TaskQueue(lease_timeout=3, max_retries=0); ops: add(0,a,1) → add(0,b,5) → pop(0)=b → pop(1)=a → stats(10) → dead_letters()",
+       "hidden": true,
+       "code": "q = TaskQueue(lease_timeout=3, max_retries=0)\nq.add(0, \"a\", 1)\nq.add(0, \"b\", 5)\nq.pop(0)   # b, lease expires at 3\nq.pop(1)   # a, lease expires at 4\nq.stats(10)\nexpect(q.dead_letters(), [\"b\", \"a\"])\n"
+      }
+     ]
+    }
+   ],
+   "hints": [
+    "Model each task as a small record with an explicit state (queued, running, done, dead, cancelled) instead of moving ids between several lists; every level then becomes a new rule about state transitions.",
+    "pop chooses among queued tasks whose available time has arrived and whose dependencies are all done, ordered by (negative priority, add sequence); a linear scan is fine and much easier to keep correct than a heap with lazy deletion. A failure bumps a counter and either sets a new available time or kills the task.",
+    "Killing or cancelling a task must cascade to queued dependents: since a dependency is always added before its dependents, one pass in add order catches transitive chains. For leases, before every timestamped call, find running tasks whose pop time plus lease is at or before now, sort by expiry then add order, and apply the normal failure at the expiry time."
+   ],
+   "solution": "### Key insight\nA **state machine per task** (`queued → running → done`, plus `dead` / `cancelled`) with one shared failure path (`_fail`) and one shared cleanup step (`_expire`) run at the start of every timestamped call. Each level adds a rule, not a new data structure.\n\n### Reference implementation\n```python\nclass TaskQueue:\n    STATES = (\"queued\", \"running\", \"done\", \"dead\", \"cancelled\")\n\n    def __init__(self, max_retries: int = 3, base_delay: int = 1, lease_timeout: int | None = None) -> None:\n        self.max_retries = max_retries\n        self.base_delay = base_delay\n        self.lease_timeout = lease_timeout\n        self._tasks: dict[str, dict] = {}\n        self._seq = 0\n        self._dead: list[str] = []\n\n    # ---- helpers\n    def _ready(self, timestamp: int) -> list[tuple[int, int, str]]:\n        ready = []\n        for task_id, t in self._tasks.items():\n            if t[\"state\"] != \"queued\" or t[\"available_at\"] > timestamp:\n                continue\n            if all(self._tasks[d][\"state\"] == \"done\" for d in t[\"deps\"]):\n                ready.append((-t[\"priority\"], t[\"seq\"], task_id))\n        return sorted(ready)\n\n    def _kill(self, task_id: str) -> None:\n        self._tasks[task_id][\"state\"] = \"dead\"\n        self._dead.append(task_id)\n        self._cascade()\n\n    def _cascade(self) -> None:\n        # dependencies always have a smaller seq, so one pass in seq order is enough\n        for task_id, t in sorted(self._tasks.items(), key=lambda kv: kv[1][\"seq\"]):\n            if t[\"state\"] == \"queued\" and any(\n                self._tasks[d][\"state\"] in (\"dead\", \"cancelled\") for d in t[\"deps\"]\n            ):\n                t[\"state\"] = \"dead\"\n                self._dead.append(task_id)\n\n    def _fail(self, timestamp: int, task_id: str) -> int:\n        t = self._tasks[task_id]\n        t[\"attempts\"] += 1\n        if t[\"attempts\"] > self.max_retries:\n            self._kill(task_id)\n            return -1\n        t[\"state\"] = \"queued\"\n        t[\"available_at\"] = timestamp + self.base_delay * 2 ** (t[\"attempts\"] - 1)\n        return t[\"available_at\"]\n\n    def _expire(self, timestamp: int) -> None:\n        if self.lease_timeout is None:\n            return\n        expired = sorted(\n            (t[\"leased_at\"] + self.lease_timeout, t[\"seq\"], task_id)\n            for task_id, t in self._tasks.items()\n            if t[\"state\"] == \"running\" and t[\"leased_at\"] + self.lease_timeout <= timestamp\n        )\n        for expired_at, _, task_id in expired:\n            self._fail(expired_at, task_id)\n\n    # ---- level 1\n    def add(self, timestamp: int, task_id: str, priority: int, depends_on: tuple[str, ...] = ()) -> bool:\n        self._expire(timestamp)\n        unknown = [d for d in depends_on if d not in self._tasks]\n        if unknown:\n            raise ValueError(f\"unknown dependencies: {unknown}\")\n        if task_id in self._tasks:\n            return False\n        self._seq += 1\n        self._tasks[task_id] = {\n            \"priority\": priority, \"seq\": self._seq, \"state\": \"queued\", \"available_at\": timestamp,\n            \"attempts\": 0, \"deps\": tuple(depends_on), \"leased_at\": None,\n        }\n        self._cascade()  # a dependency that is already dead/cancelled kills it immediately\n        return True\n\n    def peek(self, timestamp: int) -> str | None:\n        self._expire(timestamp)\n        ready = self._ready(timestamp)\n        return ready[0][2] if ready else None\n\n    def pop(self, timestamp: int) -> str | None:\n        task_id = self.peek(timestamp)\n        if task_id is not None:\n            self._tasks[task_id][\"state\"] = \"running\"\n            self._tasks[task_id][\"leased_at\"] = timestamp\n        return task_id\n\n    def complete(self, timestamp: int, task_id: str) -> bool:\n        self._expire(timestamp)\n        t = self._tasks.get(task_id)\n        if t is None or t[\"state\"] != \"running\":\n            return False\n        t[\"state\"] = \"done\"\n        return True\n\n    def cancel(self, timestamp: int, task_id: str) -> bool:\n        self._expire(timestamp)\n        t = self._tasks.get(task_id)\n        if t is None or t[\"state\"] != \"queued\":\n            return False\n        t[\"state\"] = \"cancelled\"\n        self._cascade()\n        return True\n\n    def size(self) -> int:\n        return sum(1 for t in self._tasks.values() if t[\"state\"] == \"queued\")\n```\n\n```python\n    # ---- level 2 (methods of TaskQueue, continued)\n    def fail(self, timestamp: int, task_id: str) -> int:\n        self._expire(timestamp)\n        t = self._tasks.get(task_id)\n        if t is None or t[\"state\"] != \"running\":\n            raise KeyError(task_id)\n        return self._fail(timestamp, task_id)\n\n    def dead_letters(self) -> list[str]:\n        return list(self._dead)\n\n    # ---- level 4\n    def stats(self, timestamp: int) -> dict[str, int]:\n        self._expire(timestamp)\n        counts = {state: 0 for state in self.STATES}\n        for t in self._tasks.values():\n            counts[t[\"state\"]] += 1\n        return counts\n```\n\n### Design notes per level\n- **Level 1:** a dict of task records with `priority` and an add `seq`; `pop` takes the min of `(-priority, seq)` over ready tasks. Ids are never removed, which gives \"unique forever\" for free.\n- **Level 2:** `available_at` on each task; backoff `base_delay * 2 ** (failures - 1)`; dead tasks go to an ordered list. Retries keep `seq`, so ties stay stable.\n- **Level 3:** `deps` tuple; readiness needs all deps `done`; `_cascade` kills queued dependents of dead/cancelled tasks in one seq-ordered pass (deps always have a smaller seq).\n- **Level 4:** `leased_at` recorded by `pop`; `_expire` replays missed lease deadlines in order through `_fail`, so retries, dead-lettering and cascades behave exactly as with an explicit `fail`.\n- Scaling talk: the O(n) scan becomes a heap of ready tasks plus a timer heap for backoffs and leases, and a reverse dependency index for cascades.\n\n### Common pitfalls\n- Using the time of the next call instead of the lease deadline as the failure time.\n- Backoff off by one (`2 ** failures` instead of `2 ** (failures - 1)`).\n- Re-queued tasks getting a new sequence number and jumping behind equal-priority peers.\n- Forgetting transitive cascades, or cascading into tasks that are already running or done.\n- `fail` silently accepting a task that is not running.\n",
+   "tests": []
+  }
+ }
+}

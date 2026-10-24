@@ -613,7 +613,15 @@ export function curriculumTopicLabel(id: string): string {
 
 // ---- Interview Prep ----
 
-export type PrepTaskType = "dsa" | "drill" | "lld" | "hld" | "python" | "project";
+export type PrepTaskType =
+  | "dsa"
+  | "drill"
+  | "lld"
+  | "hld"
+  | "python"
+  | "project"
+  | "challenge"
+  | "fundamentals";
 
 export interface PrepItem {
   key: string;
@@ -622,11 +630,11 @@ export interface PrepItem {
   title: string;
   url: string | null;
   pattern: string | null;
-  slot: "morning" | "evening" | "weekend";
+  slot: "morning" | "evening" | "weekend" | "weekly" | "extra";
   week: number;
   target_minutes: number;
   stretch: boolean;
-  difficulty: "easy" | "medium" | null;
+  difficulty: "easy" | "medium" | "hard" | null;
   badge: string | null;
   done: boolean;
   redo_id: number | null;
@@ -679,6 +687,7 @@ export interface PrepToday {
   carried: PrepItem[];
   redos: PrepItem[];
   extra: PrepItem[];
+  weekly: PrepItem[];
   dsa_backlog: number;
   done_count: number;
   total_count: number;
@@ -742,7 +751,8 @@ export interface PrepTaskDetail {
   open_redos: PrepRedo[];
   brief: string | null;
   starter: string | null;
-  tests: { name: string; code: string; input?: string; hidden?: boolean }[];
+  tests: PrepTestCase[];
+  levels: { title: string; brief: string; tests: PrepTestCase[] }[] | null;
   hints_total: number;
   hints_revealed: string[];
   solution: string | null;
@@ -822,4 +832,56 @@ export interface PrepReviewToken {
   created_at: string | null;
   last_used_at: string | null;
   token: string | null;
+}
+
+export interface PrepTestCase {
+  name: string;
+  code: string;
+  input?: string;
+  hidden?: boolean;
+}
+
+export interface PrepStoryInput {
+  title: string;
+  situation: string;
+  task: string;
+  action: string;
+  result: string;
+  tags: string[];
+  companies: string[];
+}
+
+export interface PrepStory extends PrepStoryInput {
+  id: number;
+  critique: string;
+  updated_at: string;
+}
+
+export interface PrepTargetInput {
+  company: string;
+  role: string;
+  why: string;
+  questions: string;
+}
+
+export interface PrepTarget extends PrepTargetInput {
+  id: number;
+  updated_at: string;
+}
+
+export type PrepMockKind = "dsa" | "practical" | "lld" | "system_design" | "ml" | "behavioral";
+
+export interface PrepMockInput {
+  date: string;
+  kind: PrepMockKind;
+  company: string;
+  platform: string;
+  duration_minutes: number;
+  score: number;
+  went_well: string;
+  to_improve: string;
+}
+
+export interface PrepMock extends PrepMockInput {
+  id: number;
 }

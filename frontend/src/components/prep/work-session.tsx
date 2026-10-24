@@ -13,6 +13,7 @@ import { MarkdownPanel } from "@/components/shared/markdown-panel";
 import { Timer, clearTimer } from "@/components/shared/timer";
 import { localISODate, shortDate } from "./dates";
 import { HintPanel } from "./hint-panel";
+import { LevelPanel, cumulativeTests, useLevels } from "./level-panel";
 import { TutorPanel } from "./tutor-panel";
 
 const DSA_STEPS = [
@@ -25,7 +26,7 @@ const DSA_STEPS = [
 
 const EXCALIDRAW_URL = "https://excalidraw.com";
 
-const RUNNABLE_TYPES = new Set(["drill", "lld", "python"]);
+const RUNNABLE_TYPES = new Set(["drill", "lld", "python", "fundamentals", "challenge"]);
 
 const TYPE_LABEL: Record<string, string> = {
   dsa: "DSA",
@@ -34,6 +35,8 @@ const TYPE_LABEL: Record<string, string> = {
   hld: "System design",
   python: "Python",
   project: "Project",
+  challenge: "Challenge",
+  fundamentals: "LLM fundamentals",
 };
 
 function siteName(url: string): string {
@@ -93,6 +96,9 @@ function SessionBody({ task, date }: { task: PrepTaskDetail; date: string }) {
   const [problemName, setProblemName] = useState("");
   const [startedAt, setStartedAt] = useState<string | null>(null);
   const [minutes, setMinutes] = useState("");
+  const levels = task.levels ?? [];
+  const levelState = useLevels(task.id, Math.max(levels.length, 1));
+  const [levelsDone, setLevelsDone] = useState(false);
   const [hintsOpened, setHintsOpened] = useState(task.hints_revealed.length > 0);
   const [hintUsed, setHintUsed] = useState<boolean | null>(hintsOpened ? true : null);
   const [solved, setSolved] = useState<PrepSolved | null>(null);
@@ -232,7 +238,17 @@ function SessionBody({ task, date }: { task: PrepTaskDetail; date: string }) {
             </Card>
           )}
 
-          {task.brief && <MarkdownPanel title="Brief" markdown={task.brief} />}
+          {task.brief && <MarkdownPanel title="Brief" markdown={task.brief} collapsible={levels.length > 0} />}
+
+          {levels.length > 0 && (
+            <LevelPanel
+              levels={levels}
+              current={levelState.current}
+              unlocked={levelState.unlocked}
+              onSelect={levelState.setCurrent}
+              completed={levelsDone}
+            />
+          )}
 
           {!task.brief && (task.spec || task.extensions) && (
             <Card className="space-y-3">
@@ -324,7 +340,15 @@ function SessionBody({ task, date }: { task: PrepTaskDetail; date: string }) {
               <CodeEditor value={code} onChange={setCode} draftKey={draftKey} height={420} />
               {RUNNABLE_TYPES.has(task.type) && (
                 <div className="mt-3">
-                  <CodeRunner code={code} tests={task.tests} />
+                  <CodeRunner
+                    code={code}
+                    tests={levels.length ? cumulativeTests(levels, levelState.current) : task.tests}
+                    onResult={({ mode, passed, total }) => {
+                      if (!levels.length || mode !== "submit" || total === 0 || passed < total) return;
+                      if (levelState.current === levels.length) setLevelsDone(true);
+                      levelState.passLevel(levelState.current);
+                    }}
+                  />
                 </div>
               )}
             </div>

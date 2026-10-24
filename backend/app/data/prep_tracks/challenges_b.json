@@ -1,0 +1,730 @@
+{
+ "tasks": [
+  {
+   "id": "ch-5",
+   "type": "challenge",
+   "week": 7,
+   "order": 0,
+   "slot": "weekly",
+   "title": "Challenge 5: LLM request router",
+   "pattern": "Progressive practical",
+   "target_minutes": 75,
+   "stretch": false,
+   "editor": true
+  },
+  {
+   "id": "ch-6",
+   "type": "challenge",
+   "week": 8,
+   "order": 0,
+   "slot": "weekly",
+   "title": "Challenge 6: Chat history store",
+   "pattern": "Progressive practical",
+   "target_minutes": 75,
+   "stretch": false,
+   "editor": true
+  },
+  {
+   "id": "ch-7",
+   "type": "challenge",
+   "week": 9,
+   "order": 0,
+   "slot": "weekly",
+   "title": "Challenge 7: Leaderboard",
+   "pattern": "Progressive practical",
+   "target_minutes": 75,
+   "stretch": false,
+   "editor": true
+  },
+  {
+   "id": "ch-8",
+   "type": "challenge",
+   "week": 10,
+   "order": 0,
+   "slot": "weekly",
+   "title": "Challenge 8: Feature-flag service",
+   "pattern": "Progressive practical",
+   "target_minutes": 75,
+   "stretch": false,
+   "editor": true
+  }
+ ],
+ "content": {
+  "ch-5": {
+   "brief": "\n### Scenario\nYour team runs an internal **LLM gateway**: every product team (a *tenant*) sends prompts to\nit, and the gateway decides which model serves each request. Money is tracked in integer\n*credits*. Over four levels you grow it from a budget checker into a router with fallback,\na response cache and spend metrics, the same shape as real gateways (LiteLLM, Portkey,\nin-house routers) that Applied AI teams are asked to design and build.\n\nTime is never read from a clock: every call that needs it takes an int `timestamp`.\nToken count of a prompt = number of whitespace-separated words (`len(prompt.split())`).\n\n### How the levels work\nYou build one codebase across **4 levels**. Open a level, read what it adds, extend your\nexisting code, run its tests. **Each level's tests include every earlier level's tests**, so a\nchange in level 3 must not break level 1 behaviour. Only the level 1 shells are in the\nstarter: you add the methods named in later level briefs yourself.\n\n### Time guidance (~75 min total)\nLevel 1 ~15 min, level 2 ~15 min, level 3 ~20 min, level 4 ~25 min. If you blow past a\nlevel's time, finish it simply and move on; interviewers score progress through levels.\n\n### Interview tips\n- Narrate: say what state you keep and why before you type.\n- Keep level 1 dead simple (dicts and lists). Refactor only when a later level forces it.\n- Read every rule in a level brief twice; most failures are a missed tie-break or error case.\n- Run the tests after each method, not at the end.\n",
+   "starter": "class Router:\n    \"\"\"Routes LLM requests to priced models under per-tenant credit budgets.\"\"\"\n\n    def __init__(self):\n        pass\n\n    def add_model(self, name: str, price_per_token: int) -> None:\n        raise NotImplementedError\n\n    def set_budget(self, tenant: str, credits: int) -> None:\n        raise NotImplementedError\n\n    def remaining(self, tenant: str) -> int:\n        raise NotImplementedError\n\n    def route(self, tenant: str, model: str, prompt: str, timestamp: int) -> dict:\n        raise NotImplementedError\n",
+   "tests": [],
+   "levels": [
+    {
+     "title": "Level 1: models and budgets",
+     "brief": "Build the core: models have a price, tenants have a credit budget, `route` charges it.\n\n- `add_model(name: str, price_per_token: int) -> None` — `ValueError` if the name exists or the price is negative.\n- `set_budget(tenant: str, credits: int) -> None` — sets (overwrites) the tenant's remaining credits; `ValueError` if negative.\n- `remaining(tenant: str) -> int` — credits left (`KeyError` for an unknown tenant).\n- `route(tenant, model, prompt, timestamp) -> dict`\n  - `KeyError` for an unknown tenant or model; `ValueError` if the prompt has 0 tokens.\n  - `cost = tokens * price_per_token`. If `cost <= remaining`, deduct it and return `{\"status\": \"ok\", \"model\": model, \"cost\": cost}`.\n  - Otherwise charge nothing and return `{\"status\": \"rejected\", \"model\": None, \"cost\": 0}`.\n\n```python\nr = Router(); r.add_model(\"gpt-big\", 3); r.set_budget(\"search\", 20)\nr.route(\"search\", \"gpt-big\", \"summarise this ticket please\", 1)\n# {'status': 'ok', 'model': 'gpt-big', 'cost': 12}\nr.remaining(\"search\")  # 8\n```",
+     "tests": [
+      {
+       "name": "route charges the budget",
+       "input": "add_model(gpt-big, 3) → set_budget(search, 20) → route(search, gpt-big, \"summarise this ticket please\", 1)",
+       "hidden": false,
+       "code": "r = Router()\nr.add_model(\"gpt-big\", 3)\nr.set_budget(\"search\", 20)\nexpect(r.route(\"search\", \"gpt-big\", \"summarise this ticket please\", 1), {\"status\": \"ok\", \"model\": \"gpt-big\", \"cost\": 12})\nexpect(r.remaining(\"search\"), 8)"
+      },
+      {
+       "name": "over budget is rejected, nothing charged",
+       "input": "budget 5, price 2, prompt of 3 words",
+       "hidden": true,
+       "code": "r = Router()\nr.add_model(\"m\", 2)\nr.set_budget(\"t\", 5)\nexpect(r.route(\"t\", \"m\", \"one two three\", 1), {\"status\": \"rejected\", \"model\": None, \"cost\": 0})\nexpect(r.remaining(\"t\"), 5)\nexpect(r.route(\"t\", \"m\", \"one two\", 2)[\"cost\"], 4)"
+      },
+      {
+       "name": "exact budget is allowed",
+       "input": "budget 6, price 2, 3-word prompt",
+       "hidden": true,
+       "code": "r = Router()\nr.add_model(\"m\", 2)\nr.set_budget(\"t\", 6)\nexpect(r.route(\"t\", \"m\", \"a b c\", 1)[\"status\"], \"ok\")\nexpect(r.remaining(\"t\"), 0)"
+      },
+      {
+       "name": "unknown tenant / model / empty prompt",
+       "input": "route(ghost, m, ...), route(t, nope, ...), route(t, m, \"   \")",
+       "hidden": true,
+       "code": "r = Router()\nr.add_model(\"m\", 1)\nr.set_budget(\"t\", 10)\nexpect_raises(KeyError, r.route, \"ghost\", \"m\", \"hi\", 1)\nexpect_raises(KeyError, r.route, \"t\", \"nope\", \"hi\", 1)\nexpect_raises(ValueError, r.route, \"t\", \"m\", \"   \", 1)\nexpect(r.remaining(\"t\"), 10)"
+      },
+      {
+       "name": "validation on add_model / set_budget",
+       "input": "add_model(m,1) twice; add_model(x,-1); set_budget(t,-5)",
+       "hidden": true,
+       "code": "r = Router()\nr.add_model(\"m\", 1)\nexpect_raises(ValueError, r.add_model, \"m\", 2)\nexpect_raises(ValueError, r.add_model, \"x\", -1)\nexpect_raises(ValueError, r.set_budget, \"t\", -5)\nr.set_budget(\"t\", 3)\nr.set_budget(\"t\", 9)\nexpect(r.remaining(\"t\"), 9)"
+      },
+      {
+       "name": "tenants are isolated; free model costs 0",
+       "input": "two tenants, model price 0 and 5",
+       "hidden": true,
+       "code": "r = Router()\nr.add_model(\"free\", 0)\nr.add_model(\"pro\", 5)\nr.set_budget(\"a\", 10)\nr.set_budget(\"b\", 10)\nexpect(r.route(\"a\", \"pro\", \"x y\", 1)[\"cost\"], 10)\nexpect(r.route(\"b\", \"free\", \"x y z w\", 1), {\"status\": \"ok\", \"model\": \"free\", \"cost\": 0})\nexpect([r.remaining(\"a\"), r.remaining(\"b\")], [0, 10])"
+      }
+     ]
+    },
+    {
+     "title": "Level 2: fallback",
+     "brief": "Models go down and budgets run low. Add a fallback chain.\n\n- `set_fallbacks(model: str, chain: list[str]) -> None` — ordered fallbacks for `model` (replaces any previous chain). `KeyError` if `model` or any chain entry is unknown; `ValueError` if `model` appears in its own chain.\n- `mark_down(model: str, until: int) -> None` — the model is unavailable for requests with `timestamp < until` (`KeyError` if unknown).\n- `route` now tries the requested model, then its chain in order (only the *requested* model's chain, no recursion). A candidate is skipped if it is down or its cost exceeds the remaining budget. The first usable one serves the request; `\"model\"` is the one actually used.\n- If no candidate is usable: `\"unavailable\"` when **every** candidate was down, otherwise `\"rejected\"` (same dict shape, `model` None, `cost` 0).\n\n```python\nr.set_fallbacks(\"big\", [\"small\"]); r.mark_down(\"big\", until=100)\nr.route(\"t\", \"big\", \"hello world\", 50)   # {'status': 'ok', 'model': 'small', 'cost': ...}\n```",
+     "tests": [
+      {
+       "name": "falls back when the model is down",
+       "input": "big(5), small(1); fallbacks big→[small]; mark_down(big, 100); route at t=50 then t=100",
+       "hidden": false,
+       "code": "r = Router()\nr.add_model(\"big\", 5)\nr.add_model(\"small\", 1)\nr.set_budget(\"t\", 100)\nr.set_fallbacks(\"big\", [\"small\"])\nr.mark_down(\"big\", 100)\nexpect(r.route(\"t\", \"big\", \"hello world\", 50), {\"status\": \"ok\", \"model\": \"small\", \"cost\": 2})\nexpect(r.route(\"t\", \"big\", \"hello world\", 100), {\"status\": \"ok\", \"model\": \"big\", \"cost\": 10})"
+      },
+      {
+       "name": "falls back to a cheaper model when budget is low",
+       "input": "budget 4, big(5) small(1), 2-word prompt",
+       "hidden": true,
+       "code": "r = Router()\nr.add_model(\"big\", 5)\nr.add_model(\"small\", 1)\nr.set_budget(\"t\", 4)\nr.set_fallbacks(\"big\", [\"small\"])\nexpect(r.route(\"t\", \"big\", \"hi there\", 1), {\"status\": \"ok\", \"model\": \"small\", \"cost\": 2})\nexpect(r.remaining(\"t\"), 2)"
+      },
+      {
+       "name": "all candidates down → unavailable",
+       "input": "big and small both down until 10; route at 5",
+       "hidden": true,
+       "code": "r = Router()\nr.add_model(\"big\", 5)\nr.add_model(\"small\", 1)\nr.set_budget(\"t\", 100)\nr.set_fallbacks(\"big\", [\"small\"])\nr.mark_down(\"big\", 10)\nr.mark_down(\"small\", 10)\nexpect(r.route(\"t\", \"big\", \"hi\", 5), {\"status\": \"unavailable\", \"model\": None, \"cost\": 0})\nexpect(r.remaining(\"t\"), 100)"
+      },
+      {
+       "name": "one down, others unaffordable → rejected",
+       "input": "big down, small(3) costs more than budget 2",
+       "hidden": true,
+       "code": "r = Router()\nr.add_model(\"big\", 5)\nr.add_model(\"small\", 3)\nr.set_budget(\"t\", 2)\nr.set_fallbacks(\"big\", [\"small\"])\nr.mark_down(\"big\", 10)\nexpect(r.route(\"t\", \"big\", \"hi\", 5)[\"status\"], \"rejected\")"
+      },
+      {
+       "name": "chain order is respected and not recursive",
+       "input": "a→[b, c], b→[d]; a and b down",
+       "hidden": true,
+       "code": "r = Router()\nfor name in \"abcd\":\n    r.add_model(name, 1)\nr.set_budget(\"t\", 100)\nr.set_fallbacks(\"a\", [\"b\", \"c\"])\nr.set_fallbacks(\"b\", [\"d\"])\nr.mark_down(\"a\", 10)\nr.mark_down(\"b\", 10)\nexpect(r.route(\"t\", \"a\", \"x\", 1)[\"model\"], \"c\")\nr.mark_down(\"c\", 10)\nexpect(r.route(\"t\", \"a\", \"x\", 1)[\"status\"], \"unavailable\")"
+      },
+      {
+       "name": "fallback validation",
+       "input": "set_fallbacks(a, [zzz]); set_fallbacks(a, [a]); mark_down(zzz, 5)",
+       "hidden": true,
+       "code": "r = Router()\nr.add_model(\"a\", 1)\nexpect_raises(KeyError, r.set_fallbacks, \"a\", [\"zzz\"])\nexpect_raises(ValueError, r.set_fallbacks, \"a\", [\"a\"])\nexpect_raises(KeyError, r.mark_down, \"zzz\", 5)"
+      }
+     ]
+    },
+    {
+     "title": "Level 3: response cache",
+     "brief": "Identical prompts are common (retries, popular queries). Add an opt-in cache.\n\n- `enable_cache(ttl: int) -> None` — turns caching on (`ValueError` if `ttl <= 0`). Before this is called nothing is cached, so earlier levels behave exactly as before.\n- Cache key: `(requested model, prompt)`. It is **shared across tenants**.\n- Only `\"ok\"` responses are stored, with the model that served them and the request's timestamp.\n- A hit is valid while `timestamp < stored_at + ttl`. A hit returns `{\"status\": \"cached\", \"model\": <model that served the original>, \"cost\": 0}`, charges nothing and works even if that model is now down or the tenant's budget is 0. Hits do **not** refresh the TTL.\n- Unknown tenant/model and empty prompt still raise as before (validate first).\n\n```python\nr.enable_cache(ttl=60)\nr.route(\"a\", \"m\", \"what is rag\", 0)    # ok, cost 3\nr.route(\"b\", \"m\", \"what is rag\", 59)   # {'status': 'cached', 'model': 'm', 'cost': 0}\nr.route(\"b\", \"m\", \"what is rag\", 60)   # expired → ok, charged\n```",
+     "tests": [
+      {
+       "name": "cache hit is free and shared across tenants",
+       "input": "enable_cache(60); a routes \"what is rag\" at 0; b same at 59 and 60",
+       "hidden": false,
+       "code": "r = Router()\nr.add_model(\"m\", 1)\nr.set_budget(\"a\", 10)\nr.set_budget(\"b\", 10)\nr.enable_cache(60)\nexpect(r.route(\"a\", \"m\", \"what is rag\", 0)[\"status\"], \"ok\")\nexpect(r.route(\"b\", \"m\", \"what is rag\", 59), {\"status\": \"cached\", \"model\": \"m\", \"cost\": 0})\nexpect(r.route(\"b\", \"m\", \"what is rag\", 60), {\"status\": \"ok\", \"model\": \"m\", \"cost\": 3})\nexpect([r.remaining(\"a\"), r.remaining(\"b\")], [7, 7])"
+      },
+      {
+       "name": "no caching until enabled",
+       "input": "route the same prompt twice without enable_cache",
+       "hidden": true,
+       "code": "r = Router()\nr.add_model(\"m\", 1)\nr.set_budget(\"t\", 10)\nr.route(\"t\", \"m\", \"same\", 0)\nexpect(r.route(\"t\", \"m\", \"same\", 1)[\"status\"], \"ok\")\nexpect(r.remaining(\"t\"), 8)"
+      },
+      {
+       "name": "hit returns the fallback model and survives outage",
+       "input": "big down → served by small; then all down; repeat prompt",
+       "hidden": true,
+       "code": "r = Router()\nr.add_model(\"big\", 5)\nr.add_model(\"small\", 1)\nr.set_budget(\"t\", 100)\nr.set_fallbacks(\"big\", [\"small\"])\nr.enable_cache(100)\nr.mark_down(\"big\", 50)\nexpect(r.route(\"t\", \"big\", \"q\", 1)[\"model\"], \"small\")\nr.mark_down(\"small\", 50)\nexpect(r.route(\"t\", \"big\", \"q\", 2), {\"status\": \"cached\", \"model\": \"small\", \"cost\": 0})\nexpect(r.route(\"t\", \"big\", \"other\", 3)[\"status\"], \"unavailable\")"
+      },
+      {
+       "name": "rejected responses are not cached; hit ignores empty budget",
+       "input": "budget 0 tenant; cached hit from another tenant",
+       "hidden": true,
+       "code": "r = Router()\nr.add_model(\"m\", 1)\nr.set_budget(\"poor\", 0)\nr.set_budget(\"rich\", 5)\nr.enable_cache(10)\nexpect(r.route(\"poor\", \"m\", \"hi\", 0)[\"status\"], \"rejected\")\nexpect(r.route(\"rich\", \"m\", \"hi\", 1)[\"status\"], \"ok\")\nexpect(r.route(\"poor\", \"m\", \"hi\", 2)[\"status\"], \"cached\")"
+      },
+      {
+       "name": "hits don't refresh ttl; key includes model",
+       "input": "ttl 10: store at 0, hit at 9, expired at 10; different model misses",
+       "hidden": true,
+       "code": "r = Router()\nr.add_model(\"m\", 1)\nr.add_model(\"n\", 1)\nr.set_budget(\"t\", 100)\nr.enable_cache(10)\nr.route(\"t\", \"m\", \"hi\", 0)\nexpect(r.route(\"t\", \"m\", \"hi\", 9)[\"status\"], \"cached\")\nexpect(r.route(\"t\", \"m\", \"hi\", 10)[\"status\"], \"ok\")\nexpect(r.route(\"t\", \"n\", \"hi\", 11)[\"status\"], \"ok\")"
+      },
+      {
+       "name": "validation still runs before the cache",
+       "input": "enable_cache(0); cached prompt for unknown tenant",
+       "hidden": true,
+       "code": "r = Router()\nr.add_model(\"m\", 1)\nr.set_budget(\"t\", 5)\nexpect_raises(ValueError, r.enable_cache, 0)\nr.enable_cache(5)\nr.route(\"t\", \"m\", \"hi\", 0)\nexpect_raises(KeyError, r.route, \"ghost\", \"m\", \"hi\", 1)"
+      }
+     ]
+    },
+    {
+     "title": "Level 4: metrics",
+     "brief": "Finance and on-call want numbers. Record every `route` call that returns a dict (calls that raise are not recorded).\n\n- `metrics(start: int, end: int) -> dict` over requests with `start <= timestamp < end`:\n  `{\"requests\", \"ok\", \"cached\", \"rejected\", \"unavailable\", \"fallbacks\", \"spend\", \"by_model\"}`\n  - `fallbacks`: `\"ok\"` responses whose served model differs from the requested one.\n  - `spend`: total credits charged; `by_model`: `{model: credits}` for `\"ok\"` responses only (models with no spend are absent).\n- `top_tenants(n: int) -> list[tuple[str, int]]` — all-time spend, highest first, ties by tenant name ascending. Every tenant that has a budget appears (spend 0 if none). `n <= 0` → `[]`.\n\n```python\nr.metrics(0, 100)\n# {'requests': 3, 'ok': 1, 'cached': 1, 'rejected': 1, 'unavailable': 0,\n#  'fallbacks': 0, 'spend': 2, 'by_model': {'m': 2}}\n```",
+     "tests": [
+      {
+       "name": "metrics count every outcome",
+       "input": "ok, cached, rejected in [0, 100)",
+       "hidden": false,
+       "code": "r = Router()\nr.add_model(\"m\", 1)\nr.set_budget(\"t\", 2)\nr.enable_cache(50)\nr.route(\"t\", \"m\", \"a b\", 1)\nr.route(\"t\", \"m\", \"a b\", 2)\nr.route(\"t\", \"m\", \"c d\", 3)\nexpect(r.metrics(0, 100), {\"requests\": 3, \"ok\": 1, \"cached\": 1, \"rejected\": 1, \"unavailable\": 0, \"fallbacks\": 0, \"spend\": 2, \"by_model\": {\"m\": 2}})"
+      },
+      {
+       "name": "window is half-open and fallbacks are counted",
+       "input": "big down; requests at 5, 10, 20; metrics(5, 20)",
+       "hidden": true,
+       "code": "r = Router()\nr.add_model(\"big\", 3)\nr.add_model(\"small\", 1)\nr.set_budget(\"t\", 100)\nr.set_fallbacks(\"big\", [\"small\"])\nr.mark_down(\"big\", 15)\nr.route(\"t\", \"big\", \"x\", 5)\nr.route(\"t\", \"big\", \"x\", 10)\nr.route(\"t\", \"big\", \"x\", 20)\nm = r.metrics(5, 20)\nexpect([m[\"requests\"], m[\"fallbacks\"], m[\"spend\"], m[\"by_model\"]], [2, 2, 2, {\"small\": 2}])\nexpect(r.metrics(20, 21)[\"by_model\"], {\"big\": 3})"
+      },
+      {
+       "name": "empty window",
+       "input": "metrics(1000, 2000) with no requests there",
+       "hidden": true,
+       "code": "r = Router()\nr.add_model(\"m\", 1)\nr.set_budget(\"t\", 5)\nr.route(\"t\", \"m\", \"x\", 1)\nexpect(r.metrics(1000, 2000), {\"requests\": 0, \"ok\": 0, \"cached\": 0, \"rejected\": 0, \"unavailable\": 0, \"fallbacks\": 0, \"spend\": 0, \"by_model\": {}})"
+      },
+      {
+       "name": "raising calls are not recorded; unavailable counted",
+       "input": "route with unknown tenant; all models down",
+       "hidden": true,
+       "code": "r = Router()\nr.add_model(\"m\", 1)\nr.set_budget(\"t\", 5)\nr.mark_down(\"m\", 10)\nexpect_raises(KeyError, r.route, \"ghost\", \"m\", \"x\", 1)\nr.route(\"t\", \"m\", \"x\", 2)\nm = r.metrics(0, 10)\nexpect([m[\"requests\"], m[\"unavailable\"]], [1, 1])"
+      },
+      {
+       "name": "top tenants by spend with name tie-break",
+       "input": "a spends 4, b 4, c 0, d 9; top_tenants(3), top_tenants(0)",
+       "hidden": true,
+       "code": "r = Router()\nr.add_model(\"m\", 1)\nfor t in \"dcba\":\n    r.set_budget(t, 100)\nr.route(\"b\", \"m\", \"w w w w\", 1)\nr.route(\"a\", \"m\", \"w w w w\", 2)\nr.route(\"d\", \"m\", \"w w w w w w w w w\", 3)\nexpect(r.top_tenants(3), [(\"d\", 9), (\"a\", 4), (\"b\", 4)])\nexpect(r.top_tenants(10)[-1], (\"c\", 0))\nexpect(r.top_tenants(0), [])"
+      },
+      {
+       "name": "cached hits add no spend",
+       "input": "two tenants share a cached prompt",
+       "hidden": true,
+       "code": "r = Router()\nr.add_model(\"m\", 2)\nr.set_budget(\"x\", 10)\nr.set_budget(\"y\", 10)\nr.enable_cache(100)\nr.route(\"x\", \"m\", \"p q\", 1)\nr.route(\"y\", \"m\", \"p q\", 2)\nexpect(r.top_tenants(2), [(\"x\", 4), (\"y\", 0)])\nexpect(r.metrics(0, 10)[\"spend\"], 4)"
+      }
+     ]
+    }
+   ],
+   "hints": [
+    "Think of route as a pipeline of stages: validate, cache lookup, pick a model, charge, record. Each level adds one stage, so keep route small and push detail into helpers.",
+    "Keep dicts for prices, budgets, fallback chains and down-until timestamps. Build the candidate list as the requested model plus its chain, and track whether any candidate was up so you can tell unavailable from rejected. Wrap every return in one recording helper so metrics come for free.",
+    "Cache entries map (requested model, prompt) to (served model, stored timestamp); check it after validation but before routing, and only write it on ok. Metrics just filter the request log by a half-open window; top_tenants sorts by (-spend, name) over a spend dict seeded by set_budget. Everything is O(1) per request except metrics, which is O(log size)."
+   ],
+   "solution": "\n### Key insight\n`route` is a pipeline: **validate → cache → candidates → charge → record**. Each level slots in\none stage without touching the others, which is exactly what interviewers look for.\n\n### Reference implementation (all 4 levels)\n```python\nclass Router:\n    \"\"\"Routes LLM requests to priced models under per-tenant credit budgets.\"\"\"\n\n    def __init__(self):\n        self.prices: dict[str, int] = {}\n        self.budgets: dict[str, int] = {}\n        # Level 2\n        self.fallbacks: dict[str, list[str]] = {}\n        self.down_until: dict[str, int] = {}\n        # Level 3\n        self.cache_ttl: int | None = None\n        self.cache: dict[tuple[str, str], tuple[str, int]] = {}\n        # Level 4\n        self.log: list[dict] = []\n        self.spend: dict[str, int] = {}\n\n    # ----- Level 1: models and budgets -----\n    def add_model(self, name: str, price_per_token: int) -> None:\n        if name in self.prices:\n            raise ValueError(f\"model {name!r} already exists\")\n        if price_per_token < 0:\n            raise ValueError(\"price must be >= 0\")\n        self.prices[name] = price_per_token\n\n    def set_budget(self, tenant: str, credits: int) -> None:\n        if credits < 0:\n            raise ValueError(\"budget must be >= 0\")\n        self.budgets[tenant] = credits\n        self.spend.setdefault(tenant, 0)\n\n    def remaining(self, tenant: str) -> int:\n        return self.budgets[tenant]\n\n    @staticmethod\n    def count_tokens(prompt: str) -> int:\n        return len(prompt.split())\n\n    def route(self, tenant: str, model: str, prompt: str, timestamp: int) -> dict:\n        if tenant not in self.budgets:\n            raise KeyError(tenant)\n        if model not in self.prices:\n            raise KeyError(model)\n        tokens = self.count_tokens(prompt)\n        if tokens == 0:\n            raise ValueError(\"empty prompt\")\n\n        # Level 3: cache lookup before any routing or charging\n        key = (model, prompt)\n        if self.cache_ttl is not None and key in self.cache:\n            chosen, stored_at = self.cache[key]\n            if timestamp < stored_at + self.cache_ttl:\n                return self._record(tenant, model, timestamp,\n                                    {\"status\": \"cached\", \"model\": chosen, \"cost\": 0})\n            del self.cache[key]\n\n        # Level 2: requested model first, then its fallback chain\n        candidates = [model] + self.fallbacks.get(model, [])\n        any_up = False\n        for name in candidates:\n            if timestamp < self.down_until.get(name, timestamp):\n                continue\n            any_up = True\n            cost = tokens * self.prices[name]\n            if cost <= self.budgets[tenant]:\n                self.budgets[tenant] -= cost\n                if self.cache_ttl is not None:\n                    self.cache[key] = (name, timestamp)\n                return self._record(tenant, model, timestamp,\n                                    {\"status\": \"ok\", \"model\": name, \"cost\": cost})\n        status = \"rejected\" if any_up else \"unavailable\"\n        return self._record(tenant, model, timestamp,\n                            {\"status\": status, \"model\": None, \"cost\": 0})\n\n    # ----- Level 2: fallback -----\n    def set_fallbacks(self, model: str, chain: list[str]) -> None:\n        for name in [model] + list(chain):\n            if name not in self.prices:\n                raise KeyError(name)\n        if model in chain:\n            raise ValueError(\"a model cannot fall back to itself\")\n        self.fallbacks[model] = list(chain)\n\n    def mark_down(self, model: str, until: int) -> None:\n        if model not in self.prices:\n            raise KeyError(model)\n        self.down_until[model] = until\n\n    # ----- Level 3: caching -----\n    def enable_cache(self, ttl: int) -> None:\n        if ttl <= 0:\n            raise ValueError(\"ttl must be > 0\")\n        self.cache_ttl = ttl\n\n    # ----- Level 4: metrics -----\n    def _record(self, tenant: str, requested: str, timestamp: int, result: dict) -> dict:\n        self.log.append({\"tenant\": tenant, \"requested\": requested,\n                         \"timestamp\": timestamp, **result})\n        self.spend[tenant] = self.spend.get(tenant, 0) + result[\"cost\"]\n        return result\n\n    def metrics(self, start: int, end: int) -> dict:\n        out = {\"requests\": 0, \"ok\": 0, \"cached\": 0, \"rejected\": 0, \"unavailable\": 0,\n               \"fallbacks\": 0, \"spend\": 0, \"by_model\": {}}\n        for entry in self.log:\n            if not start <= entry[\"timestamp\"] < end:\n                continue\n            out[\"requests\"] += 1\n            out[entry[\"status\"]] += 1\n            if entry[\"status\"] == \"ok\":\n                out[\"spend\"] += entry[\"cost\"]\n                out[\"by_model\"][entry[\"model\"]] = out[\"by_model\"].get(entry[\"model\"], 0) + entry[\"cost\"]\n                if entry[\"model\"] != entry[\"requested\"]:\n                    out[\"fallbacks\"] += 1\n        return out\n\n    def top_tenants(self, n: int) -> list[tuple[str, int]]:\n        if n <= 0:\n            return []\n        ranked = sorted(self.spend.items(), key=lambda item: (-item[1], item[0]))\n        return ranked[:n]\n```\n\n### Design notes per level\n- **Level 1:** two dicts. Validate tenant and model before computing cost; charge only on success.\n- **Level 2:** candidates = `[model] + chain`. Skip down models and unaffordable ones. Track `any_up` so an all-down chain reports `\"unavailable\"` rather than `\"rejected\"`.\n- **Level 3:** cache keyed by the *requested* model and the prompt, storing the *served* model. Lookup happens after validation (unknown tenants still raise) and before the budget check (hits are free). Expired entries are deleted lazily.\n- **Level 4:** one `_record` helper wraps every return, so every outcome is logged with its timestamp and spend is updated in one place. Seeding `spend` in `set_budget` makes zero-spend tenants appear in `top_tenants`.\n\n### Common pitfalls\n- Charging before deciding the request succeeded, or charging on a cache hit.\n- Treating the window as inclusive at `end` (it is half-open).\n- Recursing into fallback chains of fallbacks (the brief forbids it).\n- Checking the cache before validation, so a cached prompt lets an unknown tenant through.\n- Refreshing the TTL on a hit.\n"
+  },
+  "ch-6": {
+   "brief": "\n### Scenario\nYou own the **conversation memory** of a chat assistant. Every turn is stored, and before each\nmodel call you must hand the model a context that fits its token window. Over four levels you\nadd a token-budgeted context window, rolling summaries, keyword search across history, and\nretention/deletion rules for privacy. Memory management like this comes up in almost every\nApplied AI system-design and practical round.\n\nToken count of a text = number of whitespace-separated words (`len(text.split())`).\nTimestamps are plain ints passed into methods. Message ids are global, start at 1, and are\nnever reused.\n\n### How the levels work\nYou build one codebase across **4 levels**. Open a level, read what it adds, extend your\nexisting code, run its tests. **Each level's tests include every earlier level's tests**, so a\nchange in level 3 must not break level 1 behaviour. Only the level 1 shells are in the\nstarter: you add the methods named in later level briefs yourself.\n\n### Time guidance (~75 min total)\nLevel 1 ~15 min, level 2 ~15 min, level 3 ~20 min, level 4 ~25 min. If you blow past a\nlevel's time, finish it simply and move on; interviewers score progress through levels.\n\n### Interview tips\n- Narrate: say what state you keep and why before you type.\n- Keep level 1 dead simple (dicts and lists). Refactor only when a later level forces it.\n- Read every rule in a level brief twice; most failures are a missed tie-break or error case.\n- Run the tests after each method, not at the end.\n",
+   "starter": "class ChatStore:\n    \"\"\"Per-conversation chat history that fits a model's token budget.\"\"\"\n\n    def __init__(self, max_tokens: int):\n        pass\n\n    def add(self, conversation_id: str, role: str, text: str, timestamp: int) -> int:\n        raise NotImplementedError\n\n    def context(self, conversation_id: str) -> list[dict]:\n        raise NotImplementedError\n\n    def token_count(self, conversation_id: str) -> int:\n        raise NotImplementedError\n",
+   "tests": [],
+   "levels": [
+    {
+     "title": "Level 1: token-budgeted context",
+     "brief": "- `ChatStore(max_tokens: int)` — `ValueError` if `max_tokens <= 0`.\n- `add(conversation_id, role, text, timestamp) -> int` — `role` must be `\"system\"`, `\"user\"` or `\"assistant\"` (else `ValueError`). Returns the new message id (global counter from 1).\n- `context(conversation_id) -> list[dict]` — the **newest contiguous** run of messages whose total tokens is `<= max_tokens`, oldest first, each as `{\"role\", \"text\"}`. Walk back from the newest message and stop at the first one that does not fit (do not skip it to grab older ones). Unknown conversation → `[]`.\n- `token_count(conversation_id) -> int` — total tokens of all its messages (0 if unknown).\n\n```python\ns = ChatStore(max_tokens=5)\ns.add(\"c1\", \"user\", \"hi there\", 1)          # 1\ns.add(\"c1\", \"assistant\", \"hello how can I help\", 2)  # 2 (5 tokens)\ns.context(\"c1\")   # [{'role': 'assistant', 'text': 'hello how can I help'}]\ns.token_count(\"c1\")  # 7\n```",
+     "tests": [
+      {
+       "name": "newest messages that fit",
+       "input": "max_tokens=5; add \"hi there\", \"hello how can I help\"",
+       "hidden": false,
+       "code": "s = ChatStore(5)\nexpect(s.add(\"c1\", \"user\", \"hi there\", 1), 1)\nexpect(s.add(\"c1\", \"assistant\", \"hello how can I help\", 2), 2)\nexpect(s.context(\"c1\"), [{\"role\": \"assistant\", \"text\": \"hello how can I help\"}])\nexpect(s.token_count(\"c1\"), 7)"
+      },
+      {
+       "name": "everything fits, oldest first",
+       "input": "max_tokens=10; three short messages",
+       "hidden": true,
+       "code": "s = ChatStore(10)\ns.add(\"c\", \"system\", \"be brief\", 1)\ns.add(\"c\", \"user\", \"what is rag\", 2)\ns.add(\"c\", \"assistant\", \"retrieval augmented generation\", 3)\nexpect([m[\"text\"] for m in s.context(\"c\")], [\"be brief\", \"what is rag\", \"retrieval augmented generation\"])"
+      },
+      {
+       "name": "stops at the first message that does not fit",
+       "input": "max_tokens=4; sizes 1, 5, 2, 1 tokens",
+       "hidden": true,
+       "code": "s = ChatStore(4)\ns.add(\"c\", \"user\", \"a\", 1)\ns.add(\"c\", \"user\", \"b b b b b\", 2)\ns.add(\"c\", \"user\", \"c c\", 3)\ns.add(\"c\", \"user\", \"d\", 4)\nexpect(s.context(\"c\"), [{\"role\": \"user\", \"text\": \"c c\"}, {\"role\": \"user\", \"text\": \"d\"}])"
+      },
+      {
+       "name": "ids are global across conversations",
+       "input": "add to c1, c2, c1",
+       "hidden": true,
+       "code": "s = ChatStore(100)\nids = [s.add(\"c1\", \"user\", \"x\", 1), s.add(\"c2\", \"user\", \"y\", 1), s.add(\"c1\", \"assistant\", \"z\", 2)]\nexpect(ids, [1, 2, 3])\nexpect([m[\"text\"] for m in s.context(\"c1\")], [\"x\", \"z\"])\nexpect([m[\"text\"] for m in s.context(\"c2\")], [\"y\"])"
+      },
+      {
+       "name": "unknown conversation and bad input",
+       "input": "context(nope); add role=tool; ChatStore(0)",
+       "hidden": true,
+       "code": "s = ChatStore(3)\nexpect(s.context(\"nope\"), [])\nexpect(s.token_count(\"nope\"), 0)\nexpect_raises(ValueError, s.add, \"c\", \"tool\", \"x\", 1)\nexpect_raises(ValueError, ChatStore, 0)"
+      },
+      {
+       "name": "newest alone too big → empty context",
+       "input": "max_tokens=2; newest message has 3 tokens",
+       "hidden": true,
+       "code": "s = ChatStore(2)\ns.add(\"c\", \"user\", \"ok\", 1)\ns.add(\"c\", \"user\", \"one two three\", 2)\nexpect(s.context(\"c\"), [])"
+      }
+     ]
+    },
+    {
+     "title": "Level 2: rolling summaries",
+     "brief": "Long chats fall out of the window. Let the app fold old turns into a summary.\n\n- `summarize(conversation_id, upto_id: int, summary: str) -> int` — every **active** message of the conversation with id `<= upto_id` is folded away (removed from the context and from `token_count`) and the conversation's summary becomes `summary` (a newer summary replaces the old one; the app is expected to include the old summary's content). Returns the number of messages folded. `ValueError` if `upto_id` is not an active message of that conversation.\n- `context` now always starts with `{\"role\": \"summary\", \"text\": summary}` when a summary exists, **even if it alone exceeds the budget**. Its tokens are spent first; the remaining budget is filled with the newest messages as in level 1.\n- `token_count` = active message tokens + summary tokens.\n- Folded messages are kept internally (level 3 searches them).\n\n```python\ns = ChatStore(7)\nfor i, t in enumerate([\"a b\", \"c d\", \"e f\", \"g h\"], 1): s.add(\"c\", \"user\", t, i)\ns.summarize(\"c\", 2, \"user said a to d\")   # 2 messages folded\ns.context(\"c\")\n# [{'role': 'summary', 'text': 'user said a to d'}, {'role': 'user', 'text': 'g h'}]\n# (summary uses 5 of 7 tokens; \"g h\" fits, \"e f\" does not)\ns.token_count(\"c\")  # 9\n```",
+     "tests": [
+      {
+       "name": "summary leads the context and uses budget first",
+       "input": "max_tokens=7; 4 two-word msgs; summarize(upto 2, \"user said a to d\")",
+       "hidden": false,
+       "code": "s = ChatStore(7)\nfor i, t in enumerate([\"a b\", \"c d\", \"e f\", \"g h\"], 1):\n    s.add(\"c\", \"user\", t, i)\nexpect(s.summarize(\"c\", 2, \"user said a to d\"), 2)\nexpect(s.context(\"c\"), [{\"role\": \"summary\", \"text\": \"user said a to d\"}, {\"role\": \"user\", \"text\": \"g h\"}])\nexpect(s.token_count(\"c\"), 9)"
+      },
+      {
+       "name": "second summary replaces the first",
+       "input": "summarize up to 1, then up to 3",
+       "hidden": true,
+       "code": "s = ChatStore(50)\nfor i in range(1, 5):\n    s.add(\"c\", \"user\", f\"m{i}\", i)\ns.summarize(\"c\", 1, \"first\")\nexpect(s.summarize(\"c\", 3, \"first plus two three\"), 2)\nexpect(s.context(\"c\"), [{\"role\": \"summary\", \"text\": \"first plus two three\"}, {\"role\": \"user\", \"text\": \"m4\"}])"
+      },
+      {
+       "name": "oversized summary is still included",
+       "input": "max_tokens=2; summary of 4 tokens",
+       "hidden": true,
+       "code": "s = ChatStore(2)\ns.add(\"c\", \"user\", \"x\", 1)\ns.add(\"c\", \"user\", \"y\", 2)\ns.summarize(\"c\", 1, \"a long summary text\")\nexpect(s.context(\"c\"), [{\"role\": \"summary\", \"text\": \"a long summary text\"}])"
+      },
+      {
+       "name": "invalid upto_id",
+       "input": "upto_id from another conversation; already-folded id; unknown id",
+       "hidden": true,
+       "code": "s = ChatStore(10)\na = s.add(\"c1\", \"user\", \"x\", 1)\nb = s.add(\"c2\", \"user\", \"y\", 1)\nexpect_raises(ValueError, s.summarize, \"c1\", b, \"s\")\ns.summarize(\"c1\", a, \"s\")\nexpect_raises(ValueError, s.summarize, \"c1\", a, \"again\")\nexpect_raises(ValueError, s.summarize, \"zzz\", 99, \"s\")"
+      },
+      {
+       "name": "summarizing everything leaves only the summary",
+       "input": "summarize up to the newest id",
+       "hidden": true,
+       "code": "s = ChatStore(10)\ns.add(\"c\", \"user\", \"hello\", 1)\nlast = s.add(\"c\", \"assistant\", \"hi\", 2)\nexpect(s.summarize(\"c\", last, \"greetings exchanged\"), 2)\nexpect(s.context(\"c\"), [{\"role\": \"summary\", \"text\": \"greetings exchanged\"}])\nexpect(s.token_count(\"c\"), 2)"
+      }
+     ]
+    },
+    {
+     "title": "Level 3: search",
+     "brief": "Users ask \"what did I say about X?\". Add keyword search over the whole history.\n\n- `search(query: str, conversation_id: str | None = None, limit: int = 10) -> list[int]` — ids of messages containing **every** word of the query.\n  - Words: lowercase runs of `[a-z0-9]` (so `\"RAG,\"` matches `\"rag\"`; `\"rag\"` does not match `\"ragged\"`).\n  - Searches active **and folded** messages (summary texts are not searched). `None` means all conversations.\n  - Newest (highest id) first, at most `limit` results; `limit <= 0` → `[]`.\n  - `ValueError` if the query has no words (e.g. `\"\"` or `\"?!\"`).\n\n```python\ns.search(\"vector db\")          # [7, 3]\ns.search(\"Vector\", \"c2\")       # [5]\n```",
+     "tests": [
+      {
+       "name": "all words must match, newest first",
+       "input": "msgs: \"Use a vector DB\", \"vector search\", \"the DB is down, vector index fine\"; search(\"vector db\")",
+       "hidden": false,
+       "code": "s = ChatStore(100)\ns.add(\"c1\", \"user\", \"Use a vector DB\", 1)\ns.add(\"c1\", \"assistant\", \"vector search\", 2)\ns.add(\"c2\", \"user\", \"the DB is down, vector index fine\", 3)\nexpect(s.search(\"vector db\"), [3, 1])\nexpect(s.search(\"VECTOR\", \"c1\"), [2, 1])"
+      },
+      {
+       "name": "whole words, punctuation ignored",
+       "input": "\"RAG, please\" vs \"ragged edge\"; search(\"rag\")",
+       "hidden": true,
+       "code": "s = ChatStore(100)\ns.add(\"c\", \"user\", \"RAG, please\", 1)\ns.add(\"c\", \"user\", \"ragged edge\", 2)\nexpect(s.search(\"rag\"), [1])\nexpect(s.search(\"Rag!\"), [1])"
+      },
+      {
+       "name": "folded messages are searchable, summaries are not",
+       "input": "fold msg 1 into summary \"budget talk\"; search budget, search pricing",
+       "hidden": true,
+       "code": "s = ChatStore(100)\ns.add(\"c\", \"user\", \"pricing question\", 1)\ns.add(\"c\", \"user\", \"next\", 2)\ns.summarize(\"c\", 1, \"budget talk\")\nexpect(s.search(\"pricing\"), [1])\nexpect(s.search(\"budget\"), [])"
+      },
+      {
+       "name": "limit and empty query",
+       "input": "12 matching messages; limit default, limit=3, limit=0; query \"?!\"",
+       "hidden": true,
+       "code": "s = ChatStore(100)\nfor i in range(12):\n    s.add(\"c\", \"user\", f\"note {i}\", i)\nexpect(len(s.search(\"note\")), 10)\nexpect(s.search(\"note\", limit=3), [12, 11, 10])\nexpect(s.search(\"note\", limit=0), [])\nexpect_raises(ValueError, s.search, \"?!\")"
+      },
+      {
+       "name": "scoped to one conversation; unknown conversation",
+       "input": "search(\"hi\", \"c2\"); search(\"hi\", \"nope\")",
+       "hidden": true,
+       "code": "s = ChatStore(100)\ns.add(\"c1\", \"user\", \"hi\", 1)\ns.add(\"c2\", \"user\", \"hi\", 2)\nexpect(s.search(\"hi\", \"c2\"), [2])\nexpect(s.search(\"hi\", \"nope\"), [])"
+      }
+     ]
+    },
+    {
+     "title": "Level 4: retention and deletion",
+     "brief": "Privacy review: data must not live forever, and users can delete chats.\n\n- `expire(before: int) -> int` — permanently remove every message (active **or** folded, any conversation) with `timestamp < before`; return how many were removed. Summaries are kept. Removed messages disappear from `context`, `token_count` and `search`.\n- `delete_conversation(conversation_id) -> bool` — remove its messages, folded messages and summary. `True` if the conversation existed, else `False`. Adding to the same id later starts a fresh conversation; message ids are **never reused**.\n\n```python\ns.expire(before=100)   # 2\ns.delete_conversation(\"c1\")  # True\ns.delete_conversation(\"c1\")  # False\n```",
+     "tests": [
+      {
+       "name": "expire removes old messages everywhere",
+       "input": "msgs at t=10, 50, 150; expire(before=100)",
+       "hidden": false,
+       "code": "s = ChatStore(100)\ns.add(\"c\", \"user\", \"old secret\", 10)\ns.add(\"c\", \"user\", \"older secret\", 50)\ns.add(\"c\", \"user\", \"new secret\", 150)\nexpect(s.expire(100), 2)\nexpect(s.search(\"secret\"), [3])\nexpect(s.context(\"c\"), [{\"role\": \"user\", \"text\": \"new secret\"}])"
+      },
+      {
+       "name": "expire reaches folded messages but keeps the summary",
+       "input": "fold msg 1 (t=1); expire(5)",
+       "hidden": true,
+       "code": "s = ChatStore(100)\ns.add(\"c\", \"user\", \"card number talk\", 1)\ns.add(\"c\", \"user\", \"later\", 9)\ns.summarize(\"c\", 1, \"payment discussed\")\nexpect(s.expire(5), 1)\nexpect(s.search(\"card\"), [])\nexpect(s.context(\"c\")[0], {\"role\": \"summary\", \"text\": \"payment discussed\"})\nexpect(s.token_count(\"c\"), 3)"
+      },
+      {
+       "name": "boundary: timestamp == before is kept",
+       "input": "msg at t=100; expire(100)",
+       "hidden": true,
+       "code": "s = ChatStore(10)\ns.add(\"c\", \"user\", \"edge\", 100)\nexpect(s.expire(100), 0)\nexpect(s.token_count(\"c\"), 1)"
+      },
+      {
+       "name": "delete conversation",
+       "input": "delete c1 (with summary) twice; c2 untouched",
+       "hidden": true,
+       "code": "s = ChatStore(100)\ns.add(\"c1\", \"user\", \"alpha\", 1)\ns.add(\"c1\", \"user\", \"beta\", 2)\ns.summarize(\"c1\", 1, \"sum\")\ns.add(\"c2\", \"user\", \"alpha\", 3)\nexpect(s.delete_conversation(\"c1\"), True)\nexpect(s.delete_conversation(\"c1\"), False)\nexpect([s.context(\"c1\"), s.search(\"alpha\")], [[], [3]])"
+      },
+      {
+       "name": "ids are never reused after deletion",
+       "input": "add 2, delete, add again",
+       "hidden": true,
+       "code": "s = ChatStore(100)\ns.add(\"c\", \"user\", \"x\", 1)\ns.add(\"c\", \"user\", \"y\", 2)\ns.delete_conversation(\"c\")\nexpect(s.add(\"c\", \"user\", \"z\", 3), 3)\nexpect(s.context(\"c\"), [{\"role\": \"user\", \"text\": \"z\"}])\nexpect(s.delete_conversation(\"never\"), False)"
+      }
+     ]
+    }
+   ],
+   "hints": [
+    "Separate what the model sees (active messages plus a summary) from what you keep for search and compliance (folded messages). Most later-level bugs come from mixing those two lists.",
+    "Store per conversation: a list of active message dicts with id, role, text and timestamp, a list of folded messages, and an optional summary. Build the context by walking active messages from the newest, subtracting token costs from the budget left after the summary, and stopping at the first that does not fit.",
+    "summarize moves messages with id at most upto_id from active to folded after checking that upto_id is active. Search tokenises with a lowercase regex for alphanumeric runs and checks the query word set is a subset of each message's word set, over active and folded lists, then sorts ids descending and slices. expire filters both lists by timestamp; delete pops all three stores, and the global id counter is never reset."
+   ],
+   "solution": "\n### Key insight\nKeep **two views** of every conversation: the *active* messages the model may see and the\n*folded* messages kept for search and retention. The summary is a pinned prefix that spends\nbudget first. Each level then touches one view.\n\n### Reference implementation (all 4 levels)\n```python\nimport re\n\nROLES = {\"system\", \"user\", \"assistant\"}\n\n\ndef _words(text: str) -> list[str]:\n    return re.findall(r\"[a-z0-9]+\", text.lower())\n\n\nclass ChatStore:\n    \"\"\"Per-conversation chat history that fits a model's token budget.\"\"\"\n\n    def __init__(self, max_tokens: int):\n        if max_tokens <= 0:\n            raise ValueError(\"max_tokens must be > 0\")\n        self.max_tokens = max_tokens\n        self.next_id = 1\n        self.active: dict[str, list[dict]] = {}    # messages still in context\n        self.archived: dict[str, list[dict]] = {}  # folded into a summary (Level 2)\n        self.summaries: dict[str, dict] = {}        # one summary per conversation\n\n    @staticmethod\n    def tokens(text: str) -> int:\n        return len(text.split())\n\n    # ----- Level 1: token budget -----\n    def add(self, conversation_id: str, role: str, text: str, timestamp: int) -> int:\n        if role not in ROLES:\n            raise ValueError(f\"unknown role {role!r}\")\n        message = {\"id\": self.next_id, \"role\": role, \"text\": text, \"timestamp\": timestamp}\n        self.next_id += 1\n        self.active.setdefault(conversation_id, []).append(message)\n        return message[\"id\"]\n\n    def context(self, conversation_id: str) -> list[dict]:\n        summary = self.summaries.get(conversation_id)\n        budget = self.max_tokens - (self.tokens(summary[\"text\"]) if summary else 0)\n        picked: list[dict] = []\n        for message in reversed(self.active.get(conversation_id, [])):\n            cost = self.tokens(message[\"text\"])\n            if cost > budget:\n                break\n            budget -= cost\n            picked.append({\"role\": message[\"role\"], \"text\": message[\"text\"]})\n        picked.reverse()\n        if summary:\n            picked.insert(0, {\"role\": \"summary\", \"text\": summary[\"text\"]})\n        return picked\n\n    def token_count(self, conversation_id: str) -> int:\n        total = sum(self.tokens(m[\"text\"]) for m in self.active.get(conversation_id, []))\n        summary = self.summaries.get(conversation_id)\n        return total + (self.tokens(summary[\"text\"]) if summary else 0)\n\n    # ----- Level 2: summaries -----\n    def summarize(self, conversation_id: str, upto_id: int, summary: str) -> int:\n        messages = self.active.get(conversation_id, [])\n        if not any(m[\"id\"] == upto_id for m in messages):\n            raise ValueError(f\"message {upto_id} is not active in {conversation_id!r}\")\n        folded = [m for m in messages if m[\"id\"] <= upto_id]\n        self.active[conversation_id] = [m for m in messages if m[\"id\"] > upto_id]\n        self.archived.setdefault(conversation_id, []).extend(folded)\n        self.summaries[conversation_id] = {\"text\": summary}\n        return len(folded)\n\n    # ----- Level 3: search -----\n    def search(self, query: str, conversation_id: str | None = None, limit: int = 10) -> list[int]:\n        terms = set(_words(query))\n        if not terms:\n            raise ValueError(\"query has no words\")\n        if limit <= 0:\n            return []\n        if conversation_id is None:\n            ids = set(self.active) | set(self.archived)\n        else:\n            ids = {conversation_id}\n        hits = []\n        for cid in ids:\n            for message in self.active.get(cid, []) + self.archived.get(cid, []):\n                if terms <= set(_words(message[\"text\"])):\n                    hits.append(message[\"id\"])\n        return sorted(hits, reverse=True)[:limit]\n\n    # ----- Level 4: retention and deletion -----\n    def expire(self, before: int) -> int:\n        removed = 0\n        for store in (self.active, self.archived):\n            for cid, messages in store.items():\n                kept = [m for m in messages if m[\"timestamp\"] >= before]\n                removed += len(messages) - len(kept)\n                store[cid] = kept\n        return removed\n\n    def delete_conversation(self, conversation_id: str) -> bool:\n        existed = any(conversation_id in s for s in (self.active, self.archived, self.summaries))\n        for store in (self.active, self.archived, self.summaries):\n            store.pop(conversation_id, None)\n        return existed\n```\n\n### Design notes per level\n- **Level 1:** walk newest → oldest with a running budget and `break` at the first misfit; reverse at the end. O(n) per call.\n- **Level 2:** `summarize` partitions active messages by id. The summary is always emitted, and its token cost is subtracted before filling (the budget can go negative, which simply admits no messages).\n- **Level 3:** a regex tokenizer gives whole-word, case-insensitive matching; `terms <= words` checks \"all words\". Folded messages are included because search is about history, not context. For scale you'd build an inverted index `word → ids`.\n- **Level 4:** retention applies to raw messages in both views; the summary is derived data and is kept. The global id counter never resets, so ids remain unique audit handles.\n\n### Common pitfalls\n- Skipping a too-big message and continuing to older ones (breaks \"contiguous\").\n- Dropping the summary when it is larger than the budget.\n- Substring search (`\"rag\" in \"ragged\"`).\n- Forgetting folded messages in `search` or `expire`.\n- Resetting ids when a conversation is deleted.\n"
+  },
+  "ch-7": {
+   "brief": "\n### Scenario\nYou are building the **leaderboard service** for an evaluation arena (think model or prompt\nleaderboards, or a game). Scores arrive as events. Over four levels you add totals and\nranks, time-window boards (\"this week\"), competition ranking with ties and pagination, and\nmoderation (bans and account merges). The ordering rules are strict: most bugs here are\ntie-break bugs, which is exactly what a practical round probes.\n\nTimestamps are plain ints passed into methods. The global ordering everywhere is\n**score descending, then player name ascending**.\n\n### How the levels work\nYou build one codebase across **4 levels**. Open a level, read what it adds, extend your\nexisting code, run its tests. **Each level's tests include every earlier level's tests**, so a\nchange in level 3 must not break level 1 behaviour. Only the level 1 shells are in the\nstarter: you add the methods named in later level briefs yourself.\n\n### Time guidance (~75 min total)\nLevel 1 ~15 min, level 2 ~15 min, level 3 ~20 min, level 4 ~25 min. If you blow past a\nlevel's time, finish it simply and move on; interviewers score progress through levels.\n\n### Interview tips\n- Narrate: say what state you keep and why before you type.\n- Keep level 1 dead simple (dicts and lists). Refactor only when a later level forces it.\n- Read every rule in a level brief twice; most failures are a missed tie-break or error case.\n- Run the tests after each method, not at the end.\n",
+   "starter": "class Leaderboard:\n    \"\"\"Game leaderboard: totals, ranks, time windows, pagination and moderation.\"\"\"\n\n    def __init__(self):\n        pass\n\n    def add_score(self, player: str, points: int, timestamp: int) -> int:\n        raise NotImplementedError\n\n    def score(self, player: str) -> int:\n        raise NotImplementedError\n\n    def top(self, n: int) -> list[tuple[str, int]]:\n        raise NotImplementedError\n\n    def rank(self, player: str) -> int | None:\n        raise NotImplementedError\n",
+   "tests": [],
+   "levels": [
+    {
+     "title": "Level 1: totals and ranks",
+     "brief": "- `add_score(player, points, timestamp) -> int` — adds to the player's total and returns the new total. `points` must be a positive `int` (not bool), else `ValueError`.\n- `score(player) -> int` — total, `0` for unknown players.\n- `top(n) -> list[tuple[str, int]]` — first `n` `(player, total)` pairs by score desc, name asc. `n <= 0` → `[]`.\n- `rank(player) -> int | None` — 1-based position in that ordering (ties get distinct positions by name). `None` if unknown.\n\n```python\nlb = Leaderboard()\nlb.add_score(\"ann\", 10, 1); lb.add_score(\"bob\", 30, 2); lb.add_score(\"ann\", 25, 3)\nlb.top(2)      # [('ann', 35), ('bob', 30)]\nlb.rank(\"bob\") # 2\n```",
+     "tests": [
+      {
+       "name": "totals, top and rank",
+       "input": "ann+10, bob+30, ann+25; top(2), rank(bob)",
+       "hidden": false,
+       "code": "lb = Leaderboard()\nexpect(lb.add_score(\"ann\", 10, 1), 10)\nlb.add_score(\"bob\", 30, 2)\nexpect(lb.add_score(\"ann\", 25, 3), 35)\nexpect(lb.top(2), [(\"ann\", 35), (\"bob\", 30)])\nexpect(lb.rank(\"bob\"), 2)"
+      },
+      {
+       "name": "ties broken by name",
+       "input": "cat 5, abe 5, bea 7; top(3)",
+       "hidden": true,
+       "code": "lb = Leaderboard()\nlb.add_score(\"cat\", 5, 1)\nlb.add_score(\"abe\", 5, 2)\nlb.add_score(\"bea\", 7, 3)\nexpect(lb.top(3), [(\"bea\", 7), (\"abe\", 5), (\"cat\", 5)])\nexpect([lb.rank(\"abe\"), lb.rank(\"cat\")], [2, 3])"
+      },
+      {
+       "name": "unknown player and n bounds",
+       "input": "score(zed), rank(zed), top(0), top(10) with 1 player",
+       "hidden": true,
+       "code": "lb = Leaderboard()\nlb.add_score(\"a\", 1, 1)\nexpect([lb.score(\"zed\"), lb.rank(\"zed\")], [0, None])\nexpect(lb.top(0), [])\nexpect(lb.top(10), [(\"a\", 1)])"
+      },
+      {
+       "name": "invalid points",
+       "input": "add_score(a, 0), add_score(a, -3), add_score(a, 1.5), add_score(a, True)",
+       "hidden": true,
+       "code": "lb = Leaderboard()\nfor bad in (0, -3, 1.5, True):\n    expect_raises(ValueError, lb.add_score, \"a\", bad, 1, label=repr(bad))\nexpect(lb.score(\"a\"), 0)"
+      },
+      {
+       "name": "empty board",
+       "input": "top(3) and rank on a new board",
+       "hidden": true,
+       "code": "lb = Leaderboard()\nexpect(lb.top(3), [])\nexpect(lb.rank(\"x\"), None)"
+      }
+     ]
+    },
+    {
+     "title": "Level 2: time windows",
+     "brief": "Product wants \"this week's\" board without losing the all-time board.\n\n- `score_in_window(player, start, end) -> int` — points from events with `start <= timestamp < end` (0 if none).\n- `top_in_window(n, start, end) -> list[tuple[str, int]]` — like `top`, but using window totals; players with no points in the window are absent. `ValueError` if `start >= end`.\n- All-time methods are unchanged.\n\n```python\nlb.add_score(\"ann\", 10, 1); lb.add_score(\"bob\", 5, 8); lb.add_score(\"ann\", 1, 9)\nlb.top_in_window(5, 5, 10)   # [('bob', 5), ('ann', 1)]\n```",
+     "tests": [
+      {
+       "name": "window board vs all-time board",
+       "input": "ann 10@1, bob 5@8, ann 1@9; top_in_window(5, 5, 10)",
+       "hidden": false,
+       "code": "lb = Leaderboard()\nlb.add_score(\"ann\", 10, 1)\nlb.add_score(\"bob\", 5, 8)\nlb.add_score(\"ann\", 1, 9)\nexpect(lb.top_in_window(5, 5, 10), [(\"bob\", 5), (\"ann\", 1)])\nexpect(lb.top(5), [(\"ann\", 11), (\"bob\", 5)])"
+      },
+      {
+       "name": "half-open boundaries",
+       "input": "events at 10 and 20; window [10, 20)",
+       "hidden": true,
+       "code": "lb = Leaderboard()\nlb.add_score(\"a\", 3, 10)\nlb.add_score(\"a\", 4, 20)\nexpect(lb.score_in_window(\"a\", 10, 20), 3)\nexpect(lb.score_in_window(\"a\", 20, 21), 4)\nexpect(lb.score_in_window(\"b\", 0, 100), 0)"
+      },
+      {
+       "name": "ties inside a window",
+       "input": "x 2, y 2, z 1 in window; top_in_window(2, 0, 10)",
+       "hidden": true,
+       "code": "lb = Leaderboard()\nlb.add_score(\"y\", 2, 1)\nlb.add_score(\"x\", 2, 2)\nlb.add_score(\"z\", 1, 3)\nlb.add_score(\"z\", 50, 99)\nexpect(lb.top_in_window(2, 0, 10), [(\"x\", 2), (\"y\", 2)])"
+      },
+      {
+       "name": "empty and invalid windows",
+       "input": "top_in_window(3, 100, 200); start == end",
+       "hidden": true,
+       "code": "lb = Leaderboard()\nlb.add_score(\"a\", 1, 1)\nexpect(lb.top_in_window(3, 100, 200), [])\nexpect_raises(ValueError, lb.top_in_window, 3, 5, 5)"
+      },
+      {
+       "name": "events out of time order",
+       "input": "add at t=50 then t=5; window [0, 10)",
+       "hidden": true,
+       "code": "lb = Leaderboard()\nlb.add_score(\"a\", 7, 50)\nlb.add_score(\"a\", 2, 5)\nexpect(lb.top_in_window(1, 0, 10), [(\"a\", 2)])"
+      }
+     ]
+    },
+    {
+     "title": "Level 3: ties and pagination",
+     "brief": "The UI shows *competition ranking* (\"1, 1, 3\"): tied scores share the place of the first of them.\n\n- `rank_info(player) -> dict | None` — `{\"rank\": competition rank, \"score\": total, \"tied_with\": [other players with the same score, name asc]}`; `None` if unknown.\n- `page(page: int, size: int) -> dict` — `{\"items\": [(rank, player, score), ...], \"total_players\": int, \"total_pages\": int}` over the all-time ordering (score desc, name asc) with competition ranks. Pages are 1-based; a page past the end has `items == []`. `ValueError` if `page < 1` or `size < 1`.\n- `rank()` from level 1 keeps its old meaning (distinct positions).\n\n```python\n# scores: ann 9, bob 9, cy 5\nlb.rank_info(\"bob\")  # {'rank': 1, 'score': 9, 'tied_with': ['ann']}\nlb.page(2, 2)        # {'items': [(3, 'cy', 5)], 'total_players': 3, 'total_pages': 2}\n```",
+     "tests": [
+      {
+       "name": "competition rank and pages",
+       "input": "ann 9, bob 9, cy 5; rank_info(bob), page(2, 2)",
+       "hidden": false,
+       "code": "lb = Leaderboard()\nlb.add_score(\"bob\", 9, 1)\nlb.add_score(\"ann\", 9, 2)\nlb.add_score(\"cy\", 5, 3)\nexpect(lb.rank_info(\"bob\"), {\"rank\": 1, \"score\": 9, \"tied_with\": [\"ann\"]})\nexpect(lb.page(2, 2), {\"items\": [(3, \"cy\", 5)], \"total_players\": 3, \"total_pages\": 2})\nexpect(lb.rank(\"bob\"), 2)"
+      },
+      {
+       "name": "1, 2, 2, 4 ranking",
+       "input": "a 10, b 7, c 7, d 3; page(1, 10)",
+       "hidden": true,
+       "code": "lb = Leaderboard()\nfor name, pts in [(\"d\", 3), (\"c\", 7), (\"b\", 7), (\"a\", 10)]:\n    lb.add_score(name, pts, 1)\nexpect(lb.page(1, 10)[\"items\"], [(1, \"a\", 10), (2, \"b\", 7), (2, \"c\", 7), (4, \"d\", 3)])\nexpect(lb.rank_info(\"d\"), {\"rank\": 4, \"score\": 3, \"tied_with\": []})"
+      },
+      {
+       "name": "tie spanning a page boundary",
+       "input": "four players all 5; page(2, 3)",
+       "hidden": true,
+       "code": "lb = Leaderboard()\nfor name in [\"w\", \"x\", \"y\", \"z\"]:\n    lb.add_score(name, 5, 1)\nexpect(lb.page(2, 3)[\"items\"], [(1, \"z\", 5)])\nexpect(lb.rank_info(\"w\")[\"tied_with\"], [\"x\", \"y\", \"z\"])"
+      },
+      {
+       "name": "page past the end and empty board",
+       "input": "page(5, 2) with 3 players; page(1, 5) on empty",
+       "hidden": true,
+       "code": "lb = Leaderboard()\nexpect(lb.page(1, 5), {\"items\": [], \"total_players\": 0, \"total_pages\": 0})\nfor name in \"abc\":\n    lb.add_score(name, 1, 1)\nexpect(lb.page(5, 2), {\"items\": [], \"total_players\": 3, \"total_pages\": 2})"
+      },
+      {
+       "name": "invalid page arguments and unknown player",
+       "input": "page(0, 2), page(1, 0), rank_info(ghost)",
+       "hidden": true,
+       "code": "lb = Leaderboard()\nlb.add_score(\"a\", 1, 1)\nexpect_raises(ValueError, lb.page, 0, 2)\nexpect_raises(ValueError, lb.page, 1, 0)\nexpect(lb.rank_info(\"ghost\"), None)"
+      }
+     ]
+    },
+    {
+     "title": "Level 4: moderation",
+     "brief": "Cheaters and duplicate accounts appear. Add moderation without corrupting the boards.\n\n- `ban(player) -> bool` — hides the player from `top`, `rank`, `top_in_window`, `rank_info`, `page` (ranks of everyone else close up). `rank`/`rank_info` return `None` for a banned player. `add_score` for a banned player raises `PermissionError`. `score`/`score_in_window` still report raw numbers (moderators need them). Returns `False` if the player is unknown or already banned.\n- `unban(player) -> bool` — restores them; `False` if not banned.\n- `merge_players(source, target) -> int` — moves all of `source`'s events (keeping their timestamps) to `target`, so windows stay correct; `source` disappears. Returns `target`'s new total. `ValueError` if `source == target`, `KeyError` if `source` unknown, `PermissionError` if either is banned. `target` may be new.\n\n```python\nlb.ban(\"cheat\")         # True\nlb.merge_players(\"ann_alt\", \"ann\")  # ann's new total\n```",
+     "tests": [
+      {
+       "name": "ban hides a player and ranks close up",
+       "input": "a 50, b 40, c 30; ban(a); top(3), rank(b), page(1, 5)",
+       "hidden": false,
+       "code": "lb = Leaderboard()\nlb.add_score(\"a\", 50, 1)\nlb.add_score(\"b\", 40, 1)\nlb.add_score(\"c\", 30, 1)\nexpect(lb.ban(\"a\"), True)\nexpect(lb.top(3), [(\"b\", 40), (\"c\", 30)])\nexpect([lb.rank(\"b\"), lb.rank(\"a\"), lb.rank_info(\"a\")], [1, None, None])\nexpect(lb.page(1, 5)[\"items\"], [(1, \"b\", 40), (2, \"c\", 30)])"
+      },
+      {
+       "name": "banned player cannot score; raw score still visible",
+       "input": "ban(a); add_score(a, 5); score(a); unban(a)",
+       "hidden": true,
+       "code": "lb = Leaderboard()\nlb.add_score(\"a\", 10, 1)\nlb.ban(\"a\")\nexpect_raises(PermissionError, lb.add_score, \"a\", 5, 2)\nexpect(lb.score(\"a\"), 10)\nexpect(lb.unban(\"a\"), True)\nexpect(lb.top(1), [(\"a\", 10)])"
+      },
+      {
+       "name": "ban/unban return values",
+       "input": "ban(ghost), ban twice, unban not-banned",
+       "hidden": true,
+       "code": "lb = Leaderboard()\nlb.add_score(\"a\", 1, 1)\nexpect(lb.ban(\"ghost\"), False)\nexpect([lb.ban(\"a\"), lb.ban(\"a\")], [True, False])\nexpect([lb.unban(\"a\"), lb.unban(\"a\")], [True, False])"
+      },
+      {
+       "name": "banned players vanish from window boards too",
+       "input": "a and b score in window; ban(b)",
+       "hidden": true,
+       "code": "lb = Leaderboard()\nlb.add_score(\"a\", 1, 5)\nlb.add_score(\"b\", 9, 5)\nlb.ban(\"b\")\nexpect(lb.top_in_window(5, 0, 10), [(\"a\", 1)])\nexpect(lb.score_in_window(\"b\", 0, 10), 9)"
+      },
+      {
+       "name": "merge keeps event timestamps",
+       "input": "ann 10@1, alt 5@20, alt 3@2; merge(alt → ann)",
+       "hidden": true,
+       "code": "lb = Leaderboard()\nlb.add_score(\"ann\", 10, 1)\nlb.add_score(\"alt\", 5, 20)\nlb.add_score(\"alt\", 3, 2)\nexpect(lb.merge_players(\"alt\", \"ann\"), 18)\nexpect([lb.score(\"alt\"), lb.rank(\"alt\")], [0, None])\nexpect(lb.score_in_window(\"ann\", 0, 10), 13)\nexpect(lb.top(5), [(\"ann\", 18)])"
+      },
+      {
+       "name": "merge errors and merge into a new name",
+       "input": "merge(a, a), merge(ghost, a), merge with banned; merge(a → fresh)",
+       "hidden": true,
+       "code": "lb = Leaderboard()\nlb.add_score(\"a\", 4, 1)\nlb.add_score(\"b\", 2, 1)\nexpect_raises(ValueError, lb.merge_players, \"a\", \"a\")\nexpect_raises(KeyError, lb.merge_players, \"ghost\", \"a\")\nlb.ban(\"b\")\nexpect_raises(PermissionError, lb.merge_players, \"a\", \"b\")\nexpect(lb.merge_players(\"a\", \"fresh\"), 4)\nexpect(lb.rank_info(\"fresh\"), {\"rank\": 1, \"score\": 4, \"tied_with\": []})"
+      }
+     ]
+    }
+   ],
+   "hints": [
+    "Store raw score events, not just totals: windows and merges both need to know when each point arrived. Write the ordering (score descending, name ascending) once and reuse it everywhere.",
+    "Keep a totals dict for fast all-time reads and an event list of (timestamp, player, points). One helper sorts any totals dict by the shared key and filters out banned players; window boards just build a totals dict from filtered events and call the same helper.",
+    "Competition rank: walk the sorted list and when the score changes set the place to the current 1-based index, otherwise keep the previous place. Pagination slices that ranked list at (page - 1) * size, and total pages is ceiling division. A merge rewrites the player name in the event list and moves the total, so windows stay correct; sorting is O(P log P) per query, which is fine here; mention a sorted structure or a heap if asked about scale."
+   ],
+   "solution": "\n### Key insight\nKeep **events** as the source of truth and **totals** as a cache, and funnel every board\nthrough one `_ordered` helper (sort + ban filter). Then windows, ranks, pages and moderation\nall agree on ordering for free.\n\n### Reference implementation (all 4 levels)\n```python\nclass Leaderboard:\n    \"\"\"Game leaderboard: totals, ranks, time windows, pagination and moderation.\"\"\"\n\n    def __init__(self):\n        self.totals: dict[str, int] = {}\n        self.events: list[tuple[int, str, int]] = []  # (timestamp, player, points)\n        self.banned: set[str] = set()                 # Level 4\n\n    # ----- Level 1: scores and ranks -----\n    def add_score(self, player: str, points: int, timestamp: int) -> int:\n        if player in self.banned:\n            raise PermissionError(f\"{player} is banned\")\n        if not isinstance(points, int) or isinstance(points, bool) or points <= 0:\n            raise ValueError(\"points must be a positive int\")\n        self.totals[player] = self.totals.get(player, 0) + points\n        self.events.append((timestamp, player, points))\n        return self.totals[player]\n\n    def score(self, player: str) -> int:\n        return self.totals.get(player, 0)\n\n    def _ordered(self, totals: dict[str, int]) -> list[tuple[str, int]]:\n        visible = [(p, s) for p, s in totals.items() if p not in self.banned]\n        return sorted(visible, key=lambda item: (-item[1], item[0]))\n\n    def top(self, n: int) -> list[tuple[str, int]]:\n        return self._ordered(self.totals)[:max(n, 0)]\n\n    def rank(self, player: str) -> int | None:\n        for position, (name, _) in enumerate(self._ordered(self.totals), start=1):\n            if name == player:\n                return position\n        return None\n\n    # ----- Level 2: time windows -----\n    def _window_totals(self, start: int, end: int) -> dict[str, int]:\n        totals: dict[str, int] = {}\n        for timestamp, player, points in self.events:\n            if start <= timestamp < end:\n                totals[player] = totals.get(player, 0) + points\n        return totals\n\n    def score_in_window(self, player: str, start: int, end: int) -> int:\n        return self._window_totals(start, end).get(player, 0)\n\n    def top_in_window(self, n: int, start: int, end: int) -> list[tuple[str, int]]:\n        if start >= end:\n            raise ValueError(\"start must be < end\")\n        return self._ordered(self._window_totals(start, end))[:max(n, 0)]\n\n    # ----- Level 3: ties and pagination -----\n    def _competition(self) -> list[tuple[int, str, int]]:\n        rows, previous, place = [], None, 0\n        for index, (name, total) in enumerate(self._ordered(self.totals), start=1):\n            if total != previous:\n                place, previous = index, total\n            rows.append((place, name, total))\n        return rows\n\n    def rank_info(self, player: str) -> dict | None:\n        rows = self._competition()\n        mine = next((row for row in rows if row[1] == player), None)\n        if mine is None:\n            return None\n        tied = [name for place, name, _ in rows if place == mine[0] and name != player]\n        return {\"rank\": mine[0], \"score\": mine[2], \"tied_with\": tied}\n\n    def page(self, page: int, size: int) -> dict:\n        if page < 1 or size < 1:\n            raise ValueError(\"page and size must be >= 1\")\n        rows = self._competition()\n        start = (page - 1) * size\n        return {\n            \"items\": rows[start:start + size],\n            \"total_players\": len(rows),\n            \"total_pages\": (len(rows) + size - 1) // size,\n        }\n\n    # ----- Level 4: moderation -----\n    def ban(self, player: str) -> bool:\n        if player not in self.totals or player in self.banned:\n            return False\n        self.banned.add(player)\n        return True\n\n    def unban(self, player: str) -> bool:\n        if player not in self.banned:\n            return False\n        self.banned.discard(player)\n        return True\n\n    def merge_players(self, source: str, target: str) -> int:\n        if source == target:\n            raise ValueError(\"cannot merge a player into itself\")\n        if source not in self.totals:\n            raise KeyError(source)\n        if source in self.banned or target in self.banned:\n            raise PermissionError(\"cannot merge banned players\")\n        self.events = [(t, target if p == source else p, pts) for t, p, pts in self.events]\n        self.totals[target] = self.totals.get(target, 0) + self.totals.pop(source)\n        return self.totals[target]\n```\n\n### Design notes per level\n- **Level 1:** `sorted(key=lambda (p, s): (-s, p))` gives score desc, name asc in one pass. Validate points strictly (bool is an int subclass in Python).\n- **Level 2:** a window board is the same ordering over totals recomputed from events in `[start, end)`; O(E) per query. At scale you'd bucket events per day.\n- **Level 3:** competition rank tracks the index where the current score first appeared. Pagination is plain slicing of the ranked rows; ranks are computed over the whole board before slicing, so a tie that straddles pages keeps its shared rank.\n- **Level 4:** the ban filter lives inside `_ordered`, so every board respects it at once. Merging rewrites events (not just totals) so time windows stay correct.\n\n### Common pitfalls\n- Dense ranking (1, 1, 2) instead of competition ranking (1, 1, 3).\n- Computing ranks per page instead of over the whole board.\n- Accepting `True` or `1.5` as points.\n- Moving only the total in a merge, which breaks window queries.\n- Forgetting the ban filter in one of the five board methods.\n"
+  },
+  "ch-8": {
+   "brief": "\n### Scenario\nYour company ships AI features (a new model, a new prompt, a new retrieval pipeline) behind\n**feature flags** so they can be targeted, rolled out gradually and switched off fast. Over\nfour levels you build flags with targeting rules, deterministic percentage rollouts, an\naudit log with rollback, and prerequisite flags with cycle detection. This mirrors how\nApplied AI teams run online experiments and safe launches.\n\nA *user* is a plain dict such as `{\"id\": \"u1\", \"country\": \"IN\", \"plan\": \"pro\"}`.\n\n### How the levels work\nYou build one codebase across **4 levels**. Open a level, read what it adds, extend your\nexisting code, run its tests. **Each level's tests include every earlier level's tests**, so a\nchange in level 3 must not break level 1 behaviour. Only the level 1 shells are in the\nstarter: you add the methods named in later level briefs yourself.\n\n### Time guidance (~75 min total)\nLevel 1 ~15 min, level 2 ~15 min, level 3 ~20 min, level 4 ~25 min. If you blow past a\nlevel's time, finish it simply and move on; interviewers score progress through levels.\n\n### Interview tips\n- Narrate: say what state you keep and why before you type.\n- Keep level 1 dead simple (dicts and lists). Refactor only when a later level forces it.\n- Read every rule in a level brief twice; most failures are a missed tie-break or error case.\n- Run the tests after each method, not at the end.\n",
+   "starter": "class FlagService:\n    \"\"\"Feature flags: targeting rules, percentage rollouts, audit log, prerequisites.\"\"\"\n\n    def __init__(self):\n        pass\n\n    def create_flag(self, name: str, default: bool) -> None:\n        raise NotImplementedError\n\n    def set_default(self, name: str, value: bool) -> None:\n        raise NotImplementedError\n\n    def add_rule(self, name: str, attribute: str, values: list, result: bool) -> None:\n        raise NotImplementedError\n\n    def evaluate(self, name: str, user: dict) -> bool:\n        raise NotImplementedError\n",
+   "tests": [],
+   "levels": [
+    {
+     "title": "Level 1: flags and targeting rules",
+     "brief": "- `create_flag(name, default: bool) -> None` — `ValueError` if it exists.\n- `set_default(name, value: bool) -> None` — `KeyError` for unknown flags (same for every method below that takes a flag name).\n- `add_rule(name, attribute, values: list, result: bool) -> None` — appends a rule; `ValueError` if `values` is empty.\n- `evaluate(name, user: dict) -> bool` — rules are checked **in the order added**; the first rule where `attribute` is in `user` and `user[attribute] in values` decides (returns its `result`). If none match, return the flag's default.\n\n```python\nf = FlagService()\nf.create_flag(\"new-checkout\", False)\nf.add_rule(\"new-checkout\", \"country\", [\"IN\", \"SG\"], True)\nf.evaluate(\"new-checkout\", {\"id\": \"u1\", \"country\": \"IN\"})  # True\nf.evaluate(\"new-checkout\", {\"id\": \"u2\", \"country\": \"US\"})  # False\n```",
+     "tests": [
+      {
+       "name": "rule match vs default",
+       "input": "new-checkout default False; rule country in [IN, SG] → True; users IN and US",
+       "hidden": false,
+       "code": "f = FlagService()\nf.create_flag(\"new-checkout\", False)\nf.add_rule(\"new-checkout\", \"country\", [\"IN\", \"SG\"], True)\nexpect(f.evaluate(\"new-checkout\", {\"id\": \"u1\", \"country\": \"IN\"}), True)\nexpect(f.evaluate(\"new-checkout\", {\"id\": \"u2\", \"country\": \"US\"}), False)"
+      },
+      {
+       "name": "first matching rule wins",
+       "input": "rule plan in [free] → False, then country in [IN] → True; IN free user",
+       "hidden": true,
+       "code": "f = FlagService()\nf.create_flag(\"x\", True)\nf.add_rule(\"x\", \"plan\", [\"free\"], False)\nf.add_rule(\"x\", \"country\", [\"IN\"], True)\nexpect(f.evaluate(\"x\", {\"plan\": \"free\", \"country\": \"IN\"}), False)\nexpect(f.evaluate(\"x\", {\"plan\": \"pro\", \"country\": \"IN\"}), True)"
+      },
+      {
+       "name": "missing attribute does not match",
+       "input": "rule on beta; user without beta key",
+       "hidden": true,
+       "code": "f = FlagService()\nf.create_flag(\"x\", False)\nf.add_rule(\"x\", \"beta\", [True], True)\nexpect(f.evaluate(\"x\", {\"id\": \"u\"}), False)\nexpect(f.evaluate(\"x\", {\"beta\": True}), True)"
+      },
+      {
+       "name": "set_default changes the fallback",
+       "input": "default False → set_default True",
+       "hidden": true,
+       "code": "f = FlagService()\nf.create_flag(\"x\", False)\nf.set_default(\"x\", True)\nexpect(f.evaluate(\"x\", {}), True)"
+      },
+      {
+       "name": "errors",
+       "input": "create twice; unknown flag in evaluate/set_default/add_rule; empty values",
+       "hidden": true,
+       "code": "f = FlagService()\nf.create_flag(\"x\", False)\nexpect_raises(ValueError, f.create_flag, \"x\", True)\nexpect_raises(KeyError, f.evaluate, \"nope\", {})\nexpect_raises(KeyError, f.set_default, \"nope\", True)\nexpect_raises(KeyError, f.add_rule, \"nope\", \"a\", [1], True)\nexpect_raises(ValueError, f.add_rule, \"x\", \"a\", [], True)"
+      }
+     ]
+    },
+    {
+     "title": "Level 2: percentage rollouts",
+     "brief": "Roll a feature out to a stable slice of users.\n\n- `bucket(name, user_id) -> int` (static or instance method) — exactly `zlib.crc32(f\"{name}:{user_id}\".encode(\"utf-8\")) % 100`. Deterministic: the same user always lands in the same bucket for a flag.\n- `set_rollout(name, percent: int | None) -> None` — `0..100` inclusive (else `ValueError`); `None` removes the rollout.\n- `evaluate`: rules still win first. If no rule matched and a rollout is set, return `bucket(name, user[\"id\"]) < percent` (this **replaces** the default). `ValueError` if the user has no `\"id\"` in that case. With no rollout, behaviour is unchanged.\n\nKnown buckets for flag `\"new-checkout\"`: u1 → 18, u2 → 0, u3 → 94, bob → 12, carol → 59.\n\n```python\nf.set_rollout(\"new-checkout\", 20)\nf.evaluate(\"new-checkout\", {\"id\": \"u1\"})   # True  (18 < 20)\nf.evaluate(\"new-checkout\", {\"id\": \"u3\"})   # False (94)\n```",
+     "tests": [
+      {
+       "name": "rollout uses the stable bucket",
+       "input": "set_rollout(new-checkout, 20); users u1 (18), u3 (94)",
+       "hidden": false,
+       "code": "f = FlagService()\nf.create_flag(\"new-checkout\", False)\nf.set_rollout(\"new-checkout\", 20)\nexpect(f.bucket(\"new-checkout\", \"u1\"), 18)\nexpect(f.evaluate(\"new-checkout\", {\"id\": \"u1\"}), True)\nexpect(f.evaluate(\"new-checkout\", {\"id\": \"u3\"}), False)"
+      },
+      {
+       "name": "rules still win over rollout",
+       "input": "rollout 100; rule country in [US] → False",
+       "hidden": true,
+       "code": "f = FlagService()\nf.create_flag(\"new-checkout\", False)\nf.add_rule(\"new-checkout\", \"country\", [\"US\"], False)\nf.set_rollout(\"new-checkout\", 100)\nexpect(f.evaluate(\"new-checkout\", {\"id\": \"u2\", \"country\": \"US\"}), False)\nexpect(f.evaluate(\"new-checkout\", {\"id\": \"u2\", \"country\": \"IN\"}), True)"
+      },
+      {
+       "name": "0% and 100% boundaries; rollout replaces default",
+       "input": "default True; rollout 0 then 100 for u2 (bucket 0)",
+       "hidden": true,
+       "code": "f = FlagService()\nf.create_flag(\"new-checkout\", True)\nf.set_rollout(\"new-checkout\", 0)\nexpect(f.evaluate(\"new-checkout\", {\"id\": \"u2\"}), False)\nf.set_rollout(\"new-checkout\", 100)\nexpect(f.evaluate(\"new-checkout\", {\"id\": \"u3\"}), True)"
+      },
+      {
+       "name": "clearing the rollout restores the default",
+       "input": "set_rollout 50 then None",
+       "hidden": true,
+       "code": "f = FlagService()\nf.create_flag(\"new-checkout\", False)\nf.set_rollout(\"new-checkout\", 50)\nexpect(f.evaluate(\"new-checkout\", {\"id\": \"bob\"}), True)\nf.set_rollout(\"new-checkout\", None)\nexpect(f.evaluate(\"new-checkout\", {\"id\": \"bob\"}), False)"
+      },
+      {
+       "name": "about 30% of 1000 users",
+       "input": "rollout 30 over user0..user999",
+       "hidden": true,
+       "code": "f = FlagService()\nf.create_flag(\"new-checkout\", False)\nf.set_rollout(\"new-checkout\", 30)\nexpect(sum(f.evaluate(\"new-checkout\", {\"id\": f\"user{i}\"}) for i in range(1000)), 301)"
+      },
+      {
+       "name": "validation",
+       "input": "set_rollout 101, -1; evaluate without id under rollout",
+       "hidden": true,
+       "code": "f = FlagService()\nf.create_flag(\"x\", False)\nexpect_raises(ValueError, f.set_rollout, \"x\", 101)\nexpect_raises(ValueError, f.set_rollout, \"x\", -1)\nexpect_raises(KeyError, f.set_rollout, \"nope\", 5)\nf.set_rollout(\"x\", 10)\nexpect_raises(ValueError, f.evaluate, \"x\", {\"country\": \"IN\"})"
+      }
+     ]
+    },
+    {
+     "title": "Level 3: audit log and rollback",
+     "brief": "Every change must be traceable and reversible. This level makes you **retrofit** logging into the methods you already wrote.\n\n- Every successful mutation appends an audit entry. A global sequence number starts at 1 and increases across **all** flags. Actions: `\"create\"`, `\"set_default\"`, `\"add_rule\"`, `\"set_rollout\"` (and `\"rollback\"` below). Failed calls (those that raise) log nothing.\n- `audit_log(name) -> list[dict]` — that flag's entries, oldest first, each `{\"seq\": int, \"action\": str}`.\n- `rollback(name, seq) -> None` — restore the flag's full configuration (default, rules, rollout) to what it was right **after** entry `seq`, then log a `\"rollback\"` entry. `ValueError` if `seq` is not an entry of that flag.\n\n```python\nf.create_flag(\"a\", False)        # seq 1\nf.create_flag(\"b\", True)         # seq 2\nf.add_rule(\"a\", \"plan\", [\"pro\"], True)  # seq 3\nf.audit_log(\"a\")  # [{'seq': 1, 'action': 'create'}, {'seq': 3, 'action': 'add_rule'}]\nf.rollback(\"a\", 1)   # rules gone again; logs seq 4 'rollback'\n```",
+     "tests": [
+      {
+       "name": "global sequence across flags",
+       "input": "create a, create b, add_rule a; audit_log(a)",
+       "hidden": false,
+       "code": "f = FlagService()\nf.create_flag(\"a\", False)\nf.create_flag(\"b\", True)\nf.add_rule(\"a\", \"plan\", [\"pro\"], True)\nexpect(f.audit_log(\"a\"), [{\"seq\": 1, \"action\": \"create\"}, {\"seq\": 3, \"action\": \"add_rule\"}])\nexpect(f.audit_log(\"b\"), [{\"seq\": 2, \"action\": \"create\"}])"
+      },
+      {
+       "name": "rollback restores the full config",
+       "input": "add rule, set rollout, set default; rollback to create",
+       "hidden": true,
+       "code": "f = FlagService()\nf.create_flag(\"a\", False)\nf.add_rule(\"a\", \"plan\", [\"pro\"], True)\nf.set_rollout(\"a\", 100)\nf.set_default(\"a\", True)\nf.rollback(\"a\", 1)\nexpect(f.evaluate(\"a\", {\"id\": \"u1\", \"plan\": \"pro\"}), False)\nexpect([e[\"action\"] for e in f.audit_log(\"a\")], [\"create\", \"add_rule\", \"set_rollout\", \"set_default\", \"rollback\"])"
+      },
+      {
+       "name": "rollback to a middle state",
+       "input": "rollback to the add_rule entry",
+       "hidden": true,
+       "code": "f = FlagService()\nf.create_flag(\"a\", False)\nf.add_rule(\"a\", \"plan\", [\"pro\"], True)\nf.set_rollout(\"a\", 0)\nf.rollback(\"a\", 2)\nexpect(f.evaluate(\"a\", {\"id\": \"u1\", \"plan\": \"pro\"}), True)\nexpect(f.evaluate(\"a\", {\"id\": \"u1\", \"plan\": \"free\"}), False)"
+      },
+      {
+       "name": "later edits do not change old snapshots",
+       "input": "rollback, edit, rollback to the same seq again",
+       "hidden": true,
+       "code": "f = FlagService()\nf.create_flag(\"a\", False)\nf.add_rule(\"a\", \"plan\", [\"pro\"], True)\nf.rollback(\"a\", 2)\nf.add_rule(\"a\", \"plan\", [\"free\"], True)\nf.rollback(\"a\", 2)\nexpect(f.evaluate(\"a\", {\"plan\": \"free\"}), False)\nexpect(f.audit_log(\"a\")[-1], {\"seq\": 5, \"action\": \"rollback\"})"
+      },
+      {
+       "name": "failed calls are not logged; bad rollback seq",
+       "input": "create twice (fails), rollout 500 (fails); rollback(a, seq of b)",
+       "hidden": true,
+       "code": "f = FlagService()\nf.create_flag(\"a\", False)\nf.create_flag(\"b\", False)\nexpect_raises(ValueError, f.create_flag, \"a\", True)\nexpect_raises(ValueError, f.set_rollout, \"a\", 500)\nexpect(f.audit_log(\"a\"), [{\"seq\": 1, \"action\": \"create\"}])\nexpect_raises(ValueError, f.rollback, \"a\", 2)\nexpect_raises(ValueError, f.rollback, \"a\", 99)\nexpect_raises(KeyError, f.audit_log, \"nope\")"
+      }
+     ]
+    },
+    {
+     "title": "Level 4: prerequisites",
+     "brief": "A feature may only turn on when another feature is on (e.g. `\"agent-mode\"` requires `\"new-model\"`).\n\n- `add_prerequisite(name, other, required: bool) -> None` — `name` can only be on for a user when `evaluate(other, user) == required`. Logged as `\"add_prerequisite\"`; part of the flag's config, so `rollback` restores prerequisites too. `KeyError` if either flag is unknown. `ValueError` (and nothing logged) if it would create a cycle, including `name == other`.\n- `evaluate`: check prerequisites first, in the order added; if any is unmet return `False` immediately (rules, rollout and default are not consulted).\n- `rollback` must also raise `ValueError` (and change nothing) if the restored prerequisites would now form a cycle.\n- `evaluate_all(user) -> dict[str, bool]` — every flag's value, keys in sorted order.\n\n```python\nf.add_prerequisite(\"agent-mode\", \"new-model\", True)\nf.evaluate(\"agent-mode\", user)  # False unless new-model is on for user\n```",
+     "tests": [
+      {
+       "name": "prerequisite gates the flag",
+       "input": "agent-mode (default True) requires new-model == True; new-model rule plan pro",
+       "hidden": false,
+       "code": "f = FlagService()\nf.create_flag(\"new-model\", False)\nf.add_rule(\"new-model\", \"plan\", [\"pro\"], True)\nf.create_flag(\"agent-mode\", True)\nf.add_prerequisite(\"agent-mode\", \"new-model\", True)\nexpect(f.evaluate(\"agent-mode\", {\"id\": \"u1\", \"plan\": \"pro\"}), True)\nexpect(f.evaluate(\"agent-mode\", {\"id\": \"u1\", \"plan\": \"free\"}), False)"
+      },
+      {
+       "name": "required=False and chained prerequisites",
+       "input": "c requires b on; b requires kill-switch off",
+       "hidden": true,
+       "code": "f = FlagService()\nf.create_flag(\"kill\", False)\nf.create_flag(\"b\", True)\nf.create_flag(\"c\", True)\nf.add_prerequisite(\"b\", \"kill\", False)\nf.add_prerequisite(\"c\", \"b\", True)\nexpect(f.evaluate_all({\"id\": \"u\"}), {\"b\": True, \"c\": True, \"kill\": False})\nf.set_default(\"kill\", True)\nexpect(f.evaluate_all({\"id\": \"u\"}), {\"b\": False, \"c\": False, \"kill\": True})"
+      },
+      {
+       "name": "prerequisite overrides a matching rule",
+       "input": "rule says True, prerequisite unmet",
+       "hidden": true,
+       "code": "f = FlagService()\nf.create_flag(\"base\", False)\nf.create_flag(\"x\", False)\nf.add_rule(\"x\", \"vip\", [True], True)\nf.add_prerequisite(\"x\", \"base\", True)\nexpect(f.evaluate(\"x\", {\"vip\": True}), False)"
+      },
+      {
+       "name": "cycles are rejected and not logged",
+       "input": "a→b, b→c; then c→a, a→a",
+       "hidden": true,
+       "code": "f = FlagService()\nfor n in \"abc\":\n    f.create_flag(n, True)\nf.add_prerequisite(\"a\", \"b\", True)\nf.add_prerequisite(\"b\", \"c\", True)\nexpect_raises(ValueError, f.add_prerequisite, \"c\", \"a\", True)\nexpect_raises(ValueError, f.add_prerequisite, \"a\", \"a\", True)\nexpect_raises(KeyError, f.add_prerequisite, \"a\", \"nope\", True)\nexpect([e[\"action\"] for e in f.audit_log(\"c\")], [\"create\"])"
+      },
+      {
+       "name": "rollback restores prerequisites",
+       "input": "add prerequisite then rollback to create",
+       "hidden": true,
+       "code": "f = FlagService()\nf.create_flag(\"base\", False)\nf.create_flag(\"x\", True)\nf.add_prerequisite(\"x\", \"base\", True)\nexpect(f.evaluate(\"x\", {}), False)\nf.rollback(\"x\", 2)\nexpect(f.evaluate(\"x\", {}), True)\nexpect(f.audit_log(\"x\")[-2:], [{\"seq\": 3, \"action\": \"add_prerequisite\"}, {\"seq\": 4, \"action\": \"rollback\"}])"
+      },
+      {
+       "name": "rollback that would create a cycle is refused",
+       "input": "a→b at seq 3; rollback a; b→a; rollback a to seq 3",
+       "hidden": true,
+       "code": "f = FlagService()\nf.create_flag(\"a\", True)\nf.create_flag(\"b\", True)\nf.add_prerequisite(\"a\", \"b\", True)\nf.rollback(\"a\", 1)\nf.add_prerequisite(\"b\", \"a\", True)\nexpect_raises(ValueError, f.rollback, \"a\", 3)\nexpect(f.evaluate_all({}), {\"a\": True, \"b\": True})"
+      }
+     ]
+    }
+   ],
+   "hints": [
+    "Model each flag as one plain config dict (default, rules, rollout, prerequisites). Evaluation is an ordered decision list, and both the audit log and rollback become easy if the whole config can be copied as one value.",
+    "evaluate checks prerequisites, then rules in order, then the rollout bucket, then the default. For the audit log, add one helper that bumps a global sequence number and stores the action together with a deep copy of the flag config, and call it at the end of every successful mutation.",
+    "Rollback finds the entry by seq and flag name, deep-copies its stored config back and logs a rollback entry; deep copies matter because rules are lists that later edits mutate. Cycle detection is a DFS from the new prerequisite following prerequisite edges, failing if it reaches the flag being edited; run the same check for every prerequisite a rollback would restore. Evaluation is O(rules + prerequisite depth) per call."
+   ],
+   "solution": "\n### Key insight\nRepresent each flag as a **single config value** and make evaluation an ordered decision\nlist: prerequisites → rules → rollout → default. Snapshots of that one value give you the\naudit log and rollback almost for free.\n\n### Reference implementation (all 4 levels)\n```python\nimport copy\nimport zlib\n\n\nclass FlagService:\n    \"\"\"Feature flags: targeting rules, percentage rollouts, audit log, prerequisites.\"\"\"\n\n    def __init__(self):\n        self.flags: dict[str, dict] = {}\n        self.audit: list[dict] = []  # Level 3: {\"seq\", \"flag\", \"action\", \"config\"}\n        self.seq = 0\n\n    def _flag(self, name: str) -> dict:\n        if name not in self.flags:\n            raise KeyError(name)\n        return self.flags[name]\n\n    def _log(self, name: str, action: str) -> None:\n        self.seq += 1\n        self.audit.append({\"seq\": self.seq, \"flag\": name, \"action\": action,\n                           \"config\": copy.deepcopy(self.flags[name])})\n\n    # ----- Level 1: flags and rules -----\n    def create_flag(self, name: str, default: bool) -> None:\n        if name in self.flags:\n            raise ValueError(f\"flag {name!r} already exists\")\n        self.flags[name] = {\"default\": default, \"rules\": [], \"rollout\": None, \"prereqs\": []}\n        self._log(name, \"create\")\n\n    def set_default(self, name: str, value: bool) -> None:\n        self._flag(name)[\"default\"] = value\n        self._log(name, \"set_default\")\n\n    def add_rule(self, name: str, attribute: str, values: list, result: bool) -> None:\n        if not values:\n            raise ValueError(\"a rule needs at least one value\")\n        self._flag(name)[\"rules\"].append(\n            {\"attribute\": attribute, \"values\": list(values), \"result\": result})\n        self._log(name, \"add_rule\")\n\n    def evaluate(self, name: str, user: dict) -> bool:\n        flag = self._flag(name)\n        # Level 4: prerequisites gate everything else\n        for other, required in flag[\"prereqs\"]:\n            if self.evaluate(other, user) != required:\n                return False\n        for rule in flag[\"rules\"]:\n            if rule[\"attribute\"] in user and user[rule[\"attribute\"]] in rule[\"values\"]:\n                return rule[\"result\"]\n        # Level 2: rollout replaces the default for users no rule matched\n        if flag[\"rollout\"] is not None:\n            if \"id\" not in user:\n                raise ValueError(\"percentage rollout needs user['id']\")\n            return self.bucket(name, user[\"id\"]) < flag[\"rollout\"]\n        return flag[\"default\"]\n\n    # ----- Level 2: percentage rollouts -----\n    @staticmethod\n    def bucket(name: str, user_id: str) -> int:\n        return zlib.crc32(f\"{name}:{user_id}\".encode(\"utf-8\")) % 100\n\n    def set_rollout(self, name: str, percent: int | None) -> None:\n        flag = self._flag(name)\n        if percent is not None and not 0 <= percent <= 100:\n            raise ValueError(\"percent must be between 0 and 100\")\n        flag[\"rollout\"] = percent\n        self._log(name, \"set_rollout\")\n\n    # ----- Level 3: audit log and rollback -----\n    def audit_log(self, name: str) -> list[dict]:\n        self._flag(name)\n        return [{\"seq\": e[\"seq\"], \"action\": e[\"action\"]} for e in self.audit if e[\"flag\"] == name]\n\n    def rollback(self, name: str, seq: int) -> None:\n        self._flag(name)\n        entry = next((e for e in self.audit if e[\"seq\"] == seq and e[\"flag\"] == name), None)\n        if entry is None:\n            raise ValueError(f\"no audit entry {seq} for {name!r}\")\n        restored = copy.deepcopy(entry[\"config\"])\n        for other, _ in restored[\"prereqs\"]:\n            if self._depends_on(other, name):\n                raise ValueError(f\"rollback would create a cycle through {other!r}\")\n        self.flags[name] = restored\n        self._log(name, \"rollback\")\n\n    # ----- Level 4: prerequisites -----\n    def _depends_on(self, name: str, target: str) -> bool:\n        stack, seen = [name], set()\n        while stack:\n            current = stack.pop()\n            if current == target:\n                return True\n            if current in seen:\n                continue\n            seen.add(current)\n            stack.extend(other for other, _ in self.flags[current][\"prereqs\"])\n        return False\n\n    def add_prerequisite(self, name: str, other: str, required: bool) -> None:\n        flag = self._flag(name)\n        self._flag(other)\n        if self._depends_on(other, name):\n            raise ValueError(f\"{name!r} -> {other!r} would create a cycle\")\n        flag[\"prereqs\"].append((other, required))\n        self._log(name, \"add_prerequisite\")\n\n    def evaluate_all(self, user: dict) -> dict[str, bool]:\n        return {name: self.evaluate(name, user) for name in sorted(self.flags)}\n```\n\n### Design notes per level\n- **Level 1:** rules are a list, checked in insertion order; `attribute in user` guards the lookup so missing attributes never match.\n- **Level 2:** hashing `flag:user_id` with CRC32 gives a stable bucket per user *per flag* (different flags slice users differently). The rollout replaces the default only when no rule matched, so explicit targeting still wins. Never use `hash()`: Python randomises string hashes per process.\n- **Level 3:** a single `_log` helper called at the end of each mutation means failures (which raise earlier) are never logged. Snapshots are deep copies, so later edits can't mutate history.\n- **Level 4:** prerequisites are edges in a dependency graph. Adding `name → other` creates a cycle exactly when `other` already reaches `name`; a DFS answers that. Rollback can re-introduce an old edge, so it runs the same check before applying.\n\n### Common pitfalls\n- Using Python's `hash()` for buckets (not stable across runs).\n- Letting the rollout override rules, or the default override the rollout.\n- Logging before validation, so failed calls appear in the audit log.\n- Shallow-copying configs, so a later `add_rule` changes an old snapshot.\n- Forgetting that `rollback` must restore prerequisites and can create cycles.\n"
+  }
+ }
+}

@@ -13,7 +13,8 @@ from app.models import PrepTask
 SEED_PATH = Path(__file__).resolve().parent.parent / "data" / "prep_seed.json"
 CONTENT_DIR = SEED_PATH.parent / "prep_content"
 EXTRA_DIR = SEED_PATH.parent / "prep_extra"
-_CONTENT_FIELDS = ("brief", "starter", "tests", "hints", "solution")
+TRACKS_DIR = SEED_PATH.parent / "prep_tracks"
+_CONTENT_FIELDS = ("brief", "starter", "tests", "hints", "solution", "levels")
 
 _TASK_FIELDS = (
     "type",
@@ -41,10 +42,12 @@ def load_seed() -> dict[str, Any]:
 
 @lru_cache
 def load_extra() -> dict[str, Any]:
-    """The optional extra-practice bank: {"tasks": [...], "content": {id: ...}}."""
+    """Tasks beyond the seed: the optional extra bank and the weekly tracks
+    (challenges, fundamentals), as {"tasks": [...], "content": {id: ...}}."""
     tasks: list[dict[str, Any]] = []
     content: dict[str, dict[str, Any]] = {}
-    for path in sorted(EXTRA_DIR.glob("*.json")):
+    paths = sorted(EXTRA_DIR.glob("*.json")) + sorted(TRACKS_DIR.glob("*.json"))
+    for path in paths:
         part = json.loads(path.read_text(encoding="utf-8"))
         tasks += part["tasks"]
         content.update(part["content"])

@@ -7,6 +7,8 @@ const LINKS = [
   { href: "/prep", label: "Today" },
   { href: "/prep/plan", label: "Plan" },
   { href: "/prep/feedback", label: "Feedback" },
+  { href: "/prep/stories", label: "Stories" },
+  { href: "/prep/mocks", label: "Mocks" },
   { href: "/prep/settings", label: "Settings" },
 ];
 

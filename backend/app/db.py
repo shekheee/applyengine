@@ -56,6 +56,7 @@ def _migrate_prep_task_content() -> None:
         "hints JSON",
         "solution TEXT",
         "difficulty TEXT",
+        "levels JSON",
     )
     with engine.begin() as conn:
         if is_sqlite:

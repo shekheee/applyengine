@@ -26,8 +26,14 @@ import type {
   PrepAttemptResult,
   PrepFeedback,
   PrepHints,
+  PrepMock,
+  PrepMockInput,
   PrepPlan,
   PrepReviewToken,
+  PrepStory,
+  PrepStoryInput,
+  PrepTarget,
+  PrepTargetInput,
   PrepSettings,
   PrepTaskDetail,
   PrepToday,
@@ -1347,6 +1353,29 @@ export const api = {
 
   getPrepLog: (date: string) =>
     req<Record<string, unknown>>(`/api/prep/log?date=${encodeURIComponent(date)}`),
+
+  listPrepStories: () => req<PrepStory[]>("/api/prep/stories"),
+  createPrepStory: (body: PrepStoryInput) =>
+    req<PrepStory>("/api/prep/stories", { method: "POST", body: JSON.stringify(body) }),
+  updatePrepStory: (id: number, body: PrepStoryInput) =>
+    req<PrepStory>(`/api/prep/stories/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  deletePrepStory: (id: number) => req<void>(`/api/prep/stories/${id}`, { method: "DELETE" }),
+  critiquePrepStory: (id: number) =>
+    req<PrepStory>(`/api/prep/stories/${id}/critique`, { method: "POST" }),
+
+  listPrepTargets: () => req<PrepTarget[]>("/api/prep/targets"),
+  createPrepTarget: (body: PrepTargetInput) =>
+    req<PrepTarget>("/api/prep/targets", { method: "POST", body: JSON.stringify(body) }),
+  updatePrepTarget: (id: number, body: PrepTargetInput) =>
+    req<PrepTarget>(`/api/prep/targets/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  deletePrepTarget: (id: number) => req<void>(`/api/prep/targets/${id}`, { method: "DELETE" }),
+
+  listPrepMocks: () => req<PrepMock[]>("/api/prep/mocks"),
+  createPrepMock: (body: PrepMockInput) =>
+    req<PrepMock>("/api/prep/mocks", { method: "POST", body: JSON.stringify(body) }),
+  updatePrepMock: (id: number, body: PrepMockInput) =>
+    req<PrepMock>(`/api/prep/mocks/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  deletePrepMock: (id: number) => req<void>(`/api/prep/mocks/${id}`, { method: "DELETE" }),
 
   getPrepTask: (taskId: string, date?: string) =>
     req<PrepTaskDetail>(

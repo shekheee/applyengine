@@ -329,6 +329,7 @@ def get_task(
             "brief": task.brief,
             "starter": task.starter,
             "tests": task.tests or [],
+            "levels": task.levels,
             "hints_total": len(hints),
             "hints_revealed": hints[:revealed],
             # The ideal solution unlocks once the task has a logged attempt.

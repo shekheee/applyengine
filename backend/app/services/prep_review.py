@@ -82,6 +82,7 @@ def build_daily_log(
             for i in plan["redos"] + plan["morning"] + plan["evening"] + plan["weekend"]
         ],
         "carried_over": [_planned(i) for i in plan["carried"]],
+        "this_week": [_planned(i) for i in plan["weekly"]],
         "extra_practice": [_planned(i) for i in plan["extra"]],
         "attempts": [attempt_row(a) for a in todays],
         "streak": plan["streak"],

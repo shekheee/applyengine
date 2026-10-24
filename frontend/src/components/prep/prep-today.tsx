@@ -53,7 +53,11 @@ function toChecklistItem(item: PrepItem): ChecklistItem {
           ? "green"
           : item.difficulty === "medium"
             ? "primary"
-            : "default",
+            : item.difficulty === "hard"
+              ? "red"
+              : item.slot === "weekly"
+                ? "primary"
+                : "default",
     trailing: item.done ? null : (
       <Link
         href={sessionHref(item)}
@@ -145,10 +149,16 @@ export function PrepToday() {
     { title: "Weekend · Project", items: today.weekend, empty: "" },
     { title: "Carried over", items: today.carried, empty: "" },
     {
+      title: "This week",
+      items: today.weekly,
+      empty: "",
+      note: "Fundamentals exercises and the multi-level challenge. Do them any day this week; they count toward the week's progress.",
+    },
+    {
       title: "Extra practice · optional",
       items: today.extra,
       empty: "",
-      note: "One easy and two medium on this week's pattern. They change daily and don't count toward today's total, but finishing them still counts for your streak.",
+      note: "One easy and two medium on this week's pattern, plus a hard from week 3. They change daily and don't count toward today's total, but finishing them still counts for your streak.",
     },
   ];
   const upNext = [...today.redos, ...today.morning, ...today.evening, ...today.weekend].find(

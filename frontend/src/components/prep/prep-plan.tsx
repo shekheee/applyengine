@@ -18,6 +18,8 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: "lld", label: "LLD" },
   { id: "hld", label: "HLD" },
   { id: "project", label: "Project" },
+  { id: "challenge", label: "Challenges" },
+  { id: "fundamentals", label: "Fundamentals" },
 ];
 
 const STATUS: Record<PrepPlanTask["status"], { label: string; tone: "default" | "green" | "amber" }> = {

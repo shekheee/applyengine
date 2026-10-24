@@ -156,10 +156,13 @@ export function CodeRunner({
   code,
   tests,
   timeoutMs = 10_000,
+  onResult,
 }: {
   code: string;
   tests?: RunnerTest[];
   timeoutMs?: number;
+  /** Called after every run with how many cases passed. */
+  onResult?: (outcome: { mode: "run" | "submit"; passed: number; total: number }) => void;
 }) {
   const workerRef = useRef<Worker | null>(null);
   const loadedRef = useRef(false);
@@ -234,6 +237,11 @@ export function CodeRunner({
           ms: data.ms,
         };
         setResult(next);
+        onResult?.({
+          mode,
+          passed: next.error ? 0 : next.cases.filter((c) => c.passed).length,
+          total: next.cases.length,
+        });
         const firstFailed = next.cases.findIndex((c) => !c.passed);
         setSelectedResult(firstFailed === -1 ? 0 : firstFailed);
       }

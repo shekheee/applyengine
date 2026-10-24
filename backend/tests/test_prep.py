@@ -162,8 +162,22 @@ def _extra(number: int, week: int, difficulty: str, order: int) -> PrepTask:
 
 EXTRAS = [
     _extra(1000 + 100 * week + i, week, difficulty, i)
-    for week in (1, 2)
-    for i, difficulty in enumerate(["easy"] * 4 + ["medium"] * 8)
+    for week in (1, 2, 3)
+    for i, difficulty in enumerate(["easy"] * 4 + ["medium"] * 8 + ["hard"] * 3)
+]
+
+
+def _weekly(task_id: str, task_type: str, week: int, order: int = 0) -> PrepTask:
+    return PrepTask(
+        id=task_id, type=task_type, week=week, order=order, slot="weekly",
+        title=task_id, target_minutes=40,
+    )
+
+
+WEEKLY = [
+    _weekly("fu-1", "fundamentals", 2, 0),
+    _weekly("fu-2", "fundamentals", 2, 1),
+    _weekly("ch-1", "challenge", 3),
 ]
 
 
@@ -172,6 +186,25 @@ class PrepExtraPracticeTests(unittest.TestCase):
         picked = pick_extras(EXTRAS, MONDAY, MONDAY + timedelta(days=8), 2, set())
         self.assertEqual([t.difficulty for t in picked], ["easy", "medium", "medium"])
         self.assertTrue(all(t.week == 2 for t in picked))
+
+    def test_a_hard_problem_joins_from_week_three(self):
+        picked = pick_extras(EXTRAS, MONDAY, MONDAY + timedelta(days=15), 3, set())
+        self.assertEqual([t.difficulty for t in picked], ["easy", "medium", "medium", "hard"])
+        self.assertEqual(picked[-1].week, 3)
+
+    def test_weekly_tracks_stay_until_done_and_carry_over(self):
+        tasks = _tasks() + WEEKLY
+        week2 = MONDAY + timedelta(days=7)
+        plan = build_today(tasks, MONDAY, week2, [], [])
+        self.assertEqual([i["task_id"] for i in plan["weekly"]], ["fu-1", "fu-2"])
+        self.assertEqual(plan["weekly"][0]["badge"], "Fundamentals")
+        self.assertEqual(plan["week_progress"]["total"], 9 + 5 + 2)
+        done = [_attempt("fu-1", week2)]
+        later = build_today(tasks, MONDAY, week2 + timedelta(days=8), done, [])
+        self.assertEqual([i["task_id"] for i in later["weekly"]], ["fu-2", "ch-1"])
+        self.assertEqual(later["weekly"][0]["badge"], "Carried over")
+        self.assertEqual(later["weekly"][1]["badge"], "Challenge")
+        self.assertEqual(build_today(tasks, MONDAY, MONDAY, [], [])["weekly"], [])
 
     def test_pick_is_stable_within_a_day_and_rotates_daily(self):
         day = MONDAY + timedelta(days=2)
@@ -188,7 +221,8 @@ class PrepExtraPracticeTests(unittest.TestCase):
         self.assertNotIn(picked[0].id, week2_easy)
 
     def test_weeks_after_the_bank_draw_from_everything_and_none_before_start(self):
-        self.assertEqual(len(pick_extras(EXTRAS, MONDAY, MONDAY + timedelta(days=60), 9, set())), 3)
+        late = pick_extras(EXTRAS, MONDAY, MONDAY + timedelta(days=60), 9, set())
+        self.assertEqual([t.difficulty for t in late], ["easy", "medium", "medium", "hard"])
         self.assertEqual(pick_extras(EXTRAS, MONDAY, MONDAY - timedelta(days=1), 0, set()), [])
 
     def test_extras_show_on_today_but_never_count_toward_totals(self):
@@ -518,7 +552,11 @@ class PrepPlanTests(unittest.TestCase):
             plan = get_plan(self.today, session, session.get(User, self.user_id))
             self.assertFalse(plan.configured)
             self.assertEqual([w.week for w in plan.weeks], list(range(1, 11)))
-            self.assertEqual(sum(len(w.tasks) for w in plan.weeks), 109)
+            weekly = [t for t in load_extra()["tasks"] if t["slot"] == "weekly"]
+            self.assertEqual(sum(len(w.tasks) for w in plan.weeks), 109 + len(weekly))
+            types = {t.type for w in plan.weeks for t in w.tasks}
+            self.assertNotIn("x-lc", " ".join(t.task_id for w in plan.weeks for t in w.tasks))
+            self.assertTrue({"challenge", "fundamentals"} <= types or not weekly)
             self.assertEqual(plan.weeks[0].tasks[0].title, "1. Two Sum")
 
     def test_plan_status_reflects_attempts_and_queued_redos(self):
@@ -566,7 +604,8 @@ class PrepPlanTests(unittest.TestCase):
             )
             plan = get_plan(self.today, session, user)
             self.assertEqual(plan.current_week, 9)
-            self.assertEqual([t.title for t in plan.weeks[8].tasks], ["Koko Eating Bananas"])
+            neetcode = [t.title for t in plan.weeks[8].tasks if t.task_id.startswith("nc-")]
+            self.assertEqual(neetcode, ["Koko Eating Bananas"])
 
     def test_feedback_history_is_newest_first_and_private(self):
         with Session(self.engine) as session:
@@ -882,6 +921,106 @@ class PrepContentAndTutorTests(unittest.TestCase):
         self.assertEqual(events[-1]["type"], "done")
         self.assertIn("Use a dict of complements.", events[-1]["message"]["content"])
         self.assertEqual(events[-1]["message"]["model_served"], "offline")
+
+
+class PrepInterviewTests(unittest.TestCase):
+    """Story bank, target companies and the mock log over HTTP."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.engine = create_engine(
+            f"sqlite:///{Path(self.tmp.name) / 'test.db'}",
+            connect_args={"check_same_thread": False},
+        )
+        SQLModel.metadata.create_all(self.engine)
+        with Session(self.engine) as session:
+            user = User(email="one@example.com", name="One")
+            other = User(email="two@example.com", name="Two")
+            session.add(user)
+            session.add(other)
+            session.commit()
+            self.jwt = {"Authorization": f"Bearer {create_access_token(user.id)}"}
+            self.other_jwt = {"Authorization": f"Bearer {create_access_token(other.id)}"}
+
+        def override():
+            with Session(self.engine) as session:
+                yield session
+
+        app.dependency_overrides[get_session] = override
+        self.client = TestClient(app)
+
+    def tearDown(self):
+        app.dependency_overrides.clear()
+        self.tmp.cleanup()
+
+    STORY = {
+        "title": "Rescued the eval pipeline",
+        "situation": "Our eval runs took 9 hours and blocked releases.",
+        "task": "I owned getting them under an hour.",
+        "action": "We profiled it. We batched calls. We cached prompts.",
+        "result": "Runs dropped to 40 minutes.",
+        "tags": ["ownership", "impact"],
+        "companies": ["Anthropic"],
+    }
+
+    def test_story_crud_is_private(self):
+        created = self.client.post("/api/prep/stories", json=self.STORY, headers=self.jwt).json()
+        self.assertEqual(created["tags"], ["ownership", "impact"])
+        updated = self.client.put(
+            f"/api/prep/stories/{created['id']}",
+            json={**self.STORY, "title": "Faster evals"},
+            headers=self.jwt,
+        ).json()
+        self.assertEqual(updated["title"], "Faster evals")
+        self.assertEqual(self.client.get("/api/prep/stories", headers=self.other_jwt).json(), [])
+        other_put = self.client.put(
+            f"/api/prep/stories/{created['id']}", json=self.STORY, headers=self.other_jwt
+        )
+        self.assertEqual(other_put.status_code, 404)
+        self.client.delete(f"/api/prep/stories/{created['id']}", headers=self.jwt)
+        self.assertEqual(self.client.get("/api/prep/stories", headers=self.jwt).json(), [])
+
+    def test_critique_uses_the_model_and_falls_back_to_rules(self):
+        story_id = self.client.post("/api/prep/stories", json=self.STORY, headers=self.jwt).json()["id"]
+
+        class FakeModel:
+            def __init__(self):
+                self.messages = None
+
+            def chat_messages(self, messages, json_mode=False, max_tokens=4096):
+                self.messages = messages
+                return "### Verdict\nStrong."
+
+        fake = FakeModel()
+        with patch("app.routers.prep_interview.build_coach_provider", return_value=fake):
+            out = self.client.post(f"/api/prep/stories/{story_id}/critique", headers=self.jwt).json()
+        self.assertEqual(out["critique"], "### Verdict\nStrong.")
+        self.assertIn("Runs dropped to 40 minutes.", fake.messages[1]["content"])
+
+        with patch(
+            "app.routers.prep_interview.build_coach_provider", side_effect=RuntimeError("no keys")
+        ):
+            out = self.client.post(f"/api/prep/stories/{story_id}/critique", headers=self.jwt).json()
+        self.assertIn("rule-based", out["critique"])
+        self.assertIn('says "we" 3x', out["critique"])
+
+    def test_targets_and_mocks(self):
+        target = self.client.post(
+            "/api/prep/targets",
+            json={"company": "Anthropic", "role": "Applied AI Engineer", "why": "Safety focus."},
+            headers=self.jwt,
+        ).json()
+        self.assertEqual(target["company"], "Anthropic")
+        mock = {"date": "2026-10-20", "kind": "system_design", "score": 4, "to_improve": "Estimates"}
+        created = self.client.post("/api/prep/mocks", json=mock, headers=self.jwt).json()
+        self.assertEqual((created["kind"], created["duration_minutes"]), ("system_design", 45))
+        bad = self.client.post(
+            "/api/prep/mocks", json={**mock, "kind": "chess", "score": 9}, headers=self.jwt
+        )
+        self.assertEqual(bad.status_code, 422)
+        self.assertEqual(len(self.client.get("/api/prep/mocks", headers=self.jwt).json()), 1)
+        self.assertEqual(self.client.get("/api/prep/mocks", headers=self.other_jwt).json(), [])
+        self.assertEqual(self.client.get("/api/prep/targets", headers=self.other_jwt).json(), [])
 
 if __name__ == "__main__":
     unittest.main()

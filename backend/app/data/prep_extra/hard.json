@@ -1,0 +1,582 @@
+{
+ "tasks": [
+  {
+   "id": "x-lc-41",
+   "type": "dsa",
+   "week": 1,
+   "order": 0,
+   "slot": "extra",
+   "difficulty": "hard",
+   "title": "41. First Missing Positive",
+   "pattern": "Arrays & hashing",
+   "url": "https://leetcode.com/problems/first-missing-positive/",
+   "target_minutes": 45,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-1074",
+   "type": "dsa",
+   "week": 1,
+   "order": 1,
+   "slot": "extra",
+   "difficulty": "hard",
+   "title": "1074. Number of Submatrices That Sum to Target",
+   "pattern": "Arrays & hashing",
+   "url": "https://leetcode.com/problems/number-of-submatrices-that-sum-to-target/",
+   "target_minutes": 45,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-149",
+   "type": "dsa",
+   "week": 1,
+   "order": 2,
+   "slot": "extra",
+   "difficulty": "hard",
+   "title": "149. Max Points on a Line",
+   "pattern": "Arrays & hashing",
+   "url": "https://leetcode.com/problems/max-points-on-a-line/",
+   "target_minutes": 45,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-42",
+   "type": "dsa",
+   "week": 2,
+   "order": 0,
+   "slot": "extra",
+   "difficulty": "hard",
+   "title": "42. Trapping Rain Water",
+   "pattern": "Two pointers / sliding window",
+   "url": "https://leetcode.com/problems/trapping-rain-water/",
+   "target_minutes": 45,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-239",
+   "type": "dsa",
+   "week": 2,
+   "order": 1,
+   "slot": "extra",
+   "difficulty": "hard",
+   "title": "239. Sliding Window Maximum",
+   "pattern": "Two pointers / sliding window",
+   "url": "https://leetcode.com/problems/sliding-window-maximum/",
+   "target_minutes": 45,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-992",
+   "type": "dsa",
+   "week": 2,
+   "order": 2,
+   "slot": "extra",
+   "difficulty": "hard",
+   "title": "992. Subarrays with K Different Integers",
+   "pattern": "Two pointers / sliding window",
+   "url": "https://leetcode.com/problems/subarrays-with-k-different-integers/",
+   "target_minutes": 45,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-84",
+   "type": "dsa",
+   "week": 3,
+   "order": 0,
+   "slot": "extra",
+   "difficulty": "hard",
+   "title": "84. Largest Rectangle in Histogram",
+   "pattern": "Stack / binary search",
+   "url": "https://leetcode.com/problems/largest-rectangle-in-histogram/",
+   "target_minutes": 45,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-4",
+   "type": "dsa",
+   "week": 3,
+   "order": 1,
+   "slot": "extra",
+   "difficulty": "hard",
+   "title": "4. Median of Two Sorted Arrays",
+   "pattern": "Stack / binary search",
+   "url": "https://leetcode.com/problems/median-of-two-sorted-arrays/",
+   "target_minutes": 45,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-410",
+   "type": "dsa",
+   "week": 3,
+   "order": 2,
+   "slot": "extra",
+   "difficulty": "hard",
+   "title": "410. Split Array Largest Sum",
+   "pattern": "Stack / binary search",
+   "url": "https://leetcode.com/problems/split-array-largest-sum/",
+   "target_minutes": 45,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-23",
+   "type": "dsa",
+   "week": 4,
+   "order": 0,
+   "slot": "extra",
+   "difficulty": "hard",
+   "title": "23. Merge k Sorted Lists",
+   "pattern": "Linked lists / intervals",
+   "url": "https://leetcode.com/problems/merge-k-sorted-lists/",
+   "target_minutes": 45,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-25",
+   "type": "dsa",
+   "week": 4,
+   "order": 1,
+   "slot": "extra",
+   "difficulty": "hard",
+   "title": "25. Reverse Nodes in k-Group",
+   "pattern": "Linked lists / intervals",
+   "url": "https://leetcode.com/problems/reverse-nodes-in-k-group/",
+   "target_minutes": 45,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-352",
+   "type": "dsa",
+   "week": 4,
+   "order": 2,
+   "slot": "extra",
+   "difficulty": "hard",
+   "title": "352. Data Stream as Disjoint Intervals",
+   "pattern": "Linked lists / intervals",
+   "url": "https://leetcode.com/problems/data-stream-as-disjoint-intervals/",
+   "target_minutes": 45,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-124",
+   "type": "dsa",
+   "week": 5,
+   "order": 0,
+   "slot": "extra",
+   "difficulty": "hard",
+   "title": "124. Binary Tree Maximum Path Sum",
+   "pattern": "Trees / tries",
+   "url": "https://leetcode.com/problems/binary-tree-maximum-path-sum/",
+   "target_minutes": 45,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-297",
+   "type": "dsa",
+   "week": 5,
+   "order": 1,
+   "slot": "extra",
+   "difficulty": "hard",
+   "title": "297. Serialize and Deserialize Binary Tree",
+   "pattern": "Trees / tries",
+   "url": "https://leetcode.com/problems/serialize-and-deserialize-binary-tree/",
+   "target_minutes": 45,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-212",
+   "type": "dsa",
+   "week": 5,
+   "order": 2,
+   "slot": "extra",
+   "difficulty": "hard",
+   "title": "212. Word Search II",
+   "pattern": "Trees / tries",
+   "url": "https://leetcode.com/problems/word-search-ii/",
+   "target_minutes": 45,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-332",
+   "type": "dsa",
+   "week": 6,
+   "order": 0,
+   "slot": "extra",
+   "difficulty": "hard",
+   "title": "332. Reconstruct Itinerary",
+   "pattern": "Heaps / graphs",
+   "url": "https://leetcode.com/problems/reconstruct-itinerary/",
+   "target_minutes": 45,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-502",
+   "type": "dsa",
+   "week": 6,
+   "order": 1,
+   "slot": "extra",
+   "difficulty": "hard",
+   "title": "502. IPO",
+   "pattern": "Heaps / graphs",
+   "url": "https://leetcode.com/problems/ipo/",
+   "target_minutes": 45,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-329",
+   "type": "dsa",
+   "week": 6,
+   "order": 2,
+   "slot": "extra",
+   "difficulty": "hard",
+   "title": "329. Longest Increasing Path in a Matrix",
+   "pattern": "Heaps / graphs",
+   "url": "https://leetcode.com/problems/longest-increasing-path-in-a-matrix/",
+   "target_minutes": 45,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-778",
+   "type": "dsa",
+   "week": 7,
+   "order": 0,
+   "slot": "extra",
+   "difficulty": "hard",
+   "title": "778. Swim in Rising Water",
+   "pattern": "Shortest paths / DP",
+   "url": "https://leetcode.com/problems/swim-in-rising-water/",
+   "target_minutes": 45,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-312",
+   "type": "dsa",
+   "week": 7,
+   "order": 1,
+   "slot": "extra",
+   "difficulty": "hard",
+   "title": "312. Burst Balloons",
+   "pattern": "Shortest paths / DP",
+   "url": "https://leetcode.com/problems/burst-balloons/",
+   "target_minutes": 45,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-10",
+   "type": "dsa",
+   "week": 7,
+   "order": 2,
+   "slot": "extra",
+   "difficulty": "hard",
+   "title": "10. Regular Expression Matching",
+   "pattern": "Shortest paths / DP",
+   "url": "https://leetcode.com/problems/regular-expression-matching/",
+   "target_minutes": 45,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-895",
+   "type": "dsa",
+   "week": 8,
+   "order": 0,
+   "slot": "extra",
+   "difficulty": "hard",
+   "title": "895. Maximum Frequency Stack",
+   "pattern": "Design-style",
+   "url": "https://leetcode.com/problems/maximum-frequency-stack/",
+   "target_minutes": 45,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-432",
+   "type": "dsa",
+   "week": 8,
+   "order": 1,
+   "slot": "extra",
+   "difficulty": "hard",
+   "title": "432. All O`one Data Structure",
+   "pattern": "Design-style",
+   "url": "https://leetcode.com/problems/all-oone-data-structure/",
+   "target_minutes": 45,
+   "stretch": false
+  },
+  {
+   "id": "x-lc-381",
+   "type": "dsa",
+   "week": 8,
+   "order": 2,
+   "slot": "extra",
+   "difficulty": "hard",
+   "title": "381. Insert Delete GetRandom O(1) - Duplicates allowed",
+   "pattern": "Design-style",
+   "url": "https://leetcode.com/problems/insert-delete-getrandom-o1-duplicates-allowed/",
+   "target_minutes": 45,
+   "stretch": false
+  }
+ ],
+ "content": {
+  "x-lc-41": {
+   "brief": "Drills **the array as its own hash table**: when the answer must lie in `1..n+1`, you can place each value at index `value-1` by swapping (cyclic sort) and then scan for the first slot that is wrong. O(n) time with O(1) extra space is the whole point.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "The answer is always between 1 and n+1 for an array of length n. Why, and how does that let you avoid a set?",
+    "Use the indices of the array itself as the hash table: try to put every value v in 1..n at position v-1, then the first position i that does not hold i+1 gives the answer.",
+    "For each i, keep swapping nums[i] into position nums[i]-1 while it is in range and that target does not already hold the same value (this stops infinite loops on duplicates). Then scan for the first nums[i] != i+1, else return n+1. Each swap fixes one value, so it is O(n) total."
+   ],
+   "solution": "### Key insight\nOnly the values `1..n` can affect the answer, and the answer is at most `n+1`. So the array's own indices can record which of those values are present: value `v` belongs at index `v-1`.\n\n### Approach\n1. For each index `i`, while `nums[i]` is in `1..n` and `nums[nums[i]-1] != nums[i]`, swap it into its home slot.\n2. Ignore zeros, negatives and values above `n`; they simply stay wherever they end up.\n3. Scan left to right: the first index `i` with `nums[i] != i+1` means `i+1` is missing.\n4. If every slot is correct, the answer is `n+1`.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def firstMissingPositive(self, nums: List[int]) -> int:\n        n = len(nums)\n        for i in range(n):\n            # Move nums[i] to its home index until this slot holds a value we can't place.\n            while 1 <= nums[i] <= n and nums[nums[i] - 1] != nums[i]:\n                j = nums[i] - 1\n                nums[i], nums[j] = nums[j], nums[i]\n        for i in range(n):\n            if nums[i] != i + 1:\n                return i + 1\n        return n + 1\n```\n\n### Complexity\n- **Time:** O(n): every swap puts one value in its final slot, so there are at most n swaps overall.\n- **Space:** O(1) extra (the input is modified in place).\n\n### Common mistakes\n- Writing the swap as `nums[i], nums[nums[i]-1] = ...`: Python evaluates the left targets in order, so `nums[i]` changes before `nums[nums[i]-1]` is resolved. Save the target index first.\n- Checking `nums[i] != i + 1` instead of `nums[nums[i]-1] != nums[i]` as the loop guard, which loops forever on duplicates like `[1, 1]`.\n- Sorting (O(n log n)) or using a set (O(n) space) when the interviewer asked for O(n) time and O(1) space.\n\n### Follow-ups\n- Do it without moving elements: mark presence by negating `nums[v-1]` after replacing non-positive values with `n+1`.\n- Find the k smallest missing positives."
+  },
+  "x-lc-1074": {
+   "brief": "Drills **prefix sums + a count map in two dimensions**: fix a pair of rows, collapse the band into one array of column sums, and you are back to Subarray Sum Equals K (560). The trick is reducing 2D to many 1D problems.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "You already know how to count 1D subarrays with sum k in O(n). How can a submatrix be described as a 1D subarray of something?",
+    "Choose a top row and a bottom row. The sum of each column inside that band gives one array, and every submatrix within the band is a contiguous run of columns in that array.",
+    "For each top row, grow the bottom row one at a time while adding that row into a running column-sum array; then run the prefix-sum count map (seeded with {0: 1}) over the column sums. That is O(rows^2 * cols); put the smaller dimension in the outer loops."
+   ],
+   "solution": "### Key insight\nA submatrix is a choice of row band `[top, bottom]` plus a contiguous range of columns. For a fixed band, the column sums form a 1D array, and counting column ranges with sum `target` is exactly LeetCode 560.\n\n### Approach\n1. For each `top` row, start a zero array `col` of length `cols`.\n2. For each `bottom` from `top` down, add `matrix[bottom]` into `col` (incremental, no re-summing).\n3. Count subarrays of `col` summing to `target` with a running prefix sum and a `Counter` seeded `{0: 1}`.\n\n### Solution\n```python\nfrom collections import defaultdict\nfrom typing import List\n\n\nclass Solution:\n    def numSubmatrixSumTarget(self, matrix: List[List[int]], target: int) -> int:\n        rows, cols = len(matrix), len(matrix[0])\n        count = 0\n        for top in range(rows):\n            col = [0] * cols  # column sums for rows top..bottom\n            for bottom in range(top, rows):\n                for c in range(cols):\n                    col[c] += matrix[bottom][c]\n                seen = defaultdict(int)\n                seen[0] = 1\n                running = 0\n                for value in col:\n                    running += value\n                    count += seen[running - target]\n                    seen[running] += 1\n        return count\n```\n\n### Complexity\n- **Time:** O(rows^2 * cols). Transpose first if rows > cols to get O(min^2 * max).\n- **Space:** O(cols) for the column sums and the count map.\n\n### Common mistakes\n- Forgetting to seed the map with `{0: 1}`, which misses submatrices starting at column 0.\n- Recomputing each band's column sums from scratch, adding a factor of `rows`.\n- Enumerating all four corners with a 2D prefix table: correct but O(rows^2 * cols^2), which times out.\n\n### Follow-ups\n- Find the maximum-sum submatrix no larger than k (363): same band reduction, then a sorted list of prefix sums.\n- Return the largest submatrix (by area) whose sum is exactly target."
+  },
+  "x-lc-149": {
+   "brief": "Drills **hashing a normalized key**: anchor one point, group every other point by the slope to it, and the biggest group is the best line through that anchor. The real skill is making the slope an exact, canonical hash key instead of a float.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Every line through the answer passes through some point. If you fix that point, what do all the other points on the same line share?",
+    "For each anchor point, count other points by their slope to the anchor in a hash map; the largest count plus one is the best line through that anchor. Take the maximum over anchors.",
+    "Represent the slope as a reduced pair (dy/g, dx/g) with g = gcd(dx, dy), and fix the sign (for example make dx positive, or dy positive when dx is 0) so equal slopes hash equal. Floats break on precision and vertical lines. O(n^2) time."
+   ],
+   "solution": "### Key insight\nTwo points on the same line through an anchor have the same direction from it. Hash that direction exactly (as a reduced integer pair, not a float) and count.\n\n### Approach\n1. If there are at most 2 points, return `n`.\n2. For each anchor `i`, look only at points `j > i` (lines through earlier anchors were already counted).\n3. Compute `dx, dy`, divide both by `gcd(dx, dy)`, and normalize the sign so `(1, 2)` and `(-1, -2)` match.\n4. Track the largest bucket; the line holds that many points plus the anchor.\n\n### Solution\n```python\nfrom collections import defaultdict\nfrom math import gcd\nfrom typing import List\n\n\nclass Solution:\n    def maxPoints(self, points: List[List[int]]) -> int:\n        n = len(points)\n        if n <= 2:\n            return n\n        best = 0\n        for i in range(n):\n            x1, y1 = points[i]\n            slopes = defaultdict(int)\n            local = 0\n            for j in range(i + 1, n):\n                dx = points[j][0] - x1\n                dy = points[j][1] - y1\n                g = gcd(dx, dy)\n                dx, dy = dx // g, dy // g\n                if dx < 0 or (dx == 0 and dy < 0):  # one canonical sign per direction\n                    dx, dy = -dx, -dy\n                slopes[(dx, dy)] += 1\n                local = max(local, slopes[(dx, dy)])\n            best = max(best, local + 1)\n        return best\n```\n\n### Complexity\n- **Time:** O(n^2 log M) where the log comes from gcd on coordinates of size M.\n- **Space:** O(n) for the slope map of one anchor.\n\n### Common mistakes\n- Using `dy / dx` as a float key: vertical lines divide by zero and nearly equal slopes collide or split.\n- Not normalizing the sign, so `(1, -1)` and `(-1, 1)` count as different directions.\n- Returning `local` instead of `local + 1` (forgetting the anchor itself).\n\n### Follow-ups\n- Allow duplicate points: count duplicates of the anchor separately and add them to every line.\n- Can you do better than O(n^2)? (Not in general; explain why each pair must be considered.)"
+  },
+  "x-lc-42": {
+   "brief": "Drills **two pointers that move from the side you already know is the bottleneck**: water over a bar is bounded by the smaller of the tallest walls on each side, so whichever side has the lower max can be settled now.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "How much water sits above a single bar? Write it in terms of the tallest bar to its left and the tallest bar to its right.",
+    "Water at i is min(maxLeft, maxRight) - height[i]. Precomputing both arrays works in O(n) space; two pointers can do it in O(1) by always processing the side with the smaller running maximum.",
+    "Keep left/right pointers and leftMax/rightMax. If leftMax < rightMax, the left bar's water is fully determined by leftMax (the right side is at least that tall), so add leftMax - height[left] and move left; otherwise do the mirror on the right. Update the max before adding."
+   ],
+   "solution": "### Key insight\nWater above bar `i` is `min(maxLeft[i], maxRight[i]) - height[i]`. You do not need both exact maxima: if the left running max is smaller than the right running max, the left max is the bottleneck for the left pointer.\n\n### Approach\n1. Start `left = 0`, `right = n-1`, both running maxima 0.\n2. Update `left_max` and `right_max` with the current bars.\n3. If `left_max < right_max`, add `left_max - height[left]` and step `left` right; else add `right_max - height[right]` and step `right` left.\n4. Stop when the pointers cross.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def trap(self, height: List[int]) -> int:\n        left, right = 0, len(height) - 1\n        left_max = right_max = 0\n        water = 0\n        while left < right:\n            left_max = max(left_max, height[left])\n            right_max = max(right_max, height[right])\n            if left_max < right_max:\n                water += left_max - height[left]\n                left += 1\n            else:\n                water += right_max - height[right]\n                right -= 1\n        return water\n```\n\n### Complexity\n- **Time:** O(n), each index is visited once.\n- **Space:** O(1).\n\n### Common mistakes\n- Comparing `height[left] < height[right]` but then adding with the wrong side's max.\n- Adding water before updating the running max, which can produce negative water.\n- Brute force scanning left and right for every bar: O(n^2).\n\n### Follow-ups\n- Solve it with a monotonic stack (fills water layer by layer between walls).\n- Trapping Rain Water II (407): the 2D version needs a min-heap over the border."
+  },
+  "x-lc-239": {
+   "brief": "Drills **a monotonic deque inside a sliding window**: keep indices whose values are decreasing, drop the front when it leaves the window and drop smaller values from the back because they can never be a maximum again.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Recomputing the max of each window is O(nk). Which elements in the window can never become the maximum of any later window?",
+    "If a newer element is at least as large as an older one, the older one is useless from now on. Keep only candidates in a deque, ordered by decreasing value.",
+    "Store indices in the deque. For each i: pop from the back while nums[back] <= nums[i], push i, pop from the front if it is i - k or older, and once i >= k - 1 the front holds the window maximum. Each index enters and leaves once, so O(n)."
+   ],
+   "solution": "### Key insight\nAn element is dominated as soon as a larger (or equal) element arrives after it: it leaves the window first and is never bigger. Keeping only undominated elements gives a deque whose values decrease from front to back, so the front is always the max.\n\n### Approach\n1. Keep a deque of indices with decreasing values.\n2. Before pushing `i`, pop smaller-or-equal values from the back.\n3. Pop the front if its index has slid out (`<= i - k`).\n4. From `i = k-1` on, append `nums[dq[0]]` to the result.\n\n### Solution\n```python\nfrom collections import deque\nfrom typing import List\n\n\nclass Solution:\n    def maxSlidingWindow(self, nums: List[int], k: int) -> List[int]:\n        dq = deque()  # indices, values strictly decreasing from front to back\n        result = []\n        for i, x in enumerate(nums):\n            while dq and nums[dq[-1]] <= x:\n                dq.pop()\n            dq.append(i)\n            if dq[0] <= i - k:\n                dq.popleft()\n            if i >= k - 1:\n                result.append(nums[dq[0]])\n        return result\n```\n\n### Complexity\n- **Time:** O(n), every index is pushed and popped at most once.\n- **Space:** O(k) for the deque.\n\n### Common mistakes\n- Storing values instead of indices, which makes it impossible to tell when the front left the window.\n- Using a heap without lazy deletion, or with it but calling it O(n) (it is O(n log n)).\n- Emitting results before the first full window (i < k - 1).\n\n### Follow-ups\n- Sliding window minimum and the 'shortest subarray with sum at least K' (862), which uses the same deque on prefix sums.\n- Sliding Window Median (480): needs two heaps or a sorted container instead."
+  },
+  "x-lc-992": {
+   "brief": "Drills **the 'exactly K = at most K minus at most K-1' trick**: \"exactly k distinct\" is not monotonic, so a plain sliding window fails, but \"at most k distinct\" is, and counting it with a shrinking window is easy.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Try a normal sliding window for 'exactly k distinct'. When you shrink the left side, which valid subarrays do you lose count of?",
+    "Counting subarrays with at most k distinct values is a standard window: for each right end, every start from left..right works. Exactly k = atMost(k) - atMost(k - 1).",
+    "atMost(k): move right, add nums[right] to a counter; while the counter has more than k keys, decrement nums[left] (deleting zero counts) and advance left; then add right - left + 1. Call it twice. O(n) total."
+   ],
+   "solution": "### Key insight\nThe number of valid subarrays ending at `right` for \"at most k distinct\" is `right - left + 1` once the window is shrunk to be valid. Exactly-k counts are the difference of two at-most counts.\n\n### Approach\n1. Write `at_most(k)` with a `Counter` and a left pointer.\n2. For each `right`, add the element; while more than `k` distinct, remove from the left.\n3. Add `right - left + 1` (all starts that keep the window valid).\n4. Return `at_most(k) - at_most(k - 1)`.\n\n### Solution\n```python\nfrom collections import defaultdict\nfrom typing import List\n\n\nclass Solution:\n    def subarraysWithKDistinct(self, nums: List[int], k: int) -> int:\n        def at_most(limit: int) -> int:\n            counts = defaultdict(int)\n            left = total = 0\n            for right, x in enumerate(nums):\n                counts[x] += 1\n                while len(counts) > limit:\n                    y = nums[left]\n                    counts[y] -= 1\n                    if counts[y] == 0:\n                        del counts[y]\n                    left += 1\n                total += right - left + 1\n            return total\n\n        return at_most(k) - at_most(k - 1)\n```\n\n### Complexity\n- **Time:** O(n), two linear passes.\n- **Space:** O(k) for the counter.\n\n### Common mistakes\n- Running a single window for 'exactly k' and adding 1 per right end, which undercounts.\n- Forgetting to delete keys whose count hits zero, so `len(counts)` never shrinks.\n- Adding 1 per valid window instead of `right - left + 1`.\n\n### Follow-ups\n- Do it in one pass with two left pointers (one for 'at most k', one for 'at most k-1').\n- Count subarrays with exactly k odd numbers (1248) using the same trick."
+  },
+  "x-lc-84": {
+   "brief": "Drills **a monotonic increasing stack**: each bar's best rectangle stretches until a shorter bar on each side, and an increasing stack tells you both boundaries the moment a shorter bar arrives.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "For a single bar, how wide can a rectangle of exactly its height be? What stops it on each side?",
+    "Keep a stack of bars with increasing heights. When a shorter bar arrives, every taller bar on the stack has found its right boundary, and the bar below it on the stack is its left boundary.",
+    "Push (start index, height). On a shorter bar at i, pop taller entries, scoring height * (i - start), and push the new bar with the start of the last popped entry (it can extend left that far). Append a 0-height sentinel at the end to flush the stack. O(n)."
+   ],
+   "solution": "### Key insight\nThe largest rectangle uses the full height of some bar and extends to the first shorter bar on each side. An increasing stack finds both: the right boundary is the bar that pops it, the left boundary is how far back it was allowed to start.\n\n### Approach\n1. Iterate over `heights + [0]` so the stack is emptied at the end.\n2. Keep `(start, height)` pairs with increasing heights.\n3. While the top is taller than the current bar, pop it, score `height * (i - start)` and remember its start.\n4. Push the current bar using the earliest start popped (it extends left over the taller bars).\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def largestRectangleArea(self, heights: List[int]) -> int:\n        stack = []  # (start index, height), heights increasing\n        best = 0\n        for i, h in enumerate(heights + [0]):  # 0 sentinel flushes the stack\n            start = i\n            while stack and stack[-1][1] > h:\n                idx, height = stack.pop()\n                best = max(best, height * (i - idx))\n                start = idx\n            stack.append((start, h))\n        return best\n```\n\n### Complexity\n- **Time:** O(n), each bar is pushed and popped once.\n- **Space:** O(n) for the stack.\n\n### Common mistakes\n- Forgetting the sentinel, so bars left on the stack at the end are never scored.\n- Pushing the new bar with its own index instead of the start of the last popped bar, which understates its width.\n- Checking every pair of boundaries: O(n^2).\n\n### Follow-ups\n- Maximal Rectangle (85): build a histogram per row of a binary matrix and reuse this.\n- Compute, for every bar, the nearest smaller bar on each side (two passes) and explain why it gives the same answer."
+  },
+  "x-lc-4": {
+   "brief": "Drills **binary search on a partition**, not on a value: pick how many elements the left half takes from the shorter array; the rest come from the longer one, and the cut is correct when both left maxima are at most both right minima.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Merging is O(m + n). The target is O(log(min(m, n))). What single number could you binary search over?",
+    "Split both arrays so the combined left side has (m + n + 1) // 2 elements. If you take i from the shorter array, you must take half - i from the other. The split is right when A[i-1] <= B[j] and B[j-1] <= A[i].",
+    "Binary search i over [0, m] on the shorter array, treating out-of-range neighbours as -inf/+inf. If A[i-1] > B[j], move left; else if B[j-1] > A[i], move right. Odd total: median is max of the left side; even: average of max-left and min-right."
+   ],
+   "solution": "### Key insight\nThe median splits the combined data into two halves where everything on the left is at most everything on the right. Choosing `i` elements from the shorter array fixes `j = half - i` from the longer one, and the validity check tells you which direction to move `i`.\n\n### Approach\n1. Make `A` the shorter array; set `half = (m + n + 1) // 2`.\n2. Binary search `i` in `[0, m]`, with `j = half - i`.\n3. Use `-inf` / `+inf` for neighbours outside the arrays.\n4. If `A[i-1] > B[j]` shrink `i`; if `B[j-1] > A[i]` grow `i`; otherwise compute the median.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def findMedianSortedArrays(self, nums1: List[int], nums2: List[int]) -> float:\n        a, b = nums1, nums2\n        if len(a) > len(b):\n            a, b = b, a\n        m, n = len(a), len(b)\n        half = (m + n + 1) // 2\n        lo, hi = 0, m\n        inf = float(\"inf\")\n        while lo <= hi:\n            i = (lo + hi) // 2  # elements taken from a\n            j = half - i        # elements taken from b\n            a_left = a[i - 1] if i > 0 else -inf\n            a_right = a[i] if i < m else inf\n            b_left = b[j - 1] if j > 0 else -inf\n            b_right = b[j] if j < n else inf\n            if a_left <= b_right and b_left <= a_right:\n                if (m + n) % 2:\n                    return float(max(a_left, b_left))\n                return (max(a_left, b_left) + min(a_right, b_right)) / 2\n            if a_left > b_right:\n                hi = i - 1\n            else:\n                lo = i + 1\n        raise ValueError(\"inputs must be sorted\")\n```\n\n### Complexity\n- **Time:** O(log(min(m, n))).\n- **Space:** O(1).\n\n### Common mistakes\n- Binary searching the longer array, so `j` can go negative.\n- Mishandling the edges (`i = 0` or `i = m`) instead of using infinities.\n- Using `(m + n) // 2` for the left size and then taking the wrong side for odd totals.\n\n### Follow-ups\n- Find the k-th smallest element of two sorted arrays (the same idea, eliminating k/2 at a time).\n- Median of a data stream (295) when values arrive one by one."
+  },
+  "x-lc-410": {
+   "brief": "Drills **binary search on the answer**: guess the largest allowed subarray sum, check greedily whether k pieces suffice, and narrow the range. Same shape as Koko Eating Bananas (875), but you minimise a maximum.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "The answer lies between max(nums) and sum(nums). If a cap works, does every larger cap also work?",
+    "Feasibility is monotonic, so binary search the cap. For a cap, greedily extend each piece until adding the next number would exceed it, and count pieces.",
+    "lo = max(nums), hi = sum(nums). Greedy count: start a new piece when current + x > cap. If pieces <= k the cap is feasible, so hi = mid; else lo = mid + 1. Return lo. O(n log(sum))."
+   ],
+   "solution": "### Key insight\nWhether a cap `c` is achievable is monotonic in `c`, and checking a cap is a simple greedy pass. So the minimal largest sum is the smallest feasible cap, found by binary search.\n\n### Approach\n1. Bounds: `lo = max(nums)` (a piece must hold the largest element), `hi = sum(nums)` (one piece).\n2. `pieces_needed(cap)`: walk left to right, cutting whenever the running sum would exceed `cap`.\n3. If `pieces_needed(mid) <= k`, keep `mid` (`hi = mid`), else `lo = mid + 1`.\n4. When `lo == hi`, it is the answer.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def splitArray(self, nums: List[int], k: int) -> int:\n        def pieces_needed(cap: int) -> int:\n            pieces, current = 1, 0\n            for x in nums:\n                if current + x > cap:\n                    pieces += 1\n                    current = 0\n                current += x\n            return pieces\n\n        lo, hi = max(nums), sum(nums)\n        while lo < hi:\n            mid = (lo + hi) // 2\n            if pieces_needed(mid) <= k:\n                hi = mid\n            else:\n                lo = mid + 1\n        return lo\n```\n\n### Complexity\n- **Time:** O(n log S) where S = sum(nums).\n- **Space:** O(1).\n\n### Common mistakes\n- Starting `lo` at 0 or 1: a cap below `max(nums)` makes the greedy loop produce wrong counts.\n- Requiring exactly k pieces in the check; fewer pieces can always be split further, so `<= k` is right.\n- Off-by-one in the loop (`lo <= hi` with `hi = mid`) causing an infinite loop.\n\n### Follow-ups\n- Solve it with DP over (index, pieces) in O(k * n^2) and compare.\n- Capacity To Ship Packages Within D Days (1011) is the same problem in disguise."
+  },
+  "x-lc-23": {
+   "brief": "Drills **k-way merge with a min-heap over list heads**: the next node of the output is always the smallest current head, so keep exactly one node per list in a heap. Linked-list splicing with a dummy head does the rest.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Merging two sorted lists is easy. With k lists, how do you find the smallest current head quickly?",
+    "Put the head of each non-empty list into a min-heap. Pop the smallest, append it to the result, and push that node's successor.",
+    "Push tuples (value, list index, node) so ties never compare ListNode objects. Use a dummy head and a tail pointer. Each of the N nodes is pushed and popped once: O(N log k). Divide-and-conquer pairwise merging is an equally good alternative."
+   ],
+   "solution": "### Key insight\nAt any moment the next output node is the minimum of the k current heads. A heap of size k gives that minimum in O(log k).\n\n### Approach\n1. Push `(node.val, i, node)` for every non-empty list `i`.\n2. Pop the smallest, link it after `tail`, advance `tail`.\n3. If the popped node has a `next`, push it with the same index `i`.\n4. Return `dummy.next`.\n\n### Solution\n```python\n# Definition for singly-linked list (provided by LeetCode).\n# class ListNode:\n#     def __init__(self, val=0, next=None):\n#         self.val = val\n#         self.next = next\n\nimport heapq\nfrom typing import List, Optional\n\n\nclass Solution:\n    def mergeKLists(self, lists: List[Optional[\"ListNode\"]]) -> Optional[\"ListNode\"]:\n        heap = [(node.val, i, node) for i, node in enumerate(lists) if node]\n        heapq.heapify(heap)\n        dummy = tail = ListNode(0)\n        while heap:\n            _, i, node = heapq.heappop(heap)\n            tail.next = node\n            tail = node\n            if node.next:\n                heapq.heappush(heap, (node.next.val, i, node.next))\n        return dummy.next\n```\n\n### Complexity\n- **Time:** O(N log k) for N total nodes and k lists.\n- **Space:** O(k) for the heap (output reuses the input nodes).\n\n### Common mistakes\n- Pushing `(val, node)`: equal values make Python compare ListNode objects and raise TypeError. Add a tie-breaker index.\n- Merging lists one by one into an accumulator, which is O(N * k).\n- Not skipping `None` entries in the input list.\n\n### Follow-ups\n- Do it with divide and conquer (merge pairs, then pairs of pairs) and compare the constant factors.\n- Merge k sorted arrays that are too large to fit in memory (external merge sort)."
+  },
+  "x-lc-25": {
+   "brief": "Drills **careful pointer surgery on segments**: find the k-th node ahead, reverse exactly that segment, then reconnect it to the part before and after. A dummy head and a `group_prev` pointer keep the reconnection uniform.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "You can reverse a whole list. What extra pointers do you need to reverse just one block of k nodes and stitch it back?",
+    "Keep group_prev (the node before the block). Walk k steps to find the block's last node; if you run out, stop. Reverse the block so its first node ends up pointing to the node after the block.",
+    "Reverse with prev initialised to the node after the block (kth.next) so the tail reconnects for free. Then set group_prev.next = kth, and move group_prev to the old first node (now the block's tail). O(n) time, O(1) space."
+   ],
+   "solution": "### Key insight\nEach block is an ordinary in-place reversal whose `prev` starts at the node after the block instead of `None`; that one choice reconnects the block's new tail automatically. The node before the block then points at the old k-th node.\n\n### Approach\n1. Use `dummy -> head`; `group_prev = dummy`.\n2. Find `kth` by walking k steps from `group_prev`; if it does not exist, return.\n3. Reverse nodes from `group_prev.next` up to `kth`, starting `prev = kth.next`.\n4. Link `group_prev.next = kth` and move `group_prev` to the old first node.\n\n### Solution\n```python\n# Definition for singly-linked list (provided by LeetCode).\n# class ListNode:\n#     def __init__(self, val=0, next=None):\n#         self.val = val\n#         self.next = next\n\nfrom typing import Optional\n\n\nclass Solution:\n    def reverseKGroup(self, head: Optional[\"ListNode\"], k: int) -> Optional[\"ListNode\"]:\n        dummy = ListNode(0, head)\n        group_prev = dummy\n        while True:\n            kth = group_prev\n            for _ in range(k):\n                kth = kth.next\n                if kth is None:\n                    return dummy.next  # fewer than k nodes left: leave them as is\n            group_next = kth.next\n            prev, cur = group_next, group_prev.next\n            while cur is not group_next:\n                nxt = cur.next\n                cur.next = prev\n                prev = cur\n                cur = nxt\n            first = group_prev.next  # old first, now the block's tail\n            group_prev.next = kth\n            group_prev = first\n```\n\n### Complexity\n- **Time:** O(n): each node is visited a constant number of times.\n- **Space:** O(1) (the recursive version uses O(n / k) stack).\n\n### Common mistakes\n- Reversing the last partial block; the problem says to leave it unchanged.\n- Losing the reference to the block's old first node before moving `group_prev`.\n- Starting the reversal's `prev` at `None`, which cuts the list after the first block.\n\n### Follow-ups\n- Reverse alternate k-groups only.\n- Reverse the groups starting from the end of the list (the partial group goes at the front)."
+  },
+  "x-lc-352": {
+   "brief": "Drills **maintaining sorted non-overlapping intervals under inserts**: binary search for the neighbour intervals of the new value, then handle the four cases (inside, extends left, extends right, bridges both). Same merge logic as Insert Interval (57), done incrementally.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Keep the intervals sorted by start. When a new number arrives, which existing intervals can it possibly touch?",
+    "Only the interval just before it (largest start <= value) and the one just after it can be affected. Binary search finds them in O(log n).",
+    "With sorted parallel lists of starts and ends, let i = bisect_right(starts, value). If ends[i-1] >= value it is already covered. Otherwise it may extend the left interval (ends[i-1] == value - 1), the right one (starts[i] == value + 1), both (merge them), or neither (insert [value, value])."
+   ],
+   "solution": "### Key insight\nDisjoint sorted intervals mean a new value can only interact with its immediate neighbours. Binary search finds them, and there are just four cases to handle.\n\n### Approach\n1. Store `starts` and `ends` as parallel sorted lists.\n2. `i = bisect_right(starts, value)`: interval `i-1` is the left neighbour, `i` the right one.\n3. Covered by the left neighbour: do nothing.\n4. Touches both: merge by extending the left end to the right's end and deleting the right; touches one: extend it; touches neither: insert a new single-point interval.\n\n### Solution\n```python\nfrom bisect import bisect_right\nfrom typing import List\n\n\nclass SummaryRanges:\n    def __init__(self):\n        self.starts: List[int] = []\n        self.ends: List[int] = []\n\n    def addNum(self, value: int) -> None:\n        i = bisect_right(self.starts, value)  # starts[i-1] <= value < starts[i]\n        if i > 0 and self.ends[i - 1] >= value:\n            return  # already covered\n        joins_left = i > 0 and self.ends[i - 1] == value - 1\n        joins_right = i < len(self.starts) and self.starts[i] == value + 1\n        if joins_left and joins_right:\n            self.ends[i - 1] = self.ends[i]\n            del self.starts[i]\n            del self.ends[i]\n        elif joins_left:\n            self.ends[i - 1] = value\n        elif joins_right:\n            self.starts[i] = value\n        else:\n            self.starts.insert(i, value)\n            self.ends.insert(i, value)\n\n    def getIntervals(self) -> List[List[int]]:\n        return [[s, e] for s, e in zip(self.starts, self.ends)]\n```\n\n### Complexity\n- **Time:** addNum: O(log n) search plus O(n) list insert/delete in the worst case; getIntervals: O(n). A balanced BST (or sortedcontainers) makes addNum O(log n).\n- **Space:** O(n) for n disjoint intervals.\n\n### Common mistakes\n- Forgetting the bridging case, leaving `[1,2]` and `[4,5]` unmerged after adding 3.\n- Re-sorting all values on every `getIntervals` call (O(n log n) per query) when queries are frequent.\n- Using `bisect_left`, which mis-handles a value equal to an existing start.\n\n### Follow-ups\n- Lots of merges and few distinct intervals: what structure keeps both operations fast?\n- Support removing a number (may split an interval in two)."
+  },
+  "x-lc-124": {
+   "brief": "Drills **post-order DFS that returns one thing and records another**: each call returns the best downward path (for the parent to extend) while updating a global best for the path that bends through this node. Same shape as Diameter of Binary Tree (543).",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "A path can bend at most once, at its highest node. What does a node need from each child to evaluate the best path that bends at it?",
+    "Have dfs(node) return the best sum of a path that starts at node and goes down one side. At each node, the best bending path is node.val + left gain + right gain, where a negative gain is replaced by 0.",
+    "gain_left = max(dfs(left), 0), gain_right = max(dfs(right), 0); update best with node.val + gain_left + gain_right; return node.val + max(gain_left, gain_right). Start best at -infinity so all-negative trees work."
+   ],
+   "solution": "### Key insight\nEvery path has a single highest node where it bends. The best path bending at a node is its value plus the best non-negative downward gains from each child, and the parent can only use one of those branches.\n\n### Approach\n1. Post-order DFS returning the best single-branch sum from this node down.\n2. Clamp child gains at 0 (dropping a negative branch is allowed).\n3. Update the global best with `val + left + right`.\n4. Return `val + max(left, right)` to the parent.\n\n### Solution\n```python\n# Definition for a binary tree node (provided by LeetCode).\n# class TreeNode:\n#     def __init__(self, val=0, left=None, right=None):\n#         self.val = val\n#         self.left = left\n#         self.right = right\n\nfrom typing import Optional\n\n\nclass Solution:\n    def maxPathSum(self, root: Optional[\"TreeNode\"]) -> int:\n        best = float(\"-inf\")\n\n        def gain(node) -> int:\n            nonlocal best\n            if node is None:\n                return 0\n            left = max(gain(node.left), 0)\n            right = max(gain(node.right), 0)\n            best = max(best, node.val + left + right)  # path bending here\n            return node.val + max(left, right)          # path the parent can extend\n\n        gain(root)\n        return best\n```\n\n### Complexity\n- **Time:** O(n), each node once.\n- **Space:** O(h) recursion stack.\n\n### Common mistakes\n- Returning `val + left + right` to the parent; a path cannot branch twice.\n- Initialising `best` to 0, which is wrong when every value is negative.\n- Not clamping negative child gains to 0.\n\n### Follow-ups\n- Return the path itself (the node values), not just the sum.\n- Longest Univalue Path (687) or Diameter (543): the same return-vs-record split."
+  },
+  "x-lc-297": {
+   "brief": "Drills **tree traversal with explicit null markers**: a traversal plus a placeholder for every missing child uniquely determines the tree, so deserializing is just replaying the same traversal. Level-order with a queue avoids recursion-depth limits.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Why is a plain preorder or level-order list of values not enough to rebuild a tree? What extra information fixes that?",
+    "Record a marker (for example '#') for every missing child. Then a level-order (or preorder) sequence describes exactly one tree.",
+    "Serialize with a BFS queue: for each node emit its value, or '#' for None, and enqueue the children of real nodes only. Deserialize by creating the root and walking the tokens two at a time, attaching left and right children to nodes popped from a queue. O(n) both ways."
+   ],
+   "solution": "### Key insight\nA traversal is ambiguous only because missing children are invisible. Writing a marker for every `None` makes the sequence a complete description, and the decoder just walks the same order.\n\n### Approach\n1. Serialize: BFS from the root; append `str(val)` for a node (and enqueue both children) or `#` for `None`.\n2. Deserialize: split on commas; `#` at position 0 means an empty tree.\n3. Keep a queue of created nodes; for each, the next two tokens are its left and right children.\n4. Enqueue every real child you create.\n\n### Solution\n```python\n# Definition for a binary tree node (provided by LeetCode).\n# class TreeNode:\n#     def __init__(self, val=0, left=None, right=None):\n#         self.val = val\n#         self.left = left\n#         self.right = right\n\nfrom collections import deque\n\n\nclass Codec:\n    def serialize(self, root) -> str:\n        out = []\n        queue = deque([root])\n        while queue:\n            node = queue.popleft()\n            if node is None:\n                out.append(\"#\")\n                continue\n            out.append(str(node.val))\n            queue.append(node.left)\n            queue.append(node.right)\n        return \",\".join(out)\n\n    def deserialize(self, data: str):\n        tokens = data.split(\",\")\n        if tokens[0] == \"#\":\n            return None\n        root = TreeNode(int(tokens[0]))\n        queue = deque([root])\n        i = 1\n        while queue:\n            node = queue.popleft()\n            if tokens[i] != \"#\":\n                node.left = TreeNode(int(tokens[i]))\n                queue.append(node.left)\n            i += 1\n            if tokens[i] != \"#\":\n                node.right = TreeNode(int(tokens[i]))\n                queue.append(node.right)\n            i += 1\n        return root\n```\n\n### Complexity\n- **Time:** O(n) for both serialize and deserialize.\n- **Space:** O(n) for the string and the queue.\n\n### Common mistakes\n- Omitting null markers, so different trees serialize to the same string.\n- Splitting values on a character that can appear in them (negative numbers contain '-', so do not use '-' as a separator).\n- A recursive preorder decoder on a degenerate 10^4-node chain hitting Python's default recursion limit.\n\n### Follow-ups\n- Serialize a BST more compactly without null markers (449): preorder plus value bounds is enough.\n- Serialize an N-ary tree (428) or a graph with cycles."
+  },
+  "x-lc-212": {
+   "brief": "Drills **a trie driving a grid backtracking search**: instead of searching once per word, walk the board once and follow the trie, so every shared prefix is explored a single time. Pruning finished branches keeps it fast.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Running Word Search (79) once per word repeats the same prefix exploration many times. How can all words share that work?",
+    "Build a trie of the words and DFS from every cell, moving to a neighbour only if the trie has a child for its letter. When you reach a node that ends a word, record it.",
+    "Store the full word at its trie end node and remove it once found (no duplicates). Mark visited cells by overwriting with '#' and restore after. After exploring a child, delete it from its parent if it became empty, so dead branches are never walked again."
+   ],
+   "solution": "### Key insight\nAll words share one trie, so a single DFS from each cell checks every word at once and abandons a path as soon as no word has that prefix.\n\n### Approach\n1. Build a trie of dicts; store the word under a `$` key at its end node.\n2. DFS from each cell whose letter is a child of the root.\n3. On entering a node, if it holds a word, collect it and remove the marker.\n4. Mark the cell visited, recurse into in-bounds neighbours present in the node, restore the cell, and prune the child from its parent if it is now empty.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def findWords(self, board: List[List[str]], words: List[str]) -> List[str]:\n        root = {}\n        for word in words:\n            node = root\n            for ch in word:\n                node = node.setdefault(ch, {})\n            node[\"$\"] = word\n        rows, cols = len(board), len(board[0])\n        found = []\n\n        def dfs(r: int, c: int, parent: dict) -> None:\n            ch = board[r][c]\n            node = parent[ch]\n            word = node.pop(\"$\", None)\n            if word:\n                found.append(word)\n            board[r][c] = \"#\"  # visited\n            for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n                nr, nc = r + dr, c + dc\n                if 0 <= nr < rows and 0 <= nc < cols and board[nr][nc] in node:\n                    dfs(nr, nc, node)\n            board[r][c] = ch\n            if not node:\n                parent.pop(ch)  # prune exhausted branch\n\n        for r in range(rows):\n            for c in range(cols):\n                if board[r][c] in root:\n                    dfs(r, c, root)\n        return found\n```\n\n### Complexity\n- **Time:** O(R * C * 4 * 3^(L-1)) in the worst case for max word length L; pruning makes it far faster in practice. Building the trie is O(total letters).\n- **Space:** O(total letters) for the trie plus O(L) recursion.\n\n### Common mistakes\n- Running a separate board search for each word (times out with many words).\n- Returning duplicates when a word can be formed along two paths; remove the end marker once found.\n- Forgetting to restore the cell after the DFS.\n\n### Follow-ups\n- How would you parallelise this across many boards?\n- Return the words in the order they were found vs sorted, and the cost of each."
+  },
+  "x-lc-332": {
+   "brief": "Drills **Eulerian path (Hierholzer's algorithm)**: use every edge exactly once. A greedy DFS that always takes the smallest destination, appending an airport only when it has no tickets left, produces the path in reverse.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Every ticket must be used once. What graph concept is a walk that uses every edge exactly once?",
+    "It is an Eulerian path from JFK. Greedily taking the lexicographically smallest edge can get stuck in a dead end, so instead post-order the airports: add an airport to the route only after all its outgoing tickets are used.",
+    "Build adjacency lists sorted in reverse so pop() gives the smallest destination. Use an explicit stack starting with JFK: while the top has tickets, push the popped destination; otherwise pop it to the route. Reverse the route at the end. O(E log E)."
+   ],
+   "solution": "### Key insight\nAn itinerary using all tickets is an Eulerian path. Hierholzer's algorithm finishes dead ends first: an airport is appended to the route only when it has no unused tickets, so dead ends end up last after reversing, and choosing the smallest destination first gives the lexicographically smallest valid path.\n\n### Approach\n1. Build `graph[src]` as destinations sorted descending (so `.pop()` yields the smallest).\n2. Stack = `['JFK']`.\n3. While the stack is not empty: if the top airport has tickets, push its smallest destination; else pop it onto `route`.\n4. Return `route` reversed.\n\n### Solution\n```python\nfrom collections import defaultdict\nfrom typing import List\n\n\nclass Solution:\n    def findItinerary(self, tickets: List[List[str]]) -> List[str]:\n        graph = defaultdict(list)\n        for src, dst in sorted(tickets, reverse=True):\n            graph[src].append(dst)  # smallest destination ends up last -> pop() first\n        route, stack = [], [\"JFK\"]\n        while stack:\n            while graph[stack[-1]]:\n                stack.append(graph[stack[-1]].pop())\n            route.append(stack.pop())\n        return route[::-1]\n```\n\n### Complexity\n- **Time:** O(E log E) for sorting; the walk itself is O(E).\n- **Space:** O(E) for the graph, stack and route.\n\n### Common mistakes\n- Plain greedy DFS that appends airports on the way down; it can enter a dead end before using all tickets.\n- Backtracking with a visited set per ticket: correct but exponential in bad cases.\n- Treating duplicate tickets (same route twice) as one edge.\n\n### Follow-ups\n- How do you know an Eulerian path exists (in/out degree conditions)?\n- Valid Arrangement of Pairs (2097): same algorithm, any start node."
+  },
+  "x-lc-502": {
+   "brief": "Drills **two-phase greedy with a sort plus a max-heap**: projects become available as capital grows; at each step take the most profitable available one. Sorting by capital and pushing newly affordable projects into a heap makes each choice O(log n).",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "With capital w, which projects can you start, and which of those should you pick first?",
+    "Always pick the most profitable affordable project: profits only increase capital, so it never makes a later choice worse. The set of affordable projects only grows.",
+    "Sort projects by capital requirement. Before each of the k picks, push profits of every project with capital <= w into a max-heap (negate for heapq), then pop the largest and add it to w. If the heap is empty, stop. O(n log n)."
+   ],
+   "solution": "### Key insight\nTaking the largest profit you can currently afford is always safe: it maximises capital, which can only unlock more projects. Since affordability only grows, a pointer over projects sorted by capital feeds a max-heap.\n\n### Approach\n1. Sort `(capital, profit)` pairs by capital.\n2. Repeat k times: push profits of all newly affordable projects onto a max-heap.\n3. If the heap is empty, stop early.\n4. Pop the best profit and add it to `w`.\n\n### Solution\n```python\nimport heapq\nfrom typing import List\n\n\nclass Solution:\n    def findMaximizedCapital(self, k: int, w: int, profits: List[int], capital: List[int]) -> int:\n        projects = sorted(zip(capital, profits))\n        available = []  # max-heap of profits via negation\n        i = 0\n        for _ in range(k):\n            while i < len(projects) and projects[i][0] <= w:\n                heapq.heappush(available, -projects[i][1])\n                i += 1\n            if not available:\n                break\n            w -= heapq.heappop(available)\n        return w\n```\n\n### Complexity\n- **Time:** O(n log n + k log n).\n- **Space:** O(n) for the sorted list and heap.\n\n### Common mistakes\n- Re-scanning all projects each round (O(n * k)).\n- Forgetting to stop when no project is affordable, causing a pop from an empty heap.\n- Using a min-heap of profits without negation.\n\n### Follow-ups\n- What if projects can be done more than once?\n- Return which projects were chosen, in order."
+  },
+  "x-lc-329": {
+   "brief": "Drills **topological order on an implicit DAG**: edges go from smaller to strictly larger neighbours, so the grid has no cycles; the longest path is the number of layers when you peel cells with no smaller neighbour (Kahn's BFS), or DFS + memo.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Edges from a cell to a strictly larger neighbour can never form a cycle. What does that make the grid, and what algorithms find longest paths in it?",
+    "It is a DAG, so the longest path is well defined. Either memoise dfs(cell) = 1 + max over larger neighbours, or do a topological BFS and count layers.",
+    "Kahn's version: indegree of a cell = number of strictly smaller neighbours. Start a queue with all indegree-0 cells; process the queue one layer at a time, decrementing larger neighbours' indegrees and enqueuing those that reach 0. The number of layers is the answer. O(m * n) and no recursion depth issues."
+   ],
+   "solution": "### Key insight\nStrictly increasing edges make the grid a DAG. In a DAG, peeling sources layer by layer (Kahn's algorithm) takes exactly as many rounds as the longest path has nodes.\n\n### Approach\n1. Compute each cell's indegree: count neighbours with a smaller value.\n2. Queue every cell with indegree 0 (local minima).\n3. Process layer by layer; for each larger neighbour, decrement its indegree and enqueue it at 0.\n4. Count layers; that is the longest increasing path length.\n\n### Solution\n```python\nfrom collections import deque\nfrom typing import List\n\n\nclass Solution:\n    def longestIncreasingPath(self, matrix: List[List[int]]) -> int:\n        rows, cols = len(matrix), len(matrix[0])\n        dirs = ((1, 0), (-1, 0), (0, 1), (0, -1))\n        indegree = [[0] * cols for _ in range(rows)]\n        for r in range(rows):\n            for c in range(cols):\n                for dr, dc in dirs:\n                    nr, nc = r + dr, c + dc\n                    if 0 <= nr < rows and 0 <= nc < cols and matrix[nr][nc] < matrix[r][c]:\n                        indegree[r][c] += 1\n        queue = deque((r, c) for r in range(rows) for c in range(cols) if indegree[r][c] == 0)\n        layers = 0\n        while queue:\n            layers += 1\n            for _ in range(len(queue)):\n                r, c = queue.popleft()\n                for dr, dc in dirs:\n                    nr, nc = r + dr, c + dc\n                    if 0 <= nr < rows and 0 <= nc < cols and matrix[nr][nc] > matrix[r][c]:\n                        indegree[nr][nc] -= 1\n                        if indegree[nr][nc] == 0:\n                            queue.append((nr, nc))\n        return layers\n```\n\n### Complexity\n- **Time:** O(m * n): each cell and edge is handled a constant number of times.\n- **Space:** O(m * n) for indegrees and the queue.\n\n### Common mistakes\n- DFS without memoisation: exponential.\n- Using a visited set as in island problems; it blocks valid paths through a cell reached earlier from a different start.\n- Recursive DFS + memo on a 200x200 snake-shaped grid can exceed Python's recursion limit; raise it or use the BFS form.\n\n### Follow-ups\n- Return the path itself, not just its length.\n- Allow non-strict increases (equal neighbours): now there can be cycles; how does that change things?"
+  },
+  "x-lc-778": {
+   "brief": "Drills **Dijkstra with a minimax path cost**: the cost of a path is its highest cell, not its sum, but Dijkstra still works because extending a path never lowers that cost. Pop the lowest-time cell from a heap until you reach the corner.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "The time to finish a path is the maximum elevation along it. Which shortest-path algorithm still works when the path cost is a max instead of a sum?",
+    "Dijkstra works for any cost that never decreases as the path grows. Use a min-heap keyed by the time needed to reach each cell, i.e. max(time so far, grid value).",
+    "Push (grid[0][0], 0, 0). Pop the smallest time; if it is the bottom-right cell, return it. Otherwise push each unseen neighbour with max(t, grid[nr][nc]) and mark it seen. O(n^2 log n). Binary search on t with BFS, or union-find in order of elevation, also work."
+   ],
+   "solution": "### Key insight\nA path's cost is its maximum elevation, which never decreases as the path is extended. Dijkstra only needs that property, so popping cells in increasing order of `max(...)` cost gives the optimal time at the target.\n\n### Approach\n1. Heap of `(time, r, c)` starting with `(grid[0][0], 0, 0)`.\n2. Pop the smallest; if it is `(n-1, n-1)`, return its time.\n3. For each unseen neighbour, push `max(time, grid[nr][nc])` and mark it seen.\n4. Each cell is pushed once because popped times are non-decreasing.\n\n### Solution\n```python\nimport heapq\nfrom typing import List\n\n\nclass Solution:\n    def swimInWater(self, grid: List[List[int]]) -> int:\n        n = len(grid)\n        heap = [(grid[0][0], 0, 0)]\n        seen = {(0, 0)}\n        while heap:\n            t, r, c = heapq.heappop(heap)\n            if r == n - 1 and c == n - 1:\n                return t\n            for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n                nr, nc = r + dr, c + dc\n                if 0 <= nr < n and 0 <= nc < n and (nr, nc) not in seen:\n                    seen.add((nr, nc))\n                    heapq.heappush(heap, (max(t, grid[nr][nc]), nr, nc))\n        return -1\n```\n\n### Complexity\n- **Time:** O(n^2 log n).\n- **Space:** O(n^2) for the heap and seen set.\n\n### Common mistakes\n- Summing elevations as in normal Dijkstra; the cost is the maximum.\n- Starting the time at 0 instead of `grid[0][0]` (you cannot stand on the start before it floods).\n- Plain BFS by steps, which finds the fewest moves, not the lowest time.\n\n### Follow-ups\n- Solve it with binary search on t plus BFS, and with union-find over cells sorted by elevation.\n- Path With Minimum Effort (1631): same minimax Dijkstra with edge costs."
+  },
+  "x-lc-312": {
+   "brief": "Drills **interval DP where you choose the LAST action in the interval**: choosing the first balloon to burst changes its neighbours unpredictably, but if `k` is the last one burst between two fixed walls, its neighbours are exactly those walls and the two sides become independent.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "If you pick which balloon to burst first, its neighbours keep changing for the remaining balloons. Is there a choice that makes subproblems independent?",
+    "Pad the array with 1 on both ends. Let dp[l][r] be the best coins from bursting every balloon strictly between l and r. Choose k as the LAST balloon burst in that open interval: at that moment its neighbours are l and r.",
+    "dp[l][r] = max over l < k < r of vals[l] * vals[k] * vals[r] + dp[l][k] + dp[k][r]. Fill by increasing interval length; the answer is dp[0][n-1]. O(n^3) time, O(n^2) space."
+   ],
+   "solution": "### Key insight\nFix the two walls `l` and `r` and decide which balloon `k` between them bursts last. Everything left of `k` and right of `k` is burst before it, independently, and `k` then pays `vals[l] * vals[k] * vals[r]`.\n\n### Approach\n1. `vals = [1] + nums + [1]`.\n2. `dp[l][r]` = max coins for bursting all balloons strictly inside `(l, r)`; width-1 intervals are 0.\n3. For each length from 2 up, try every last balloon `k` in `(l, r)`.\n4. Return `dp[0][len(vals) - 1]`.\n\n### Solution\n```python\nfrom typing import List\n\n\nclass Solution:\n    def maxCoins(self, nums: List[int]) -> int:\n        vals = [1] + nums + [1]\n        n = len(vals)\n        dp = [[0] * n for _ in range(n)]  # dp[l][r]: open interval (l, r)\n        for length in range(2, n):\n            for left in range(n - length):\n                right = left + length\n                best = 0\n                for k in range(left + 1, right):  # k is the last balloon burst in (left, right)\n                    coins = vals[left] * vals[k] * vals[right] + dp[left][k] + dp[k][right]\n                    if coins > best:\n                        best = coins\n                dp[left][right] = best\n        return dp[0][n - 1]\n```\n\n### Complexity\n- **Time:** O(n^3).\n- **Space:** O(n^2).\n\n### Common mistakes\n- Choosing the first balloon to burst, which gives subproblems whose neighbours are unknown.\n- Using closed intervals and getting the boundary multipliers wrong; open intervals with padded 1s are cleaner.\n- Filling dp in row order instead of by increasing length, reading values not yet computed.\n\n### Follow-ups\n- Minimum Cost to Merge Stones (1000) or Minimum Cost to Cut a Stick (1547): the same 'last split' interval DP.\n- Reconstruct the burst order that achieves the maximum."
+  },
+  "x-lc-10": {
+   "brief": "Drills **2D DP over two strings** (like Longest Common Subsequence, 1143) with one twist: `x*` either matches zero copies (skip two pattern chars) or matches one char of `s` and stays on the same pattern position.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "Define a subproblem over suffixes: does s[i:] match p[j:]? What does the first pattern character, and the one after it, tell you?",
+    "first = i < len(s) and p[j] in (s[i], '.'). If p[j+1] == '*', either skip 'x*' entirely (j + 2) or, if first matches, consume s[i] and stay at j. Otherwise both must advance by one.",
+    "Fill dp[i][j] from the end: dp[m][n] = True; iterate i from m down to 0 (i = m matters for patterns like 'a*' against an empty string) and j from n-1 down to 0. O(m * n) time and space."
+   ],
+   "solution": "### Key insight\nWhether `s[i:]` matches `p[j:]` depends only on `(i, j)`. A star pairs with the character before it, so the decision at `j` looks one ahead: `x*` means 'skip it' or 'use it once and stay'.\n\n### Approach\n1. `dp[i][j]` = does `s[i:]` match `p[j:]`; `dp[m][n] = True`.\n2. Loop `i` from `m` down to 0 and `j` from `n-1` down to 0.\n3. `first = i < m and p[j] in (s[i], '.')`.\n4. If `p[j+1] == '*'`: `dp[i][j] = dp[i][j+2] or (first and dp[i+1][j])`; else `first and dp[i+1][j+1]`.\n\n### Solution\n```python\nclass Solution:\n    def isMatch(self, s: str, p: str) -> bool:\n        m, n = len(s), len(p)\n        dp = [[False] * (n + 1) for _ in range(m + 1)]\n        dp[m][n] = True\n        for i in range(m, -1, -1):\n            for j in range(n - 1, -1, -1):\n                first = i < m and p[j] in (s[i], \".\")\n                if j + 1 < n and p[j + 1] == \"*\":\n                    dp[i][j] = dp[i][j + 2] or (first and dp[i + 1][j])\n                else:\n                    dp[i][j] = first and dp[i + 1][j + 1]\n        return dp[0][0]\n```\n\n### Complexity\n- **Time:** O(m * n).\n- **Space:** O(m * n) (reducible to O(n) with two rows).\n\n### Common mistakes\n- Starting `i` at `m - 1`, so an empty remaining `s` never matches patterns like `a*b*`.\n- Treating `*` as a standalone wildcard (that is Wildcard Matching, 44) instead of binding to the previous character.\n- Recursion without memoisation: exponential on inputs like `aaaaaaaaab` vs `a*a*a*a*c`.\n\n### Follow-ups\n- Wildcard Matching (44): `*` matches any sequence by itself; how does the recurrence change?\n- Reduce space to O(n)."
+  },
+  "x-lc-895": {
+   "brief": "Drills **bucketing by count to get O(1) operations**: keep a stack per frequency level. A value pushed for the k-th time goes onto stack k, so the top of the highest non-empty stack is always the most frequent, most recent element.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "A heap keyed by (frequency, push time) works in O(log n). Can you avoid ordering entirely by grouping elements?",
+    "Track freq[val] and a stack for each frequency level. When val reaches frequency f, push it onto group[f]. Pop from group[max_freq].",
+    "push: f = freq[val] + 1, store it, push val onto group[f], update max_freq. pop: take group[max_freq].pop(), decrement its freq, and if that stack is now empty decrement max_freq. A value appears on every level up to its frequency, which is exactly what makes ties resolve by recency."
+   ],
+   "solution": "### Key insight\nIf a value has been pushed `f` times, it sits on stacks `1..f`. The stack at the current maximum frequency holds exactly the most frequent values in push order, so its top is the answer and every operation is O(1).\n\n### Approach\n1. `freq`: value -> current count; `group`: count -> list used as a stack; `max_freq`.\n2. push: increment the count, append to `group[count]`, raise `max_freq` if needed.\n3. pop: pop from `group[max_freq]`, decrement that value's count.\n4. If `group[max_freq]` is now empty, decrement `max_freq` (the level below cannot be empty).\n\n### Solution\n```python\nfrom collections import defaultdict\n\n\nclass FreqStack:\n    def __init__(self):\n        self.freq = defaultdict(int)\n        self.group = defaultdict(list)  # frequency -> values pushed at that frequency\n        self.max_freq = 0\n\n    def push(self, val: int) -> None:\n        f = self.freq[val] + 1\n        self.freq[val] = f\n        self.group[f].append(val)\n        if f > self.max_freq:\n            self.max_freq = f\n\n    def pop(self) -> int:\n        val = self.group[self.max_freq].pop()\n        self.freq[val] -= 1\n        if not self.group[self.max_freq]:\n            self.max_freq -= 1\n        return val\n```\n\n### Complexity\n- **Time:** O(1) for push and pop.\n- **Space:** O(n) for all pushed values.\n\n### Common mistakes\n- Moving a value between levels (removing it from level f-1 when it reaches f); keeping it on every level is what makes ties work.\n- Scanning for the max frequency on each pop instead of maintaining it.\n- Using a heap and forgetting the push-time tie-breaker.\n\n### Follow-ups\n- Support `peek` and `size` in O(1).\n- LFU Cache (460) uses the same 'bucket per frequency' idea with a min frequency."
+  },
+  "x-lc-432": {
+   "brief": "Drills **a doubly linked list of count buckets plus a key -> bucket map**: buckets stay sorted by count, a key only ever moves to the neighbouring bucket, so inc/dec/getMax/getMin are all O(1). The same structure underlies LFU Cache (460).",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "A key's count changes by exactly one each time. If keys are grouped by count in sorted order, how far does a key move on inc or dec?",
+    "Keep buckets (count, set of keys) in a doubly linked list sorted by count, with head and tail sentinels, plus a map from key to its bucket. A key only moves to the adjacent bucket, creating it if the count is missing.",
+    "inc: find the next bucket; if it does not have count + 1, insert a new one after the current bucket; move the key; delete the old bucket if empty. dec mirrors this to the previous bucket, or removes the key entirely at count 1. getMaxKey reads tail.prev and getMinKey reads head.next."
+   ],
+   "solution": "### Key insight\nCounts change by exactly 1, so in a list of buckets sorted by count a key only hops to an adjacent bucket. Sentinels make the min and max buckets the neighbours of `head` and `tail`, giving O(1) for everything.\n\n### Approach\n1. Bucket = node with `count`, `keys` set, `prev`/`next`; sentinels `head` and `tail`.\n2. `where[key]` = the key's bucket (`head` stands for count 0 on inc).\n3. inc: reuse or insert the `count + 1` bucket right after the current one, move the key, unlink the old bucket if it is empty.\n4. dec: at count 1 drop the key; otherwise reuse or insert the `count - 1` bucket before it. Same cleanup.\n\n### Solution\n```python\nclass Bucket:\n    __slots__ = (\"count\", \"keys\", \"prev\", \"next\")\n\n    def __init__(self, count: int):\n        self.count = count\n        self.keys = set()\n        self.prev = None\n        self.next = None\n\n\nclass AllOne:\n    def __init__(self):\n        self.head = Bucket(0)  # sentinel before the smallest count\n        self.tail = Bucket(0)  # sentinel after the largest count\n        self.head.next, self.tail.prev = self.tail, self.head\n        self.where = {}  # key -> bucket\n\n    def _insert_after(self, node: Bucket, count: int) -> Bucket:\n        bucket = Bucket(count)\n        bucket.prev, bucket.next = node, node.next\n        node.next.prev = bucket\n        node.next = bucket\n        return bucket\n\n    def _drop_if_empty(self, bucket: Bucket) -> None:\n        if not bucket.keys:\n            bucket.prev.next = bucket.next\n            bucket.next.prev = bucket.prev\n\n    def inc(self, key: str) -> None:\n        cur = self.where.get(key, self.head)\n        nxt = cur.next\n        if nxt is self.tail or nxt.count != cur.count + 1:\n            nxt = self._insert_after(cur, cur.count + 1)\n        nxt.keys.add(key)\n        self.where[key] = nxt\n        if cur is not self.head:\n            cur.keys.discard(key)\n            self._drop_if_empty(cur)\n\n    def dec(self, key: str) -> None:\n        cur = self.where[key]\n        if cur.count == 1:\n            del self.where[key]\n        else:\n            prv = cur.prev\n            if prv is self.head or prv.count != cur.count - 1:\n                prv = self._insert_after(prv, cur.count - 1)\n            prv.keys.add(key)\n            self.where[key] = prv\n        cur.keys.discard(key)\n        self._drop_if_empty(cur)\n\n    def getMaxKey(self) -> str:\n        return \"\" if self.tail.prev is self.head else next(iter(self.tail.prev.keys))\n\n    def getMinKey(self) -> str:\n        return \"\" if self.head.next is self.tail else next(iter(self.head.next.keys))\n```\n\n### Complexity\n- **Time:** O(1) for every operation.\n- **Space:** O(number of keys).\n\n### Common mistakes\n- Keeping counts in a dict and scanning for min/max: O(n) per query.\n- Removing the old bucket before linking the new one next to it (you lose your position in the list).\n- Forgetting to delete the key on dec from count 1, so getMinKey returns a key that no longer exists.\n\n### Follow-ups\n- Why does a heap not give O(1) here?\n- Return all keys with the max count, or the k most frequent keys."
+  },
+  "x-lc-381": {
+   "brief": "Drills **array + index map with swap-with-last removal**, extended to duplicates: each value maps to a SET of its positions, so removal can swap any one copy with the last element and fix both index sets in O(1). Builds on 380.",
+   "starter": "",
+   "tests": [],
+   "hints": [
+    "In 380 each value had one index. With duplicates, what should the map store so that removal stays O(1)?",
+    "Map each value to a set of indices in the array. To remove, take any index of the value, move the last array element into it, and update the moved element's index set.",
+    "remove: i = idx[val].pop(); last = vals[-1]; vals[i] = last; add i to idx[last] and discard len(vals) - 1 from it (in that order, which also handles last == val); then pop the array. getRandom is random.choice(vals), naturally weighted by copies."
+   ],
+   "solution": "### Key insight\nRandom choice needs a dense array; O(1) removal needs to fill the hole with the last element. With duplicates, a set of positions per value lets you find a copy and patch the moved element's positions in O(1).\n\n### Approach\n1. `vals` list and `idx`: value -> set of positions.\n2. insert: add `len(vals)` to `idx[val]`, append; return whether it is the first copy.\n3. remove: pop any position `i` of `val`, move the last element into `i`, add `i` to its set and discard the old last position, then pop the list.\n4. getRandom: `random.choice(vals)`.\n\n### Solution\n```python\nimport random\nfrom collections import defaultdict\n\n\nclass RandomizedCollection:\n    def __init__(self):\n        self.vals = []\n        self.idx = defaultdict(set)  # value -> positions in self.vals\n\n    def insert(self, val: int) -> bool:\n        self.idx[val].add(len(self.vals))\n        self.vals.append(val)\n        return len(self.idx[val]) == 1\n\n    def remove(self, val: int) -> bool:\n        if not self.idx.get(val):\n            return False\n        i = self.idx[val].pop()\n        last = self.vals[-1]\n        self.vals[i] = last\n        self.idx[last].add(i)  # add before discard: correct even when last == val\n        self.idx[last].discard(len(self.vals) - 1)\n        self.vals.pop()\n        return True\n\n    def getRandom(self) -> int:\n        return random.choice(self.vals)\n```\n\n### Complexity\n- **Time:** O(1) average for insert, remove and getRandom.\n- **Space:** O(n).\n\n### Common mistakes\n- Discarding the last position before adding `i`, which breaks when the removed copy is itself the last element.\n- Storing a list of positions and removing from its middle (O(k)).\n- Sampling uniformly over distinct values instead of over all copies.\n\n### Follow-ups\n- Make getRandom return each DISTINCT value with equal probability.\n- Support weighted getRandom where each value has a weight."
+  }
+ }
+}

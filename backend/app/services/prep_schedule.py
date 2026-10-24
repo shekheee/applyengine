@@ -16,7 +16,10 @@ PROGRAM_WEEKS = 10
 MORNING_DSA_PER_DAY = 2
 STREAK_MIN_TASKS = 2
 EXTRA_SLOT = "extra"
+WEEKLY_SLOT = "weekly"
 EXTRA_MIX = (("easy", 1), ("medium", 2))
+HARD_FROM_WEEK = 3
+WEEKLY_BADGES = {"challenge": "Challenge", "fundamentals": "Fundamentals"}
 NEETCODE_URL = "https://neetcode.io/practice"
 WEEKDAYS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
@@ -148,7 +151,11 @@ def build_today(
     weekday = weekday_label(today)
     by_id = {task.id: task for task in tasks}
     extras = [t for t in tasks if t.slot == EXTRA_SLOT]
-    tasks = [t for t in tasks if t.slot != EXTRA_SLOT]
+    weekly = sorted(
+        (t for t in tasks if t.slot == WEEKLY_SLOT), key=lambda t: (t.week, t.type, t.order)
+    )
+    week_tasks_all = [t for t in tasks if t.slot != EXTRA_SLOT]
+    tasks = [t for t in tasks if t.slot not in (EXTRA_SLOT, WEEKLY_SLOT)]
     ordered = sorted(tasks, key=lambda t: (t.week, t.order, t.id))
 
     result: dict[str, Any] = {
@@ -166,6 +173,7 @@ def build_today(
         "carried": [],
         "redos": [],
         "extra": [],
+        "weekly": [],
         "dsa_backlog": 0,
     }
     result["streak"] = streaks(attempts, today)
@@ -286,6 +294,18 @@ def build_today(
         if overdue:
             result["carried"].append(item(task, badge="Carried over"))
 
+    # This week's challenge and fundamentals: shown until done, older ones carry over.
+    # They count toward the week's progress, not today's checklist.
+    result["weekly"] = [
+        _task_item(
+            task,
+            done=task.id in done_today,
+            badge="Carried over" if task.week < week else WEEKLY_BADGES.get(task.type),
+        )
+        for task in weekly
+        if task.week <= week and (task.id not in done_before)
+    ]
+
     # Optional practice: shown daily, never counted in today's or the week's totals.
     result["extra"] = [
         _task_item(task, done=task.id in done_today, badge=(task.difficulty or "").title() or None)
@@ -295,7 +315,7 @@ def build_today(
     today_items = result["redos"] + result["morning"] + result["evening"] + result["weekend"]
     result["done_count"] = sum(1 for i in today_items if i["done"])
     result["total_count"] = len(today_items)
-    week_tasks = [t for t in tasks if t.week == week]
+    week_tasks = [t for t in week_tasks_all if t.week == week]
     result["week_progress"] = {
         "done": sum(1 for t in week_tasks if t.id in done_before or t.id in done_today),
         "total": len(week_tasks),
@@ -310,7 +330,8 @@ def pick_extras(
     week: int,
     done_before: set[str],
 ) -> list[PrepTask]:
-    """One easy and two medium problems on this week's pattern, not done before today.
+    """One easy and two medium problems on this week's pattern (plus one hard from
+    week 3), not done before today.
 
     The pick rotates daily (skip one and tomorrow shows others) but is stable
     within a day. When this week's pool runs low, earlier weeks fill in; in
@@ -324,8 +345,9 @@ def pick_extras(
     else:
         preference = [week] + list(range(week - 1, 0, -1))
     day_index = (today - start_date).days
+    mix = EXTRA_MIX + ((("hard", 1),) if week >= HARD_FROM_WEEK else ())
     picked: list[PrepTask] = []
-    for difficulty, count in EXTRA_MIX:
+    for difficulty, count in mix:
         pool = [t for t in extras if t.difficulty == difficulty and t.id not in done_before]
         ranked = sorted(
             (t for t in pool if t.week in preference),

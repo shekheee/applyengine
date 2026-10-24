@@ -285,7 +285,8 @@ class PrepTask(SQLModel, table=True):
     week: int = Field(index=True)
     order: int = 0
     day: str | None = None  # Mon..Sun for weekday-bound tasks
-    slot: str = "morning"  # morning | evening | weekend | extra (optional practice)
+    # morning | evening | weekend | weekly (challenge/fundamentals) | extra (optional)
+    slot: str = "morning"
     title: str = ""
     url: str | None = None
     pattern: str | None = None
@@ -295,13 +296,15 @@ class PrepTask(SQLModel, table=True):
     target_minutes: int = 30
     stretch: bool = False
     editor: bool = False
-    difficulty: str | None = None  # easy | medium, for the optional extra bank
+    difficulty: str | None = None  # easy | medium | hard, for the optional extra bank
     # Authored study content from data/prep_content/*.json.
     brief: str | None = Field(default=None, sa_column=Column(Text))
     starter: str | None = Field(default=None, sa_column=Column(Text))
     tests: list[dict[str, Any]] | None = Field(default=None, sa_column=Column(JSON))
     hints: list[str] | None = Field(default=None, sa_column=Column(JSON))
     solution: str | None = Field(default=None, sa_column=Column(Text))
+    # Progressive challenges: [{"title", "brief", "tests"}] per level.
+    levels: list[dict[str, Any]] | None = Field(default=None, sa_column=Column(JSON))
 
 
 class PrepSettings(SQLModel, table=True):
@@ -389,4 +392,49 @@ class PrepTutorMessage(SQLModel, table=True):
     role: str = "assistant"  # user | assistant
     content: str = Field(default="", sa_column=Column(Text))
     model_served: str = ""
+    created_at: datetime = Field(default_factory=_now)
+
+
+class PrepStory(SQLModel, table=True):
+    """A behavioural story in STAR form, tagged with the competencies it shows."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    title: str = ""
+    situation: str = Field(default="", sa_column=Column(Text))
+    task: str = Field(default="", sa_column=Column(Text))
+    action: str = Field(default="", sa_column=Column(Text))
+    result: str = Field(default="", sa_column=Column(Text))
+    tags: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    companies: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    critique: str = Field(default="", sa_column=Column(Text))
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
+
+
+class PrepTarget(SQLModel, table=True):
+    """A company the user is preparing for, with their own "why this company"."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    company: str = ""
+    role: str = ""
+    why: str = Field(default="", sa_column=Column(Text))
+    questions: str = Field(default="", sa_column=Column(Text))
+    updated_at: datetime = Field(default_factory=_now)
+
+
+class PrepMock(SQLModel, table=True):
+    """One mock interview and what to take from it."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    date: dt.date = Field(index=True)
+    kind: str = "dsa"  # dsa | practical | lld | system_design | ml | behavioral
+    company: str = ""
+    platform: str = ""
+    duration_minutes: int = 45
+    score: int = 3  # 1-5
+    went_well: str = Field(default="", sa_column=Column(Text))
+    to_improve: str = Field(default="", sa_column=Column(Text))
     created_at: datetime = Field(default_factory=_now)

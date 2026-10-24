@@ -559,6 +559,7 @@ class PrepTodayOut(BaseModel):
     carried: list[PrepItemOut] = Field(default_factory=list)
     redos: list[PrepItemOut] = Field(default_factory=list)
     extra: list[PrepItemOut] = Field(default_factory=list)
+    weekly: list[PrepItemOut] = Field(default_factory=list)
     dsa_backlog: int = 0
     done_count: int = 0
     total_count: int = 0
@@ -635,6 +636,7 @@ class PrepTaskDetailOut(BaseModel):
     brief: str | None = None
     starter: str | None = None
     tests: list[dict[str, Any]] = Field(default_factory=list)
+    levels: list[dict[str, Any]] | None = None
     hints_total: int = 0
     hints_revealed: list[str] = Field(default_factory=list)
     # The reference solution unlocks once the task has a logged attempt.
@@ -703,3 +705,47 @@ class PrepTutorIn(BaseModel):
 
     message: str = Field(default="", max_length=8_000)
     model: str | None = None
+
+
+
+class PrepStoryIn(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    situation: str = Field(default="", max_length=5_000)
+    task: str = Field(default="", max_length=5_000)
+    action: str = Field(default="", max_length=8_000)
+    result: str = Field(default="", max_length=5_000)
+    tags: list[str] = Field(default_factory=list, max_length=30)
+    companies: list[str] = Field(default_factory=list, max_length=20)
+
+
+class PrepStoryOut(PrepStoryIn):
+    id: int
+    critique: str = ""
+    updated_at: datetime
+
+
+class PrepTargetIn(BaseModel):
+    company: str = Field(min_length=1, max_length=100)
+    role: str = Field(default="", max_length=200)
+    why: str = Field(default="", max_length=5_000)
+    questions: str = Field(default="", max_length=5_000)
+
+
+class PrepTargetOut(PrepTargetIn):
+    id: int
+    updated_at: datetime
+
+
+class PrepMockIn(BaseModel):
+    date: dt.date
+    kind: Literal["dsa", "practical", "lld", "system_design", "ml", "behavioral"] = "dsa"
+    company: str = Field(default="", max_length=100)
+    platform: str = Field(default="", max_length=100)
+    duration_minutes: int = Field(default=45, ge=5, le=300)
+    score: int = Field(default=3, ge=1, le=5)
+    went_well: str = Field(default="", max_length=5_000)
+    to_improve: str = Field(default="", max_length=5_000)
+
+
+class PrepMockOut(PrepMockIn):
+    id: int
