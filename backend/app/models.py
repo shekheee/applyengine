@@ -1,3 +1,4 @@
+import datetime as dt
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
@@ -273,4 +274,79 @@ class InterviewTurn(SQLModel, table=True):
     role: str = "candidate"  # candidate | feedback | followup | interviewer | followup_reply
     content: str = Field(default="", sa_column=Column(Text))
     scores: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=_now)
+
+
+class PrepTask(SQLModel, table=True):
+    """One task from the Interview Prep program seed; shared by every user."""
+
+    id: str = Field(primary_key=True)
+    type: str = Field(index=True)  # dsa | drill | lld | hld | python | project
+    week: int = Field(index=True)
+    order: int = 0
+    day: str | None = None  # Mon..Sun for weekday-bound tasks
+    slot: str = "morning"  # morning | evening | weekend
+    title: str = ""
+    url: str | None = None
+    pattern: str | None = None
+    spec: str | None = Field(default=None, sa_column=Column(Text))
+    extensions: str | None = Field(default=None, sa_column=Column(Text))
+    framework: list[str] | None = Field(default=None, sa_column=Column(JSON))
+    target_minutes: int = 30
+    stretch: bool = False
+    editor: bool = False
+
+
+class PrepSettings(SQLModel, table=True):
+    """A user's Interview Prep program settings."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True, unique=True)
+    start_date: dt.date
+    hours_per_week: int = 25
+    updated_at: datetime = Field(default_factory=_now)
+
+
+class PrepAttempt(SQLModel, table=True):
+    """A logged attempt at a prep task. `date` is the user's local calendar day."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    # Not a foreign key: weeks 9-10 log free NeetCode problems as nc-YYYY-MM-DD.
+    task_id: str = Field(index=True)
+    title: str = ""
+    date: dt.date = Field(index=True)
+    started_at: datetime | None = None
+    ended_at: datetime | None = None
+    elapsed_minutes: float = 0
+    hint_used: bool = False
+    solved: str = "yes"  # yes | partial | no
+    self_rating: int | None = None
+    code: str = Field(default="", sa_column=Column(Text))
+    notes: str = Field(default="", sa_column=Column(Text))
+    complexity: str = ""
+    created_at: datetime = Field(default_factory=_now)
+
+
+class PrepRedo(SQLModel, table=True):
+    """A scheduled re-attempt of a task the user struggled with."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    task_id: str = Field(index=True)
+    due_date: dt.date = Field(index=True)
+    reason: str = ""
+    done: bool = Field(default=False, index=True)
+    completed_on: dt.date | None = None
+    source_attempt_id: int | None = Field(default=None, foreign_key="prepattempt.id")
+    created_at: datetime = Field(default_factory=_now)
+
+
+class PrepFeedback(SQLModel, table=True):
+    """Written review of one prep day, produced by the daily Claude review."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    date: dt.date = Field(index=True)
+    markdown: str = Field(default="", sa_column=Column(Text))
     created_at: datetime = Field(default_factory=_now)

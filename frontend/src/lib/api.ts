@@ -22,6 +22,8 @@ import type {
   Job,
   Memory,
   Profile,
+  PrepSettings,
+  PrepToday,
   ReasoningEffort,
   SocialMessage,
   SocialProject,
@@ -1309,6 +1311,29 @@ export const api = {
     if (!result) throw new ApiError(500, "Stream ended without completion");
     return result;
   },
+
+  // ---- Interview Prep ----
+  getPrepToday: (date: string) =>
+    req<PrepToday>(`/api/prep/today?date=${encodeURIComponent(date)}`),
+
+  getPrepSettings: () => req<PrepSettings>("/api/prep/settings"),
+
+  savePrepSettings: (body: { start_date: string; hours_per_week?: number }) =>
+    req<PrepSettings>("/api/prep/settings", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+
+  checkPrepItem: (body: {
+    task_id: string;
+    date: string;
+    done: boolean;
+    redo_id?: number | null;
+  }) =>
+    req<PrepToday>("/api/prep/check", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 
   liveInterviewTts: async (sessionId: number, text: string): Promise<Blob> => {
     const res = await fetch(`${BASE}/api/interview/sessions/${sessionId}/live/tts`, {

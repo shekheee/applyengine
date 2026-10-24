@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime as dt
 from datetime import datetime
 from typing import Any
 
@@ -470,3 +471,96 @@ class ResumeDesignOut(BaseModel):
     tailored_to_job: bool = False
     job_title: str = ""
     job_company: str = ""
+
+
+# ---------------------------------------------------------------------------
+# Interview Prep
+# ---------------------------------------------------------------------------
+
+
+class PrepSettingsIn(BaseModel):
+    start_date: dt.date
+    hours_per_week: int = Field(default=25, ge=1, le=80)
+
+
+class PrepSettingsOut(BaseModel):
+    configured: bool
+    start_date: dt.date | None = None
+    hours_per_week: int = 25
+
+
+class PrepCheckIn(BaseModel):
+    """Tick or untick a checklist item from the Today screen."""
+
+    task_id: str
+    date: dt.date
+    done: bool
+    redo_id: int | None = None
+
+
+class PrepItemOut(BaseModel):
+    key: str
+    task_id: str
+    type: str
+    title: str
+    url: str | None = None
+    pattern: str | None = None
+    slot: str
+    week: int
+    target_minutes: int
+    stretch: bool = False
+    badge: str | None = None
+    done: bool
+    redo_id: int | None = None
+    due_date: str | None = None
+    reason: str | None = None
+
+
+class PrepStreakOut(BaseModel):
+    current: int
+    best: int
+    today_count: int
+    needed_today: int
+
+
+class PrepDayOut(BaseModel):
+    date: str
+    label: str
+    status: str  # done | partial | missed | today | upcoming
+    count: int
+
+
+class PrepProgressOut(BaseModel):
+    done: int
+    total: int
+
+
+class PrepFeedbackOut(BaseModel):
+    date: dt.date
+    markdown: str
+    created_at: datetime
+
+
+class PrepTodayOut(BaseModel):
+    configured: bool
+    program_name: str
+    doc_url: str | None = None
+    date: dt.date
+    status: str = "unconfigured"  # unconfigured | not_started | active | complete
+    week: int = 0
+    weeks: int = 10
+    weekday: str = ""
+    start_date: str | None = None
+    days_until_start: int = 0
+    morning: list[PrepItemOut] = Field(default_factory=list)
+    evening: list[PrepItemOut] = Field(default_factory=list)
+    weekend: list[PrepItemOut] = Field(default_factory=list)
+    carried: list[PrepItemOut] = Field(default_factory=list)
+    redos: list[PrepItemOut] = Field(default_factory=list)
+    dsa_backlog: int = 0
+    done_count: int = 0
+    total_count: int = 0
+    streak: PrepStreakOut | None = None
+    week_strip: list[PrepDayOut] = Field(default_factory=list)
+    week_progress: PrepProgressOut | None = None
+    feedback: PrepFeedbackOut | None = None

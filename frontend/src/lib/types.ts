@@ -610,3 +610,78 @@ const CURRICULUM_TOPIC_LABELS: Record<string, string> = {
 export function curriculumTopicLabel(id: string): string {
   return CURRICULUM_TOPIC_LABELS[id] ?? id.replace(/_/g, " ");
 }
+
+// ---- Interview Prep ----
+
+export type PrepTaskType = "dsa" | "drill" | "lld" | "hld" | "python" | "project";
+
+export interface PrepItem {
+  key: string;
+  task_id: string;
+  type: PrepTaskType;
+  title: string;
+  url: string | null;
+  pattern: string | null;
+  slot: "morning" | "evening" | "weekend";
+  week: number;
+  target_minutes: number;
+  stretch: boolean;
+  badge: string | null;
+  done: boolean;
+  redo_id: number | null;
+  due_date: string | null;
+  reason: string | null;
+}
+
+export interface PrepStreak {
+  current: number;
+  best: number;
+  today_count: number;
+  needed_today: number;
+}
+
+export type PrepDayStatus = "done" | "partial" | "missed" | "today" | "upcoming";
+
+export interface PrepDay {
+  date: string;
+  label: string;
+  status: PrepDayStatus;
+  count: number;
+}
+
+export interface PrepFeedback {
+  date: string;
+  markdown: string;
+  created_at: string;
+}
+
+export interface PrepSettings {
+  configured: boolean;
+  start_date: string | null;
+  hours_per_week: number;
+}
+
+export interface PrepToday {
+  configured: boolean;
+  program_name: string;
+  doc_url: string | null;
+  date: string;
+  status: "unconfigured" | "not_started" | "active" | "complete";
+  week: number;
+  weeks: number;
+  weekday: string;
+  start_date: string | null;
+  days_until_start: number;
+  morning: PrepItem[];
+  evening: PrepItem[];
+  weekend: PrepItem[];
+  carried: PrepItem[];
+  redos: PrepItem[];
+  dsa_backlog: number;
+  done_count: number;
+  total_count: number;
+  streak: PrepStreak | null;
+  week_strip: PrepDay[];
+  week_progress: { done: number; total: number } | null;
+  feedback: PrepFeedback | null;
+}

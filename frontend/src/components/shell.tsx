@@ -11,7 +11,7 @@ const PUBLIC_PATHS = ["/login"];
 type NavItem = {
   href: string;
   label: string;
-  icon: "pipeline" | "coach" | "buddy" | "interview" | "resume" | "skills" | "social";
+  icon: "pipeline" | "coach" | "buddy" | "interview" | "prep" | "resume" | "skills" | "social";
 };
 
 const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
@@ -22,6 +22,7 @@ const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
       { href: "/coach", label: "Coach", icon: "coach" },
       { href: "/buddy", label: "Buddy", icon: "buddy" },
       { href: "/interview", label: "Interview", icon: "interview" },
+      { href: "/prep", label: "Interview Prep", icon: "prep" },
     ],
   },
   {
@@ -50,6 +51,7 @@ function NavIcon({ name, className }: { name: NavItem["icon"]; className?: strin
     coach: <><path d="M5 5.5A2.5 2.5 0 0 1 7.5 3h9A2.5 2.5 0 0 1 19 5.5v7a2.5 2.5 0 0 1-2.5 2.5H11l-4.5 4v-4A2.5 2.5 0 0 1 4 12.5z" /><path d="M8 8h8M8 11.5h5" /></>,
     buddy: <><path d="M4 13v-1a8 8 0 0 1 16 0v1" /><path d="M4 13a2 2 0 0 1 2-2h1v7H6a2 2 0 0 1-2-2zM20 13a2 2 0 0 0-2-2h-1v7h1a2 2 0 0 0 2-2z" /><path d="M17 18c0 2-2 3-5 3" /></>,
     interview: <><circle cx="12" cy="8" r="3.5" /><path d="M5 21a7 7 0 0 1 14 0M19 4v5M16.5 6.5h5" /></>,
+    prep: <><rect x="4" y="4" width="16" height="17" rx="2" /><path d="M8 2v4M16 2v4M4 10h16M8.5 15l2 2 4-4" /></>,
     resume: <><path d="M6 3h8l4 4v14H6z" /><path d="M14 3v5h4M9 12h6M9 16h6" /></>,
     skills: <><path d="m12 3 2.4 4.8L20 9l-4 3.9.9 5.6L12 16l-4.9 2.5.9-5.6L4 9l5.6-1.2z" /></>,
     social: <><circle cx="6" cy="12" r="2.5" /><circle cx="18" cy="6" r="2.5" /><circle cx="18" cy="18" r="2.5" /><path d="m8.2 10.8 7.5-3.6M8.2 13.2l7.5 3.6" /></>,

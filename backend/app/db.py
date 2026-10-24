@@ -41,6 +41,15 @@ def init_db() -> None:
     _migrate_interview_reliability()
     _migrate_social_studio()
     _migrate_buddy_practice()
+    _seed_prep_tasks()
+
+
+def _seed_prep_tasks() -> None:
+    """Load the Interview Prep program; upserts by task id so restarts add nothing."""
+    from app.services.prep_seed import sync_seed
+
+    with Session(engine) as session:
+        sync_seed(session)
 
 
 def _migrate_buddy_practice() -> None:
