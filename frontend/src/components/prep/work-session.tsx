@@ -349,7 +349,7 @@ function Workspace({
       levels={levels}
       levelState={levelState}
       levelsDone={levelsDone}
-      examples={tests.filter((t) => !t.hidden)}
+      examples={(levels.length ? levels[levelState.current - 1]?.tests ?? [] : tests).filter((t) => !t.hidden)}
       hintsOpened={hintsOpened}
       onHintReveal={(solution) => {
         setHintsOpened(true);
@@ -584,6 +584,8 @@ function ProblemPanel({
 
             {task.statement ? (
               <ChatMarkdown content={task.statement} density="compact" />
+            ) : task.brief && hasParts(task.brief) ? (
+              <PartedBrief brief={task.brief} tests={task.tests} />
             ) : task.brief ? (
               <ChatMarkdown content={task.brief} density="compact" />
             ) : (
@@ -595,25 +597,10 @@ function ProblemPanel({
               )
             )}
 
-            {!task.statement && examples.length > 0 && (
+            {!task.statement && !hasParts(task.brief ?? "") && examples.length > 0 && (
               <div className="space-y-3">
                 {examples.map((example, index) => (
-                  <div key={`${example.name}-${index}`}>
-                    <p className="text-sm font-semibold text-[var(--text)]">Example {index + 1}</p>
-                    <div className="mt-1.5 space-y-1 border-l-2 pl-3 font-mono text-xs leading-5" style={{ borderColor: "var(--border-strong)" }}>
-                      <p>
-                        <span className="font-semibold text-[var(--text)]">Input: </span>
-                        <span className="text-[var(--text-secondary)]">{example.input}</span>
-                      </p>
-                      {example.expected && (
-                        <p>
-                          <span className="font-semibold text-[var(--text)]">Output: </span>
-                          <span className="whitespace-pre-wrap text-[var(--text-secondary)]">{example.expected}</span>
-                        </p>
-                      )}
-                      <p className="font-sans text-[var(--muted)]">{example.name}</p>
-                    </div>
-                  </div>
+                  <ExampleCase key={`${example.name}-${index}`} example={example} number={index + 1} />
                 ))}
               </div>
             )}
@@ -747,6 +734,74 @@ function ProblemPanel({
 
         {!locked && tab === "submissions" && <Submissions attempts={attempts} onLoadCode={onLoadCode} />}
       </div>
+    </div>
+  );
+}
+
+const PART_HEADING = /^### Part (\d+) · /m;
+
+function hasParts(brief: string): boolean {
+  return PART_HEADING.test(brief);
+}
+
+/** One worked example, LeetCode style: Input, Output, Explanation. */
+function ExampleCase({ example, number }: { example: PrepTestCase; number: number }) {
+  return (
+    <div>
+      <p className="text-sm font-semibold text-[var(--text)]">Example {number}</p>
+      <div className="mt-1.5 space-y-1 border-l-2 pl-3 font-mono text-xs leading-5" style={{ borderColor: "var(--border-strong)" }}>
+        <p className="whitespace-pre-wrap">
+          <span className="font-semibold text-[var(--text)]">Input: </span>
+          <span className="text-[var(--text-secondary)]">
+            {example.input?.includes("\n") ? `\n${example.input}` : example.input}
+          </span>
+        </p>
+        {example.expected && (
+          <p className="whitespace-pre-wrap">
+            <span className="font-semibold text-[var(--text)]">Output: </span>
+            <span className="text-[var(--text-secondary)]">{example.expected}</span>
+          </p>
+        )}
+        {example.explanation ? (
+          <p className="whitespace-pre-wrap font-sans text-[var(--text-secondary)]">
+            <span className="font-semibold text-[var(--text)]">Explanation: </span>
+            {example.explanation}
+          </p>
+        ) : (
+          <p className="font-sans text-[var(--muted)]">{example.name}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A brief written as an objective plus "### Part N · ..." sections. Each part is
+ * followed by its own worked examples, taken from the visible test cases.
+ */
+function PartedBrief({ brief, tests }: { brief: string; tests: PrepTestCase[] }) {
+  const sections = brief.split(/^(?=### )/m);
+  // Examples are numbered across parts in the order they appear.
+  const ordered = tests.filter((t) => !t.hidden).sort((a, b) => (a.part ?? 0) - (b.part ?? 0));
+  return (
+    <div className="space-y-4">
+      {sections.map((section, index) => {
+        const match = section.match(PART_HEADING);
+        const part = match ? Number(match[1]) : null;
+        const examples = part === null ? [] : tests.filter((t) => !t.hidden && t.part === part);
+        return (
+          <section
+            key={index}
+            className={part !== null ? "space-y-3 rounded-[var(--radius-md)] border p-3" : undefined}
+            style={part !== null ? { borderColor: "var(--border)" } : undefined}
+          >
+            <ChatMarkdown content={section} density="compact" />
+            {examples.map((example) => (
+              <ExampleCase key={example.name} example={example} number={ordered.indexOf(example) + 1} />
+            ))}
+          </section>
+        );
+      })}
     </div>
   );
 }

@@ -850,6 +850,10 @@ export interface PrepTestCase {
   hidden?: boolean;
   /** Expected output shown with the example in the problem description. */
   expected?: string;
+  /** Which "### Part N" of the brief this case exercises. */
+  part?: number;
+  /** Why the expected output is right; shown under visible examples. */
+  explanation?: string;
 }
 
 export interface PrepStoryInput {
