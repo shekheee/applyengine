@@ -99,7 +99,7 @@
  ],
  "content": {
   "fu-1": {
-   "brief": "### Goal\nImplement the output layer of a classifier / language model in NumPy: softmax, log-softmax, the cross-entropy loss, and its gradient with respect to the logits.\n\n### What to build\n- `softmax(logits, axis=-1) -> np.ndarray`\n- `log_softmax(logits, axis=-1) -> np.ndarray`\n- `cross_entropy(logits, targets) -> float` — `logits` shape `(N, C)`, `targets` int shape `(N,)`; the **mean** over the batch of `−log softmax(logits[n])[targets[n]]`\n- `cross_entropy_grad(logits, targets) -> np.ndarray` — shape `(N, C)`, the gradient of `cross_entropy(logits, targets)` with respect to `logits`\n\n### Requirements\n- Accept lists or arrays. Never overflow or return `nan`/`inf` for huge logits (e.g. `[1000, 1001, 1002]`), and `log_softmax` must stay finite far from the max (e.g. `[-1000, 0]`).\n- `softmax`/`log_softmax` work along any `axis` of any-rank input.\n- `cross_entropy` returns a Python `float`.\n- `cross_entropy` and `cross_entropy_grad` raise `ValueError` if logits are not 2-D with N ≥ 1, targets are not shape `(N,)`, or any target is outside `[0, C)`.\n- The gradient is checked against finite differences.\n\n### Example\n```python\nsoftmax([1.0, 2.0, 3.0])                     # [0.090031, 0.244728, 0.665241]\ncross_entropy([[2.0, 1.0, 0.1]], [0])        # 0.417030\ncross_entropy_grad([[2.0, 1.0, 0.1]], [0])   # [[-0.340973, 0.242433, 0.098541]]\n```\n\n### Done when\nAll cases pass from a blank file in under 40 minutes.",
+   "brief": "**Objective:** Implement a classifier's output layer in NumPy — softmax, log-softmax, the mean cross-entropy loss and its gradient — so that no logits, however large, overflow.\n\n### Part 1 · `softmax(logits, axis=-1)` and `log_softmax(logits, axis=-1)`\nReturn the softmax probabilities along `axis`, and their natural log.\n\n- Accept lists or arrays of any rank, along any `axis`.\n- Never overflow or return `nan`/`inf` for huge logits such as `[1000, 1001, 1002]`.\n- `log_softmax` stays finite far below the max: `log_softmax([-1000, 0])` is `[-1000, 0]`.\n\n### Part 2 · `cross_entropy(logits, targets) -> float`\n`logits` has shape `(N, C)` and `targets` holds `N` integer class indices. Return the **mean** over the batch of `−log softmax(logits[n])[targets[n]]`, as a Python `float`.\n\n- Raise `ValueError` if `logits` is not 2-D with `N ≥ 1`, `targets` is not shape `(N,)`, or any target is outside `[0, C)`.\n\n### Part 3 · `cross_entropy_grad(logits, targets) -> np.ndarray`\nReturn the gradient of `cross_entropy(logits, targets)` with respect to `logits`, shape `(N, C)`.\n\n- Same `ValueError` checks as Part 2.\n- It is checked against a finite-difference estimate of the gradient.\n\n### Done when\nAll 12 tests pass (3 examples + 9 hidden edge cases), written from a blank file in under 40 minutes.",
    "learn": "- A model outputs **logits** `z`: one unnormalised score per class or vocabulary token.\n- **Softmax** turns logits into a probability distribution: `softmax(z)_i = exp(z_i) / Σ_j exp(z_j)`. Every output is in (0, 1) and they sum to 1.\n- **Log-softmax** is `log(softmax(z))`, the log-probability of each class.\n- **Cross-entropy** for a correct class `y` is the negative log-probability the model gave it, `−log softmax(z)[y]`; training minimises its mean over a batch. A perfect, confident prediction has loss near 0.\n- Floating point: `np.exp` overflows to `inf` above about 709, and `np.log(0)` is `-inf`.",
    "starter": "import numpy as np\n\n\ndef softmax(logits, axis=-1):\n    \"\"\"Numerically stable softmax along `axis`.\"\"\"\n    raise NotImplementedError\n\n\ndef log_softmax(logits, axis=-1):\n    \"\"\"Numerically stable log-softmax along `axis`.\"\"\"\n    raise NotImplementedError\n\n\ndef cross_entropy(logits, targets) -> float:\n    \"\"\"Mean negative log-likelihood of `targets` (N,) under `logits` (N, C).\"\"\"\n    raise NotImplementedError\n\n\ndef cross_entropy_grad(logits, targets):\n    \"\"\"d(mean cross-entropy)/d(logits), shape (N, C).\"\"\"\n    raise NotImplementedError\n",
    "tests": [
@@ -108,75 +108,90 @@
      "input": "logits = [1.0, 2.0, 3.0]",
      "hidden": false,
      "code": "expect(np.round(softmax([1.0, 2.0, 3.0]), 6).tolist(), [0.090031, 0.244728, 0.665241])\n",
-     "expected": "[0.090031, 0.244728, 0.665241]"
+     "expected": "[0.090031, 0.244728, 0.665241]",
+     "part": 1,
+     "explanation": "exp(1), exp(2), exp(3) are 2.718, 7.389 and 20.086, which sum to 30.193. Dividing each by the sum gives 0.090, 0.245 and 0.665."
     },
     {
      "name": "cross-entropy of one example",
      "input": "logits = [[2.0, 1.0, 0.1]], targets = [0]",
      "hidden": false,
      "code": "expect(round(cross_entropy([[2.0, 1.0, 0.1]], [0]), 6), 0.41703)\n",
-     "expected": "0.41703"
+     "expected": "0.41703",
+     "part": 2,
+     "explanation": "softmax([2.0, 1.0, 0.1]) is [0.659, 0.242, 0.099]. The target is class 0, so the loss is −log 0.659 = 0.417 (a batch of one, so the mean is that value)."
     },
     {
      "name": "gradient of a batch of two",
      "input": "logits = [[2.0, 1.0, 0.1], [0.5, 0.5, 0.5]], targets = [0, 2]",
      "hidden": false,
      "code": "expect(np.round(cross_entropy_grad([[2.0, 1.0, 0.1], [0.5, 0.5, 0.5]], [0, 2]), 6).tolist(), [[-0.170499, 0.121216, 0.049283], [0.166667, 0.166667, -0.333333]])\n",
-     "expected": "[[-0.170499, 0.121216, 0.049283], [0.166667, 0.166667, -0.333333]]"
+     "expected": "[[-0.170499, 0.121216, 0.049283], [0.166667, 0.166667, -0.333333]]",
+     "part": 3,
+     "explanation": "Row 2 is uniform (each probability 1/3) with target 2: its entries are (1/3)/2 = 0.167 for the other classes and (1/3 − 1)/2 = −0.333 for the target. The /2 is the mean over N = 2 rows; row 1 works the same way from [0.659, 0.242, 0.099] with target 0."
     },
     {
      "name": "huge logits do not overflow",
      "input": "logits = [1000.0, 1001.0, 1002.0]",
      "hidden": true,
-     "code": "expect(np.round(softmax([1000.0, 1001.0, 1002.0]), 6).tolist(), [0.090031, 0.244728, 0.665241])\n"
+     "code": "expect(np.round(softmax([1000.0, 1001.0, 1002.0]), 6).tolist(), [0.090031, 0.244728, 0.665241])\n",
+     "part": 1
     },
     {
      "name": "softmax along axis 0",
      "input": "logits = [[1, 2], [3, 4]], axis = 0",
      "hidden": true,
-     "code": "expect(np.round(softmax(np.array([[1.0, 2.0], [3.0, 4.0]]), axis=0), 6).tolist(), [[0.119203, 0.119203], [0.880797, 0.880797]])\n"
+     "code": "expect(np.round(softmax(np.array([[1.0, 2.0], [3.0, 4.0]]), axis=0), 6).tolist(), [[0.119203, 0.119203], [0.880797, 0.880797]])\n",
+     "part": 1
     },
     {
      "name": "log_softmax stays finite far from the max",
      "input": "logits = [-1000.0, 0.0]",
      "hidden": true,
-     "code": "expect(np.round(log_softmax([-1000.0, 0.0]), 6).tolist(), [-1000.0, 0.0])\n"
+     "code": "expect(np.round(log_softmax([-1000.0, 0.0]), 6).tolist(), [-1000.0, 0.0])\n",
+     "part": 1
     },
     {
      "name": "uniform logits give loss log(C)",
      "input": "logits = zeros((4, 5)), targets = [0, 1, 2, 3]",
      "hidden": true,
-     "code": "expect(round(cross_entropy(np.zeros((4, 5)), [0, 1, 2, 3]), 6), 1.609438, label='log 5')\n"
+     "code": "expect(round(cross_entropy(np.zeros((4, 5)), [0, 1, 2, 3]), 6), 1.609438, label='log 5')\n",
+     "part": 2
     },
     {
      "name": "confident correct prediction has ~0 loss",
      "input": "logits = [[100.0, 0.0]], targets = [0]",
      "hidden": true,
-     "code": "expect(round(cross_entropy([[100.0, 0.0]], [0]), 6), 0.0)\n"
-    },
-    {
-     "name": "gradient matches finite differences",
-     "input": "logits = seeded normal (3, 4), targets = [1, 0, 3]",
-     "hidden": true,
-     "code": "rng = np.random.default_rng(7)\nz = rng.normal(size=(3, 4))\nt = np.array([1, 0, 3])\nnum = np.zeros_like(z)\nfor i in range(3):\n    for j in range(4):\n        zp, zm = z.copy(), z.copy()\n        zp[i, j] += 1e-5\n        zm[i, j] -= 1e-5\n        num[i, j] = (cross_entropy(zp, t) - cross_entropy(zm, t)) / 2e-5\nexpect(bool(np.allclose(cross_entropy_grad(z, t), num, atol=1e-6)), True, label=\"analytic == numeric\")\n"
-    },
-    {
-     "name": "gradient rows sum to zero",
-     "input": "logits = [[3, -1, 2], [0, 0, 9]], targets = [2, 0]",
-     "hidden": true,
-     "code": "g = cross_entropy_grad([[3.0, -1.0, 2.0], [0.0, 0.0, 9.0]], [2, 0])\nexpect(np.round(g.sum(axis=1), 6).tolist(), [0.0, 0.0])\n"
+     "code": "expect(round(cross_entropy([[100.0, 0.0]], [0]), 6), 0.0)\n",
+     "part": 2
     },
     {
      "name": "target out of range raises",
      "input": "logits = [[1, 2, 3]], targets = [3]",
      "hidden": true,
-     "code": "expect_raises(ValueError, cross_entropy, [[1.0, 2.0, 3.0]], [3])\nexpect_raises(ValueError, cross_entropy_grad, [[1.0, 2.0, 3.0]], [-1])\n"
+     "code": "expect_raises(ValueError, cross_entropy, [[1.0, 2.0, 3.0]], [3])\nexpect_raises(ValueError, cross_entropy_grad, [[1.0, 2.0, 3.0]], [-1])\n",
+     "part": 2
     },
     {
      "name": "targets length mismatch raises",
      "input": "logits = shape (2, 3), targets = [0]",
      "hidden": true,
-     "code": "expect_raises(ValueError, cross_entropy, np.zeros((2, 3)), [0])\n"
+     "code": "expect_raises(ValueError, cross_entropy, np.zeros((2, 3)), [0])\n",
+     "part": 2
+    },
+    {
+     "name": "gradient matches finite differences",
+     "input": "logits = seeded normal (3, 4), targets = [1, 0, 3]",
+     "hidden": true,
+     "code": "rng = np.random.default_rng(7)\nz = rng.normal(size=(3, 4))\nt = np.array([1, 0, 3])\nnum = np.zeros_like(z)\nfor i in range(3):\n    for j in range(4):\n        zp, zm = z.copy(), z.copy()\n        zp[i, j] += 1e-5\n        zm[i, j] -= 1e-5\n        num[i, j] = (cross_entropy(zp, t) - cross_entropy(zm, t)) / 2e-5\nexpect(bool(np.allclose(cross_entropy_grad(z, t), num, atol=1e-6)), True, label=\"analytic == numeric\")\n",
+     "part": 3
+    },
+    {
+     "name": "gradient rows sum to zero",
+     "input": "logits = [[3, -1, 2], [0, 0, 9]], targets = [2, 0]",
+     "hidden": true,
+     "code": "g = cross_entropy_grad([[3.0, -1.0, 2.0], [0.0, 0.0, 9.0]], [2, 0])\nexpect(np.round(g.sum(axis=1), 6).tolist(), [0.0, 0.0])\n",
+     "part": 3
     }
    ],
    "hints": [
@@ -187,7 +202,7 @@
    "solution": "### Key insight\n- Softmax is unchanged by adding the same constant to every logit, so real code subtracts the max first: `softmax(z) = softmax(z − max(z))`. Every exponent is then ≤ 0, so nothing overflows.\n- Compute log-softmax directly as `(z − m) − log Σ exp(z − m)` instead of `log(softmax(z))`, which underflows to `log(0)`.\n- The gradient of mean cross-entropy with respect to the logits is `(softmax(z_n) − onehot(y_n)) / N`.\n\n### What the interviewer probes\n- Why subtract the max before `exp`? Why is it mathematically a no-op? (Shift invariance.)\n- What is the loss of a uniform prediction over C classes? (`log C`)\n- Derive the softmax + cross-entropy gradient. Why do frameworks fuse them? (Simpler gradient, better numerics.)\n\n### Intuition\nSoftmax is shift-invariant: `exp(z_i − m) / Σ exp(z_j − m)` cancels the `exp(−m)`. Choosing `m = max(z)` makes the largest exponent `exp(0) = 1`, so nothing overflows and the denominator is at least 1 (no division by zero). Log-softmax keeps everything in log space so a probability of `1e-450` is still the finite number `-1036`, not `log(0) = -inf`.\n\nThe gradient falls out of `L = −z_y + log Σ exp(z_j)`: differentiating gives `softmax(z)_j − [j == y]`, averaged over the batch. That is why frameworks fuse the two ops (\"softmax cross-entropy with logits\").\n\n### Reference implementation\n```python\nimport numpy as np\n\n\ndef softmax(logits, axis=-1):\n    x = np.asarray(logits, dtype=float)\n    z = x - x.max(axis=axis, keepdims=True)  # shift: exp never overflows\n    e = np.exp(z)\n    return e / e.sum(axis=axis, keepdims=True)\n\n\ndef log_softmax(logits, axis=-1):\n    x = np.asarray(logits, dtype=float)\n    z = x - x.max(axis=axis, keepdims=True)\n    return z - np.log(np.exp(z).sum(axis=axis, keepdims=True))\n\n\ndef _check(logits, targets):\n    x = np.asarray(logits, dtype=float)\n    t = np.asarray(targets)\n    if x.ndim != 2 or x.shape[0] == 0:\n        raise ValueError(\"logits must have shape (N, C) with N >= 1\")\n    if t.shape != (x.shape[0],):\n        raise ValueError(\"targets must have shape (N,)\")\n    if not np.issubdtype(t.dtype, np.integer) or t.min() < 0 or t.max() >= x.shape[1]:\n        raise ValueError(\"targets must be class indices in [0, C)\")\n    return x, t\n\n\ndef cross_entropy(logits, targets):\n    x, t = _check(logits, targets)\n    lp = log_softmax(x, axis=1)\n    return float(-lp[np.arange(len(t)), t].mean())\n\n\ndef cross_entropy_grad(logits, targets):\n    x, t = _check(logits, targets)\n    g = softmax(x, axis=1)\n    g[np.arange(len(t)), t] -= 1.0\n    return g / len(t)\n```\n\n### Complexity\nO(N·C) time and memory for every function.\n\n### Common mistakes\n- `np.log(softmax(x))` — underflows to `-inf` for very negative logits.\n- Forgetting `keepdims=True`, so the max broadcasts against the wrong axis.\n- Summing instead of averaging the loss (then the gradient is off by a factor of N).\n- Mutating the caller's array in the gradient (we write into a fresh softmax output).\n- Using `x.max()` over the whole array instead of per row.\n"
   },
   "fu-2": {
-   "brief": "### Goal\nImplement scaled dot-product attention with optional masking, plus the causal mask a decoder uses.\n\n### What to build\n- `causal_mask(T) -> np.ndarray` — bool `(T, T)`, `True` where query `i` may attend to key `j` (i.e. `j <= i`).\n- `attention(Q, K, V, mask=None) -> tuple[np.ndarray, np.ndarray]` — returns `(output, weights)` with shapes `(..., Tq, dv)` and `(..., Tq, Tk)`, where `weights = softmax(Q Kᵀ / √d)` over the key axis restricted to allowed positions, and `output = weights V`.\n\n### Requirements\n- Shapes: `Q` (..., Tq, d), `K` (..., Tk, d), `V` (..., Tk, dv); `d` is the key dimension. Any number of leading batch dims; `Tq` may differ from `Tk`.\n- `mask` is bool, broadcastable to `(..., Tq, Tk)`, `True` = keep. Masked weights must be exactly 0, and every weight row sums to 1.\n- No overflow or `nan` for large scores.\n- Raise `ValueError` when Q/K last dims differ, K/V key counts differ, any query row is fully masked, or `T < 1` in `causal_mask`.\n\n### Example\n```python\ncausal_mask(3).astype(int).tolist()   # [[1,0,0],[1,1,0],[1,1,1]]\nQ = K = np.eye(2); V = np.array([[1.0, 2.0], [3.0, 4.0]])\nout, w = attention(Q, K, V)\nnp.round(w, 6).tolist()   # [[0.669762, 0.330238], [0.330238, 0.669762]]\n```\n\n### Done when\nAll cases pass from a blank file in under 40 minutes.",
+   "brief": "**Objective:** Implement scaled dot-product attention with an optional mask, plus the causal mask a decoder uses.\n\n### Part 1 · `causal_mask(T) -> np.ndarray`\nReturn a bool array of shape `(T, T)` that is `True` where query `i` may attend to key `j`, i.e. where `j <= i`.\n\n- Raise `ValueError` if `T < 1`.\n\n### Part 2 · `attention(Q, K, V, mask=None) -> tuple[np.ndarray, np.ndarray]`\nReturn `(output, weights)`, where `weights = softmax(Q Kᵀ / √d)` over the key axis, restricted to allowed positions, and `output = weights V`.\n\n- Shapes: `Q` is `(..., Tq, d)`, `K` is `(..., Tk, d)`, `V` is `(..., Tk, dv)`; `output` is `(..., Tq, dv)` and `weights` is `(..., Tq, Tk)`. Any number of leading batch dims; `Tq` may differ from `Tk`.\n- `mask` is bool and broadcastable to `(..., Tq, Tk)`; `True` means keep. Masked weights are exactly `0`, and every weight row sums to `1`.\n- No overflow or `nan` for large scores.\n- Raise `ValueError` when the last dims of `Q` and `K` differ, `K` and `V` have different key counts, or a query row is fully masked.\n\n### Done when\nAll 11 tests pass (3 examples + 8 hidden edge cases), written from a blank file in under 40 minutes.",
    "learn": "- **Attention** lets each query position build its output as a weighted average of value vectors, with weights from how well the query matches each key:\n\n  `Attention(Q, K, V) = softmax(Q Kᵀ / √d) V`\n\n  where the softmax runs over the keys for each query.\n- A **mask** marks which (query, key) pairs are allowed. A **causal** mask lets position `i` see only positions `j ≤ i`; it is what makes a decoder autoregressive.\n- In NumPy, `@` is batched matrix multiplication over the last two axes, and `np.swapaxes(K, -1, -2)` transposes the last two axes.",
    "starter": "import numpy as np\n\n\ndef causal_mask(T):\n    \"\"\"Bool (T, T) array, True where query i may attend to key j (j <= i).\"\"\"\n    raise NotImplementedError\n\n\ndef attention(Q, K, V, mask=None):\n    \"\"\"Scaled dot-product attention. Returns (output, weights).\"\"\"\n    raise NotImplementedError\n",
    "tests": [
@@ -196,69 +211,83 @@
      "input": "T = 3",
      "hidden": false,
      "code": "expect(causal_mask(3).tolist(), [[True, False, False], [True, True, False], [True, True, True]])\n",
-     "expected": "[[True, False, False], [True, True, False], [True, True, True]]"
+     "expected": "[[True, False, False], [True, True, False], [True, True, True]]",
+     "part": 1,
+     "explanation": "Row i is query i, which may see keys 0..i: row 0 has one True, row 1 two, and row 2 all three."
     },
     {
      "name": "attention weights with identity Q and K",
-     "input": "Q = K = eye(2), V = [[1, 2], [3, 4]]",
+     "input": "Q = [[1, 0], [0, 1]], K = [[1, 0], [0, 1]], V = [[1, 2], [3, 4]]",
      "hidden": false,
      "code": "out, w = attention(np.eye(2), np.eye(2), np.array([[1.0, 2.0], [3.0, 4.0]]))\nexpect(np.round(w, 6).tolist(), [[0.669762, 0.330238], [0.330238, 0.669762]], label=\"weights\")\nexpect(np.round(out, 6).tolist(), [[1.660477, 2.660477], [2.339523, 3.339523]], label=\"output\")\n",
-     "expected": "weights: [[0.669762, 0.330238], [0.330238, 0.669762]]\noutput: [[1.660477, 2.660477], [2.339523, 3.339523]]"
+     "expected": "weights: [[0.669762, 0.330238], [0.330238, 0.669762]]\noutput: [[1.660477, 2.660477], [2.339523, 3.339523]]",
+     "part": 2,
+     "explanation": "Q Kᵀ is the identity and d = 2, so row 0's scores are [0.707, 0]; their softmax is [0.670, 0.330]. Output row 0 is 0.670·[1, 2] + 0.330·[3, 4] = [1.660, 2.660]; row 1 is the mirror image."
     },
     {
      "name": "causal: first position only sees itself",
-     "input": "Q, K, V = seeded normal (3, 4), mask = causal_mask(3)",
+     "input": "rng = np.random.default_rng(0)\nQ, K, V = rng.normal(size=(3, 3, 4))\nout, w = attention(Q, K, V, causal_mask(3))\nout[0]",
      "hidden": false,
      "code": "rng = np.random.default_rng(0)\nQ, K, V = rng.normal(size=(3, 3, 4))\nout, w = attention(Q, K, V, causal_mask(3))\nexpect(np.round(out[0], 6).tolist(), np.round(V[0], 6).tolist(), label=\"out[0] == V[0]\")\n",
-     "expected": "[0.90347, 0.094012, -0.743499, -0.921725]"
+     "expected": "[0.90347, 0.094012, -0.743499, -0.921725]",
+     "part": 2,
+     "explanation": "Under the causal mask query 0 may attend only to key 0, so its single weight is 1 and out[0] is exactly V[0]."
     },
     {
      "name": "masked weights are exactly zero",
      "input": "seeded Q, K, V (4, 2), mask = causal_mask(4)",
      "hidden": true,
-     "code": "rng = np.random.default_rng(1)\nQ, K, V = rng.normal(size=(3, 4, 2))\n_, w = attention(Q, K, V, causal_mask(4))\nexpect(float(np.triu(w, k=1).sum()), 0.0, label=\"sum above diagonal\")\nexpect(np.round(w.sum(axis=-1), 6).tolist(), [1.0, 1.0, 1.0, 1.0], label=\"row sums\")\n"
+     "code": "rng = np.random.default_rng(1)\nQ, K, V = rng.normal(size=(3, 4, 2))\n_, w = attention(Q, K, V, causal_mask(4))\nexpect(float(np.triu(w, k=1).sum()), 0.0, label=\"sum above diagonal\")\nexpect(np.round(w.sum(axis=-1), 6).tolist(), [1.0, 1.0, 1.0, 1.0], label=\"row sums\")\n",
+     "part": 2
     },
     {
      "name": "scores are divided by sqrt(d)",
      "input": "Q = [[1, 1, 1, 1]], K = [[1, 1, 1, 1], [0, 0, 0, 0]], V = [[1], [0]]",
      "hidden": true,
-     "code": "out, w = attention([[1.0, 1.0, 1.0, 1.0]], [[1.0, 1.0, 1.0, 1.0], [0.0, 0.0, 0.0, 0.0]], [[1.0], [0.0]])\nexpect(np.round(w, 6).tolist(), [[0.880797, 0.119203]], label=\"softmax([4/2, 0])\")\n"
+     "code": "out, w = attention([[1.0, 1.0, 1.0, 1.0]], [[1.0, 1.0, 1.0, 1.0], [0.0, 0.0, 0.0, 0.0]], [[1.0], [0.0]])\nexpect(np.round(w, 6).tolist(), [[0.880797, 0.119203]], label=\"softmax([4/2, 0])\")\n",
+     "part": 2
     },
     {
      "name": "batched input keeps batch dims",
      "input": "Q, K, V shape (2, 3, 4)",
      "hidden": true,
-     "code": "rng = np.random.default_rng(2)\nQ, K, V = rng.normal(size=(3, 2, 3, 4))\nout, w = attention(Q, K, V)\nsingle, _ = attention(Q[1], K[1], V[1])\nexpect((out.shape, w.shape), ((2, 3, 4), (2, 3, 3)), label=\"shapes\")\nexpect(bool(np.allclose(out[1], single)), True, label=\"batch 1 == unbatched\")\n"
+     "code": "rng = np.random.default_rng(2)\nQ, K, V = rng.normal(size=(3, 2, 3, 4))\nout, w = attention(Q, K, V)\nsingle, _ = attention(Q[1], K[1], V[1])\nexpect((out.shape, w.shape), ((2, 3, 4), (2, 3, 3)), label=\"shapes\")\nexpect(bool(np.allclose(out[1], single)), True, label=\"batch 1 == unbatched\")\n",
+     "part": 2
     },
     {
      "name": "cross-attention with Tq != Tk",
      "input": "Q (2, 4), K (5, 4), V (5, 3)",
      "hidden": true,
-     "code": "rng = np.random.default_rng(3)\nout, w = attention(rng.normal(size=(2, 4)), rng.normal(size=(5, 4)), rng.normal(size=(5, 3)))\nexpect((out.shape, w.shape), ((2, 3), (2, 5)))\n"
+     "code": "rng = np.random.default_rng(3)\nout, w = attention(rng.normal(size=(2, 4)), rng.normal(size=(5, 4)), rng.normal(size=(5, 3)))\nexpect((out.shape, w.shape), ((2, 3), (2, 5)))\n",
+     "part": 2
     },
     {
      "name": "future tokens do not change past outputs",
      "input": "change V[3] and K[3] under causal_mask(4)",
      "hidden": true,
-     "code": "rng = np.random.default_rng(4)\nQ, K, V = rng.normal(size=(3, 4, 4))\na, _ = attention(Q, K, V, causal_mask(4))\nK2, V2 = K.copy(), V.copy()\nK2[3] += 5.0\nV2[3] -= 5.0\nb, _ = attention(Q, K2, V2, causal_mask(4))\nexpect(bool(np.allclose(a[:3], b[:3])), True, label=\"rows 0-2 unchanged\")\nexpect(bool(np.allclose(a[3], b[3])), False, label=\"row 3 changed\")\n"
+     "code": "rng = np.random.default_rng(4)\nQ, K, V = rng.normal(size=(3, 4, 4))\na, _ = attention(Q, K, V, causal_mask(4))\nK2, V2 = K.copy(), V.copy()\nK2[3] += 5.0\nV2[3] -= 5.0\nb, _ = attention(Q, K2, V2, causal_mask(4))\nexpect(bool(np.allclose(a[:3], b[:3])), True, label=\"rows 0-2 unchanged\")\nexpect(bool(np.allclose(a[3], b[3])), False, label=\"row 3 changed\")\n",
+     "part": 2
     },
     {
      "name": "mask broadcasts over batch",
      "input": "Q, K, V shape (2, 3, 2), mask = causal_mask(3)",
      "hidden": true,
-     "code": "rng = np.random.default_rng(5)\nQ, K, V = rng.normal(size=(3, 2, 3, 2))\n_, w = attention(Q, K, V, causal_mask(3))\nexpect(np.round(w[:, 0], 6).tolist(), [[1.0, 0.0, 0.0], [1.0, 0.0, 0.0]])\n"
+     "code": "rng = np.random.default_rng(5)\nQ, K, V = rng.normal(size=(3, 2, 3, 2))\n_, w = attention(Q, K, V, causal_mask(3))\nexpect(np.round(w[:, 0], 6).tolist(), [[1.0, 0.0, 0.0], [1.0, 0.0, 0.0]])\n",
+     "part": 2
     },
     {
      "name": "fully masked row raises",
      "input": "mask = [[True, False], [False, False]]",
      "hidden": true,
-     "code": "expect_raises(ValueError, attention, np.eye(2), np.eye(2), np.eye(2), np.array([[True, False], [False, False]]))\n"
+     "code": "expect_raises(ValueError, attention, np.eye(2), np.eye(2), np.eye(2), np.array([[True, False], [False, False]]))\n",
+     "part": 2
     },
     {
      "name": "mismatched dims raise",
      "input": "Q (2, 3), K (2, 4) / K (2, 3), V (3, 3)",
      "hidden": true,
-     "code": "expect_raises(ValueError, attention, np.ones((2, 3)), np.ones((2, 4)), np.ones((2, 3)), label=\"Q/K dims\")\nexpect_raises(ValueError, attention, np.ones((2, 3)), np.ones((2, 3)), np.ones((3, 3)), label=\"K/V lengths\")\nexpect_raises(ValueError, causal_mask, 0, label=\"T = 0\")\n"
+     "code": "expect_raises(ValueError, attention, np.ones((2, 3)), np.ones((2, 4)), np.ones((2, 3)), label=\"Q/K dims\")\nexpect_raises(ValueError, attention, np.ones((2, 3)), np.ones((2, 3)), np.ones((3, 3)), label=\"K/V lengths\")\nexpect_raises(ValueError, causal_mask, 0, label=\"T = 0\")\n",
+     "part": 2
     }
    ],
    "hints": [
@@ -269,78 +298,92 @@
    "solution": "### Key insight\n- Apply the mask **before** softmax by setting disallowed scores to `−∞`; masked weights are then exactly 0 and the rest still sum to 1. Use a max-shifted softmax for stability.\n- Dividing by `√d` keeps the dot products' variance near 1 so softmax does not saturate.\n\n### What the interviewer probes\n- Why scale by `√d`? What happens to the softmax without it as `d` grows? (Scores grow like √d, softmax goes one-hot, gradients vanish.)\n- How does the causal mask make training parallel yet generation left-to-right?\n- What is the time and memory cost of attention in sequence length? (O(T²))\n\n### Intuition\nEach query row asks \"which keys look like me?\" via dot products, turns those similarities into a probability distribution with softmax, and returns the weighted average of the values. Dividing by `√d` matters because the dot product of two random unit-variance vectors has variance `d`; without the scale, large `d` pushes softmax into one-hot territory and its gradients vanish.\n\nMasking with `−∞` (not a big negative number added after scaling, and not zeroing weights after softmax) guarantees masked weights are exactly 0 **and** that the remaining weights still sum to 1. With a causal mask, row `i` mixes only values `0..i`, so all positions can be trained in parallel while generation remains left-to-right.\n\n### Reference implementation\n```python\nimport numpy as np\n\n\ndef causal_mask(T):\n    if T < 1:\n        raise ValueError(\"T must be >= 1\")\n    return np.tril(np.ones((T, T), dtype=bool))  # True = may attend\n\n\ndef attention(Q, K, V, mask=None):\n    Q, K, V = (np.asarray(a, dtype=float) for a in (Q, K, V))\n    d = Q.shape[-1]\n    if K.shape[-1] != d:\n        raise ValueError(\"Q and K must share the last dimension\")\n    if K.shape[-2] != V.shape[-2]:\n        raise ValueError(\"K and V must have the same number of keys\")\n    scores = Q @ np.swapaxes(K, -1, -2) / np.sqrt(d)  # (..., Tq, Tk)\n    if mask is not None:\n        mask = np.broadcast_to(np.asarray(mask, dtype=bool), scores.shape)\n        if not mask.any(axis=-1).all():\n            raise ValueError(\"every query must be allowed to attend to at least one key\")\n        scores = np.where(mask, scores, -np.inf)\n    scores = scores - scores.max(axis=-1, keepdims=True)\n    weights = np.exp(scores)\n    weights = weights / weights.sum(axis=-1, keepdims=True)\n    return weights @ V, weights\n```\n\n### Complexity\nO(B·Tq·Tk·d) time, O(B·Tq·Tk) memory for the weights — quadratic in sequence length, the reason for FlashAttention, sliding windows and KV-caches.\n\n### Common mistakes\n- Forgetting the `√d` scale, or dividing by `d`.\n- Softmax over the wrong axis (queries instead of keys) — rows then do not sum to 1.\n- Masking after softmax by multiplying with 0: rows no longer sum to 1.\n- Using `K.T`, which reverses **all** axes for batched input; swap only the last two.\n- Building the causal mask as upper-triangular (future visible, past hidden).\n"
   },
   "fu-3": {
-   "brief": "### Goal\nImplement multi-head self-attention: split projected vectors into heads, run attention per head, and merge them back.\n\n### What to build\n- `split_heads(x, n_heads) -> np.ndarray` — `(B, T, D)` → `(B, H, T, d_head)` with `d_head = D / H`\n- `merge_heads(x) -> np.ndarray` — `(B, H, T, d_head)` → `(B, T, D)`\n- `multi_head_attention(x, Wq, Wk, Wv, Wo, n_heads, causal=False) -> np.ndarray` — `(B, T, D)` out; all weights `(D, D)`\n\n`scaled_dot_product_attention(q, k, v, mask=None)` is **provided** in the starter; it works over the last two axes.\n\n### Requirements\n- Head `h` owns feature columns `h·d_head … (h+1)·d_head − 1`: `split_heads(x, H)[b, h, t, :] == x[b, t, h*d_head:(h+1)*d_head]`.\n- `merge_heads(split_heads(x, H))` returns `x` exactly.\n- `multi_head_attention`: `q = x Wq`, `k = x Wk`, `v = x Wv`; attention per head on the split tensors; merge; then multiply by `Wo`. With `n_heads = 1` it equals plain single-head attention followed by `Wo`.\n- `causal=True` applies a lower-triangular `(T, T)` mask (position `i` sees `j ≤ i`).\n- `split_heads` raises `ValueError` if `x` is not 3-D, `n_heads < 1`, or `D % n_heads != 0`; `merge_heads` raises `ValueError` if input is not 4-D.\n\n### Example\n```python\nx = np.arange(12).reshape(1, 2, 6)\nsplit_heads(x, 3)[0, 1].tolist()   # head 1 = [[2, 3], [8, 9]]\n```\n\n### Done when\nAll cases pass from a blank file in under 40 minutes.",
+   "brief": "**Objective:** Implement multi-head self-attention in NumPy: split projected vectors into heads, attend within each head, then merge the heads and project the result.\n\nThe starter gives you:\n- `scaled_dot_product_attention(q, k, v, mask=None)`: attention over the last two axes, with any leading dims.\n\n### Part 1 · `split_heads(x, n_heads) -> np.ndarray`\nReshape `x` of shape `(B, T, D)` into `(B, H, T, d_head)`, with `H = n_heads` and `d_head = D / H`.\n\n- Head `h` owns feature columns `h·d_head` to `(h+1)·d_head − 1`: `split_heads(x, H)[b, h, t, :] == x[b, t, h*d_head:(h+1)*d_head]`.\n- Raise `ValueError` if `x` is not 3-D, `n_heads < 1`, or `D % n_heads != 0`.\n\n### Part 2 · `merge_heads(x) -> np.ndarray`\nThe inverse: turn `(B, H, T, d_head)` back into `(B, T, H·d_head)`.\n\n- `merge_heads(split_heads(x, H))` returns `x` exactly.\n- Raise `ValueError` if `x` is not 4-D.\n\n### Part 3 · `multi_head_attention(x, Wq, Wk, Wv, Wo, n_heads, causal=False) -> np.ndarray`\n`x` is `(B, T, D)` and every weight is `(D, D)`. Compute `q = x Wq`, `k = x Wk`, `v = x Wv`, run attention separately in each head, merge the heads, then multiply by `Wo`. Return shape `(B, T, D)`.\n\n- With `n_heads = 1` the result equals plain single-head attention followed by `Wo`.\n- `causal=True` lets position `i` attend only to positions `j ≤ i`.\n- Works down to `d_head = 1`.\n\n### Done when\nAll 11 tests pass (3 examples + 8 hidden edge cases), written from a blank file in under 40 minutes.",
    "learn": "- **Multi-head attention** runs `H` smaller attentions in parallel so different heads can track different relations. With model width `D`, each head works on `d_head = D / H` features.\n- Each head attends with its own slice of the projected queries, keys and values; the heads' outputs are concatenated back to width `D` and passed through an output projection `Wo`.\n- NumPy's `reshape` regroups elements in row-major order without moving data; `transpose` reorders axes.",
    "starter": "import numpy as np\n\n\n# Provided: scaled dot-product attention over the last two axes.\ndef scaled_dot_product_attention(q, k, v, mask=None):\n    scores = q @ np.swapaxes(k, -1, -2) / np.sqrt(q.shape[-1])\n    if mask is not None:\n        scores = np.where(mask, scores, -np.inf)\n    scores = scores - scores.max(axis=-1, keepdims=True)\n    w = np.exp(scores)\n    w = w / w.sum(axis=-1, keepdims=True)\n    return w @ v\n\n\ndef split_heads(x, n_heads):\n    \"\"\"(B, T, D) -> (B, H, T, D // H).\"\"\"\n    raise NotImplementedError\n\n\ndef merge_heads(x):\n    \"\"\"(B, H, T, d_head) -> (B, T, H * d_head).\"\"\"\n    raise NotImplementedError\n\n\ndef multi_head_attention(x, Wq, Wk, Wv, Wo, n_heads, causal=False):\n    \"\"\"Project, split, attend per head, merge, project with Wo. Returns (B, T, D).\"\"\"\n    raise NotImplementedError\n",
    "tests": [
     {
      "name": "split heads layout",
-     "input": "x = arange(12).reshape(1, 2, 6), n_heads = 3",
+     "input": "x = [[[0, 1, 2, 3, 4, 5], [6, 7, 8, 9, 10, 11]]], n_heads = 3",
      "hidden": false,
      "code": "h = split_heads(np.arange(12).reshape(1, 2, 6), 3)\nexpect(h.shape, (1, 3, 2, 2), label=\"shape\")\nexpect(h[0, 1].tolist(), [[2, 3], [8, 9]], label=\"head 1\")\n",
-     "expected": "shape: (1, 3, 2, 2)\nhead 1: [[2, 3], [8, 9]]"
+     "expected": "shape: (1, 3, 2, 2)\nhead 1: [[2, 3], [8, 9]]",
+     "part": 1,
+     "explanation": "D = 6 with 3 heads gives d_head = 2, so the shape is (1, 3, 2, 2). Head 1 owns columns 2-3: [2, 3] from the first row and [8, 9] from the second."
     },
     {
      "name": "merge undoes split",
-     "input": "x = arange(24).reshape(2, 3, 4), n_heads = 2",
+     "input": "x = np.arange(24).reshape(2, 3, 4)\nmerge_heads(split_heads(x, 2))",
      "hidden": false,
      "code": "x = np.arange(24).reshape(2, 3, 4)\nexpect(merge_heads(split_heads(x, 2)).tolist(), x.tolist())\n",
-     "expected": "[[[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]], [[12, 13, 14, 15], [16, 17, 18, 19], [20, 21, 22, 23]]]"
+     "expected": "[[[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]], [[12, 13, 14, 15], [16, 17, 18, 19], [20, 21, 22, 23]]]",
+     "part": 2,
+     "explanation": "Merging puts each head's columns back where they came from, so splitting into 2 heads and merging returns the original x."
     },
     {
      "name": "multi-head output shape",
-     "input": "x (2, 5, 8), W* (8, 8) seeded, n_heads = 2",
+     "input": "x of shape (2, 5, 8), Wq, Wk, Wv, Wo of shape (8, 8) (seeded random), n_heads = 2",
      "hidden": false,
      "code": "rng = np.random.default_rng(11)\nx = rng.normal(size=(2, 5, 8))\nWq, Wk, Wv, Wo = rng.normal(size=(4, 8, 8)) / np.sqrt(8)\nexpect(multi_head_attention(x, Wq, Wk, Wv, Wo, 2).shape, (2, 5, 8))\n",
-     "expected": "(2, 5, 8)"
-    },
-    {
-     "name": "merge heads layout",
-     "input": "x = arange(8).reshape(1, 2, 2, 2)",
-     "hidden": true,
-     "code": "expect(merge_heads(np.arange(8).reshape(1, 2, 2, 2)).tolist(), [[[0, 1, 4, 5], [2, 3, 6, 7]]])\n"
+     "expected": "(2, 5, 8)",
+     "part": 3,
+     "explanation": "Each head works on 4 of the 8 features; merging gives back 8 features per position and Wo keeps that width, so the output is (2, 5, 8)."
     },
     {
      "name": "D not divisible by heads raises",
      "input": "x shape (1, 2, 6), n_heads = 4",
      "hidden": true,
-     "code": "expect_raises(ValueError, split_heads, np.zeros((1, 2, 6)), 4)\n"
+     "code": "expect_raises(ValueError, split_heads, np.zeros((1, 2, 6)), 4)\n",
+     "part": 1
     },
     {
      "name": "wrong ranks raise",
      "input": "split_heads on (2, 6); merge_heads on (2, 3, 4)",
      "hidden": true,
-     "code": "expect_raises(ValueError, split_heads, np.zeros((2, 6)), 2, label=\"split 2-D\")\nexpect_raises(ValueError, merge_heads, np.zeros((2, 3, 4)), label=\"merge 3-D\")\n"
+     "code": "expect_raises(ValueError, split_heads, np.zeros((2, 6)), 2, label=\"split 2-D\")\nexpect_raises(ValueError, merge_heads, np.zeros((2, 3, 4)), label=\"merge 3-D\")\n",
+     "part": 1
+    },
+    {
+     "name": "merge heads layout",
+     "input": "x = arange(8).reshape(1, 2, 2, 2)",
+     "hidden": true,
+     "code": "expect(merge_heads(np.arange(8).reshape(1, 2, 2, 2)).tolist(), [[[0, 1, 4, 5], [2, 3, 6, 7]]])\n",
+     "part": 2
     },
     {
      "name": "one head equals plain attention",
      "input": "x (2, 5, 8) seeded, n_heads = 1",
      "hidden": true,
-     "code": "rng = np.random.default_rng(11)\nx = rng.normal(size=(2, 5, 8))\nWq, Wk, Wv, Wo = rng.normal(size=(4, 8, 8)) / np.sqrt(8)\n\nref = scaled_dot_product_attention(x @ Wq, x @ Wk, x @ Wv) @ Wo\nexpect(bool(np.allclose(multi_head_attention(x, Wq, Wk, Wv, Wo, 1), ref)), True)\n"
+     "code": "rng = np.random.default_rng(11)\nx = rng.normal(size=(2, 5, 8))\nWq, Wk, Wv, Wo = rng.normal(size=(4, 8, 8)) / np.sqrt(8)\n\nref = scaled_dot_product_attention(x @ Wq, x @ Wk, x @ Wv) @ Wo\nexpect(bool(np.allclose(multi_head_attention(x, Wq, Wk, Wv, Wo, 1), ref)), True)\n",
+     "part": 3
     },
     {
      "name": "two heads equal two separate attentions",
      "input": "x (2, 5, 8) seeded, n_heads = 2",
      "hidden": true,
-     "code": "rng = np.random.default_rng(11)\nx = rng.normal(size=(2, 5, 8))\nWq, Wk, Wv, Wo = rng.normal(size=(4, 8, 8)) / np.sqrt(8)\n\nq, k, v = x @ Wq, x @ Wk, x @ Wv\nh0 = scaled_dot_product_attention(q[..., :4], k[..., :4], v[..., :4])\nh1 = scaled_dot_product_attention(q[..., 4:], k[..., 4:], v[..., 4:])\nref = np.concatenate([h0, h1], axis=-1) @ Wo\nout = multi_head_attention(x, Wq, Wk, Wv, Wo, 2)\nexpect(bool(np.allclose(out, ref)), True, label=\"per-head columns\")\nexpect(np.round(out[0, 0, :3], 6).tolist(), [0.502484, 0.157243, 0.020417], label=\"out[0, 0, :3]\")\n"
+     "code": "rng = np.random.default_rng(11)\nx = rng.normal(size=(2, 5, 8))\nWq, Wk, Wv, Wo = rng.normal(size=(4, 8, 8)) / np.sqrt(8)\n\nq, k, v = x @ Wq, x @ Wk, x @ Wv\nh0 = scaled_dot_product_attention(q[..., :4], k[..., :4], v[..., :4])\nh1 = scaled_dot_product_attention(q[..., 4:], k[..., 4:], v[..., 4:])\nref = np.concatenate([h0, h1], axis=-1) @ Wo\nout = multi_head_attention(x, Wq, Wk, Wv, Wo, 2)\nexpect(bool(np.allclose(out, ref)), True, label=\"per-head columns\")\nexpect(np.round(out[0, 0, :3], 6).tolist(), [0.502484, 0.157243, 0.020417], label=\"out[0, 0, :3]\")\n",
+     "part": 3
     },
     {
      "name": "causal: changing the last token leaves earlier outputs",
      "input": "x (2, 5, 8) seeded, n_heads = 4, causal = True",
      "hidden": true,
-     "code": "rng = np.random.default_rng(11)\nx = rng.normal(size=(2, 5, 8))\nWq, Wk, Wv, Wo = rng.normal(size=(4, 8, 8)) / np.sqrt(8)\n\ny = x.copy()\ny[:, 4] += 3.0\na = multi_head_attention(x, Wq, Wk, Wv, Wo, 4, causal=True)\nb = multi_head_attention(y, Wq, Wk, Wv, Wo, 4, causal=True)\nexpect(bool(np.allclose(a[:, :4], b[:, :4])), True, label=\"positions 0-3\")\n"
+     "code": "rng = np.random.default_rng(11)\nx = rng.normal(size=(2, 5, 8))\nWq, Wk, Wv, Wo = rng.normal(size=(4, 8, 8)) / np.sqrt(8)\n\ny = x.copy()\ny[:, 4] += 3.0\na = multi_head_attention(x, Wq, Wk, Wv, Wo, 4, causal=True)\nb = multi_head_attention(y, Wq, Wk, Wv, Wo, 4, causal=True)\nexpect(bool(np.allclose(a[:, :4], b[:, :4])), True, label=\"positions 0-3\")\n",
+     "part": 3
     },
     {
      "name": "non-causal: the last token affects everyone",
      "input": "x (2, 5, 8) seeded, n_heads = 4, causal = False",
      "hidden": true,
-     "code": "rng = np.random.default_rng(11)\nx = rng.normal(size=(2, 5, 8))\nWq, Wk, Wv, Wo = rng.normal(size=(4, 8, 8)) / np.sqrt(8)\n\ny = x.copy()\ny[:, 4] += 3.0\na = multi_head_attention(x, Wq, Wk, Wv, Wo, 4)\nb = multi_head_attention(y, Wq, Wk, Wv, Wo, 4)\nexpect(bool(np.allclose(a[:, 0], b[:, 0])), False, label=\"position 0 changed\")\n"
+     "code": "rng = np.random.default_rng(11)\nx = rng.normal(size=(2, 5, 8))\nWq, Wk, Wv, Wo = rng.normal(size=(4, 8, 8)) / np.sqrt(8)\n\ny = x.copy()\ny[:, 4] += 3.0\na = multi_head_attention(x, Wq, Wk, Wv, Wo, 4)\nb = multi_head_attention(y, Wq, Wk, Wv, Wo, 4)\nexpect(bool(np.allclose(a[:, 0], b[:, 0])), False, label=\"position 0 changed\")\n",
+     "part": 3
     },
     {
      "name": "d_head = 1 still works",
      "input": "x (2, 5, 8) seeded, n_heads = 8",
      "hidden": true,
-     "code": "rng = np.random.default_rng(11)\nx = rng.normal(size=(2, 5, 8))\nWq, Wk, Wv, Wo = rng.normal(size=(4, 8, 8)) / np.sqrt(8)\nexpect(multi_head_attention(x, Wq, Wk, Wv, Wo, 8, causal=True).shape, (2, 5, 8))\n"
+     "code": "rng = np.random.default_rng(11)\nx = rng.normal(size=(2, 5, 8))\nWq, Wk, Wv, Wo = rng.normal(size=(4, 8, 8)) / np.sqrt(8)\nexpect(multi_head_attention(x, Wq, Wk, Wv, Wo, 8, causal=True).shape, (2, 5, 8))\n",
+     "part": 3
     }
    ],
    "hints": [
@@ -351,7 +394,7 @@
    "solution": "### Key insight\nSplit is `reshape(B, T, H, d_head)` **then** `transpose(0, 2, 1, 3)`, so heads become a batch axis; merge is the inverse transpose then reshape. A direct reshape of `(B, T, D)` into `(B, H, T, d_head)` mixes time steps into heads.\n\n### What the interviewer probes\n- Why is a plain `reshape` to `(B, H, T, d_head)` wrong?\n- Does MHA cost more parameters/FLOPs than single-head attention of width `D`? (Same projections: `4D²` params.)\n- What do GQA/MQA change? (Fewer K/V heads shared across query heads.)\n\n### Intuition\nHeads are just a partition of the feature dimension. After projecting, `q[..., h*d:(h+1)*d]` is head `h`'s query. Reshaping `(B, T, D)` to `(B, T, H, d)` exposes that partition **without moving any data**; transposing to `(B, H, T, d)` makes the head a batch axis so one batched matmul runs every head at once. Merging is the exact inverse, and `Wo` mixes the heads back together.\n\n### Reference implementation\n```python\nimport numpy as np\n\n\n# Provided: scaled dot-product attention over the last two axes.\ndef scaled_dot_product_attention(q, k, v, mask=None):\n    scores = q @ np.swapaxes(k, -1, -2) / np.sqrt(q.shape[-1])\n    if mask is not None:\n        scores = np.where(mask, scores, -np.inf)\n    scores = scores - scores.max(axis=-1, keepdims=True)\n    w = np.exp(scores)\n    w = w / w.sum(axis=-1, keepdims=True)\n    return w @ v\n\n\ndef split_heads(x, n_heads):\n    x = np.asarray(x)\n    if x.ndim != 3:\n        raise ValueError(\"x must have shape (B, T, D)\")\n    B, T, D = x.shape\n    if n_heads < 1 or D % n_heads:\n        raise ValueError(\"D must be divisible by n_heads\")\n    return x.reshape(B, T, n_heads, D // n_heads).transpose(0, 2, 1, 3)\n\n\ndef merge_heads(x):\n    x = np.asarray(x)\n    if x.ndim != 4:\n        raise ValueError(\"x must have shape (B, H, T, d_head)\")\n    B, H, T, dh = x.shape\n    return x.transpose(0, 2, 1, 3).reshape(B, T, H * dh)\n\n\ndef multi_head_attention(x, Wq, Wk, Wv, Wo, n_heads, causal=False):\n    x = np.asarray(x, dtype=float)\n    q = split_heads(x @ Wq, n_heads)\n    k = split_heads(x @ Wk, n_heads)\n    v = split_heads(x @ Wv, n_heads)\n    mask = None\n    if causal:\n        T = x.shape[1]\n        mask = np.tril(np.ones((T, T), dtype=bool))\n    heads = scaled_dot_product_attention(q, k, v, mask)  # (B, H, T, d_head)\n    return merge_heads(heads) @ Wo\n```\n\n### Complexity\nSame as single-head attention of width D: O(B·T²·D) for scores and O(B·T·D²) for the four projections; `4D²` weights.\n\n### Common mistakes\n- `x.reshape(B, H, T, d_head)` with no transpose — silently mixes positions across heads.\n- Merging with `reshape` before transposing back.\n- Scaling by `√D` instead of `√d_head` (the provided helper uses the last dim of `q`, which is correct after splitting).\n- Building the causal mask with shape `(B, H, T, T)` by hand — broadcasting a `(T, T)` mask is enough.\n"
   },
   "fu-4": {
-   "brief": "### Goal\nImplement the two standard ways of giving a transformer position information: the sinusoidal table and rotary embeddings (RoPE).\n\n### What to build\n- `sinusoidal_positions(T, d) -> np.ndarray` — shape `(T, d)`, with, for pair index `i` (`0 ≤ i < d/2`):\n  `PE[pos, 2i] = sin(pos / 10000^(2i/d))`, `PE[pos, 2i+1] = cos(pos / 10000^(2i/d))`\n- `rope(x, positions=None, base=10000.0) -> np.ndarray` — `x` shape `(..., T, d)`; `positions` defaults to `0..T-1`. Each consecutive pair `(x[2i], x[2i+1])` at position `pos` is rotated by angle `pos · θ_i`, `θ_i = base^(−2i/d)`:\n  `x'[2i] = x[2i]·cos − x[2i+1]·sin`, `x'[2i+1] = x[2i]·sin + x[2i+1]·cos`\n\n### Requirements\n- `sinusoidal_positions` raises `ValueError` if `d` is odd or ≤ 0, or `T < 0`; `T = 0` returns shape `(0, d)`.\n- `rope` uses the **interleaved** pair convention above, broadcasts over leading dims, returns a new array (input unchanged), and raises `ValueError` for odd `d` or `positions` not of shape `(T,)`.\n\n### Example\n```python\nnp.round(sinusoidal_positions(2, 4), 6).tolist()\n# [[0.0, 1.0, 0.0, 1.0], [0.841471, 0.540302, 0.01, 0.99995]]\nrope(np.array([[1.0, 0.0]]), positions=[1])   # [[cos 1, sin 1]] = [[0.540302, 0.841471]]\n```\n\n### Done when\nAll cases pass from a blank file in under 40 minutes.",
+   "brief": "**Objective:** Implement two ways of giving a transformer position information: the sinusoidal position table and rotary position embeddings (RoPE).\n\n### Part 1 · `sinusoidal_positions(T, d) -> np.ndarray`\nReturn the `(T, d)` table where, for pair index `i` (`0 ≤ i < d/2`), `PE[pos, 2i] = sin(pos / 10000^(2i/d))` and `PE[pos, 2i+1] = cos(pos / 10000^(2i/d))`.\n\n- Raise `ValueError` if `d` is odd or `≤ 0`, or if `T < 0`.\n- `T = 0` returns an empty table of shape `(0, d)`.\n\n### Part 2 · `rope(x, positions=None, base=10000.0) -> np.ndarray`\n`x` has shape `(..., T, d)` and `positions` defaults to `0..T-1`. Rotate each consecutive pair `(x[2i], x[2i+1])` at position `pos` by the angle `pos · θ_i`, where `θ_i = base^(−2i/d)`: `x'[2i] = x[2i]·cos − x[2i+1]·sin` and `x'[2i+1] = x[2i]·sin + x[2i+1]·cos`.\n\n- Pairs are **interleaved**: columns 0-1, 2-3, and so on.\n- Works over any leading dims and returns a new array; the input is unchanged.\n- Raise `ValueError` for odd `d`, or for `positions` not of shape `(T,)`.\n\n### Done when\nAll 11 tests pass (3 examples + 8 hidden edge cases), written from a blank file in under 40 minutes.",
    "learn": "- Attention by itself has no notion of token order, so position must be injected.\n- **Sinusoidal encodings** (original Transformer) are a fixed table of sines and cosines at geometrically spaced frequencies, *added* to the token embeddings.\n- **RoPE** (LLaMA, Mistral, …) instead *rotates* pairs of query/key features by an angle proportional to the position, each pair at its own frequency.\n- A 2-D rotation by angle `a` maps `(u, v)` to `(u cos a − v sin a, u sin a + v cos a)`.",
    "starter": "import numpy as np\n\n\ndef sinusoidal_positions(T, d):\n    \"\"\"(T, d) sinusoidal position table: sin on even columns, cos on odd.\"\"\"\n    raise NotImplementedError\n\n\ndef rope(x, positions=None, base=10000.0):\n    \"\"\"Rotate each pair (x[2i], x[2i+1]) of x (..., T, d) by pos * base**(-2i/d).\"\"\"\n    raise NotImplementedError\n",
    "tests": [
@@ -360,69 +403,83 @@
      "input": "T = 2, d = 4",
      "hidden": false,
      "code": "expect(np.round(sinusoidal_positions(2, 4), 6).tolist(), [[0.0, 1.0, 0.0, 1.0], [0.841471, 0.540302, 0.01, 0.99995]])\n",
-     "expected": "[[0.0, 1.0, 0.0, 1.0], [0.841471, 0.540302, 0.01, 0.99995]]"
+     "expected": "[[0.0, 1.0, 0.0, 1.0], [0.841471, 0.540302, 0.01, 0.99995]]",
+     "part": 1,
+     "explanation": "Row 0 is position 0: sin 0 = 0 and cos 0 = 1 in both pairs. In row 1, pair 0 uses angle 1 (sin 1 = 0.841, cos 1 = 0.540) and pair 1 uses 1 / 10000^(2/4) = 0.01 (sin ≈ 0.01, cos ≈ 0.99995)."
     },
     {
      "name": "RoPE rotates one pair by 1 radian",
      "input": "x = [[1.0, 0.0]], positions = [1]",
      "hidden": false,
      "code": "expect(np.round(rope(np.array([[1.0, 0.0]]), positions=[1]), 6).tolist(), [[0.540302, 0.841471]])\n",
-     "expected": "[[0.540302, 0.841471]]"
+     "expected": "[[0.540302, 0.841471]]",
+     "part": 2,
+     "explanation": "d = 2 gives one pair with θ_0 = 1. At position 1 the vector [1, 0] turns by 1 radian to [cos 1, sin 1] = [0.540, 0.841]."
     },
     {
      "name": "RoPE at position 0 is the identity",
-     "input": "x = [[0.3, -1.2, 2.0, 0.5]] (T=1)",
+     "input": "x = [[0.3, -1.2, 2.0, 0.5]], positions = None",
      "hidden": false,
      "code": "x = np.array([[0.3, -1.2, 2.0, 0.5]])\nexpect(np.round(rope(x), 6).tolist(), x.tolist())\n",
-     "expected": "[[0.3, -1.2, 2.0, 0.5]]"
+     "expected": "[[0.3, -1.2, 2.0, 0.5]]",
+     "part": 2,
+     "explanation": "There is one row, so the default positions are [0]. Every angle is 0 · θ_i = 0, so x comes back unchanged."
     },
     {
      "name": "odd d raises",
      "input": "sinusoidal_positions(3, 5); rope(x with d = 3)",
      "hidden": true,
-     "code": "expect_raises(ValueError, sinusoidal_positions, 3, 5, label=\"sinusoidal\")\nexpect_raises(ValueError, rope, np.ones((2, 3)), label=\"rope\")\n"
+     "code": "expect_raises(ValueError, sinusoidal_positions, 3, 5, label=\"sinusoidal\")\nexpect_raises(ValueError, rope, np.ones((2, 3)), label=\"rope\")\n",
+     "part": 1
     },
     {
      "name": "T = 0 gives an empty table",
      "input": "T = 0, d = 6",
      "hidden": true,
-     "code": "expect(sinusoidal_positions(0, 6).shape, (0, 6))\n"
+     "code": "expect(sinusoidal_positions(0, 6).shape, (0, 6))\n",
+     "part": 1
     },
     {
      "name": "table at a later position",
      "input": "T = 4, d = 6, row 3",
      "hidden": true,
-     "code": "expect(np.round(sinusoidal_positions(4, 6)[3], 6).tolist(), [0.14112, -0.989992, 0.138798, 0.990321, 0.006463, 0.999979])\n"
+     "code": "expect(np.round(sinusoidal_positions(4, 6)[3], 6).tolist(), [0.14112, -0.989992, 0.138798, 0.990321, 0.006463, 0.999979])\n",
+     "part": 1
     },
     {
      "name": "RoPE preserves vector norms",
      "input": "x seeded normal (5, 8)",
      "hidden": true,
-     "code": "x = np.random.default_rng(0).normal(size=(5, 8))\nexpect(np.round(np.linalg.norm(rope(x), axis=-1), 6).tolist(), np.round(np.linalg.norm(x, axis=-1), 6).tolist())\n"
+     "code": "x = np.random.default_rng(0).normal(size=(5, 8))\nexpect(np.round(np.linalg.norm(rope(x), axis=-1), 6).tolist(), np.round(np.linalg.norm(x, axis=-1), 6).tolist())\n",
+     "part": 2
     },
     {
      "name": "RoPE scores depend only on relative offset",
      "input": "q, k seeded (8,), (m, n) = (5, 3) vs (12, 10)",
      "hidden": true,
-     "code": "rng = np.random.default_rng(1)\nq, k = rng.normal(size=(2, 1, 8))\ns1 = (rope(q, [5]) @ rope(k, [3]).T).item()\ns2 = (rope(q, [12]) @ rope(k, [10]).T).item()\nexpect(round(s1, 6), round(s2, 6), label=\"offset 2 both times\")\nexpect(round(s1, 6), -1.107646, label=\"score\")\n"
+     "code": "rng = np.random.default_rng(1)\nq, k = rng.normal(size=(2, 1, 8))\ns1 = (rope(q, [5]) @ rope(k, [3]).T).item()\ns2 = (rope(q, [12]) @ rope(k, [10]).T).item()\nexpect(round(s1, 6), round(s2, 6), label=\"offset 2 both times\")\nexpect(round(s1, 6), -1.107646, label=\"score\")\n",
+     "part": 2
     },
     {
      "name": "batched input, not mutated",
      "input": "x seeded (2, 3, 4), default positions",
      "hidden": true,
-     "code": "x = np.random.default_rng(2).normal(size=(2, 3, 4))\nbefore = x.copy()\ny = rope(x)\nexpect(y.shape, (2, 3, 4), label=\"shape\")\nexpect(bool(np.array_equal(x, before)), True, label=\"input unchanged\")\nexpect(bool(np.allclose(y[1], rope(x[1]))), True, label=\"batch 1 == unbatched\")\n"
+     "code": "x = np.random.default_rng(2).normal(size=(2, 3, 4))\nbefore = x.copy()\ny = rope(x)\nexpect(y.shape, (2, 3, 4), label=\"shape\")\nexpect(bool(np.array_equal(x, before)), True, label=\"input unchanged\")\nexpect(bool(np.allclose(y[1], rope(x[1]))), True, label=\"batch 1 == unbatched\")\n",
+     "part": 2
     },
     {
      "name": "custom base changes the second pair",
      "input": "x = [[1, 0, 1, 0]], positions = [2], base = 100",
      "hidden": true,
-     "code": "expect(np.round(rope(np.array([[1.0, 0.0, 1.0, 0.0]]), [2], base=100.0), 6).tolist(), [[-0.416147, 0.909297, 0.980067, 0.198669]])\n"
+     "code": "expect(np.round(rope(np.array([[1.0, 0.0, 1.0, 0.0]]), [2], base=100.0), 6).tolist(), [[-0.416147, 0.909297, 0.980067, 0.198669]])\n",
+     "part": 2
     },
     {
      "name": "positions with the wrong length raise",
      "input": "x shape (3, 4), positions = [0, 1]",
      "hidden": true,
-     "code": "expect_raises(ValueError, rope, np.ones((3, 4)), [0, 1])\n"
+     "code": "expect_raises(ValueError, rope, np.ones((3, 4)), [0, 1])\n",
+     "part": 2
     }
    ],
    "hints": [
@@ -433,7 +490,7 @@
    "solution": "### What the interviewer probes\n- Because rotations compose, `rope(q, m) · rope(k, n)` depends only on `m − n`: attention scores see **relative** position.\n- Why can RoPE extrapolate/scale context (NTK / base scaling) more gracefully than learned absolute embeddings?\n- Why is RoPE applied to Q and K but not V?\n- Does RoPE change vector norms? (No — it is a rotation.)\n\n### Intuition\nEach pair of dimensions is a little clock ticking at its own frequency: early pairs spin fast (fine position), late pairs spin slowly (coarse position). Sinusoidal PE writes the clock readings into the embedding; RoPE instead turns the query/key vectors themselves by those angles. Since `R(mθ)ᵀ R(nθ) = R((n − m)θ)`, the dot product only sees the offset — relative position for free, no extra parameters, and norms are preserved.\n\n### Reference implementation\n```python\nimport numpy as np\n\n\ndef sinusoidal_positions(T, d):\n    if d <= 0 or d % 2 or T < 0:\n        raise ValueError(\"need T >= 0 and a positive even d\")\n    pos = np.arange(T)[:, None]\n    freq = 1.0 / 10000 ** (np.arange(d // 2) * 2 / d)\n    pe = np.zeros((T, d))\n    pe[:, 0::2] = np.sin(pos * freq)\n    pe[:, 1::2] = np.cos(pos * freq)\n    return pe\n\n\ndef rope(x, positions=None, base=10000.0):\n    x = np.asarray(x, dtype=float)\n    T, d = x.shape[-2], x.shape[-1]\n    if d % 2:\n        raise ValueError(\"last dimension must be even\")\n    pos = np.arange(T) if positions is None else np.asarray(positions, dtype=float)\n    if pos.shape != (T,):\n        raise ValueError(\"positions must have shape (T,)\")\n    theta = base ** (-np.arange(d // 2) * 2 / d)\n    angle = pos[:, None] * theta[None, :]  # (T, d/2)\n    cos, sin = np.cos(angle), np.sin(angle)\n    even, odd = x[..., 0::2], x[..., 1::2]\n    out = np.empty_like(x)\n    out[..., 0::2] = even * cos - odd * sin\n    out[..., 1::2] = even * sin + odd * cos\n    return out\n```\n\n### Complexity\nO(T·d) time and memory for both.\n\n### Common mistakes\n- Using `i` instead of `2i` in the exponent (or `d/2` in the denominator) — frequencies come out wrong.\n- Mixing the interleaved convention with the \"rotate halves\" (GPT-NeoX) convention; both are valid, but tests fix interleaved.\n- Rotating in place: `x[..., 0::2] = ...` before computing the odd half reuses the already rotated values.\n- Applying RoPE to V, or adding it to embeddings like sinusoidal PE.\n"
   },
   "fu-5": {
-   "brief": "### Goal\nImplement LayerNorm, RMSNorm, and the two ways a transformer wraps a sub-layer in a residual connection.\n\n### What to build\n- `layer_norm(x, gamma, beta, eps=1e-5) -> np.ndarray` — `(x − μ) / √(σ² + ε) · γ + β`, with `μ`, `σ²` the mean and **biased** variance over the last axis\n- `rms_norm(x, weight, eps=1e-6) -> np.ndarray` — `x / √(mean(x²) + ε) · w`, mean over the last axis\n- `pre_norm_block(x, gamma, beta, sublayer) -> np.ndarray` — `x + sublayer(layer_norm(x, gamma, beta))`\n- `post_norm_block(x, gamma, beta, sublayer) -> np.ndarray` — `layer_norm(x + sublayer(x), gamma, beta)`\n\n### Requirements\n- Normalise over the last axis only; any number of leading dims.\n- `gamma`, `beta`, `weight` must have shape `(D,)`; otherwise `ValueError`.\n- A constant row must not produce `nan`: LayerNorm returns `beta`. An all-zero row in RMSNorm returns zeros.\n- Blocks raise `ValueError` if `sublayer`'s output shape differs from `x.shape`.\n- Never mutate the input.\n\n### Example\n```python\nlayer_norm(np.array([[1.0, 2.0, 3.0]]), np.ones(3), np.zeros(3))\n# [[-1.224736, 0.0, 1.224736]]\nrms_norm(np.array([[3.0, 4.0]]), np.ones(2))   # [[0.848528, 1.131371]]\n```\n\n### Done when\nAll cases pass from a blank file in under 40 minutes.",
+   "brief": "**Objective:** Implement LayerNorm and RMSNorm over the last axis, and the pre-norm and post-norm ways of wrapping a sub-layer in a residual connection.\n\n### Part 1 · `layer_norm(x, gamma, beta, eps=1e-5) -> np.ndarray`\nReturn `(x − μ) / √(σ² + ε) · γ + β`, where `μ` and `σ²` are the mean and **biased** variance over the last axis.\n\n- Any number of leading dims; normalise over the last axis only.\n- `gamma` and `beta` must have shape `(D,)`, else `ValueError`.\n- A constant row must not produce `nan`: it returns `beta`.\n- No function in this task mutates its input.\n\n### Part 2 · `rms_norm(x, weight, eps=1e-6) -> np.ndarray`\nReturn `x / √(mean(x²) + ε) · w`, with the mean over the last axis.\n\n- `weight` must have shape `(D,)`, else `ValueError`.\n- An all-zero row returns zeros.\n\n### Part 3 · `pre_norm_block(x, gamma, beta, sublayer)` and `post_norm_block(x, gamma, beta, sublayer)`\n`pre_norm_block` returns `x + sublayer(layer_norm(x, gamma, beta))`; `post_norm_block` returns `layer_norm(x + sublayer(x), gamma, beta)`.\n\n- Raise `ValueError` if `sublayer`'s output shape differs from `x.shape`.\n\n### Done when\nAll 12 tests pass (3 examples + 9 hidden edge cases), written from a blank file in under 40 minutes.",
    "learn": "- **LayerNorm** rescales each token vector over its own features to zero mean and unit variance, then applies a learned scale `γ` and shift `β`.\n- **RMSNorm** (LLaMA) divides by the root-mean-square of the features and applies a learned scale; it does not subtract the mean.\n- A **residual connection** adds a sub-layer's output back to its input (`x + f(·)`), so `f` must preserve shape.\n- **Pre-norm** blocks normalise the sub-layer's input (`x + f(LN(x))`, modern LLMs); **post-norm** blocks normalise after the residual add (`LN(x + f(x))`, the original Transformer).\n- `np.var` computes the biased (divide-by-N) variance by default.",
    "starter": "import numpy as np\n\n\ndef layer_norm(x, gamma, beta, eps=1e-5):\n    \"\"\"Normalise over the last axis (biased variance), then scale by gamma and shift by beta.\"\"\"\n    raise NotImplementedError\n\n\ndef rms_norm(x, weight, eps=1e-6):\n    \"\"\"x / sqrt(mean(x**2) + eps) * weight over the last axis.\"\"\"\n    raise NotImplementedError\n\n\ndef pre_norm_block(x, gamma, beta, sublayer):\n    \"\"\"x + sublayer(layer_norm(x)); sublayer must keep x's shape.\"\"\"\n    raise NotImplementedError\n\n\ndef post_norm_block(x, gamma, beta, sublayer):\n    \"\"\"layer_norm(x + sublayer(x)); sublayer must keep x's shape.\"\"\"\n    raise NotImplementedError\n",
    "tests": [
@@ -442,75 +499,90 @@
      "input": "x = [[1.0, 2.0, 3.0]], gamma = ones(3), beta = zeros(3)",
      "hidden": false,
      "code": "expect(np.round(layer_norm(np.array([[1.0, 2.0, 3.0]]), np.ones(3), np.zeros(3)), 6).tolist(), [[-1.224736, 0.0, 1.224736]])\n",
-     "expected": "[[-1.224736, 0.0, 1.224736]]"
+     "expected": "[[-1.224736, 0.0, 1.224736]]",
+     "part": 1,
+     "explanation": "The mean is 2 and the biased variance is 2/3, so each value becomes (x − 2) / √(2/3 + 1e-5): −1.2247, 0 and 1.2247. gamma = 1 and beta = 0 change nothing."
     },
     {
      "name": "rms norm of one row",
      "input": "x = [[3.0, 4.0]], weight = ones(2)",
      "hidden": false,
      "code": "expect(np.round(rms_norm(np.array([[3.0, 4.0]]), np.ones(2)), 6).tolist(), [[0.848528, 1.131371]])\n",
-     "expected": "[[0.848528, 1.131371]]"
+     "expected": "[[0.848528, 1.131371]]",
+     "part": 2,
+     "explanation": "mean(x²) = (9 + 16) / 2 = 12.5 and √12.5 = 3.536, so the row becomes [3 / 3.536, 4 / 3.536] = [0.849, 1.131]."
     },
     {
      "name": "pre-norm block adds the sublayer output",
-     "input": "x = [[1, 2, 3], [0, 0, 6]], sublayer = lambda h: 2 * h",
+     "input": "x = [[1, 2, 3], [0, 0, 6]], gamma = ones(3), beta = zeros(3), sublayer = lambda h: 2 * h",
      "hidden": false,
      "code": "expect(np.round(pre_norm_block(np.array([[1.0, 2.0, 3.0], [0.0, 0.0, 6.0]]), np.ones(3), np.zeros(3), lambda h: 2 * h), 6).tolist(), [[-1.449471, 2.0, 5.449471], [-1.414213, -1.414213, 8.828425]])\n",
-     "expected": "[[-1.449471, 2.0, 5.449471], [-1.414213, -1.414213, 8.828425]]"
+     "expected": "[[-1.449471, 2.0, 5.449471], [-1.414213, -1.414213, 8.828425]]",
+     "part": 3,
+     "explanation": "Row 2 normalises to [−0.707, −0.707, 1.414]; the sublayer doubles it to [−1.414, −1.414, 2.828], and adding x = [0, 0, 6] gives [−1.414, −1.414, 8.828]. Row 1 works the same way from [−1.2247, 0, 1.2247]."
     },
     {
      "name": "each row has mean 0 and std ~1",
      "input": "x seeded normal (2, 4, 16) * 5 + 3",
      "hidden": true,
-     "code": "x = np.random.default_rng(0).normal(size=(2, 4, 16)) * 5 + 3\ny = layer_norm(x, np.ones(16), np.zeros(16))\nexpect(bool(np.allclose(y.mean(axis=-1), 0, atol=1e-9)), True, label=\"means\")\nexpect(bool(np.allclose(y.std(axis=-1), 1, atol=1e-4)), True, label=\"stds\")\n"
+     "code": "x = np.random.default_rng(0).normal(size=(2, 4, 16)) * 5 + 3\ny = layer_norm(x, np.ones(16), np.zeros(16))\nexpect(bool(np.allclose(y.mean(axis=-1), 0, atol=1e-9)), True, label=\"means\")\nexpect(bool(np.allclose(y.std(axis=-1), 1, atol=1e-4)), True, label=\"stds\")\n",
+     "part": 1
     },
     {
      "name": "constant row returns beta, no nan",
      "input": "x = [[5, 5, 5, 5]], beta = [1, 2, 3, 4]",
      "hidden": true,
-     "code": "expect(layer_norm(np.full((1, 4), 5.0), np.ones(4), np.array([1.0, 2.0, 3.0, 4.0])).tolist(), [[1.0, 2.0, 3.0, 4.0]])\n"
+     "code": "expect(layer_norm(np.full((1, 4), 5.0), np.ones(4), np.array([1.0, 2.0, 3.0, 4.0])).tolist(), [[1.0, 2.0, 3.0, 4.0]])\n",
+     "part": 1
     },
     {
      "name": "gamma and beta scale and shift",
      "input": "x = [[1, 2, 3]], gamma = [2, 2, 2], beta = [1, 1, 1]",
      "hidden": true,
-     "code": "expect(np.round(layer_norm(np.array([[1.0, 2.0, 3.0]]), np.full(3, 2.0), np.ones(3)), 6).tolist(), [[-1.449471, 1.0, 3.449471]])\n"
+     "code": "expect(np.round(layer_norm(np.array([[1.0, 2.0, 3.0]]), np.full(3, 2.0), np.ones(3)), 6).tolist(), [[-1.449471, 1.0, 3.449471]])\n",
+     "part": 1
     },
     {
      "name": "parameter shape mismatch raises",
      "input": "x (2, 3), gamma shape (4,) / weight shape (2,)",
      "hidden": true,
-     "code": "expect_raises(ValueError, layer_norm, np.ones((2, 3)), np.ones(4), np.zeros(3), label=\"layer_norm\")\nexpect_raises(ValueError, rms_norm, np.ones((2, 3)), np.ones(2), label=\"rms_norm\")\n"
-    },
-    {
-     "name": "zero sublayer leaves x unchanged (identity path)",
-     "input": "x seeded (3, 4), sublayer = zeros_like",
-     "hidden": true,
-     "code": "x = np.random.default_rng(1).normal(size=(3, 4))\nexpect(pre_norm_block(x, np.ones(4), np.zeros(4), np.zeros_like).tolist(), x.tolist())\n"
-    },
-    {
-     "name": "sublayer that changes shape raises",
-     "input": "x (2, 4), sublayer = lambda h: h[:, :2]",
-     "hidden": true,
-     "code": "x = np.ones((2, 4))\nexpect_raises(ValueError, pre_norm_block, x, np.ones(4), np.zeros(4), lambda h: h[:, :2], label=\"pre\")\nexpect_raises(ValueError, post_norm_block, x, np.ones(4), np.zeros(4), lambda h: h[:, :2], label=\"post\")\n"
-    },
-    {
-     "name": "post-norm output is normalised, pre-norm is not",
-     "input": "x = [[1, 2, 3, 10]], sublayer = lambda h: h",
-     "hidden": true,
-     "code": "x = np.array([[1.0, 2.0, 3.0, 10.0]])\npost = post_norm_block(x, np.ones(4), np.zeros(4), lambda h: h)\npre = pre_norm_block(x, np.ones(4), np.zeros(4), lambda h: h)\nexpect(round(float(post.mean()), 6), 0.0, label=\"post mean\")\nexpect(np.round(pre, 6).tolist(), [[0.151472, 1.434315, 2.717157, 11.697056]], label=\"pre\")\n"
+     "code": "expect_raises(ValueError, layer_norm, np.ones((2, 3)), np.ones(4), np.zeros(3), label=\"layer_norm\")\nexpect_raises(ValueError, rms_norm, np.ones((2, 3)), np.ones(2), label=\"rms_norm\")\n",
+     "part": 1
     },
     {
      "name": "input is not mutated",
      "input": "x seeded (2, 5)",
      "hidden": true,
-     "code": "x = np.random.default_rng(2).normal(size=(2, 5))\nbefore = x.copy()\nlayer_norm(x, np.ones(5), np.zeros(5))\nrms_norm(x, np.ones(5))\npre_norm_block(x, np.ones(5), np.zeros(5), lambda h: h)\nexpect(bool(np.array_equal(x, before)), True)\n"
+     "code": "x = np.random.default_rng(2).normal(size=(2, 5))\nbefore = x.copy()\nlayer_norm(x, np.ones(5), np.zeros(5))\nrms_norm(x, np.ones(5))\npre_norm_block(x, np.ones(5), np.zeros(5), lambda h: h)\nexpect(bool(np.array_equal(x, before)), True)\n",
+     "part": 1
     },
     {
      "name": "rms norm with a zero row",
      "input": "x = [[0, 0, 0]], weight = [1, 2, 3]",
      "hidden": true,
-     "code": "expect(rms_norm(np.zeros((1, 3)), np.array([1.0, 2.0, 3.0])).tolist(), [[0.0, 0.0, 0.0]])\n"
+     "code": "expect(rms_norm(np.zeros((1, 3)), np.array([1.0, 2.0, 3.0])).tolist(), [[0.0, 0.0, 0.0]])\n",
+     "part": 2
+    },
+    {
+     "name": "zero sublayer leaves x unchanged (identity path)",
+     "input": "x seeded (3, 4), sublayer = zeros_like",
+     "hidden": true,
+     "code": "x = np.random.default_rng(1).normal(size=(3, 4))\nexpect(pre_norm_block(x, np.ones(4), np.zeros(4), np.zeros_like).tolist(), x.tolist())\n",
+     "part": 3
+    },
+    {
+     "name": "sublayer that changes shape raises",
+     "input": "x (2, 4), sublayer = lambda h: h[:, :2]",
+     "hidden": true,
+     "code": "x = np.ones((2, 4))\nexpect_raises(ValueError, pre_norm_block, x, np.ones(4), np.zeros(4), lambda h: h[:, :2], label=\"pre\")\nexpect_raises(ValueError, post_norm_block, x, np.ones(4), np.zeros(4), lambda h: h[:, :2], label=\"post\")\n",
+     "part": 3
+    },
+    {
+     "name": "post-norm output is normalised, pre-norm is not",
+     "input": "x = [[1, 2, 3, 10]], sublayer = lambda h: h",
+     "hidden": true,
+     "code": "x = np.array([[1.0, 2.0, 3.0, 10.0]])\npost = post_norm_block(x, np.ones(4), np.zeros(4), lambda h: h)\npre = pre_norm_block(x, np.ones(4), np.zeros(4), lambda h: h)\nexpect(round(float(post.mean()), 6), 0.0, label=\"post mean\")\nexpect(np.round(pre, 6).tolist(), [[0.151472, 1.434315, 2.717157, 11.697056]], label=\"pre\")\n",
+     "part": 3
     }
    ],
    "hints": [
@@ -521,84 +593,99 @@
    "solution": "### What the interviewer probes\n- Why pre-norm over post-norm for deep LLMs? (The residual path stays an untouched identity, so gradients reach early layers undamped and deep stacks train without careful warm-up.)\n- LayerNorm vs BatchNorm for sequence models? Why does RMSNorm work almost as well while being cheaper?\n- Why do LLMs need a final norm after the last block in pre-norm stacks?\n\n### Intuition\nNormalisation keeps each token's activations at a predictable scale so later layers see well-conditioned inputs. In a pre-norm block the residual stream `x` flows straight through every layer (`x + f(LN(x))`), so gradients reach early layers undamped — the main reason GPT-2 onward switched from post-norm, which needs careful warm-up to train deep. RMSNorm drops the mean-centering (and β), saving a reduction with little quality loss.\n\n### Reference implementation\n```python\nimport numpy as np\n\n\ndef _check_params(x, *params):\n    for p in params:\n        if np.shape(p) != (x.shape[-1],):\n            raise ValueError(\"parameters must have shape (D,) matching x's last dim\")\n\n\ndef layer_norm(x, gamma, beta, eps=1e-5):\n    x = np.asarray(x, dtype=float)\n    _check_params(x, gamma, beta)\n    mean = x.mean(axis=-1, keepdims=True)\n    var = x.var(axis=-1, keepdims=True)  # biased (divide by D)\n    return (x - mean) / np.sqrt(var + eps) * gamma + beta\n\n\ndef rms_norm(x, weight, eps=1e-6):\n    x = np.asarray(x, dtype=float)\n    _check_params(x, weight)\n    rms = np.sqrt((x * x).mean(axis=-1, keepdims=True) + eps)\n    return x / rms * weight\n\n\ndef pre_norm_block(x, gamma, beta, sublayer):\n    x = np.asarray(x, dtype=float)\n    y = np.asarray(sublayer(layer_norm(x, gamma, beta)))\n    if y.shape != x.shape:\n        raise ValueError(f\"sublayer returned {y.shape}, expected {x.shape}\")\n    return x + y\n\n\ndef post_norm_block(x, gamma, beta, sublayer):\n    x = np.asarray(x, dtype=float)\n    y = np.asarray(sublayer(x))\n    if y.shape != x.shape:\n        raise ValueError(f\"sublayer returned {y.shape}, expected {x.shape}\")\n    return layer_norm(x + y, gamma, beta)\n```\n\n### Complexity\nO(N·D) time per call, O(N·D) memory for the output.\n\n### Common mistakes\n- Normalising over the batch axis (that is BatchNorm).\n- Using the unbiased variance (`ddof=1`); LayerNorm divides by D.\n- Putting `eps` outside the square root, or forgetting it (constant rows → `nan`).\n- Pre-norm written as `LN(x) + f(LN(x))` — the residual must carry the **un-normalised** `x`.\n- Letting broadcasting accept a sublayer output of the wrong shape.\n"
   },
   "fu-6": {
-   "brief": "### Goal\nImplement byte-pair encoding (BPE) training and encoding on characters.\n\n### What to build\n- `merge_word(symbols: list[str], pair: tuple[str, str]) -> list[str]` — merge every non-overlapping occurrence of `pair`, scanning left to right.\n- `learn_bpe(corpus: list[str], num_merges: int) -> list[tuple[str, str]]` — start with every word as a sequence of characters; at each step find the most frequent adjacent pair across the corpus, merge it everywhere, and record it. Return the merges in order.\n- `encode(text: str, merges: list[tuple[str, str]]) -> list[str]`\n\n### Requirements\n- Words are `str.split()` pieces of every corpus string; a pair's count is weighted by how often its word occurs. Pairs never cross word boundaries (no end-of-word marker).\n- Each step picks the highest count; **ties → lexicographically smallest pair** (compare the tuples).\n- Stop early when no adjacent pair is left; `num_merges < 0` raises `ValueError`.\n- `merge_word([\"a\",\"a\",\"a\"], (\"a\",\"a\"))` → `[\"aa\", \"a\"]` (left to right, no overlap).\n- `encode` splits text into words, splits each word into characters, applies each merge once, in learned order, to every word, and returns the flat token list; unseen characters stay single characters; empty or whitespace-only text → `[]`.\n\n### Example\n```python\ncorpus = [\"low low low low lower lower newest newest newest widest\"]\nmerges = learn_bpe(corpus, 4)\n# [('l','o'), ('lo','w'), ('e','s'), ('es','t')]\nencode(\"lowest slow\", merges)   # ['low', 'est', 's', 'low']\n```\n\n### Done when\nAll cases pass from a blank file in under 40 minutes.",
+   "brief": "**Objective:** Implement character-level byte-pair encoding: merge a pair inside a word, learn an ordered list of merges from a corpus, and encode new text with them.\n\n### Part 1 · `merge_word(symbols: list[str], pair: tuple[str, str]) -> list[str]`\nReturn `symbols` with every non-overlapping occurrence of `pair` joined into one symbol, scanning left to right.\n\n- A symbol used in one merge cannot also start the next one.\n\n### Part 2 · `learn_bpe(corpus: list[str], num_merges: int) -> list[tuple[str, str]]`\nStart with every word as a sequence of single characters. Then, up to `num_merges` times, find the most frequent adjacent pair across the corpus, merge it everywhere, and record it. Return the merges in order.\n\n- Words are the `str.split()` pieces of every corpus string; a pair's count is weighted by how often its word occurs.\n- Pairs never cross word boundaries (there is no end-of-word marker).\n- Ties go to the **lexicographically smallest pair** (compare the tuples).\n- Stop early when no adjacent pair is left. `num_merges = 0` returns `[]`; `num_merges < 0` raises `ValueError`.\n- Any Unicode character is a symbol.\n\n### Part 3 · `encode(text: str, merges: list[tuple[str, str]]) -> list[str]`\nSplit `text` into words and each word into characters, apply each merge once, in the given order, to every word, and return the flat list of tokens.\n\n- Characters never seen in training stay single characters.\n- Empty or whitespace-only text returns `[]`.\n\n### Done when\nAll 12 tests pass (3 examples + 9 hidden edge cases), written from a blank file in under 40 minutes.",
    "learn": "- A **tokenizer** turns text into a sequence of tokens from a fixed vocabulary.\n- **Byte-pair encoding** builds a subword vocabulary bottom-up by repeatedly merging the most frequent adjacent pair of symbols. The ordered list of merges *is* the tokenizer: encoding replays those merges on new text.\n- Frequent words end up as single tokens, rare words split into pieces, and nothing is ever out-of-vocabulary.",
    "starter": "def merge_word(symbols, pair):\n    \"\"\"Merge non-overlapping occurrences of `pair` in `symbols`, left to right.\"\"\"\n    raise NotImplementedError\n\n\ndef learn_bpe(corpus, num_merges):\n    \"\"\"Learn up to `num_merges` merges from a list of strings.\"\"\"\n    raise NotImplementedError\n\n\ndef encode(text, merges):\n    \"\"\"Split text into words, apply the merges in order to each, return all tokens.\"\"\"\n    raise NotImplementedError\n",
    "tests": [
-    {
-     "name": "learn four merges",
-     "input": "corpus = [\"low low low low lower lower newest newest newest widest\"], num_merges = 4",
-     "hidden": false,
-     "code": "expect(learn_bpe([\"low low low low lower lower newest newest newest widest\"], 4), [('l', 'o'), ('lo', 'w'), ('e', 's'), ('es', 't')])\n",
-     "expected": "[('l', 'o'), ('lo', 'w'), ('e', 's'), ('es', 't')]"
-    },
-    {
-     "name": "encode with learned merges",
-     "input": "text = \"lowest slow\", merges = learn_bpe(corpus, 4)",
-     "hidden": false,
-     "code": "expect(encode(\"lowest slow\", learn_bpe([\"low low low low lower lower newest newest newest widest\"], 4)), ['low', 'est', 's', 'low'])\n",
-     "expected": "['low', 'est', 's', 'low']"
-    },
     {
      "name": "merge is left to right without overlap",
      "input": "symbols = [\"a\", \"a\", \"a\"], pair = (\"a\", \"a\")",
      "hidden": false,
      "code": "expect(merge_word([\"a\", \"a\", \"a\"], (\"a\", \"a\")), [\"aa\", \"a\"])\n",
-     "expected": "['aa', 'a']"
+     "expected": "['aa', 'a']",
+     "part": 1,
+     "explanation": "Scanning left to right, the first two \"a\"s merge into \"aa\". The third \"a\" has no partner left, so it stays on its own."
+    },
+    {
+     "name": "learn four merges",
+     "input": "corpus = [\"low low low low lower lower newest newest newest widest\"], num_merges = 4",
+     "hidden": false,
+     "code": "expect(learn_bpe([\"low low low low lower lower newest newest newest widest\"], 4), [('l', 'o'), ('lo', 'w'), ('e', 's'), ('es', 't')])\n",
+     "expected": "[('l', 'o'), ('lo', 'w'), ('e', 's'), ('es', 't')]",
+     "part": 2,
+     "explanation": "Word counts: low ×4, lower ×2, newest ×3, widest ×1. (\"l\",\"o\") and (\"o\",\"w\") both occur 6 times; the tie goes to (\"l\",\"o\"), then (\"lo\",\"w\") follows. Next (\"e\",\"s\") and (\"s\",\"t\") tie at 4 (newest ×3 + widest ×1), so (\"e\",\"s\") wins, then (\"es\",\"t\")."
+    },
+    {
+     "name": "encode with learned merges",
+     "input": "text = \"lowest slow\", merges = [(\"l\", \"o\"), (\"lo\", \"w\"), (\"e\", \"s\"), (\"es\", \"t\")]",
+     "hidden": false,
+     "code": "expect(encode(\"lowest slow\", learn_bpe([\"low low low low lower lower newest newest newest widest\"], 4)), ['low', 'est', 's', 'low'])\n",
+     "expected": "['low', 'est', 's', 'low']",
+     "part": 3,
+     "explanation": "\"lowest\" becomes l o w e s t; the merges build \"lo\", \"low\", \"es\", then \"est\", giving [low, est]. In \"slow\" the s has no merge, giving [s, low]."
     },
     {
      "name": "ties break lexicographically",
      "input": "corpus = [\"cd ab\"], num_merges = 1",
      "hidden": true,
-     "code": "expect(learn_bpe([\"cd ab\"], 1), [(\"a\", \"b\")])\n"
+     "code": "expect(learn_bpe([\"cd ab\"], 1), [(\"a\", \"b\")])\n",
+     "part": 2
     },
     {
      "name": "counts are weighted by word frequency",
      "input": "corpus = [\"ab yz yz\", \"yz\"], num_merges = 1",
      "hidden": true,
-     "code": "expect(learn_bpe([\"ab yz yz\", \"yz\"], 1), [(\"y\", \"z\")])\n"
+     "code": "expect(learn_bpe([\"ab yz yz\", \"yz\"], 1), [(\"y\", \"z\")])\n",
+     "part": 2
     },
     {
      "name": "pairs never cross word boundaries",
      "input": "corpus = [\"a b a b\"], num_merges = 3",
      "hidden": true,
-     "code": "expect(learn_bpe([\"a b a b\"], 3), [])\n"
+     "code": "expect(learn_bpe([\"a b a b\"], 3), [])\n",
+     "part": 2
     },
     {
      "name": "stops early when nothing is left to merge",
      "input": "corpus = [\"abc\"], num_merges = 10",
      "hidden": true,
-     "code": "expect(learn_bpe([\"abc\"], 10), [('a', 'b'), ('ab', 'c')])\n"
+     "code": "expect(learn_bpe([\"abc\"], 10), [('a', 'b'), ('ab', 'c')])\n",
+     "part": 2
     },
     {
      "name": "zero merges and negative merges",
      "input": "num_merges = 0 / -1",
      "hidden": true,
-     "code": "expect(learn_bpe([\"hello\"], 0), [], label=\"zero\")\nexpect_raises(ValueError, learn_bpe, [\"hello\"], -1, label=\"negative\")\n"
-    },
-    {
-     "name": "merge order matters when encoding",
-     "input": "text = \"abc\", merges = [(\"b\", \"c\"), (\"a\", \"b\")]",
-     "hidden": true,
-     "code": "expect(encode(\"abc\", [(\"b\", \"c\"), (\"a\", \"b\")]), [\"a\", \"bc\"])\n"
-    },
-    {
-     "name": "unseen characters and empty text",
-     "input": "text = \"xyz\" / \"\" / \"  \"",
-     "hidden": true,
-     "code": "merges = learn_bpe([\"low low low low lower lower newest newest newest widest\"], 4)\nexpect(encode(\"xyz\", merges), [\"x\", \"y\", \"z\"], label=\"unseen\")\nexpect(encode(\"\", merges), [], label=\"empty\")\nexpect(encode(\"  \", merges), [], label=\"whitespace\")\n"
-    },
-    {
-     "name": "training words round-trip",
-     "input": "corpus = [\"low low low low lower lower newest newest newest widest\"], num_merges = 10",
-     "hidden": true,
-     "code": "merges = learn_bpe([\"low low low low lower lower newest newest newest widest\"], 10)\nexpect(encode(\"newest lower\", merges), ['newest', 'lower'], label=\"tokens\")\nexpect(\"\".join(encode(\"widest\", merges)), \"widest\", label=\"joins back\")\n"
+     "code": "expect(learn_bpe([\"hello\"], 0), [], label=\"zero\")\nexpect_raises(ValueError, learn_bpe, [\"hello\"], -1, label=\"negative\")\n",
+     "part": 2
     },
     {
      "name": "unicode characters are symbols too",
      "input": "corpus = [\"héé héé\"], num_merges = 2",
      "hidden": true,
-     "code": "expect(learn_bpe([\"héé héé\"], 2), [('h', 'é'), ('hé', 'é')])\n"
+     "code": "expect(learn_bpe([\"héé héé\"], 2), [('h', 'é'), ('hé', 'é')])\n",
+     "part": 2
+    },
+    {
+     "name": "merge order matters when encoding",
+     "input": "text = \"abc\", merges = [(\"b\", \"c\"), (\"a\", \"b\")]",
+     "hidden": true,
+     "code": "expect(encode(\"abc\", [(\"b\", \"c\"), (\"a\", \"b\")]), [\"a\", \"bc\"])\n",
+     "part": 3
+    },
+    {
+     "name": "unseen characters and empty text",
+     "input": "text = \"xyz\" / \"\" / \"  \"",
+     "hidden": true,
+     "code": "merges = learn_bpe([\"low low low low lower lower newest newest newest widest\"], 4)\nexpect(encode(\"xyz\", merges), [\"x\", \"y\", \"z\"], label=\"unseen\")\nexpect(encode(\"\", merges), [], label=\"empty\")\nexpect(encode(\"  \", merges), [], label=\"whitespace\")\n",
+     "part": 3
+    },
+    {
+     "name": "training words round-trip",
+     "input": "corpus = [\"low low low low lower lower newest newest newest widest\"], num_merges = 10",
+     "hidden": true,
+     "code": "merges = learn_bpe([\"low low low low lower lower newest newest newest widest\"], 10)\nexpect(encode(\"newest lower\", merges), ['newest', 'lower'], label=\"tokens\")\nexpect(\"\".join(encode(\"widest\", merges)), \"widest\", label=\"joins back\")\n",
+     "part": 3
     }
    ],
    "hints": [
@@ -609,7 +696,7 @@
    "solution": "### Pattern notes\n- Work on a word-frequency table (word as a tuple of symbols → count) rather than rescanning the raw text.\n- `min(pairs, key=lambda p: (-count[p], p))` picks the best pair with the tie-break in one line.\n\n### What the interviewer probes\n- Why do LLMs use subwords instead of words or characters?\n- Why does \"strawberry\" tokenisation make letter counting hard for a model?\n- What does byte-level BPE (GPT-2) add over character BPE? (No unknown characters, 256 base symbols.)\n\n### Intuition\nBPE is greedy compression: each merge removes as many symbols from the corpus as possible. Learning works on a word-frequency table, not the raw text, so a word seen a million times costs one entry. Encoding is deterministic because the merges are replayed in the same order — a later merge can only use symbols created by earlier ones, so order is part of the tokenizer.\n\n### Reference implementation\n```python\nfrom collections import Counter\n\n\ndef merge_word(symbols, pair):\n    a, b = pair\n    out, i = [], 0\n    while i < len(symbols):\n        if i + 1 < len(symbols) and symbols[i] == a and symbols[i + 1] == b:\n            out.append(a + b)\n            i += 2\n        else:\n            out.append(symbols[i])\n            i += 1\n    return out\n\n\ndef learn_bpe(corpus, num_merges):\n    if num_merges < 0:\n        raise ValueError(\"num_merges must be >= 0\")\n    word_freq = Counter(w for line in corpus for w in line.split())\n    vocab = {tuple(w): f for w, f in word_freq.items()}\n    merges = []\n    for _ in range(num_merges):\n        pairs = Counter()\n        for symbols, freq in vocab.items():\n            for pair in zip(symbols, symbols[1:]):\n                pairs[pair] += freq\n        if not pairs:\n            break\n        best = min(pairs, key=lambda p: (-pairs[p], p))  # most frequent, then lexicographic\n        merges.append(best)\n        new_vocab = Counter()\n        for symbols, freq in vocab.items():\n            new_vocab[tuple(merge_word(list(symbols), best))] += freq\n        vocab = new_vocab\n    return merges\n\n\ndef encode(text, merges):\n    tokens = []\n    for word in text.split():\n        symbols = list(word)\n        for pair in merges:  # apply in learned order\n            symbols = merge_word(symbols, pair)\n        tokens.extend(symbols)\n    return tokens\n```\n\n### Complexity\nLearning: O(M · S) for M merges over S total symbols in the distinct-word table (production tokenizers keep incremental pair counts to avoid the full rescan). Encoding: O(M · L) per word of length L as written; real tokenizers use a rank lookup and a heap.\n\n### Common mistakes\n- Counting pairs across word boundaries (joining the whole corpus into one string).\n- Overlapping merges: turning `aaa` into `aa, aa` or `a, aa`.\n- Ignoring word frequency (counting distinct words only).\n- Non-deterministic tie-breaking (iteration order of a dict/Counter) — tests pin the lexicographic rule.\n- Encoding by greedy longest-match against the vocabulary instead of replaying merges.\n"
   },
   "fu-7": {
-   "brief": "### Goal\nImplement the standard next-token sampling controls: temperature, top-k, top-p (nucleus), and a sampler that chains them.\n\n### What to build\n- `apply_temperature(logits, temperature) -> np.ndarray` — probabilities `softmax(logits / T)`\n- `top_k_filter(probs, k) -> np.ndarray` — keep the `k` most probable tokens, zero the rest, renormalise\n- `top_p_filter(probs, p) -> np.ndarray` — sort by probability and keep the **smallest** prefix whose cumulative mass is `≥ p`; zero the rest, renormalise\n- `sample(logits, rng, temperature=1.0, top_k=None, top_p=None) -> int`\n\n### Requirements\n- `temperature < 0` → `ValueError`; `temperature == 0` → one-hot at the first argmax. No overflow for large logits or tiny temperatures.\n- `top_k_filter`: `k < 1` → `ValueError`; among equal probabilities the **lower index** ranks first; `k ≥ V` returns the input renormalised.\n- `top_p_filter`: `p` must be in `(0, 1]` else `ValueError`; always keeps at least the top token; same tie order as top-k; treat the cumulative sum as reaching `p` within `1e-12` (so `[0.5, 0.25, 0.25]` with `p = 0.75` keeps two tokens).\n- `sample` applies temperature → top-k → top-p (each only if given), then draws with exactly `rng.choice(len(probs), p=probs)` (`rng` is a `np.random.Generator`) and returns a Python `int`.\n- Filters return new arrays that sum to 1.\n\n### Example\n```python\nnp.round(apply_temperature([2.0, 1.0, 0.0], 1.0), 6)   # [0.665241, 0.244728, 0.090031]\ntop_k_filter([0.5, 0.2, 0.2, 0.1], 2)                 # [0.714286, 0.285714, 0, 0]\ntop_p_filter([0.5, 0.3, 0.15, 0.05], 0.8)             # [0.625, 0.375, 0, 0]\n```\n\n### Done when\nAll cases pass from a blank file in under 40 minutes.",
+   "brief": "**Objective:** Implement the standard next-token sampling controls — temperature, top-k and top-p filtering — and a sampler that chains them.\n\n### Part 1 · `apply_temperature(logits, temperature) -> np.ndarray`\nReturn the probabilities `softmax(logits / temperature)`.\n\n- `temperature < 0` raises `ValueError`.\n- `temperature == 0` returns a one-hot vector at the first largest logit.\n- No overflow for large logits or tiny temperatures.\n\n### Part 2 · `top_k_filter(probs, k) -> np.ndarray`\nKeep the `k` most probable tokens, set the rest to 0, and renormalise so the result sums to 1.\n\n- Among equal probabilities the **lower index** ranks first.\n- `k ≥ len(probs)` returns the input renormalised; `k < 1` raises `ValueError`.\n- Return a new array.\n\n### Part 3 · `top_p_filter(probs, p) -> np.ndarray`\nRank tokens by probability (ties: lower index first) and keep the **smallest** top set whose total probability is `≥ p`; set the rest to 0 and renormalise.\n\n- `p` must be in `(0, 1]`, else `ValueError`.\n- Always keep at least the top token.\n- Treat the running total as reaching `p` within `1e-12`, so `[0.5, 0.25, 0.25]` with `p = 0.75` keeps two tokens.\n- Return a new array.\n\n### Part 4 · `sample(logits, rng, temperature=1.0, top_k=None, top_p=None) -> int`\nApply temperature, then top-k, then top-p (each filter only if given), then draw one token index.\n\n- Draw with exactly `rng.choice(len(probs), p=probs)`, where `rng` is a `np.random.Generator`, so seeded runs are reproducible.\n- Return a Python `int`.\n\n### Done when\nAll 12 tests pass (4 examples + 8 hidden edge cases), written from a blank file in under 40 minutes.",
    "learn": "- At each step the model gives logits over the vocabulary; a **decoding strategy** turns them into the next token.\n- **Temperature** `T` divides the logits before softmax: `T < 1` sharpens the distribution, `T > 1` flattens it, and `T → 0` approaches always picking the most likely token (greedy).\n- **Top-k** sampling restricts the choice to the k most probable tokens.\n- **Top-p (nucleus)** sampling restricts the choice to the most probable tokens that together hold at least probability mass p, so the kept set adapts to how confident the model is.",
    "starter": "import numpy as np\n\n\ndef apply_temperature(logits, temperature):\n    \"\"\"softmax(logits / temperature); temperature 0 means one-hot argmax.\"\"\"\n    raise NotImplementedError\n\n\ndef top_k_filter(probs, k):\n    \"\"\"Keep the k most probable tokens (ties: lower index), renormalise.\"\"\"\n    raise NotImplementedError\n\n\ndef top_p_filter(probs, p):\n    \"\"\"Keep the smallest top set with cumulative probability >= p, renormalise.\"\"\"\n    raise NotImplementedError\n\n\ndef sample(logits, rng, temperature=1.0, top_k=None, top_p=None):\n    \"\"\"Temperature -> top-k -> top-p, then rng.choice(len(probs), p=probs).\"\"\"\n    raise NotImplementedError\n",
    "tests": [
@@ -618,75 +705,92 @@
      "input": "logits = [2.0, 1.0, 0.0], temperature = 1.0 / 0.5",
      "hidden": false,
      "code": "expect(np.round(apply_temperature([2.0, 1.0, 0.0], 1.0), 6).tolist(), [0.665241, 0.244728, 0.090031], label=\"T=1\")\nexpect(np.round(apply_temperature([2.0, 1.0, 0.0], 0.5), 6).tolist(), [0.866813, 0.11731, 0.015876], label=\"T=0.5\")\n",
-     "expected": "T=1: [0.665241, 0.244728, 0.090031]\nT=0.5: [0.866813, 0.11731, 0.015876]"
+     "expected": "T=1: [0.665241, 0.244728, 0.090031]\nT=0.5: [0.866813, 0.11731, 0.015876]",
+     "part": 1,
+     "explanation": "At T = 1 this is the plain softmax of [2, 1, 0]. At T = 0.5 the logits double to [4, 2, 0], which sharpens the distribution toward token 0."
     },
     {
      "name": "top-k keeps the two largest (tie: lower index)",
      "input": "probs = [0.5, 0.2, 0.2, 0.1], k = 2",
      "hidden": false,
      "code": "expect(np.round(top_k_filter([0.5, 0.2, 0.2, 0.1], 2), 6).tolist(), [0.714286, 0.285714, 0.0, 0.0])\n",
-     "expected": "[0.714286, 0.285714, 0.0, 0.0]"
+     "expected": "[0.714286, 0.285714, 0.0, 0.0]",
+     "part": 2,
+     "explanation": "The two largest are 0.5 (index 0) and 0.2: indexes 1 and 2 tie, so the lower index 1 is kept. Renormalising: 0.5 / 0.7 = 0.714 and 0.2 / 0.7 = 0.286."
     },
     {
      "name": "top-p keeps the nucleus",
      "input": "probs = [0.5, 0.3, 0.15, 0.05], p = 0.8",
      "hidden": false,
      "code": "expect(np.round(top_p_filter([0.5, 0.3, 0.15, 0.05], 0.8), 6).tolist(), [0.625, 0.375, 0.0, 0.0])\n",
-     "expected": "[0.625, 0.375, 0.0, 0.0]"
+     "expected": "[0.625, 0.375, 0.0, 0.0]",
+     "part": 3,
+     "explanation": "The running total is 0.5 after one token and 0.8 after two, which reaches p = 0.8. Renormalising those two: 0.5 / 0.8 = 0.625 and 0.3 / 0.8 = 0.375."
+    },
+    {
+     "name": "top_k = 1 always samples the argmax",
+     "input": "rng = np.random.default_rng(0)\nsorted({sample([0.1, 2.0, 1.9], rng, top_k=1) for _ in range(20)})",
+     "hidden": false,
+     "code": "rng = np.random.default_rng(0)\nexpect(sorted({sample([0.1, 2.0, 1.9], rng, top_k=1) for _ in range(20)}), [1])\n",
+     "part": 4,
+     "explanation": "With top_k = 1 only token 1 (logit 2.0) keeps any probability, so all 20 draws return 1 and the sorted set of draws is [1].",
+     "expected": "[1]"
     },
     {
      "name": "temperature 0 is greedy",
      "input": "logits = [1.0, 3.0, 3.0, 0.0], temperature = 0",
      "hidden": true,
-     "code": "expect(apply_temperature([1.0, 3.0, 3.0, 0.0], 0).tolist(), [0.0, 1.0, 0.0, 0.0])\n"
+     "code": "expect(apply_temperature([1.0, 3.0, 3.0, 0.0], 0).tolist(), [0.0, 1.0, 0.0, 0.0])\n",
+     "part": 1
     },
     {
      "name": "very high temperature is near uniform",
      "input": "logits = [5.0, 1.0, -3.0], temperature = 1e6",
      "hidden": true,
-     "code": "expect(np.round(apply_temperature([5.0, 1.0, -3.0], 1e6), 4).tolist(), [0.3333, 0.3333, 0.3333])\n"
+     "code": "expect(np.round(apply_temperature([5.0, 1.0, -3.0], 1e6), 4).tolist(), [0.3333, 0.3333, 0.3333])\n",
+     "part": 1
     },
     {
      "name": "invalid arguments raise",
      "input": "temperature = -1; k = 0; p = 0; p = 1.5",
      "hidden": true,
-     "code": "expect_raises(ValueError, apply_temperature, [1.0, 2.0], -1.0, label=\"temperature\")\nexpect_raises(ValueError, top_k_filter, [0.5, 0.5], 0, label=\"k\")\nexpect_raises(ValueError, top_p_filter, [0.5, 0.5], 0.0, label=\"p = 0\")\nexpect_raises(ValueError, top_p_filter, [0.5, 0.5], 1.5, label=\"p > 1\")\n"
+     "code": "expect_raises(ValueError, apply_temperature, [1.0, 2.0], -1.0, label=\"temperature\")\nexpect_raises(ValueError, top_k_filter, [0.5, 0.5], 0, label=\"k\")\nexpect_raises(ValueError, top_p_filter, [0.5, 0.5], 0.0, label=\"p = 0\")\nexpect_raises(ValueError, top_p_filter, [0.5, 0.5], 1.5, label=\"p > 1\")\n",
+     "part": 1
     },
     {
      "name": "k >= vocab keeps everything",
      "input": "probs = [0.1, 0.6, 0.3], k = 5",
      "hidden": true,
-     "code": "expect(np.round(top_k_filter([0.1, 0.6, 0.3], 5), 6).tolist(), [0.1, 0.6, 0.3])\n"
+     "code": "expect(np.round(top_k_filter([0.1, 0.6, 0.3], 5), 6).tolist(), [0.1, 0.6, 0.3])\n",
+     "part": 2
     },
     {
      "name": "tiny p still keeps the top token",
      "input": "probs = [0.2, 0.7, 0.1], p = 0.01",
      "hidden": true,
-     "code": "expect(top_p_filter([0.2, 0.7, 0.1], 0.01).tolist(), [0.0, 1.0, 0.0])\n"
+     "code": "expect(top_p_filter([0.2, 0.7, 0.1], 0.01).tolist(), [0.0, 1.0, 0.0])\n",
+     "part": 3
     },
     {
      "name": "p exactly at a cumulative boundary",
      "input": "probs = [0.5, 0.25, 0.25], p = 0.75",
      "hidden": true,
-     "code": "expect(np.round(top_p_filter([0.5, 0.25, 0.25], 0.75), 6).tolist(), [0.666667, 0.333333, 0.0])\n"
-    },
-    {
-     "name": "top_k = 1 always samples the argmax",
-     "input": "logits = [0.1, 2.0, 1.9], top_k = 1, 20 draws",
-     "hidden": true,
-     "code": "rng = np.random.default_rng(0)\nexpect(sorted({sample([0.1, 2.0, 1.9], rng, top_k=1) for _ in range(20)}), [1])\n"
+     "code": "expect(np.round(top_p_filter([0.5, 0.25, 0.25], 0.75), 6).tolist(), [0.666667, 0.333333, 0.0])\n",
+     "part": 3
     },
     {
      "name": "seeded draws are reproducible",
      "input": "logits = [1.0, 0.5, 0.0, -1.0], rng = default_rng(42), 8 draws",
      "hidden": true,
-     "code": "rng = np.random.default_rng(42)\nexpect([sample([1.0, 0.5, 0.0, -1.0], rng) for _ in range(8)], [2, 0, 2, 1, 0, 3, 1, 2])\n"
+     "code": "rng = np.random.default_rng(42)\nexpect([sample([1.0, 0.5, 0.0, -1.0], rng) for _ in range(8)], [2, 0, 2, 1, 0, 3, 1, 2])\n",
+     "part": 4
     },
     {
      "name": "filtered tokens are never sampled; frequencies match",
      "input": "logits = log([0.5, 0.3, 0.15, 0.05]), top_p = 0.8, 2000 draws",
      "hidden": true,
-     "code": "rng = np.random.default_rng(3)\ndraws = [sample(np.log([0.5, 0.3, 0.15, 0.05]), rng, top_p=0.8) for _ in range(2000)]\ncounts = np.bincount(draws, minlength=4)\nexpect(counts[2:].tolist(), [0, 0], label=\"tokens 2, 3\")\nexpect(bool(abs(counts[0] / 2000 - 0.625) < 0.04), True, label=\"token 0 ~ 0.625\")\n"
+     "code": "rng = np.random.default_rng(3)\ndraws = [sample(np.log([0.5, 0.3, 0.15, 0.05]), rng, top_p=0.8) for _ in range(2000)]\ncounts = np.bincount(draws, minlength=4)\nexpect(counts[2:].tolist(), [0, 0], label=\"tokens 2, 3\")\nexpect(bool(abs(counts[0] / 2000 - 0.625) < 0.04), True, label=\"token 0 ~ 0.625\")\n",
+     "part": 4
     }
    ],
    "hints": [
@@ -697,78 +801,92 @@
    "solution": "### Pattern notes\n- Use a max-shifted softmax after dividing by the temperature.\n- `np.argsort(-p, kind=\"stable\")` gives descending order with ties at the lower index.\n- For top-p, `np.searchsorted` on the cumulative sums (with `p − 1e-12`) gives the cutoff; keep the token that **crosses** `p`.\n\n### What the interviewer probes\n- Why is top-p usually preferred to top-k? When does each fail?\n- What does temperature 0 vs 1 vs 2 do to diversity and hallucination risk?\n- Why is greedy decoding prone to repetition loops?\n\n### Intuition\nSampling trades quality for diversity. Temperature reshapes the whole distribution; truncation (top-k, top-p) cuts off the long tail where most nonsense lives. Top-k uses a fixed count, which keeps too many tokens when the model is confident and too few when it is unsure; top-p adapts the count to the model's confidence. The cumulative-sum boundary is the subtle part: you keep the token that **crosses** `p`, so the kept mass is at least `p`.\n\n### Reference implementation\n```python\nimport numpy as np\n\n\ndef apply_temperature(logits, temperature):\n    z = np.asarray(logits, dtype=float)\n    if temperature < 0:\n        raise ValueError(\"temperature must be >= 0\")\n    if temperature == 0:\n        probs = np.zeros_like(z)\n        probs[int(np.argmax(z))] = 1.0  # greedy\n        return probs\n    z = z / temperature\n    e = np.exp(z - z.max())\n    return e / e.sum()\n\n\ndef top_k_filter(probs, k):\n    p = np.asarray(probs, dtype=float)\n    if k < 1:\n        raise ValueError(\"k must be >= 1\")\n    keep = np.argsort(-p, kind=\"stable\")[:k]  # ties: lower index first\n    out = np.zeros_like(p)\n    out[keep] = p[keep]\n    return out / out.sum()\n\n\ndef top_p_filter(probs, p):\n    probs = np.asarray(probs, dtype=float)\n    if not 0 < p <= 1:\n        raise ValueError(\"p must be in (0, 1]\")\n    order = np.argsort(-probs, kind=\"stable\")\n    cum = np.cumsum(probs[order])\n    cutoff = int(np.searchsorted(cum, p - 1e-12)) + 1  # smallest prefix with mass >= p\n    keep = order[:cutoff]\n    out = np.zeros_like(probs)\n    out[keep] = probs[keep]\n    return out / out.sum()\n\n\ndef sample(logits, rng, temperature=1.0, top_k=None, top_p=None):\n    probs = apply_temperature(logits, temperature)\n    if top_k is not None:\n        probs = top_k_filter(probs, top_k)\n    if top_p is not None:\n        probs = top_p_filter(probs, top_p)\n    return int(rng.choice(len(probs), p=probs))\n```\n\n### Complexity\nO(V log V) per step for the sort (production kernels use partial sorts / top-k selection).\n\n### Common mistakes\n- Applying temperature to probabilities instead of logits, or dividing by zero at `T = 0`.\n- Top-p cutoff off by one: stopping *before* the token that crosses `p`, or keeping zero tokens for small `p`.\n- Forgetting to renormalise (then `rng.choice` raises because probabilities do not sum to 1).\n- Unstable tie-breaking (`np.argsort(-p)` defaults to quicksort, which is not stable).\n- Comparing floats exactly at the boundary (0.5 + 0.25 vs 0.75).\n"
   },
   "fu-8": {
-   "brief": "### Goal\nImplement greedy decoding and beam search over a toy bigram \"model\".\n\nThe model is a table `table[last_token] = {next_token: prob}`, starting from `\"<s>\"`; `\"</s>\"` ends a sequence. A sequence's score is `Σ_t log P(y_t | y_<t)` (natural log).\n\n### What to build\n- `greedy_decode(table, max_len) -> tuple[list[str], float]` — take the single most likely next token at each step.\n- `beam_search(table, beam_width, max_len) -> list[tuple[list[str], float]]` — keep the `beam_width` best partial sequences by total score at each step.\n\nTokens exclude `\"<s>\"` and include `\"</s>\"` when reached; scores are Python floats.\n\n### Requirements\n- At most `max_len` tokens are generated per sequence; `max_len < 1` or `beam_width < 1` → `ValueError`.\n- Ignore continuations with probability ≤ 0. A token missing from the table (or with no options) is a dead end: greedy stops; beam search keeps that beam as finished.\n- Greedy ties → alphabetically smallest token.\n- Beam search: at each step, every unfinished beam is extended by every allowed next token, and finished beams (ended in `\"</s>\"` or at a dead end) compete unchanged alongside the extensions. Ranking key: `(-score, tokens)` (higher score first, ties by token list). Return the final beams in that order (at most `beam_width`). Stop early once no beam was expanded.\n- Do not mutate `table`.\n\n### Example\n```python\ngreedy_decode(TABLE, 5)        # (['the', '</s>'], log 0.2 = -1.609438)\nbeam_search(TABLE, 2, 5)[0]   # (['a', '</s>'], log 0.36 = -1.021651)\n```\n(`TABLE` is in the cases: `<s>→the .5, a .4`; `the→</s> .4`; `a→</s> .9`.)\n\n### Done when\nAll cases pass from a blank file in under 40 minutes.",
+   "brief": "**Objective:** Implement greedy decoding and beam search over a toy bigram model given as a probability table.\n\nThe model is a dict `table[last_token] = {next_token: prob}`. Decoding starts from `\"<s>\"`, and `\"</s>\"` ends a sequence. A sequence's score is the sum of the natural-log probabilities of its steps.\n\n### Part 1 · `greedy_decode(table, max_len) -> tuple[list[str], float]`\nAt each step take the single most likely next token. Return `(tokens, score)`.\n\n- `tokens` excludes `\"<s>\"` and includes `\"</s>\"` when it is reached; `score` is a Python float.\n- Ties go to the alphabetically smallest token.\n- Generate at most `max_len` tokens; `max_len < 1` raises `ValueError`.\n- Ignore continuations with probability `≤ 0`. A token missing from the table (or with no options left) is a dead end: stop there.\n- Neither function mutates `table`.\n\n### Part 2 · `beam_search(table, beam_width, max_len) -> list[tuple[list[str], float]]`\nKeep the `beam_width` best partial sequences by total score at each step, and return the final beams, best first.\n\n- At each step every unfinished beam is extended by every allowed next token; finished beams (ended in `\"</s>\"` or at a dead end) compete unchanged alongside the extensions.\n- Rank by `(-score, tokens)`: higher score first, ties by token list. Return at most `beam_width` beams in that order.\n- Stop early once no beam was extended; at most `max_len` tokens per sequence.\n- `beam_width < 1` or `max_len < 1` raises `ValueError`.\n\n### Done when\nAll 11 tests pass (3 examples + 8 hidden edge cases), written from a blank file in under 40 minutes.",
    "learn": "- **Decoding** picks an output sequence that scores well under the model, where a sequence's score is the sum of its per-token log-probabilities.\n- **Greedy decoding** commits to the single most likely token at each step.\n- **Beam search** keeps several of the best partial sequences (the beam) at each step instead of one, and returns the best complete ones.",
    "starter": "import math\n\n\ndef greedy_decode(table, max_len):\n    \"\"\"Pick the most likely next token from \"<s>\" until \"</s>\" or max_len. Returns (tokens, logprob).\"\"\"\n    raise NotImplementedError\n\n\ndef beam_search(table, beam_width, max_len):\n    \"\"\"Keep the beam_width best sequences by total log-prob. Returns [(tokens, logprob), ...].\"\"\"\n    raise NotImplementedError\n",
    "tests": [
     {
      "name": "greedy picks 'the' then stops",
-     "input": "TABLE (see code), max_len = 5",
+     "input": "table = {\"<s>\": {\"the\": 0.5, \"a\": 0.4, \"</s>\": 0.1}, \"the\": {\"</s>\": 0.4, \"cat\": 0.3, \"dog\": 0.3}, \"a\": {\"</s>\": 0.9, \"cat\": 0.1}, \"cat\": {\"</s>\": 1.0}, \"dog\": {\"</s>\": 1.0}}, max_len = 5",
      "hidden": false,
      "code": "TABLE = {\n    \"<s>\": {\"the\": 0.5, \"a\": 0.4, \"</s>\": 0.1},\n    \"the\": {\"</s>\": 0.4, \"cat\": 0.3, \"dog\": 0.3},\n    \"a\": {\"</s>\": 0.9, \"cat\": 0.1},\n    \"cat\": {\"</s>\": 1.0},\n    \"dog\": {\"</s>\": 1.0},\n}\n\ntokens, score = greedy_decode(TABLE, 5)\nexpect(tokens, [\"the\", \"</s>\"], label=\"tokens\")\nexpect(round(score, 6), -1.609438, label=\"log 0.2\")\n",
-     "expected": "tokens: ['the', '</s>']\nlog 0.2: -1.609438"
+     "expected": "tokens: ['the', '</s>']\nlog 0.2: -1.609438",
+     "part": 1,
+     "explanation": "From <s> the most likely token is \"the\" (0.5); from \"the\" it is \"</s>\" (0.4), which ends the sequence. Score = log 0.5 + log 0.4 = log 0.2 = −1.609."
     },
     {
      "name": "beam width 2 finds a better sequence",
-     "input": "TABLE, beam_width = 2, max_len = 5",
+     "input": "table = {\"<s>\": {\"the\": 0.5, \"a\": 0.4, \"</s>\": 0.1}, \"the\": {\"</s>\": 0.4, \"cat\": 0.3, \"dog\": 0.3}, \"a\": {\"</s>\": 0.9, \"cat\": 0.1}, \"cat\": {\"</s>\": 1.0}, \"dog\": {\"</s>\": 1.0}}, beam_width = 2, max_len = 5",
      "hidden": false,
      "code": "TABLE = {\n    \"<s>\": {\"the\": 0.5, \"a\": 0.4, \"</s>\": 0.1},\n    \"the\": {\"</s>\": 0.4, \"cat\": 0.3, \"dog\": 0.3},\n    \"a\": {\"</s>\": 0.9, \"cat\": 0.1},\n    \"cat\": {\"</s>\": 1.0},\n    \"dog\": {\"</s>\": 1.0},\n}\n\nbest_tokens, best_score = beam_search(TABLE, 2, 5)[0]\nexpect(best_tokens, [\"a\", \"</s>\"], label=\"tokens\")\nexpect(round(best_score, 6), -1.021651, label=\"log 0.36\")\n",
-     "expected": "tokens: ['a', '</s>']\nlog 0.36: -1.021651"
+     "expected": "tokens: ['a', '</s>']\nlog 0.36: -1.021651",
+     "part": 2,
+     "explanation": "Width 2 keeps both \"the\" (0.5) and \"a\" (0.4) after step 1. \"a\" then \"</s>\" scores 0.4 × 0.9 = 0.36, beating the best \"the\" path (0.5 × 0.4 = 0.2), so it ranks first with log 0.36 = −1.022."
     },
     {
      "name": "beam width 1 equals greedy",
-     "input": "TABLE, beam_width = 1, max_len = 5",
+     "input": "table = {\"<s>\": {\"the\": 0.5, \"a\": 0.4, \"</s>\": 0.1}, \"the\": {\"</s>\": 0.4, \"cat\": 0.3, \"dog\": 0.3}, \"a\": {\"</s>\": 0.9, \"cat\": 0.1}, \"cat\": {\"</s>\": 1.0}, \"dog\": {\"</s>\": 1.0}}, beam_width = 1, max_len = 5",
      "hidden": false,
      "code": "TABLE = {\n    \"<s>\": {\"the\": 0.5, \"a\": 0.4, \"</s>\": 0.1},\n    \"the\": {\"</s>\": 0.4, \"cat\": 0.3, \"dog\": 0.3},\n    \"a\": {\"</s>\": 0.9, \"cat\": 0.1},\n    \"cat\": {\"</s>\": 1.0},\n    \"dog\": {\"</s>\": 1.0},\n}\nexpect(beam_search(TABLE, 1, 5), [greedy_decode(TABLE, 5)])\n",
-     "expected": "[(['the', '</s>'], -1.6094379124341003)]"
-    },
-    {
-     "name": "full ranked beam list",
-     "input": "TABLE, beam_width = 3, max_len = 5",
-     "hidden": true,
-     "code": "TABLE = {\n    \"<s>\": {\"the\": 0.5, \"a\": 0.4, \"</s>\": 0.1},\n    \"the\": {\"</s>\": 0.4, \"cat\": 0.3, \"dog\": 0.3},\n    \"a\": {\"</s>\": 0.9, \"cat\": 0.1},\n    \"cat\": {\"</s>\": 1.0},\n    \"dog\": {\"</s>\": 1.0},\n}\n\ngot = [(t, round(s, 6)) for t, s in beam_search(TABLE, 3, 5)]\nexpect(got, [(['a', '</s>'], -1.021651), (['the', '</s>'], -1.609438), (['the', 'cat', '</s>'], -1.89712)])\n"
+     "expected": "[(['the', '</s>'], -1.6094379124341003)]",
+     "part": 2,
+     "explanation": "With one beam only the best extension survives each step, which is exactly greedy decoding: [\"the\", \"</s>\"] with score log 0.2."
     },
     {
      "name": "max_len truncates",
      "input": "TABLE, max_len = 1",
      "hidden": true,
-     "code": "TABLE = {\n    \"<s>\": {\"the\": 0.5, \"a\": 0.4, \"</s>\": 0.1},\n    \"the\": {\"</s>\": 0.4, \"cat\": 0.3, \"dog\": 0.3},\n    \"a\": {\"</s>\": 0.9, \"cat\": 0.1},\n    \"cat\": {\"</s>\": 1.0},\n    \"dog\": {\"</s>\": 1.0},\n}\n\nexpect(greedy_decode(TABLE, 1)[0], [\"the\"], label=\"greedy\")\nexpect([t for t, _ in beam_search(TABLE, 2, 1)], [[\"the\"], [\"a\"]], label=\"beam\")\n"
-    },
-    {
-     "name": "invalid arguments raise",
-     "input": "beam_width = 0; max_len = 0",
-     "hidden": true,
-     "code": "TABLE = {\n    \"<s>\": {\"the\": 0.5, \"a\": 0.4, \"</s>\": 0.1},\n    \"the\": {\"</s>\": 0.4, \"cat\": 0.3, \"dog\": 0.3},\n    \"a\": {\"</s>\": 0.9, \"cat\": 0.1},\n    \"cat\": {\"</s>\": 1.0},\n    \"dog\": {\"</s>\": 1.0},\n}\n\nexpect_raises(ValueError, beam_search, TABLE, 0, 3, label=\"beam_width\")\nexpect_raises(ValueError, beam_search, TABLE, 2, 0, label=\"max_len\")\nexpect_raises(ValueError, greedy_decode, TABLE, 0, label=\"greedy max_len\")\n"
+     "code": "TABLE = {\n    \"<s>\": {\"the\": 0.5, \"a\": 0.4, \"</s>\": 0.1},\n    \"the\": {\"</s>\": 0.4, \"cat\": 0.3, \"dog\": 0.3},\n    \"a\": {\"</s>\": 0.9, \"cat\": 0.1},\n    \"cat\": {\"</s>\": 1.0},\n    \"dog\": {\"</s>\": 1.0},\n}\n\nexpect(greedy_decode(TABLE, 1)[0], [\"the\"], label=\"greedy\")\nexpect([t for t, _ in beam_search(TABLE, 2, 1)], [[\"the\"], [\"a\"]], label=\"beam\")\n",
+     "part": 1
     },
     {
      "name": "greedy tie breaks alphabetically",
      "input": "table = {\"<s>\": {\"b\": 0.5, \"a\": 0.5}, \"a\": {\"</s>\": 1.0}}",
      "hidden": true,
-     "code": "expect(greedy_decode({\"<s>\": {\"b\": 0.5, \"a\": 0.5}, \"a\": {\"</s>\": 1.0}}, 4)[0], [\"a\", \"</s>\"])\n"
+     "code": "expect(greedy_decode({\"<s>\": {\"b\": 0.5, \"a\": 0.5}, \"a\": {\"</s>\": 1.0}}, 4)[0], [\"a\", \"</s>\"])\n",
+     "part": 1
     },
     {
      "name": "dead end and zero-probability options",
      "input": "table = {\"<s>\": {\"x\": 0.0, \"y\": 1.0}} (y missing)",
      "hidden": true,
-     "code": "table = {\"<s>\": {\"x\": 0.0, \"y\": 1.0}}\nexpect(greedy_decode(table, 5), ([\"y\"], 0.0), label=\"greedy\")\nexpect(beam_search(table, 3, 5), [([\"y\"], 0.0)], label=\"beam\")\n"
-    },
-    {
-     "name": "finished beams are carried over",
-     "input": "table: <s>→</s> .6, go .4; go→go 1.0; beam_width = 2, max_len = 3",
-     "hidden": true,
-     "code": "table = {\"<s>\": {\"</s>\": 0.6, \"go\": 0.4}, \"go\": {\"go\": 1.0}}\ngot = [(t, round(s, 6)) for t, s in beam_search(table, 2, 3)]\nexpect(got, [(['</s>'], -0.510826), (['go', 'go', 'go'], -0.916291)])\n"
-    },
-    {
-     "name": "wider beam is never worse here",
-     "input": "TABLE, beam_width = 1 vs 3",
-     "hidden": true,
-     "code": "TABLE = {\n    \"<s>\": {\"the\": 0.5, \"a\": 0.4, \"</s>\": 0.1},\n    \"the\": {\"</s>\": 0.4, \"cat\": 0.3, \"dog\": 0.3},\n    \"a\": {\"</s>\": 0.9, \"cat\": 0.1},\n    \"cat\": {\"</s>\": 1.0},\n    \"dog\": {\"</s>\": 1.0},\n}\n\nexpect(beam_search(TABLE, 3, 5)[0][1] >= beam_search(TABLE, 1, 5)[0][1], True)\n"
+     "code": "table = {\"<s>\": {\"x\": 0.0, \"y\": 1.0}}\nexpect(greedy_decode(table, 5), ([\"y\"], 0.0), label=\"greedy\")\nexpect(beam_search(table, 3, 5), [([\"y\"], 0.0)], label=\"beam\")\n",
+     "part": 1
     },
     {
      "name": "table is not mutated",
      "input": "TABLE, beam_width = 2, max_len = 5",
      "hidden": true,
-     "code": "TABLE = {\n    \"<s>\": {\"the\": 0.5, \"a\": 0.4, \"</s>\": 0.1},\n    \"the\": {\"</s>\": 0.4, \"cat\": 0.3, \"dog\": 0.3},\n    \"a\": {\"</s>\": 0.9, \"cat\": 0.1},\n    \"cat\": {\"</s>\": 1.0},\n    \"dog\": {\"</s>\": 1.0},\n}\n\nimport copy\nbefore = copy.deepcopy(TABLE)\nbeam_search(TABLE, 2, 5)\ngreedy_decode(TABLE, 5)\nexpect(TABLE == before, True)\n"
+     "code": "TABLE = {\n    \"<s>\": {\"the\": 0.5, \"a\": 0.4, \"</s>\": 0.1},\n    \"the\": {\"</s>\": 0.4, \"cat\": 0.3, \"dog\": 0.3},\n    \"a\": {\"</s>\": 0.9, \"cat\": 0.1},\n    \"cat\": {\"</s>\": 1.0},\n    \"dog\": {\"</s>\": 1.0},\n}\n\nimport copy\nbefore = copy.deepcopy(TABLE)\nbeam_search(TABLE, 2, 5)\ngreedy_decode(TABLE, 5)\nexpect(TABLE == before, True)\n",
+     "part": 1
+    },
+    {
+     "name": "full ranked beam list",
+     "input": "TABLE, beam_width = 3, max_len = 5",
+     "hidden": true,
+     "code": "TABLE = {\n    \"<s>\": {\"the\": 0.5, \"a\": 0.4, \"</s>\": 0.1},\n    \"the\": {\"</s>\": 0.4, \"cat\": 0.3, \"dog\": 0.3},\n    \"a\": {\"</s>\": 0.9, \"cat\": 0.1},\n    \"cat\": {\"</s>\": 1.0},\n    \"dog\": {\"</s>\": 1.0},\n}\n\ngot = [(t, round(s, 6)) for t, s in beam_search(TABLE, 3, 5)]\nexpect(got, [(['a', '</s>'], -1.021651), (['the', '</s>'], -1.609438), (['the', 'cat', '</s>'], -1.89712)])\n",
+     "part": 2
+    },
+    {
+     "name": "invalid arguments raise",
+     "input": "beam_width = 0; max_len = 0",
+     "hidden": true,
+     "code": "TABLE = {\n    \"<s>\": {\"the\": 0.5, \"a\": 0.4, \"</s>\": 0.1},\n    \"the\": {\"</s>\": 0.4, \"cat\": 0.3, \"dog\": 0.3},\n    \"a\": {\"</s>\": 0.9, \"cat\": 0.1},\n    \"cat\": {\"</s>\": 1.0},\n    \"dog\": {\"</s>\": 1.0},\n}\n\nexpect_raises(ValueError, beam_search, TABLE, 0, 3, label=\"beam_width\")\nexpect_raises(ValueError, beam_search, TABLE, 2, 0, label=\"max_len\")\nexpect_raises(ValueError, greedy_decode, TABLE, 0, label=\"greedy max_len\")\n",
+     "part": 2
+    },
+    {
+     "name": "finished beams are carried over",
+     "input": "table: <s>→</s> .6, go .4; go→go 1.0; beam_width = 2, max_len = 3",
+     "hidden": true,
+     "code": "table = {\"<s>\": {\"</s>\": 0.6, \"go\": 0.4}, \"go\": {\"go\": 1.0}}\ngot = [(t, round(s, 6)) for t, s in beam_search(table, 2, 3)]\nexpect(got, [(['</s>'], -0.510826), (['go', 'go', 'go'], -0.916291)])\n",
+     "part": 2
+    },
+    {
+     "name": "wider beam is never worse here",
+     "input": "TABLE, beam_width = 1 vs 3",
+     "hidden": true,
+     "code": "TABLE = {\n    \"<s>\": {\"the\": 0.5, \"a\": 0.4, \"</s>\": 0.1},\n    \"the\": {\"</s>\": 0.4, \"cat\": 0.3, \"dog\": 0.3},\n    \"a\": {\"</s>\": 0.9, \"cat\": 0.1},\n    \"cat\": {\"</s>\": 1.0},\n    \"dog\": {\"</s>\": 1.0},\n}\n\nexpect(beam_search(TABLE, 3, 5)[0][1] >= beam_search(TABLE, 1, 5)[0][1], True)\n",
+     "part": 2
     }
    ],
    "hints": [
