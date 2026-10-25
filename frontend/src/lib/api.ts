@@ -26,8 +26,13 @@ import type {
   PrepAttemptResult,
   PrepFeedback,
   PrepHints,
+  PrepCheckpointRun,
+  PrepCheckpoints,
+  PrepInsights,
   PrepMock,
   PrepMockInput,
+  PrepMockSession,
+  PrepMockTurn,
   PrepPlan,
   PrepReviewToken,
   PrepStory,
@@ -1440,6 +1445,111 @@ export const api = {
         if (event.type === "token" && event.content) onToken(event.content);
         if (event.type === "done" && event.message) result = event.message;
         if (event.type === "error") throw new ApiError(502, event.detail || "Tutor failed");
+      }
+    }
+    if (!result) throw new ApiError(500, "Stream ended without a reply");
+    return result;
+  },
+
+  getPrepInsights: (date: string) =>
+    req<PrepInsights>(`/api/prep/insights?date=${encodeURIComponent(date)}`),
+
+  getPrepCheckpoints: (date: string) =>
+    req<PrepCheckpoints>(`/api/prep/checkpoints?date=${encodeURIComponent(date)}`),
+
+  startPrepCheckpoint: (checkpointId: string, date: string) =>
+    req<PrepCheckpointRun>(`/api/prep/checkpoints/${encodeURIComponent(checkpointId)}/start`, {
+      method: "POST",
+      body: JSON.stringify({ date }),
+    }),
+
+  getPrepCheckpointRun: (runId: number) =>
+    req<PrepCheckpointRun>(`/api/prep/checkpoints/runs/${runId}`),
+
+  completePrepCheckpointRun: (
+    runId: number,
+    body: {
+      attempt_id?: number;
+      mock_session_id?: number;
+      elapsed_minutes?: number;
+      tests_passed?: number;
+      tests_total?: number;
+      levels_passed?: number;
+    }
+  ) =>
+    req<PrepCheckpointRun>(`/api/prep/checkpoints/runs/${runId}/complete`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  startPrepMock: (body: { task_id: string; date: string; checkpoint_run_id?: number | null }) =>
+    req<PrepMockSession>("/api/prep/mock-sessions", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  listPrepMockSessions: (taskId: string) =>
+    req<PrepMockSession[]>(`/api/prep/mock-sessions?task_id=${encodeURIComponent(taskId)}`),
+
+  getPrepMockSession: (id: number) => req<PrepMockSession>(`/api/prep/mock-sessions/${id}`),
+
+  finishPrepMock: (id: number, body: { code: string; elapsed_minutes: number }) =>
+    req<PrepMockSession>(`/api/prep/mock-sessions/${id}/finish`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  /** Sends the candidate's message and streams the interviewer's reply. */
+  streamPrepMockTurn: async (
+    id: number,
+    body: { message: string; code: string; elapsed_minutes: number },
+    onCandidate: (turn: PrepMockTurn) => void,
+    onToken: (token: string) => void,
+    signal?: AbortSignal
+  ): Promise<PrepMockTurn> => {
+    const res = await fetch(`${BASE}/api/prep/mock-sessions/${id}/turn/stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify(body),
+      signal,
+    });
+    if (!res.ok) {
+      if (res.status === 401) setToken(null);
+      let detail = "";
+      try {
+        const data = await res.json();
+        detail = data?.detail ?? JSON.stringify(data);
+      } catch {
+        detail = await res.text().catch(() => "");
+      }
+      throw new ApiError(res.status, detail || `Request failed (${res.status})`);
+    }
+    if (!res.body) throw new ApiError(500, "No response stream");
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let result: PrepMockTurn | null = null;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const raw = line.slice(6).trim();
+        if (!raw) continue;
+        const event = JSON.parse(raw) as {
+          type: string;
+          content?: string;
+          detail?: string;
+          message?: PrepMockTurn;
+        };
+        if (event.type === "candidate" && event.message) onCandidate(event.message);
+        if (event.type === "token" && event.content) onToken(event.content);
+        if (event.type === "done" && event.message) result = event.message;
+        if (event.type === "error") throw new ApiError(502, event.detail || "Interviewer failed");
       }
     }
     if (!result) throw new ApiError(500, "Stream ended without a reply");

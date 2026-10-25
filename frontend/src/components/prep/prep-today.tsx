@@ -45,9 +45,9 @@ function toChecklistItem(item: PrepItem): ChecklistItem {
     href: item.url,
     linkLabel: linkLabel(item.url),
     badge: item.badge,
-    badgeTone: item.redo_id
+    badgeTone: item.redo_id || item.badge === "Review · 30d"
       ? "amber"
-      : item.badge === "Carried over"
+      : item.badge === "Carried over" || item.badge === "Weak spot"
         ? "red"
         : item.difficulty === "easy"
           ? "green"
@@ -145,6 +145,12 @@ export function PrepToday() {
   const sections: Array<{ title: string; items: PrepItem[]; empty: string; note?: string }> = [
     { title: "Redo", items: today.redos, empty: "No redos due." },
     {
+      title: "Long-term review",
+      items: today.review,
+      empty: "",
+      note: "Solved cleanly 30+ days ago. Redo it from a blank editor to check it stuck; if it doesn't come back cleanly, it returns as a redo.",
+    },
+    {
       title: "Morning · DSA",
       items: today.morning,
       empty: "This week's DSA is done. Clear any redos above.",
@@ -163,10 +169,14 @@ export function PrepToday() {
       title: "Extra practice · optional",
       items: today.extra,
       empty: "",
-      note: "One easy and two medium on this week's pattern, plus a hard from week 3. They change daily and don't count toward today's total, but finishing them still counts for your streak.",
+      note:
+        "One easy and two medium on this week's pattern, plus a hard from week 3. They change daily and don't count toward today's total, but finishing them still counts for your streak." +
+        (today.focus_pattern
+          ? ` One medium targets your weakest pattern, ${today.focus_pattern}.`
+          : ""),
     },
   ];
-  const upNext = [...today.redos, ...today.morning, ...today.evening, ...today.weekend].find(
+  const upNext = [...today.redos, ...today.review, ...today.morning, ...today.evening, ...today.weekend].find(
     (i) => !i.done
   );
   const pct = today.total_count ? (today.done_count / today.total_count) * 100 : 0;

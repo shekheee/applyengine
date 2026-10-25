@@ -63,6 +63,7 @@ export function Timer({
   storageKey,
   stopLabel = "Stop",
   compact = false,
+  autoStart = false,
 }: {
   targetMinutes: number;
   /** `startedAt` is when the timer first started, kept across reloads. */
@@ -72,8 +73,15 @@ export function Timer({
   stopLabel?: string;
   /** A one-line toolbar timer with start/pause only. */
   compact?: boolean;
+  /** Start counting on first mount (timed runs); a stored timer keeps its state. */
+  autoStart?: boolean;
 }) {
-  const [state, setState] = useState<TimerState>(() => readState(storageKey));
+  const [state, setState] = useState<TimerState>(() => {
+    const stored = readState(storageKey);
+    if (!autoStart || stored.firstStartedAt !== null) return stored;
+    const at = Date.now();
+    return { accumulatedMs: 0, runningSince: at, firstStartedAt: at };
+  });
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {

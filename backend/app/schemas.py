@@ -559,6 +559,8 @@ class PrepTodayOut(BaseModel):
     weekend: list[PrepItemOut] = Field(default_factory=list)
     carried: list[PrepItemOut] = Field(default_factory=list)
     redos: list[PrepItemOut] = Field(default_factory=list)
+    review: list[PrepItemOut] = Field(default_factory=list)
+    focus_pattern: str | None = None
     extra: list[PrepItemOut] = Field(default_factory=list)
     weekly: list[PrepItemOut] = Field(default_factory=list)
     dsa_backlog: int = 0
@@ -767,3 +769,57 @@ class PrepMockIn(BaseModel):
 
 class PrepMockOut(PrepMockIn):
     id: int
+
+
+class PrepMockSessionIn(BaseModel):
+    task_id: str
+    date: dt.date
+    checkpoint_run_id: int | None = None
+
+
+class PrepMockTurnIn(BaseModel):
+    message: str = Field(min_length=1, max_length=8_000)
+    code: str = Field(default="", max_length=100_000)
+    elapsed_minutes: float = Field(default=0, ge=0)
+    model: str | None = None
+
+
+class PrepMockFinishIn(BaseModel):
+    code: str = Field(default="", max_length=100_000)
+    elapsed_minutes: float = Field(default=0, ge=0)
+    model: str | None = None
+
+
+class PrepMockTurnOut(BaseModel):
+    id: int
+    role: str
+    content: str
+    created_at: datetime
+
+
+class PrepMockSessionOut(BaseModel):
+    id: int
+    task_id: str
+    date: dt.date
+    status: str
+    started_at: datetime
+    ended_at: datetime | None = None
+    elapsed_minutes: float = 0
+    code: str = ""
+    scorecard: dict[str, Any] | None = None
+    checkpoint_run_id: int | None = None
+    mock_log_id: int | None = None
+    turns: list[PrepMockTurnOut] = Field(default_factory=list)
+
+
+class PrepCheckpointStartIn(BaseModel):
+    date: dt.date
+
+
+class PrepCheckpointCompleteIn(BaseModel):
+    attempt_id: int | None = None
+    mock_session_id: int | None = None
+    elapsed_minutes: float = Field(default=0, ge=0)
+    tests_passed: int | None = None
+    tests_total: int | None = None
+    levels_passed: int | None = None

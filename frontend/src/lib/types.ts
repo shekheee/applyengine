@@ -686,6 +686,8 @@ export interface PrepToday {
   weekend: PrepItem[];
   carried: PrepItem[];
   redos: PrepItem[];
+  review: PrepItem[];
+  focus_pattern: string | null;
   extra: PrepItem[];
   weekly: PrepItem[];
   dsa_backlog: number;
@@ -894,4 +896,114 @@ export interface PrepMockInput {
 
 export interface PrepMock extends PrepMockInput {
   id: number;
+}
+
+export interface PrepInsightGroup {
+  name: string;
+  attempts: number;
+  tasks: number;
+  solved_rate: number;
+  clean_rate: number;
+  hint_rate: number;
+  overtime_rate: number;
+  time_ratio: number;
+  last_date: string;
+  weakness: number;
+}
+
+export interface PrepInsights {
+  totals: {
+    attempts: number;
+    tasks: number;
+    clean_rate: number | null;
+    recent_clean_rate: number | null;
+    earlier_clean_rate: number | null;
+  };
+  by_pattern: PrepInsightGroup[];
+  by_type: PrepInsightGroup[];
+  weakest: PrepInsightGroup[];
+  review_due: { task_id: string; title: string }[];
+}
+
+export type PrepSignal = "strong_no" | "no" | "lean_no" | "lean_yes" | "yes" | "strong_yes";
+
+export interface PrepScorecard {
+  communication: number;
+  problem_solving: number;
+  coding: number;
+  verification: number;
+  signal: PrepSignal;
+  score: number;
+  summary: string;
+  strengths: string[];
+  improvements: string[];
+  offline?: boolean;
+}
+
+export interface PrepMockTurn {
+  id: number;
+  role: "interviewer" | "candidate";
+  content: string;
+  created_at: string;
+}
+
+export interface PrepMockSession {
+  id: number;
+  task_id: string;
+  date: string;
+  status: "active" | "finished";
+  started_at: string;
+  ended_at: string | null;
+  elapsed_minutes: number;
+  code: string;
+  scorecard: PrepScorecard | null;
+  checkpoint_run_id: number | null;
+  mock_log_id: number | null;
+  turns: PrepMockTurn[];
+}
+
+export type PrepCheckpointRule = "clean" | "tests" | "levels3" | "mock" | "computed";
+
+export interface PrepCheckpointRun {
+  id: number;
+  checkpoint_id: string;
+  title: string;
+  criteria: string;
+  rule: PrepCheckpointRule;
+  limit: number | null;
+  task_id: string | null;
+  task_title: string | null;
+  task_type: string | null;
+  date: string;
+  started_at: string | null;
+  finished_at: string | null;
+  passed: boolean | null;
+  details: {
+    reasons?: string[];
+    elapsed_minutes?: number;
+    signal?: PrepSignal | null;
+    tests_passed?: number | null;
+    tests_total?: number | null;
+    levels_passed?: number | null;
+    mock_session_id?: number | null;
+  };
+}
+
+export interface PrepCheckpoint {
+  id: string;
+  week: number;
+  tracks: string[];
+  title: string;
+  criteria: string;
+  rule: PrepCheckpointRule;
+  limit: number | null;
+  status: "upcoming" | "open" | "in_progress" | "attempted" | "passed";
+  progress: string;
+  runs: PrepCheckpointRun[];
+}
+
+export interface PrepCheckpoints {
+  week: number;
+  checkpoints: PrepCheckpoint[];
+  readiness: { track: string; label: string; passed: number; total: number; ready: boolean }[];
 }

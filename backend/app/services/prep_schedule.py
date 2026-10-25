@@ -11,6 +11,7 @@ from datetime import date, timedelta
 from typing import Any
 
 from app.models import PrepAttempt, PrepRedo, PrepTask
+from app.services.prep_insights import long_term_due, weakest_patterns
 
 PROGRAM_WEEKS = 10
 MORNING_DSA_PER_DAY = 2
@@ -179,6 +180,7 @@ def build_today(
         "redos": [],
         "extra": [],
         "weekly": [],
+        "review": [],
         "dsa_backlog": 0,
     }
     result["streak"] = streaks(attempts, today)
@@ -311,13 +313,34 @@ def build_today(
         if task.week <= week and (task.id not in done_before)
     ]
 
+    # Long-term review: one problem a day that was solved cleanly 30+ days ago.
+    earlier = [a for a in attempts if a.date < today]
+    on_screen = shown | {i["task_id"] for i in result["redos"]}
+    due = [t for t in long_term_due(by_id, earlier, redos, today) if t not in on_screen]
+    if due:
+        result["review"] = [_task_item(by_id[due[0]], done=due[0] in done_today, badge="Review · 30d")]
+
     # Optional practice: shown daily, never counted in today's or the week's totals.
+    # One medium leans on the weakest pattern so far.
+    weakest = weakest_patterns(by_id, earlier, limit=1)
+    focus = weakest[0]["name"] if weakest else None
+    result["focus_pattern"] = focus
     result["extra"] = [
-        _task_item(task, done=task.id in done_today, badge=(task.difficulty or "").title() or None)
-        for task in pick_extras(extras, start_date, today, week, done_before)
+        _task_item(
+            task,
+            done=task.id in done_today,
+            badge=(
+                "Weak spot"
+                if focus and task.pattern == focus and task.week != week
+                else (task.difficulty or "").title() or None
+            ),
+        )
+        for task in pick_extras(extras, start_date, today, week, done_before, focus)
     ]
 
-    today_items = result["redos"] + result["morning"] + result["evening"] + result["weekend"]
+    today_items = (
+        result["redos"] + result["review"] + result["morning"] + result["evening"] + result["weekend"]
+    )
     result["done_count"] = sum(1 for i in today_items if i["done"])
     result["total_count"] = len(today_items)
     week_tasks = [t for t in week_tasks_all if t.week == week]
@@ -334,13 +357,15 @@ def pick_extras(
     today: date,
     week: int,
     done_before: set[str],
+    focus_pattern: str | None = None,
 ) -> list[PrepTask]:
     """One easy and two medium problems on this week's pattern (plus one hard from
     week 3), not done before today.
 
     The pick rotates daily (skip one and tomorrow shows others) but is stable
     within a day. When this week's pool runs low, earlier weeks fill in; in
-    weeks 9-10, after the pattern weeks, the whole bank is in play.
+    weeks 9-10, after the pattern weeks, the whole bank is in play. With a
+    `focus_pattern` (the weakest so far), one medium comes from that pattern.
     """
     if week == 0 or not extras:
         return []
@@ -368,7 +393,13 @@ def pick_extras(
         if len(lead) > count:
             offset = day_index % len(lead)
             lead = lead[offset:] + lead[:offset]
-        picked += lead[:count]
+        chosen = lead[:count]
+        if difficulty == "medium" and focus_pattern and chosen:
+            focus = [t for t in pool if t.pattern == focus_pattern and t not in chosen]
+            focus.sort(key=lambda t: (t.week, t.order, t.id))
+            if focus and chosen[-1].pattern != focus_pattern:
+                chosen = chosen[:-1] + [focus[day_index % len(focus)]]
+        picked += chosen
     return picked
 
 

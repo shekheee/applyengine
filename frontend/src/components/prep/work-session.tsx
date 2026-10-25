@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import type {
   PrepAttempt,
   PrepAttemptResult,
+  PrepCheckpointRun,
+  PrepMockSession,
   PrepSolved,
   PrepTaskDetail,
   PrepTestCase,
@@ -22,6 +24,7 @@ import { Whiteboard, clearBoard, loadBoard, type BoardElement } from "@/componen
 import { localISODate, shortDate } from "./dates";
 import { HintPanel } from "./hint-panel";
 import { LevelPanel, cumulativeTests, useLevels } from "./level-panel";
+import { MockInterviewPanel, rememberMock, storedMockId } from "./mock-interview-panel";
 import { TutorPanel } from "./tutor-panel";
 
 const DSA_STEPS = [
@@ -48,7 +51,7 @@ const TYPE_LABEL: Record<string, string> = {
   fundamentals: "LLM fundamentals",
 };
 
-type Tab = "description" | "hints" | "solution" | "submissions";
+type Tab = "interviewer" | "description" | "hints" | "solution" | "submissions";
 
 function siteName(url: string): string {
   if (url.includes("leetcode.com")) return "LeetCode";
@@ -62,9 +65,16 @@ function stepMinutes(step: string): number | null {
   return match ? Number(match[1]) : null;
 }
 
-export function WorkSession({ taskId }: { taskId: string }) {
+export function WorkSession({
+  taskId,
+  checkpointRunId = null,
+}: {
+  taskId: string;
+  checkpointRunId?: number | null;
+}) {
   const [date] = useState(localISODate);
   const [task, setTask] = useState<PrepTaskDetail | null>(null);
+  const [run, setRun] = useState<PrepCheckpointRun | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
@@ -76,6 +86,17 @@ export function WorkSession({ taskId }: { taskId: string }) {
 
   useEffect(load, [load]);
 
+  useEffect(() => {
+    if (checkpointRunId === null) return;
+    api
+      .getPrepCheckpointRun(checkpointRunId)
+      .then((data) => {
+        if (data.task_id !== taskId) throw new Error("That checkpoint run is for a different task.");
+        setRun(data);
+      })
+      .catch((err: Error) => setError(err.message));
+  }, [checkpointRunId, taskId]);
+
   if (error) {
     return (
       <div className="mx-auto max-w-3xl p-4">
@@ -86,18 +107,22 @@ export function WorkSession({ taskId }: { taskId: string }) {
       </div>
     );
   }
-  if (!task) return <PageSkeleton />;
-  return <Workspace key={task.id} task={task} date={date} reload={load} />;
+  if (!task || (checkpointRunId !== null && !run)) return <PageSkeleton />;
+  return <Workspace key={task.id} task={task} date={date} reload={load} run={run} onRun={setRun} />;
 }
 
 function Workspace({
   task,
   date,
   reload,
+  run,
+  onRun,
 }: {
   task: PrepTaskDetail;
   date: string;
   reload: () => void;
+  run: PrepCheckpointRun | null;
+  onRun: (run: PrepCheckpointRun) => void;
 }) {
   const draftKey = `prep:draft:${task.id}`;
   const boardKey = `prep:board:${task.id}`;
@@ -121,6 +146,57 @@ function Workspace({
   const levels = task.levels ?? [];
   const levelState = useLevels(task.id, Math.max(levels.length, 1));
   const [levelsDone, setLevelsDone] = useState(false);
+  const [mock, setMock] = useState<PrepMockSession | null>(null);
+  const [mockBusy, setMockBusy] = useState(false);
+  const [modeError, setModeError] = useState<string | null>(null);
+  const autoStarted = useRef(false);
+
+  const checkpointActive = Boolean(run && !run.finished_at);
+  const mockActive = mock?.status === "active";
+  // Timed runs: no hints, no solution, no past submissions until they end.
+  const locked = checkpointActive || mockActive;
+  const activeTimerKey = checkpointActive && run
+    ? `prep:cp-timer:${run.id}`
+    : mockActive && mock
+      ? `prep:mock-timer:${mock.id}`
+      : timerKey;
+  const timerTarget = run?.limit ?? task.target_minutes;
+
+  const startMock = useCallback(
+    (checkpointRunId: number | null) => {
+      setMockBusy(true);
+      setModeError(null);
+      api
+        .startPrepMock({ task_id: task.id, date, checkpoint_run_id: checkpointRunId })
+        .then((session) => {
+          rememberMock(task.id, date, session.id);
+          setMock(session);
+          setTab("interviewer");
+        })
+        .catch((err: Error) => setModeError(err.message))
+        .finally(() => setMockBusy(false));
+    },
+    [task.id, date]
+  );
+
+  // Resume an interview left open today; a mock checkpoint starts one straight away.
+  useEffect(() => {
+    if (autoStarted.current) return;
+    autoStarted.current = true;
+    const stored = storedMockId(task.id, date);
+    const resume = stored
+      ? api.getPrepMockSession(stored).catch(() => null)
+      : Promise.resolve(null);
+    resume.then((session) => {
+      const fits = session && session.status === "active" && session.checkpoint_run_id === (run?.id ?? null);
+      if (fits) {
+        setMock(session);
+        setTab("interviewer");
+      } else if (run && !run.finished_at && run.rule === "mock") {
+        startMock(run.id);
+      }
+    });
+  }, [task.id, date, run, startMock]);
 
   // Design notes autosave like the code editor does.
   useEffect(() => {
@@ -137,10 +213,44 @@ function Workspace({
 
   const tests: PrepTestCase[] = levels.length ? cumulativeTests(levels, levelState.current) : task.tests;
   const dueRedo = task.open_redos.find((r) => r.due_date <= date);
-  const attempts: PrepAttempt[] = logged ? [logged.attempt, ...task.attempts] : task.attempts;
+  // The reload after logging also returns the new attempt; list it once.
+  const attempts: PrepAttempt[] = logged
+    ? [logged.attempt, ...task.attempts.filter((a) => a.id !== logged.attempt.id)]
+    : task.attempts;
   const reviewAttempt = logged?.attempt ?? task.attempts[0] ?? null;
 
+  const workText = () => (isDesign ? notes : code);
+  const elapsedMinutes = () => timerElapsedSeconds(activeTimerKey) / 60;
+
+  const endInterview = () => {
+    if (!mock || !window.confirm("End the interview and get the scorecard?")) return;
+    setMockBusy(true);
+    setModeError(null);
+    api
+      .finishPrepMock(mock.id, { code: workText(), elapsed_minutes: elapsedMinutes() })
+      .then((session) => {
+        rememberMock(task.id, date, null);
+        setMock(session);
+        setTab("interviewer");
+        if (run) return api.getPrepCheckpointRun(run.id).then(onRun);
+      })
+      .catch((err: Error) => setModeError(err.message))
+      .finally(() => setMockBusy(false));
+  };
+
   const onLogged = (result: PrepAttemptResult) => {
+    if (run && !run.finished_at) {
+      api
+        .completePrepCheckpointRun(run.id, {
+          attempt_id: result.attempt.id,
+          elapsed_minutes: result.attempt.elapsed_minutes,
+          tests_passed: lastSubmit?.passed,
+          tests_total: lastSubmit?.total,
+          levels_passed: levels.length ? (levelsDone ? levels.length : levelState.unlocked - 1) : undefined,
+        })
+        .then(onRun)
+        .catch((err: Error) => setModeError(err.message));
+    }
     // The next attempt (a redo days later) should start fresh; this one is in Submissions.
     setCode(task.starter ?? "");
     setNotes("");
@@ -166,7 +276,9 @@ function Workspace({
         </Link>
         <h1 className="truncate text-sm font-semibold text-[var(--text)] sm:text-base">{task.title}</h1>
         <Badge tone="primary">{TYPE_LABEL[task.type] ?? task.type}</Badge>
-        {dueRedo && <Badge tone="amber">Redo</Badge>}
+        {dueRedo && !run && <Badge tone="amber">Redo</Badge>}
+        {run && <Badge tone="amber">Checkpoint · {run.limit} min · unassisted</Badge>}
+        {mockActive && <Badge tone="red">Mock interview</Badge>}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {task.url && (
@@ -180,13 +292,39 @@ function Workspace({
             Open on {siteName(task.url)} ↗
           </a>
         )}
-        <Timer key={timerEpoch} compact targetMinutes={task.target_minutes} storageKey={timerKey} />
-        {logged ? (
+        <Timer
+          key={`${activeTimerKey}:${timerEpoch}`}
+          compact
+          targetMinutes={timerTarget}
+          storageKey={activeTimerKey}
+          autoStart={checkpointActive || mockActive}
+        />
+        {mockActive ? (
+          <Button size="sm" onClick={endInterview} disabled={mockBusy}>
+            {mockBusy ? "Scoring…" : "End interview"}
+          </Button>
+        ) : run?.rule === "mock" ? null : logged ? (
           <Badge tone="green">Logged ✓</Badge>
         ) : (
-          <Button size="sm" onClick={() => setFinishing(true)}>
-            Finish
-          </Button>
+          <>
+            {!run && !mock && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={mockBusy}
+                onClick={() =>
+                  window.confirm(
+                    "Start a mock interview on this problem? An AI interviewer joins in the Interviewer tab, the timer starts, and hints, the solution and past submissions lock until you end it."
+                  ) && startMock(null)
+                }
+              >
+                {mockBusy ? "Starting…" : "Mock interview"}
+              </Button>
+            )}
+            <Button size="sm" onClick={() => setFinishing(true)}>
+              Finish
+            </Button>
+          </>
         )}
       </div>
     </header>
@@ -194,6 +332,16 @@ function Workspace({
 
   const left = (
     <ProblemPanel
+      locked={locked ? (checkpointActive ? "checkpoint" : "interview") : null}
+      interviewer={
+        mock ? (
+          <MockInterviewPanel
+            key={`${mock.id}:${mock.status}`}
+            session={mock}
+            getWork={() => ({ code: workText(), elapsedMinutes: elapsedMinutes() })}
+          />
+        ) : null
+      }
       task={task}
       date={date}
       tab={tab}
@@ -310,6 +458,8 @@ function Workspace({
   return (
     <div className="flex flex-col gap-2 lg:h-[calc(100dvh-1rem)]">
       {header}
+      {modeError && <p className="px-1 text-sm text-[var(--red)]">{modeError}</p>}
+      {run?.finished_at && <CheckpointResult run={run} />}
       <SplitPane
         className="min-h-0 flex-1"
         storageKey="prep:split:main"
@@ -323,7 +473,8 @@ function Workspace({
         <FinishDialog
           task={task}
           date={date}
-          timerKey={timerKey}
+          timerKey={activeTimerKey}
+          defaultMinutes={mock?.status === "finished" ? mock.elapsed_minutes : undefined}
           hintsOpened={hintsOpened}
           lastSubmit={lastSubmit}
           isDesign={isDesign}
@@ -337,6 +488,8 @@ function Workspace({
 }
 
 function ProblemPanel({
+  locked,
+  interviewer,
   task,
   date,
   tab,
@@ -354,6 +507,8 @@ function ProblemPanel({
   loggedNote,
   onLoadCode,
 }: {
+  locked: "checkpoint" | "interview" | null;
+  interviewer: ReactNode;
   task: PrepTaskDetail;
   date: string;
   tab: Tab;
@@ -375,6 +530,7 @@ function ProblemPanel({
   const [showTopics, setShowTopics] = useState(false);
   const solutionLocked = !reviewAttempt && !revealedSolution;
   const tabs: Array<{ id: Tab; label: string }> = [
+    ...(interviewer ? [{ id: "interviewer" as Tab, label: "Interviewer" }] : []),
     { id: "description", label: "Description" },
     { id: "hints", label: `Hints${task.hints_total ? ` ${hintsOpened ? "·" : ""}` : ""}` },
     { id: "solution", label: solutionLocked ? "Solution 🔒" : "Solution" },
@@ -527,7 +683,22 @@ function ProblemPanel({
           </div>
         )}
 
-        {tab === "hints" && (
+        {tab === "interviewer" && interviewer}
+
+        {locked && (tab === "hints" || tab === "solution" || tab === "submissions") && (
+          <div className="space-y-2 py-6 text-center">
+            <p className="text-sm font-medium text-[var(--text)]">
+              Locked during the {locked === "checkpoint" ? "checkpoint" : "mock interview"}
+            </p>
+            <p className="text-sm text-[var(--muted)]">
+              {locked === "checkpoint"
+                ? "Checkpoints are unassisted. Hints, the solution and your past submissions open once the run is graded."
+                : "Work it out with the interviewer. Hints, the solution and past submissions open when you end the interview."}
+            </p>
+          </div>
+        )}
+
+        {!locked && tab === "hints" && (
           <HintPanel
             taskId={task.id}
             date={date}
@@ -539,7 +710,7 @@ function ProblemPanel({
           />
         )}
 
-        {tab === "solution" &&
+        {!locked && tab === "solution" &&
           (solutionLocked ? (
             <div className="space-y-2 py-6 text-center">
               <p className="text-sm font-medium text-[var(--text)]">Solve it first</p>
@@ -574,8 +745,33 @@ function ProblemPanel({
             </div>
           ) : null)}
 
-        {tab === "submissions" && <Submissions attempts={attempts} onLoadCode={onLoadCode} />}
+        {!locked && tab === "submissions" && <Submissions attempts={attempts} onLoadCode={onLoadCode} />}
       </div>
+    </div>
+  );
+}
+
+function CheckpointResult({ run }: { run: PrepCheckpointRun }) {
+  const reasons = run.details.reasons ?? [];
+  return (
+    <div
+      role="status"
+      className={cn(
+        "flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-md)] border px-3 py-2 text-sm",
+        run.passed ? "border-emerald-500/40 bg-emerald-500/10" : "border-red-500/40 bg-red-500/10"
+      )}
+    >
+      <p className="text-[var(--text)]">
+        <span className="font-semibold">{run.passed ? "Checkpoint passed" : "Checkpoint not passed"}</span>
+        {" · "}
+        {run.title}
+        {!run.passed && reasons.length > 0 && (
+          <span className="text-[var(--text-secondary)]"> — {reasons.join("; ")}</span>
+        )}
+      </p>
+      <Link href="/prep/progress" className="text-xs font-medium text-[var(--primary-2)] hover:underline">
+        Back to Progress
+      </Link>
     </div>
   );
 }
@@ -642,6 +838,7 @@ function FinishDialog({
   task,
   date,
   timerKey,
+  defaultMinutes,
   hintsOpened,
   lastSubmit,
   isDesign,
@@ -652,6 +849,8 @@ function FinishDialog({
   task: PrepTaskDetail;
   date: string;
   timerKey: string;
+  /** Minutes from a finished mock interview, used when the timer has none. */
+  defaultMinutes?: number;
   hintsOpened: boolean;
   lastSubmit: { passed: number; total: number } | null;
   isDesign: boolean;
@@ -660,7 +859,7 @@ function FinishDialog({
   onLogged: (result: PrepAttemptResult) => void;
 }) {
   const [minutes, setMinutes] = useState(() => {
-    const seconds = timerElapsedSeconds(timerKey);
+    const seconds = timerElapsedSeconds(timerKey) || (defaultMinutes ?? 0) * 60;
     return seconds > 0 ? String(Math.max(1, Math.round(seconds / 60))) : "";
   });
   const [hintUsed, setHintUsed] = useState<boolean | null>(hintsOpened ? true : null);

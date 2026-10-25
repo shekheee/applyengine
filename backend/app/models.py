@@ -444,3 +444,44 @@ class PrepMock(SQLModel, table=True):
     went_well: str = Field(default="", sa_column=Column(Text))
     to_improve: str = Field(default="", sa_column=Column(Text))
     created_at: datetime = Field(default_factory=_now)
+
+
+class PrepMockSession(SQLModel, table=True):
+    """A live mock interview with the AI interviewer on one task."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    task_id: str = Field(index=True)
+    date: dt.date = Field(index=True)
+    status: str = "active"  # active | finished
+    started_at: datetime = Field(default_factory=_now)
+    ended_at: datetime | None = None
+    elapsed_minutes: float = 0
+    code: str = Field(default="", sa_column=Column(Text))
+    scorecard: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))
+    checkpoint_run_id: int | None = None
+    mock_log_id: int | None = None
+
+
+class PrepMockTurn(SQLModel, table=True):
+    """One message in a mock interview."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    session_id: int = Field(foreign_key="prepmocksession.id", index=True)
+    role: str  # interviewer | candidate
+    content: str = Field(sa_column=Column(Text))
+    created_at: datetime = Field(default_factory=_now)
+
+
+class PrepCheckpointRun(SQLModel, table=True):
+    """One timed, unassisted attempt at a readiness checkpoint."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    checkpoint_id: str = Field(index=True)
+    task_id: str | None = None
+    date: dt.date = Field(index=True)
+    started_at: datetime = Field(default_factory=_now)
+    finished_at: datetime | None = None
+    passed: bool | None = None
+    details: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))

@@ -79,7 +79,7 @@ def build_daily_log(
         "status": plan["status"],
         "planned": [
             _planned(i)
-            for i in plan["redos"] + plan["morning"] + plan["evening"] + plan["weekend"]
+            for i in plan["redos"] + plan["review"] + plan["morning"] + plan["evening"] + plan["weekend"]
         ],
         "carried_over": [_planned(i) for i in plan["carried"]],
         "this_week": [_planned(i) for i in plan["weekly"]],

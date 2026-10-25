@@ -17,6 +17,7 @@ from app.routers import (
     interview,
     jobs,
     prep,
+    prep_coach,
     prep_interview,
     profiles,
     resume,
@@ -63,6 +64,7 @@ app.include_router(skills.router)
 app.include_router(social.router)
 app.include_router(prep.router)
 app.include_router(prep_interview.router)
+app.include_router(prep_coach.router)
 
 
 @app.get("/api/health")

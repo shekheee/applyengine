@@ -41,6 +41,7 @@ from app.schemas import (
     PrepTutorIn,
     PrepTutorMessageOut,
 )
+from app.services.prep_insights import CHECKLIST_NOTE
 from app.services.prep_redos import new_redos
 from app.services.prep_schedule import NEETCODE_URL, build_plan, build_today, neetcode_task_id
 from app.services.prep_review import (
@@ -59,7 +60,6 @@ from app.services.prep_tutor import (
 
 router = APIRouter(prefix="/api/prep", tags=["prep"])
 
-CHECKLIST_NOTE = "Ticked from the Today checklist."
 NEETCODE_ID = re.compile(r"^nc-(\d{4}-\d{2}-\d{2})$")
 NEETCODE_TITLE = "1 unseen medium from NeetCode 150"
 
