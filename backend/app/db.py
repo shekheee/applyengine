@@ -43,6 +43,7 @@ def init_db() -> None:
     _migrate_buddy_practice()
     _migrate_prep_task_content()
     _migrate_prep_attempt_diagram()
+    _migrate_prep_story_questions()
     _seed_prep_tasks()
 
 
@@ -83,6 +84,21 @@ def _migrate_prep_attempt_diagram() -> None:
                 conn.execute(text("ALTER TABLE prepattempt ADD COLUMN diagram JSON"))
             return
         conn.execute(text("ALTER TABLE prepattempt ADD COLUMN IF NOT EXISTS diagram JSON"))
+
+
+def _migrate_prep_story_questions() -> None:
+    """Add the question-bank links to prepstory tables created before them."""
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        if is_sqlite:
+            existing = {row[1] for row in conn.execute(text("PRAGMA table_info(prepstory)"))}
+            if "questions" not in existing:
+                conn.execute(text("ALTER TABLE prepstory ADD COLUMN questions JSON DEFAULT '[]'"))
+            return
+        conn.execute(
+            text("ALTER TABLE prepstory ADD COLUMN IF NOT EXISTS questions JSON DEFAULT '[]'::json")
+        )
 
 
 def _seed_prep_tasks() -> None:

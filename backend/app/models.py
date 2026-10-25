@@ -411,6 +411,8 @@ class PrepStory(SQLModel, table=True):
     result: str = Field(default="", sa_column=Column(Text))
     tags: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     companies: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    # Ids of the question-bank prompts this story answers (e.g. "q-failure").
+    questions: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     critique: str = Field(default="", sa_column=Column(Text))
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)

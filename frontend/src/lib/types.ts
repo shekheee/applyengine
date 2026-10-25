@@ -858,6 +858,7 @@ export interface PrepStoryInput {
   result: string;
   tags: string[];
   companies: string[];
+  questions: string[];
 }
 
 export interface PrepStory extends PrepStoryInput {

@@ -3,9 +3,12 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import type { PrepStory, PrepStoryInput, PrepTarget, PrepTargetInput } from "@/lib/types";
-import { Badge, Button, Card, Input, Label, PageHeader, PageSkeleton, Textarea, cn } from "@/components/ui";
+import { Badge, Button, Card, Input, Label, PageHeader, PageSkeleton, Select, Textarea, cn } from "@/components/ui";
 import { MarkdownPanel } from "@/components/shared/markdown-panel";
+import { BEHAVIORAL_QUESTIONS, QUESTION_GROUPS, type BehavioralQuestion } from "./behavioral-questions";
 import { PrepNav } from "./prep-nav";
+
+const QUESTION_BY_ID = new Map(BEHAVIORAL_QUESTIONS.map((q) => [q.id, q]));
 
 /** What behavioural rounds probe across FAANG and AI labs. */
 const COMPETENCIES = [
@@ -50,7 +53,13 @@ const EMPTY_STORY: PrepStoryInput = {
   result: "",
   tags: [],
   companies: [],
+  questions: [],
 };
+
+/** A blank story pre-tagged for one question from the bank. */
+function storyFor(question: BehavioralQuestion): PrepStoryInput {
+  return { ...EMPTY_STORY, tags: [...question.competencies, ...question.amazon], questions: [question.id] };
+}
 
 const EMPTY_TARGET: PrepTargetInput = { company: "", role: "", why: "", questions: "" };
 
@@ -104,7 +113,7 @@ function StoryForm({
   const [saving, setSaving] = useState(false);
   const [showAmazon, setShowAmazon] = useState(initial.tags.some((t) => AMAZON_PRINCIPLES.includes(t)));
   const set = (field: keyof PrepStoryInput) => (value: string) => setStory((s) => ({ ...s, [field]: value }));
-  const toggle = (field: "tags" | "companies") => (option: string) =>
+  const toggle = (field: "tags" | "companies" | "questions") => (option: string) =>
     setStory((s) => ({
       ...s,
       [field]: s[field].includes(option) ? s[field].filter((x) => x !== option) : [...s[field], option],
@@ -117,8 +126,22 @@ function StoryForm({
     { key: "result", label: "Result", hint: "Outcome with numbers, and what you learned." },
   ];
 
+  const linked = story.questions.map((id) => QUESTION_BY_ID.get(id)).filter(Boolean) as BehavioralQuestion[];
+  const first = linked[0];
+
   return (
     <Card className="space-y-4">
+      {first && (
+        <div className="space-y-1.5 rounded-[var(--radius-md)] border border-[var(--primary)]/40 bg-[var(--panel-2)] p-3">
+          <p className="text-sm font-semibold text-[var(--text)]">&ldquo;{first.question}&rdquo;</p>
+          <p className="text-xs text-[var(--muted)]">They&apos;re testing: {first.testing}</p>
+          <ul className="list-disc space-y-0.5 pl-5 text-xs text-[var(--text-secondary)]">
+            {first.jog.map((prompt) => (
+              <li key={prompt}>{prompt}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div>
         <Label htmlFor="story-title">Title</Label>
         <Input
@@ -147,6 +170,34 @@ function StoryForm({
         {showAmazon && (
           <TagPicker options={AMAZON_PRINCIPLES} selected={story.tags} onToggle={toggle("tags")} />
         )}
+      </div>
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-[var(--muted)]">Questions it answers</p>
+        <div className="flex flex-wrap gap-1.5">
+          {linked.map((q) => (
+            <button
+              key={q.id}
+              type="button"
+              onClick={() => toggle("questions")(q.id)}
+              className="rounded-full border border-[var(--primary)] px-2.5 py-1 text-left text-xs text-[var(--text)]"
+              title="Remove"
+            >
+              {q.question} ✕
+            </button>
+          ))}
+        </div>
+        <Select
+          aria-label="Add a question this story answers"
+          value=""
+          onChange={(e) => e.target.value && toggle("questions")(e.target.value)}
+        >
+          <option value="">+ Also answers…</option>
+          {BEHAVIORAL_QUESTIONS.filter((q) => !story.questions.includes(q.id)).map((q) => (
+            <option key={q.id} value={q.id}>
+              {q.question}
+            </option>
+          ))}
+        </Select>
       </div>
       {companies.length > 0 && (
         <div className="space-y-2">
@@ -273,8 +324,15 @@ export function PrepStories() {
   const [stories, setStories] = useState<PrepStory[] | null>(null);
   const [targets, setTargets] = useState<PrepTarget[]>([]);
   const [editing, setEditing] = useState<number | "new" | null>(null);
+  const [draft, setDraft] = useState<PrepStoryInput>(EMPTY_STORY);
   const [critiquing, setCritiquing] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const startStory = (initial: PrepStoryInput) => {
+    setDraft(initial);
+    setEditing("new");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const load = () => {
     Promise.all([api.listPrepStories(), api.listPrepTargets()])
@@ -317,7 +375,7 @@ export function PrepStories() {
         description="8-10 STAR stories that together cover every competency, ready to tell in about 2 minutes each."
         action={
           editing === null ? (
-            <Button size="sm" onClick={() => setEditing("new")}>
+            <Button size="sm" onClick={() => startStory(EMPTY_STORY)}>
               New story
             </Button>
           ) : undefined
@@ -350,7 +408,8 @@ export function PrepStories() {
 
       {editing === "new" && (
         <StoryForm
-          initial={EMPTY_STORY}
+          key={draft.questions.join(",") || "blank"}
+          initial={draft}
           companies={targets.map((t) => t.company)}
           onSave={save("new")}
           onCancel={() => setEditing(null)}
@@ -419,7 +478,108 @@ export function PrepStories() {
         )
       )}
 
+      <QuestionBank stories={stories ?? []} onDraft={(q) => startStory(storyFor(q))} />
+
       <TargetsCard targets={targets} onChange={load} />
     </div>
+  );
+}
+
+function QuestionBank({
+  stories,
+  onDraft,
+}: {
+  stories: PrepStory[];
+  onDraft: (question: BehavioralQuestion) => void;
+}) {
+  const [open, setOpen] = useState<string | null>(null);
+  const answeredBy = new Map<string, string[]>();
+  for (const story of stories) {
+    for (const id of story.questions ?? []) answeredBy.set(id, [...(answeredBy.get(id) ?? []), story.title]);
+  }
+  const covered = BEHAVIORAL_QUESTIONS.filter((q) => answeredBy.has(q.id)).length;
+
+  return (
+    <Card className="space-y-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+          <h2 className="text-sm font-semibold text-[var(--text)]">Question bank</h2>
+          <p className="mt-0.5 text-xs text-[var(--muted)]">
+            {BEHAVIORAL_QUESTIONS.length} questions behavioural rounds commonly ask. Draft a story for
+            each; one strong story can answer several.
+          </p>
+        </div>
+        <span className="text-xs tabular-nums text-[var(--muted)]">
+          {covered} of {BEHAVIORAL_QUESTIONS.length} have a story
+        </span>
+      </div>
+      {QUESTION_GROUPS.map((group) => (
+        <div key={group} className="space-y-1.5">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">{group}</p>
+          <ul className="divide-y" style={{ borderColor: "var(--border)" }}>
+            {BEHAVIORAL_QUESTIONS.filter((q) => q.group === group).map((q) => {
+              const stories = answeredBy.get(q.id) ?? [];
+              const expanded = open === q.id;
+              return (
+                <li key={q.id} className="py-2.5">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setOpen(expanded ? null : q.id)}
+                      aria-expanded={expanded}
+                      className="min-w-0 flex-1 text-left text-sm text-[var(--text)] hover:text-[var(--primary-2)]"
+                    >
+                      {q.question}
+                    </button>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {stories.length > 0 ? (
+                        <Badge tone="green">{stories.length === 1 ? "1 story" : `${stories.length} stories`}</Badge>
+                      ) : (
+                        <Badge tone="amber">No story</Badge>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => onDraft(q)}
+                        className="rounded-[var(--radius-md)] border px-2.5 py-1 text-xs font-medium text-[var(--text)] hover:bg-[var(--panel-2)]"
+                        style={{ borderColor: "var(--border)" }}
+                      >
+                        Draft a story
+                      </button>
+                    </div>
+                  </div>
+                  {expanded && (
+                    <div className="mt-2 space-y-2 text-xs">
+                      <p className="text-[var(--text-secondary)]">
+                        <span className="font-semibold text-[var(--text)]">They&apos;re testing: </span>
+                        {q.testing}
+                      </p>
+                      <div>
+                        <p className="font-semibold text-[var(--text)]">Jog your memory</p>
+                        <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[var(--text-secondary)]">
+                          {q.jog.map((prompt) => (
+                            <li key={prompt}>{prompt}</li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {q.competencies.map((c) => (
+                          <Badge key={c}>{c}</Badge>
+                        ))}
+                        {q.amazon.map((lp) => (
+                          <Badge key={lp} tone="primary">Amazon: {lp}</Badge>
+                        ))}
+                      </div>
+                      {stories.length > 0 && (
+                        <p className="text-[var(--muted)]">Answered by: {stories.join(" · ")}</p>
+                      )}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+    </Card>
   );
 }

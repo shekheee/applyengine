@@ -1001,11 +1001,13 @@ class PrepInterviewTests(unittest.TestCase):
         "result": "Runs dropped to 40 minutes.",
         "tags": ["ownership", "impact"],
         "companies": ["Anthropic"],
+        "questions": ["q-proud", "q-ownership"],
     }
 
     def test_story_crud_is_private(self):
         created = self.client.post("/api/prep/stories", json=self.STORY, headers=self.jwt).json()
         self.assertEqual(created["tags"], ["ownership", "impact"])
+        self.assertEqual(created["questions"], ["q-proud", "q-ownership"])
         updated = self.client.put(
             f"/api/prep/stories/{created['id']}",
             json={**self.STORY, "title": "Faster evals"},

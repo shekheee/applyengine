@@ -733,6 +733,7 @@ class PrepStoryIn(BaseModel):
     result: str = Field(default="", max_length=5_000)
     tags: list[str] = Field(default_factory=list, max_length=30)
     companies: list[str] = Field(default_factory=list, max_length=20)
+    questions: list[str] = Field(default_factory=list, max_length=40)
 
 
 class PrepStoryOut(PrepStoryIn):
