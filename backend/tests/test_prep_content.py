@@ -24,6 +24,7 @@ PRELUDE_FILE = (
 )
 EXTRA_URL = re.compile(r"^https://leetcode\.com/problems/[a-z0-9-]+/$")
 CODE_TYPES = {"python", "drill", "lld", "fundamentals"}
+PART_HEADING = re.compile(r"(?m)^### Part (\d+) · ")
 
 # The description states the problem; how to solve it belongs in hints and the solution.
 # A banned phrase is allowed when it is part of the task's own title.
@@ -246,6 +247,46 @@ class PrepContentTests(unittest.TestCase):
                     self.assertIsInstance(test.get("input"), str, "each case shows its input")
                     self.assertTrue(test["input"].strip())
                     self.assertIsInstance(test.get("hidden", False), bool)
+
+    def test_code_briefs_state_an_objective_and_numbered_parts(self):
+        """A one-line objective, then one spec per part; each part has its own worked example."""
+        for task_id, entry in self.content.items():
+            if self.tasks[task_id]["type"] not in CODE_TYPES:
+                continue
+            with self.subTest(task=task_id):
+                brief = entry["brief"]
+                self.assertTrue(brief.startswith("**Objective:**"), "open with **Objective:**")
+                objective = brief.splitlines()[0]
+                self.assertLess(len(objective), 320, "the objective is one sentence")
+                parts = [int(n) for n in PART_HEADING.findall(brief)]
+                self.assertTrue(parts, "at least one '### Part 1 · ...' section")
+                self.assertEqual(parts, list(range(1, len(parts) + 1)), "parts are numbered 1..N")
+                self.assertIn("### Done when", brief)
+                self.assertNotIn("```", brief, "examples come from the test cases, not the brief")
+                self.assertNotRegex(brief, r"(?im)^###\s*(goal|example)", "no Goal/Example headings")
+                for test in entry["tests"]:
+                    self.assertIn(test.get("part"), parts, f"{test['name']}: needs a part number")
+                    if not test.get("hidden"):
+                        self.assertGreater(
+                            len(test.get("explanation", "").strip()), 20, f"{test['name']}: explain the output"
+                        )
+                for part in parts:
+                    examples = [t for t in entry["tests"] if t["part"] == part and not t.get("hidden")]
+                    self.assertTrue(examples, f"part {part} needs a visible example")
+
+    def test_challenge_levels_state_an_objective(self):
+        for task_id, entry in self.content.items():
+            if self.tasks[task_id]["type"] != "challenge":
+                continue
+            for number, level in enumerate(entry["levels"], start=1):
+                with self.subTest(task=task_id, level=number):
+                    self.assertTrue(level["brief"].startswith("**Objective:**"), "open with **Objective:**")
+                    self.assertNotIn("```", level["brief"], "examples come from the test cases")
+                    for test in level["tests"]:
+                        if not test.get("hidden"):
+                            self.assertGreater(
+                                len(test.get("explanation", "").strip()), 20, f"{test['name']}: explain the output"
+                            )
 
     def check_case(self, test: dict) -> None:
         self.assertTrue(test.get("name") and test.get("code"))

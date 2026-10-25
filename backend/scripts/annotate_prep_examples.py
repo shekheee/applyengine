@@ -1,7 +1,8 @@
 """Write each visible test case's `expected` Output from the reference solution.
 
 Run from backend/ after adding or editing prep content:
-    python scripts/annotate_prep_examples.py
+    python scripts/annotate_prep_examples.py [file.json ...]
+With file names, only those files (in prep_content/ or prep_tracks/) are rewritten.
 tests/test_prep_content.py fails until examples match their solution again.
 """
 from __future__ import annotations
@@ -43,7 +44,10 @@ def annotate(entry: dict) -> int:
 
 
 def main() -> None:
+    only = set(sys.argv[1:])
     for path in sorted(CONTENT_DIR.glob("*.json")) + sorted(TRACKS_DIR.glob("*.json")):
+        if only and path.name not in only:
+            continue
         data = json.loads(path.read_text(encoding="utf-8"))
         content = data["content"] if "content" in data and "tasks" in data else data
         changed = sum(annotate(entry) for entry in content.values())

@@ -88,84 +88,101 @@
   "solution": "### Pattern notes\n- `d.setdefault(k, []).append(x)` creates the list the first time a key is seen.\n- A `key` that returns a **tuple** sorts by the first element, then the second; negating a number in the tuple sorts that field descending while the others stay ascending.\n- Because dicts keep insertion order, `dict.fromkeys(items)` behaves like an ordered set; a plain `set` has no order.\n\n### Key insight\nThese are one-pass patterns: a dict of lists to group, a tuple sort key for multi-key ordering, and a dict (ordered) or seen-set to dedupe while keeping order.\n\n### Approach\n1. **Group**: skip empty strings, compute `w[0].lower()`, `setdefault(key, []).append(w)`.\n2. **Sort**: `sorted(records, key=lambda r: (-r[\"score\"], r[\"name\"]))`. The negation flips score to descending while the name stays ascending. `sorted` returns a new list.\n3. **Dedupe**: `list(dict.fromkeys(items))` keeps first occurrences in order. The explicit seen-set loop is what interviewers usually want to see.\n\n### Complexity\nGroup and dedupe O(n) time and space; sort O(n log n).\n\n### Common mistakes\n- `list(set(items))` loses order.\n- `records.sort(...)` mutates the caller's list.\n- `key=lambda r: (r[\"score\"], r[\"name\"]), reverse=True` also reverses the name tie-break.\n- Using `w[0]` without checking for empty strings raises `IndexError`.\n\n```python\nfrom typing import Hashable, Iterable\n\n\ndef group_by_first_letter(words: list[str]) -> dict[str, list[str]]:\n    groups: dict[str, list[str]] = {}\n    for word in words:\n        if not word:\n            continue\n        groups.setdefault(word[0].lower(), []).append(word)\n    return groups\n\n\ndef sort_records(records: list[dict]) -> list[dict]:\n    return sorted(records, key=lambda r: (-r[\"score\"], r[\"name\"]))\n\n\ndef dedupe_keep_order(items: Iterable[Hashable]) -> list:\n    seen = set()\n    out = []\n    for item in items:\n        if item not in seen:\n            seen.add(item)\n            out.append(item)\n    return out\n```\n"
  },
  "py-tue": {
-  "brief": "### Goal\nCounting, windowing and priority problems show up constantly in eval pipelines and DSA rounds (top tokens, rolling metrics, job queues). Build one of each.\n\n### What to build\n- `top_k_frequent(words: list[str], k: int) -> list[str]`\n- `sliding_window_max(nums: list[int], k: int) -> list[int]`\n- class `TaskQueue` with `push(priority: int, name: str) -> None`, `pop() -> str`, `peek() -> str`, `__len__`\n\n### Requirements\n- `top_k_frequent`: the k most frequent words, most frequent first; ties broken **alphabetically**. If k exceeds the number of distinct words, return all of them; k <= 0 returns `[]`.\n- `sliding_window_max`: the max of every contiguous window of size k, left to right. Raise `ValueError` if k < 1; return `[]` if `len(nums) < k`. Inputs can have thousands of elements with large k; can you avoid rescanning each window?\n- `TaskQueue`: lowest priority number comes out first; equal priorities come out in **push order** (FIFO). `pop`/`peek` on an empty queue raise `IndexError`. `peek` does not remove. Separate queues never share state.\n\n### Example\n```python\ntop_k_frequent([\"b\", \"a\", \"b\", \"c\", \"a\", \"d\"], 2)   # ['a', 'b']\nsliding_window_max([1, 3, -1, -3, 5, 3, 6, 7], 3)  # [3, 3, 5, 5, 6, 7]\nq = TaskQueue(); q.push(2, \"write\"); q.push(1, \"read\"); q.push(1, \"eval\")\nq.pop(), q.pop(), len(q)   # ('read', 'eval', 1)\n```\n\n### Done when\nAll tests pass from a blank file in under 15 minutes.",
+  "brief": "**Objective:** Write three small utilities — a frequency ranker, a rolling maximum and a priority queue — each in its own part, each tested separately.\n\n### Part 1 · `top_k_frequent(words: list[str], k: int) -> list[str]`\nReturn the `k` words that appear most often in `words`, most frequent first.\n\n- Words with the same count are ordered **alphabetically**.\n- If `k` is larger than the number of distinct words, return all of them.\n- If `k <= 0` or `words` is empty, return `[]`.\n\n### Part 2 · `sliding_window_max(nums: list[int], k: int) -> list[int]`\nSlide a window of size `k` from left to right across `nums` and return the largest value in each window position.\n\n- There are `len(nums) - k + 1` windows; return `[]` if `len(nums) < k`.\n- Raise `ValueError` if `k < 1`.\n\n### Part 3 · `class TaskQueue`\nA queue where the task with the **lowest priority number** comes out first.\n\n- `push(priority: int, name: str) -> None` adds a task.\n- `pop() -> str` removes and returns the next task's name.\n- `peek() -> str` returns the next task's name without removing it.\n- `len(q)` is the number of tasks waiting.\n- Tasks with equal priority come out in the order they were pushed.\n- `pop()` and `peek()` on an empty queue raise `IndexError`.\n- Two `TaskQueue` objects never share tasks.\n\n### Constraints\n- `0 <= len(words), len(nums) <= 10^5`\n- Part 2 must handle `len(nums) = 5000`, `k = 50` without re-scanning every window.\n\n### Done when\nAll 12 tests pass (4 examples + 8 hidden edge cases), written from a blank file in under 15 minutes.",
   "learn": "- `collections.Counter(iterable)` counts how many times each item occurs; it is a dict subclass, so `counts[x]` gives a count.\n- `collections.defaultdict(factory)` creates a missing value by calling `factory()` the first time a key is read.\n- `collections.deque` is a double-ended sequence with fast `append`, `pop`, `appendleft` and `popleft`.\n- `heapq` treats a plain list as a **min-heap**: `heappush(h, x)` adds, `heappop(h)` removes the smallest, and `h[0]` is the smallest without removing it. `heapq.nlargest` / `nsmallest` return the k largest/smallest items of an iterable (both accept `key=`).\n\nRead more:\n- collections docs: https://docs.python.org/3/library/collections.html\n- heapq docs: https://docs.python.org/3/library/heapq.html",
-  "starter": "import heapq\nimport itertools\nfrom collections import Counter, deque\n\n\ndef top_k_frequent(words: list[str], k: int) -> list[str]:\n    \"\"\"k most frequent words, most frequent first, ties alphabetical.\"\"\"\n    raise NotImplementedError\n\n\ndef sliding_window_max(nums: list[int], k: int) -> list[int]:\n    \"\"\"Max of each window of size k, in O(n) with a deque of indices.\"\"\"\n    raise NotImplementedError\n\n\nclass TaskQueue:\n    \"\"\"Min-heap of tasks by priority; equal priorities pop in push order.\"\"\"\n\n    def __init__(self) -> None:\n        raise NotImplementedError\n\n    def push(self, priority: int, name: str) -> None:\n        raise NotImplementedError\n\n    def pop(self) -> str:\n        raise NotImplementedError\n\n    def peek(self) -> str:\n        raise NotImplementedError\n\n    def __len__(self) -> int:\n        raise NotImplementedError\n",
+  "starter": "import heapq\nimport itertools\nfrom collections import Counter, deque\n\n\ndef top_k_frequent(words: list[str], k: int) -> list[str]:\n    \"\"\"k most frequent words, most frequent first, ties alphabetical.\"\"\"\n    raise NotImplementedError\n\n\ndef sliding_window_max(nums: list[int], k: int) -> list[int]:\n    \"\"\"Max of each window of size k, left to right.\"\"\"\n    raise NotImplementedError\n\n\nclass TaskQueue:\n    \"\"\"Lowest priority number first; equal priorities in push order.\"\"\"\n\n    def __init__(self) -> None:\n        raise NotImplementedError\n\n    def push(self, priority: int, name: str) -> None:\n        raise NotImplementedError\n\n    def pop(self) -> str:\n        raise NotImplementedError\n\n    def peek(self) -> str:\n        raise NotImplementedError\n\n    def __len__(self) -> int:\n        raise NotImplementedError\n",
   "tests": [
    {
     "name": "top-k frequent words",
     "input": "words = [\"b\", \"a\", \"b\", \"c\", \"a\", \"d\"], k = 2",
     "hidden": false,
     "code": "expect(top_k_frequent([\"b\", \"a\", \"b\", \"c\", \"a\", \"d\"], 2), [\"a\", \"b\"])\n",
-    "expected": "['a', 'b']"
+    "expected": "['a', 'b']",
+    "part": 1,
+    "explanation": "\"a\" and \"b\" both appear twice; every other word once. They tie, so they come out alphabetically."
+   },
+   {
+    "name": "top-k: k larger than distinct words",
+    "input": "words = [\"b\", \"a\", \"b\"], k = 10",
+    "hidden": false,
+    "code": "expect(top_k_frequent([\"b\", \"a\", \"b\"], 10), [\"b\", \"a\"])\n",
+    "part": 1,
+    "explanation": "Only two distinct words exist, so both are returned: \"b\" (2 times) before \"a\" (once).",
+    "expected": "['b', 'a']"
    },
    {
     "name": "sliding window max",
     "input": "nums = [1, 3, -1, -3, 5, 3, 6, 7], k = 3",
     "hidden": false,
     "code": "expect(sliding_window_max([1, 3, -1, -3, 5, 3, 6, 7], 3), [3, 3, 5, 5, 6, 7])\n",
-    "expected": "[3, 3, 5, 5, 6, 7]"
+    "expected": "[3, 3, 5, 5, 6, 7]",
+    "part": 2,
+    "explanation": "The windows are [1,3,-1] [3,-1,-3] [-1,-3,5] [-3,5,3] [5,3,6] [3,6,7]; their maxima are 3, 3, 5, 5, 6, 7."
    },
    {
     "name": "task queue: priority then FIFO",
-    "input": "ops: push(2,\"write\") → push(1,\"read\") → push(1,\"eval\") → pop → pop → len",
+    "input": "q = TaskQueue()\nq.push(2, \"write\")\nq.push(1, \"read\")\nq.push(1, \"eval\")\n(q.pop(), q.pop(), len(q))",
     "hidden": false,
     "code": "q = TaskQueue()\nq.push(2, \"write\")\nq.push(1, \"read\")\nq.push(1, \"eval\")\nexpect((q.pop(), q.pop(), len(q)), (\"read\", \"eval\", 1))\n",
-    "expected": "('read', 'eval', 1)"
+    "expected": "('read', 'eval', 1)",
+    "part": 3,
+    "explanation": "\"read\" and \"eval\" share priority 1, the lowest, so they come out first in push order. \"write\" is still waiting."
    },
    {
     "name": "top-k: ties broken alphabetically",
     "input": "words = [\"c\", \"b\", \"a\", \"c\", \"b\", \"a\", \"d\"], k = 2; words = [\"x\", \"y\", \"y\"], k = 1",
     "hidden": true,
-    "code": "expect(top_k_frequent([\"c\", \"b\", \"a\", \"c\", \"b\", \"a\", \"d\"], 2), [\"a\", \"b\"])\nexpect(top_k_frequent([\"x\", \"y\", \"y\"], 1), [\"y\"])\nexpect(top_k_frequent([\"b\", \"a\", \"b\", \"c\", \"a\", \"d\", \"c\", \"e\"], 4), [\"a\", \"b\", \"c\", \"d\"])\n"
-   },
-   {
-    "name": "top-k: k larger than distinct words",
-    "input": "words = [\"b\", \"a\", \"b\"], k = 10",
-    "hidden": true,
-    "code": "expect(top_k_frequent([\"b\", \"a\", \"b\"], 10), [\"b\", \"a\"])\n"
+    "code": "expect(top_k_frequent([\"c\", \"b\", \"a\", \"c\", \"b\", \"a\", \"d\"], 2), [\"a\", \"b\"])\nexpect(top_k_frequent([\"x\", \"y\", \"y\"], 1), [\"y\"])\nexpect(top_k_frequent([\"b\", \"a\", \"b\", \"c\", \"a\", \"d\", \"c\", \"e\"], 4), [\"a\", \"b\", \"c\", \"d\"])\n",
+    "part": 1
    },
    {
     "name": "top-k: k <= 0 and empty input",
     "input": "words = [\"a\"], k = 0; words = [\"a\"], k = -2; words = [], k = 3",
     "hidden": true,
-    "code": "expect(top_k_frequent([\"a\"], 0), [])\nexpect(top_k_frequent([\"a\"], -2), [])\nexpect(top_k_frequent([], 3), [])\n"
+    "code": "expect(top_k_frequent([\"a\"], 0), [])\nexpect(top_k_frequent([\"a\"], -2), [])\nexpect(top_k_frequent([], 3), [])\n",
+    "part": 1
    },
    {
     "name": "window: k = 1, k = len(nums), k > len(nums)",
     "input": "nums = [4, 2, 9], k = 1 / 3 / 4",
     "hidden": true,
-    "code": "expect(sliding_window_max([4, 2, 9], 1), [4, 2, 9])\nexpect(sliding_window_max([4, 2, 9], 3), [9])\nexpect(sliding_window_max([4, 2, 9], 4), [])\nexpect(sliding_window_max([], 2), [])\n"
+    "code": "expect(sliding_window_max([4, 2, 9], 1), [4, 2, 9])\nexpect(sliding_window_max([4, 2, 9], 3), [9])\nexpect(sliding_window_max([4, 2, 9], 4), [])\nexpect(sliding_window_max([], 2), [])\n",
+    "part": 2
    },
    {
     "name": "window: k < 1 raises ValueError",
     "input": "nums = [1, 2, 3], k = 0; k = -1",
     "hidden": true,
-    "code": "expect_raises(ValueError, sliding_window_max, [1, 2, 3], 0, label=\"k = 0\")\nexpect_raises(ValueError, sliding_window_max, [1, 2, 3], -1, label=\"k = -1\")\n"
+    "code": "expect_raises(ValueError, sliding_window_max, [1, 2, 3], 0, label=\"k = 0\")\nexpect_raises(ValueError, sliding_window_max, [1, 2, 3], -1, label=\"k = -1\")\n",
+    "part": 2
    },
    {
     "name": "window: decreasing, duplicates, large input",
     "input": "nums = [9, 8, 7, 6], k = 2; nums = [2, 2, 2, 1], k = 2; 5000 seeded ints, k = 50",
     "hidden": true,
-    "code": "expect(sliding_window_max([9, 8, 7, 6], 2), [9, 8, 7])\nexpect(sliding_window_max([2, 2, 2, 1], 2), [2, 2, 2])\nimport random\nrng = random.Random(7)\nnums = [rng.randint(-1000, 1000) for _ in range(5000)]\ngot = sliding_window_max(nums, 50)\nbrute = [max(nums[i:i + 50]) for i in range(len(nums) - 49)]\nexpect((len(got), got[:3], got == brute), (len(brute), brute[:3], True))\n"
+    "code": "expect(sliding_window_max([9, 8, 7, 6], 2), [9, 8, 7])\nexpect(sliding_window_max([2, 2, 2, 1], 2), [2, 2, 2])\nimport random\nrng = random.Random(7)\nnums = [rng.randint(-1000, 1000) for _ in range(5000)]\ngot = sliding_window_max(nums, 50)\nbrute = [max(nums[i:i + 50]) for i in range(len(nums) - 49)]\nexpect((len(got), got[:3], got == brute), (len(brute), brute[:3], True))\n",
+    "part": 2
    },
    {
     "name": "queue: peek does not remove, FIFO among equal priorities",
     "input": "ops: push(1,\"a\") → push(0,\"z\") → push(1,\"b\") → push(1,\"c\") → peek → len → pop ×4",
     "hidden": true,
-    "code": "q = TaskQueue()\nfor p, n in [(1, \"a\"), (0, \"z\"), (1, \"b\"), (1, \"c\")]:\n    q.push(p, n)\nexpect((q.peek(), len(q)), (\"z\", 4), label=\"peek then len\")\nexpect([q.pop() for _ in range(4)], [\"z\", \"a\", \"b\", \"c\"])\nexpect(len(q), 0)\n"
+    "code": "q = TaskQueue()\nfor p, n in [(1, \"a\"), (0, \"z\"), (1, \"b\"), (1, \"c\")]:\n    q.push(p, n)\nexpect((q.peek(), len(q)), (\"z\", 4), label=\"peek then len\")\nexpect([q.pop() for _ in range(4)], [\"z\", \"a\", \"b\", \"c\"])\nexpect(len(q), 0)\n",
+    "part": 3
    },
    {
     "name": "queue: pop/peek on empty raise IndexError",
     "input": "ops: pop on empty; peek on empty; push → pop → pop",
     "hidden": true,
-    "code": "q = TaskQueue()\nexpect_raises(IndexError, q.pop, label=\"pop on empty\")\nexpect_raises(IndexError, q.peek, label=\"peek on empty\")\nq.push(5, \"only\")\nexpect(q.pop(), \"only\")\nexpect_raises(IndexError, q.pop, label=\"pop after draining\")\n"
+    "code": "q = TaskQueue()\nexpect_raises(IndexError, q.pop, label=\"pop on empty\")\nexpect_raises(IndexError, q.peek, label=\"peek on empty\")\nq.push(5, \"only\")\nexpect(q.pop(), \"only\")\nexpect_raises(IndexError, q.pop, label=\"pop after draining\")\n",
+    "part": 3
    },
    {
     "name": "queue: interleaved ops, two queues don't share state",
     "input": "q1: push(3,\"x\") → push(1,\"y\") → pop → push(0,\"w\") → pop → pop; q2: push(9,\"solo\")",
     "hidden": true,
-    "code": "q1, q2 = TaskQueue(), TaskQueue()\nq1.push(3, \"x\")\nq1.push(1, \"y\")\nq2.push(9, \"solo\")\nout = [q1.pop()]\nq1.push(0, \"w\")\nout += [q1.pop(), q1.pop()]\nexpect(out, [\"y\", \"w\", \"x\"])\nexpect((len(q1), len(q2), q2.peek()), (0, 1, \"solo\"))\n"
+    "code": "q1, q2 = TaskQueue(), TaskQueue()\nq1.push(3, \"x\")\nq1.push(1, \"y\")\nq2.push(9, \"solo\")\nout = [q1.pop()]\nq1.push(0, \"w\")\nout += [q1.pop(), q1.pop()]\nexpect(out, [\"y\", \"w\", \"x\"])\nexpect((len(q1), len(q2), q2.peek()), (0, 1, \"solo\"))\n",
+    "part": 3
    }
   ],
   "hints": [
