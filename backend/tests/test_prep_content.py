@@ -25,6 +25,7 @@ PRELUDE_FILE = (
 EXTRA_URL = re.compile(r"^https://leetcode\.com/problems/[a-z0-9-]+/$")
 CODE_TYPES = {"python", "drill", "lld", "fundamentals"}
 PART_HEADING = re.compile(r"(?m)^### Part (\d+) · ")
+SITUATION = re.compile(r"(?ms)^### The situation\n(.*?)(?=^### |\Z)")
 
 # The description states the problem; how to solve it belongs in hints and the solution.
 # A banned phrase is allowed when it is part of the task's own title.
@@ -262,6 +263,10 @@ class PrepContentTests(unittest.TestCase):
                 self.assertTrue(parts, "at least one '### Part 1 · ...' section")
                 self.assertEqual(parts, list(range(1, len(parts) + 1)), "parts are numbered 1..N")
                 self.assertIn("### Done when", brief)
+                situation = SITUATION.search(brief)
+                self.assertTrue(situation, "needs a '### The situation' section")
+                self.assertLess(situation.start(), brief.index("### Part 1"), "situation comes before the parts")
+                self.assertTrue(120 <= len(situation.group(1).strip()) <= 1200, "situation is 2-5 sentences")
                 self.assertNotIn("```", brief, "examples come from the test cases, not the brief")
                 self.assertNotRegex(brief, r"(?im)^###\s*(goal|example)", "no Goal/Example headings")
                 for test in entry["tests"]:
@@ -278,6 +283,8 @@ class PrepContentTests(unittest.TestCase):
         for task_id, entry in self.content.items():
             if self.tasks[task_id]["type"] != "challenge":
                 continue
+            with self.subTest(task=task_id):
+                self.assertTrue(SITUATION.search(entry["brief"]), "needs a '### The situation' section")
             for number, level in enumerate(entry["levels"], start=1):
                 with self.subTest(task=task_id, level=number):
                     self.assertTrue(level["brief"].startswith("**Objective:**"), "open with **Objective:**")
