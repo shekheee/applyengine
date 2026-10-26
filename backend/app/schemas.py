@@ -523,6 +523,9 @@ class PrepStreakOut(BaseModel):
     best: int
     today_count: int
     needed_today: int
+    paused: bool = False
+    missed_days: int = 0
+    grace_left: int = 3
 
 
 class PrepDayOut(BaseModel):

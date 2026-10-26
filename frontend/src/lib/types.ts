@@ -647,6 +647,11 @@ export interface PrepStreak {
   best: number;
   today_count: number;
   needed_today: number;
+  /** Days were missed since the last streak day; the count is held, not reset. */
+  paused: boolean;
+  missed_days: number;
+  /** More days that can be missed in a row before the streak resets. */
+  grace_left: number;
 }
 
 export type PrepDayStatus = "done" | "partial" | "missed" | "today" | "upcoming";

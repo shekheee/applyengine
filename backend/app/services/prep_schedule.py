@@ -16,6 +16,8 @@ from app.services.prep_insights import long_term_due, weakest_patterns
 PROGRAM_WEEKS = 10
 MORNING_DSA_PER_DAY = 2
 STREAK_MIN_TASKS = 2
+# Missed days in a row a streak survives (paused, not reset).
+STREAK_GRACE_DAYS = 3
 EXTRA_SLOT = "extra"
 WEEKLY_SLOT = "weekly"
 EXTRA_MIX = (("easy", 1), ("medium", 2))
@@ -67,33 +69,42 @@ def completions_by_date(attempts: Iterable[PrepAttempt]) -> dict[date, set[str]]
     return by_date
 
 
-def streaks(attempts: Iterable[PrepAttempt], today: date) -> dict[str, int]:
-    """Current and best run of days with at least STREAK_MIN_TASKS completions.
+def streaks(attempts: Iterable[PrepAttempt], today: date) -> dict[str, Any]:
+    """Current and best streak of days with at least STREAK_MIN_TASKS completions.
 
-    Today only extends the streak once it qualifies; an unfinished today does
-    not break a streak that ran through yesterday.
+    Like chess.com, missing a day pauses the streak instead of resetting it:
+    missed days add nothing, and the next qualifying day continues the count.
+    Only more than STREAK_GRACE_DAYS missed days in a row reset it. An
+    unfinished today is not counted as missed.
     """
     by_date = completions_by_date(attempts)
-    qualifying = sorted(d for d, ids in by_date.items() if len(ids) >= STREAK_MIN_TASKS)
+    qualifying = sorted(d for d, ids in by_date.items() if len(ids) >= STREAK_MIN_TASKS and d <= today)
     best = run = 0
     previous: date | None = None
     for day in qualifying:
-        run = run + 1 if previous and day - previous == timedelta(days=1) else 1
+        within_grace = previous and (day - previous).days - 1 <= STREAK_GRACE_DAYS
+        run = run + 1 if within_grace else 1
         best = max(best, run)
         previous = day
 
-    qualifying_set = set(qualifying)
-    cursor = today if today in qualifying_set else today - timedelta(days=1)
-    current = 0
-    while cursor in qualifying_set:
-        current += 1
-        cursor -= timedelta(days=1)
     today_count = len(by_date.get(today, set()))
+    missed = 0
+    current = run
+    if previous is None:
+        current = 0
+    elif previous != today:
+        # Days strictly between the last qualifying day and today.
+        missed = (today - previous).days - 1
+        if missed > STREAK_GRACE_DAYS:
+            current, missed = 0, 0
     return {
         "current": current,
         "best": best,
         "today_count": today_count,
         "needed_today": max(STREAK_MIN_TASKS - today_count, 0),
+        "paused": missed > 0,
+        "missed_days": missed,
+        "grace_left": STREAK_GRACE_DAYS - missed if current else STREAK_GRACE_DAYS,
     }
 
 

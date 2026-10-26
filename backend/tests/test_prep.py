@@ -122,8 +122,32 @@ class PrepScheduleTests(unittest.TestCase):
         result = streaks(attempts, MONDAY + timedelta(days=3))
         self.assertEqual(result["current"], 3)
         self.assertEqual(result["needed_today"], 1)
-        broken = streaks(attempts, MONDAY + timedelta(days=5))
-        self.assertEqual((broken["current"], broken["best"]), (0, 3))
+        # Two missed days (Thu, Fri) pause the streak; it is not reset.
+        paused = streaks(attempts, MONDAY + timedelta(days=6))
+        self.assertEqual(
+            (paused["current"], paused["paused"], paused["missed_days"], paused["grace_left"]),
+            (3, True, 3, 0),
+        )
+        broken = streaks(attempts, MONDAY + timedelta(days=7))
+        self.assertEqual((broken["current"], broken["best"], broken["paused"]), (0, 3, False))
+
+    def test_streak_resumes_after_a_pause_and_resets_after_four_missed_days(self):
+        def done(*offsets):
+            out = []
+            for offset in offsets:
+                day = MONDAY + timedelta(days=offset)
+                out += [_attempt("lc-1", day), _attempt("lc-217", day)]
+            return out
+
+        # Days 0-1 done, 2-4 missed (3 days), day 5 done: the streak continues at 3.
+        resumed = streaks(done(0, 1, 5), MONDAY + timedelta(days=5))
+        self.assertEqual((resumed["current"], resumed["paused"], resumed["best"]), (3, False, 3))
+        # Four missed days in a row (2-5): day 6 starts again from 1.
+        reset = streaks(done(0, 1, 6), MONDAY + timedelta(days=6))
+        self.assertEqual((reset["current"], reset["best"]), (1, 2))
+        # An unfinished today is not a missed day.
+        waiting = streaks(done(0, 1), MONDAY + timedelta(days=2))
+        self.assertEqual((waiting["current"], waiting["paused"], waiting["grace_left"]), (2, False, 3))
 
     def test_due_redos_show_at_top_and_future_ones_do_not(self):
         due = PrepRedo(id=1, user_id=1, task_id="lc-1", due_date=MONDAY + timedelta(days=3))

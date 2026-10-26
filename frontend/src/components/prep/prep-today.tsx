@@ -78,10 +78,17 @@ function toChecklistItem(item: PrepItem): ChecklistItem {
 function streakLine(today: PrepToday): string {
   const s = today.streak;
   if (!s) return "";
+  const days = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
   if (s.needed_today === 0) {
     return s.current > 1 ? `Today counts. ${s.current}-day streak.` : "Today counts.";
   }
   const more = `${s.needed_today} more`;
+  if (s.paused) {
+    const missed = `Paused after ${days(s.missed_days)} off.`;
+    return s.grace_left === 0
+      ? `${missed} Finish ${more} today or your ${s.current}-day streak resets.`
+      : `${missed} Finish ${more} today to resume your ${s.current}-day streak. You can miss ${days(s.grace_left)} more without losing it.`;
+  }
   return s.current > 0
     ? `${more} to keep your ${s.current}-day streak.`
     : `${more} to start a streak.`;
@@ -296,7 +303,11 @@ export function PrepToday() {
         <div className="min-w-0 flex-1 space-y-3">
           <div className="flex flex-wrap items-center gap-3">
             {today.streak && date <= view.today && (
-              <StreakBadge current={today.streak.current} best={today.streak.best} />
+              <StreakBadge
+                current={today.streak.current}
+                best={today.streak.best}
+                paused={today.streak.paused}
+              />
             )}
             <div>
               <p className="text-sm font-medium text-[var(--text)]">
