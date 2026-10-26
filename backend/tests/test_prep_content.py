@@ -25,7 +25,7 @@ PRELUDE_FILE = (
 EXTRA_URL = re.compile(r"^https://leetcode\.com/problems/[a-z0-9-]+/$")
 CODE_TYPES = {"python", "drill", "lld", "fundamentals"}
 PART_HEADING = re.compile(r"(?m)^### Part (\d+) · ")
-SITUATION = re.compile(r"(?ms)^### The situation\n(.*?)(?=^### |\Z)")
+SITUATION = re.compile(r"(?ms)^### The situation\n(.*?)(?=^### |^The starter gives you|\Z)")
 
 # The description states the problem; how to solve it belongs in hints and the solution.
 # A banned phrase is allowed when it is part of the task's own title.
