@@ -15,3 +15,9 @@ export function shortDate(iso: string): string {
     month: "short",
   });
 }
+
+/** The YYYY-MM-DD date `days` after `iso` (negative goes back), in local time. */
+export function addDays(iso: string, days: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return localISODate(new Date(y, m - 1, d + days));
+}

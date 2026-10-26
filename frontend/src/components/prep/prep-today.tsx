@@ -5,14 +5,14 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import type { PrepItem, PrepToday } from "@/lib/types";
-import { Button, Card, Input, Label, PageHeader, PageSkeleton } from "@/components/ui";
+import { Badge, Button, Card, Input, Label, PageHeader, PageSkeleton } from "@/components/ui";
 import { Checklist, type ChecklistItem } from "@/components/shared/checklist";
 import { MarkdownPanel } from "@/components/shared/markdown-panel";
 import { ProgressRing } from "@/components/shared/progress-ring";
 import { StreakBadge } from "@/components/shared/streak-badge";
 import { TaskCard } from "@/components/shared/task-card";
 import { WeekStrip } from "@/components/shared/week-strip";
-import { localISODate, shortDate } from "./dates";
+import { addDays, localISODate, shortDate } from "./dates";
 import { PrepNav } from "./prep-nav";
 
 function nextMonday(): string {
@@ -87,8 +87,66 @@ function streakLine(today: PrepToday): string {
     : `${more} to start a streak.`;
 }
 
+/** Previous / next day, a date picker and a way back to today. */
+function DayNav({
+  date,
+  isToday,
+  onChange,
+}: {
+  date: string;
+  isToday: boolean;
+  onChange: (date: string) => void;
+}) {
+  const step =
+    "rounded-[var(--radius-md)] border px-2.5 py-1.5 text-sm text-[var(--text)] hover:bg-[var(--panel-2)]";
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        className={step}
+        style={{ borderColor: "var(--border)" }}
+        onClick={() => onChange(addDays(date, -1))}
+        aria-label="Previous day"
+      >
+        ←
+      </button>
+      <input
+        type="date"
+        value={date}
+        onChange={(e) => e.target.value && onChange(e.target.value)}
+        aria-label="Choose a day"
+        className="rounded-[var(--radius-md)] border bg-[var(--panel)] px-2.5 py-1.5 text-sm text-[var(--text)] [color-scheme:dark]"
+        style={{ borderColor: "var(--border)" }}
+      />
+      <button
+        type="button"
+        className={step}
+        style={{ borderColor: "var(--border)" }}
+        onClick={() => onChange(addDays(date, 1))}
+        aria-label="Next day"
+      >
+        →
+      </button>
+      {isToday ? (
+        <Badge tone="primary">Today</Badge>
+      ) : (
+        <Button size="sm" variant="ghost" onClick={() => onChange(localISODate())}>
+          Back to today
+        </Button>
+      )}
+    </div>
+  );
+}
+
 export function PrepToday() {
-  const [date, setDate] = useState(localISODate);
+  // `date` is the day on screen; `today` is the browser's calendar day.
+  const [view, setView] = useState(() => {
+    const now = localISODate();
+    return { date: now, today: now };
+  });
+  const { date } = view;
+  const isToday = view.date === view.today;
+  const setDate = useCallback((next: string) => setView((v) => ({ ...v, date: next })), []);
   const [today, setToday] = useState<PrepToday | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -103,16 +161,30 @@ export function PrepToday() {
       .catch((err: Error) => setError(err.message));
   }, []);
 
+  // Paging quickly through days: only the latest request's answer is shown.
   useEffect(() => {
-    load(date);
-  }, [date, load]);
+    let current = true;
+    api
+      .getPrepToday(date)
+      .then((data) => {
+        if (!current) return;
+        setToday(data);
+        setError(null);
+      })
+      .catch((err: Error) => current && setError(err.message));
+    return () => {
+      current = false;
+    };
+  }, [date]);
 
-  // A tab left open overnight should roll over to the new day.
+  // A tab left open overnight rolls over to the new day, unless you were looking at another day.
   useEffect(() => {
-    const onFocus = () => setDate((current) => {
-      const now = localISODate();
-      return now === current ? current : now;
-    });
+    const onFocus = () =>
+      setView((v) => {
+        const now = localISODate();
+        if (v.today === now) return v;
+        return { today: now, date: v.date === v.today ? now : v.date };
+      });
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, []);
@@ -132,10 +204,11 @@ export function PrepToday() {
     return (
       <div className="page-shell mx-auto max-w-4xl">
         <PageHeader title={today.program_name} description={`Starts ${today.start_date}.`} />
+        <DayNav date={date} isToday={isToday} onChange={setDate} />
         <Card>
           <p className="text-sm text-[var(--text-secondary)]">
-            Week 1 begins in {today.days_until_start}{" "}
-            {today.days_until_start === 1 ? "day" : "days"}. Nothing is due yet.
+            {isToday ? "Week 1 begins" : `On ${shortDate(date)}, week 1 begins`} in{" "}
+            {today.days_until_start} {today.days_until_start === 1 ? "day" : "days"}. Nothing is due yet.
           </p>
         </Card>
       </div>
@@ -186,7 +259,7 @@ export function PrepToday() {
       <PrepNav />
       <PageHeader
         title={today.program_name}
-        description={`Week ${today.week} of ${today.weeks} · ${today.weekday} ${today.date}`}
+        description={`Week ${today.week} of ${today.weeks} · ${shortDate(today.date)}`}
         action={
           today.doc_url ? (
             <a
@@ -201,6 +274,15 @@ export function PrepToday() {
         }
       />
 
+      <DayNav date={date} isToday={isToday} onChange={setDate} />
+      {!isToday && (
+        <p className="text-sm text-[var(--muted)]">
+          {date < view.today
+            ? `Showing what was planned and done on ${shortDate(date)}. Open any task to see its submissions and review; anything you log now counts for today.`
+            : `A preview of ${shortDate(date)}. Redos and extras can still change before then.`}
+        </p>
+      )}
+
       {today.feedback && (
         <MarkdownPanel
           title={`Feedback for ${shortDate(today.feedback.date)}`}
@@ -210,26 +292,26 @@ export function PrepToday() {
       )}
 
       <Card className="flex flex-wrap items-center gap-5">
-        <ProgressRing value={pct} label="today" />
+        <ProgressRing value={pct} label={isToday ? "today" : shortDate(date)} />
         <div className="min-w-0 flex-1 space-y-3">
           <div className="flex flex-wrap items-center gap-3">
-            {today.streak && (
+            {today.streak && date <= view.today && (
               <StreakBadge current={today.streak.current} best={today.streak.best} />
             )}
             <div>
               <p className="text-sm font-medium text-[var(--text)]">
-                {today.done_count} of {today.total_count} done today
+                {today.done_count} of {today.total_count} done {isToday ? "today" : `on ${shortDate(date)}`}
               </p>
-              <p className="text-xs text-[var(--muted)]">{streakLine(today)}</p>
+              {isToday && <p className="text-xs text-[var(--muted)]">{streakLine(today)}</p>}
             </div>
           </div>
-          <WeekStrip days={today.week_strip} />
+          <WeekStrip days={today.week_strip} selected={date} onSelect={setDate} />
         </div>
       </Card>
 
       {error && <p className="text-sm text-[var(--red)]">{error}</p>}
 
-      {upNext && (
+      {upNext && isToday && (
         <TaskCard
           task={{
             title: upNext.title,

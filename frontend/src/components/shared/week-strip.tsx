@@ -23,28 +23,58 @@ const STATUS_TEXT: Record<WeekStripDay["status"], string> = {
   upcoming: "upcoming",
 };
 
-/** Seven-day row showing done / partial / missed per day. */
-export function WeekStrip({ days }: { days: WeekStripDay[] }) {
+/**
+ * Seven-day row showing done / partial / missed per day. With `onSelect`, each
+ * day is a button and `selected` is outlined.
+ */
+export function WeekStrip({
+  days,
+  selected,
+  onSelect,
+}: {
+  days: WeekStripDay[];
+  selected?: string;
+  onSelect?: (date: string) => void;
+}) {
   return (
     <ol className="grid grid-cols-7 gap-1.5" aria-label="This week">
-      {days.map((day) => (
-        <li
-          key={day.date ?? day.label}
-          title={`${day.date ?? day.label}: ${STATUS_TEXT[day.status]}${
-            day.count ? ` (${day.count})` : ""
-          }`}
-          className={cn(
-            "flex h-11 flex-col items-center justify-center rounded-md border text-[11px] font-medium",
-            STATUS_STYLE[day.status]
-          )}
-        >
-          <span>{day.label}</span>
-          <span className="sr-only">{STATUS_TEXT[day.status]}</span>
-          <span aria-hidden className="text-[10px] tabular-nums opacity-80">
-            {day.status === "upcoming" ? "" : day.count ?? ""}
-          </span>
-        </li>
-      ))}
+      {days.map((day) => {
+        const title = `${day.date ?? day.label}: ${STATUS_TEXT[day.status]}${
+          day.count ? ` (${day.count})` : ""
+        }`;
+        const className = cn(
+          "flex h-11 w-full flex-col items-center justify-center rounded-md border text-[11px] font-medium",
+          STATUS_STYLE[day.status],
+          onSelect && "cursor-pointer hover:brightness-125",
+          selected && day.date === selected && "ring-2 ring-[var(--primary)] ring-offset-1 ring-offset-[var(--panel)]"
+        );
+        const body = (
+          <>
+            <span>{day.label}</span>
+            <span className="sr-only">{STATUS_TEXT[day.status]}</span>
+            <span aria-hidden className="text-[10px] tabular-nums opacity-80">
+              {day.status === "upcoming" ? "" : day.count ?? ""}
+            </span>
+          </>
+        );
+        return (
+          <li key={day.date ?? day.label} title={title}>
+            {onSelect && day.date ? (
+              <button
+                type="button"
+                className={className}
+                aria-current={day.date === selected ? "date" : undefined}
+                aria-label={`Show ${title}`}
+                onClick={() => onSelect(day.date as string)}
+              >
+                {body}
+              </button>
+            ) : (
+              <div className={className}>{body}</div>
+            )}
+          </li>
+        );
+      })}
     </ol>
   );
 }
