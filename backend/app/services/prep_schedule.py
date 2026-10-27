@@ -58,6 +58,26 @@ def scheduled_date(task: PrepTask, start_date: date) -> date | None:
     return None
 
 
+def dsa_days(tasks: Iterable[PrepTask], start_date: date) -> dict[str, date]:
+    """The fixed day of every weekly DSA problem: MORNING_DSA_PER_DAY a day, in
+    order, from the first day of its week. It never moves; a problem missed on
+    its day waits under "Carried over" until it is done."""
+    by_week: dict[int, list[PrepTask]] = defaultdict(list)
+    for task in tasks:
+        if task.type == "dsa" and task.slot == "morning":
+            by_week[task.week].append(task)
+    planned: dict[str, date] = {}
+    for week, items in by_week.items():
+        first = week_start(start_date, week)
+        for index, task in enumerate(sorted(items, key=lambda t: (t.order, t.id))):
+            planned[task.id] = first + timedelta(days=min(index // MORNING_DSA_PER_DAY, 6))
+    return planned
+
+
+def _day_label(day: date) -> str:
+    return f"{weekday_label(day)} {day.day} {day.strftime('%b')}"
+
+
 def neetcode_task_id(day: date) -> str:
     return f"nc-{day.isoformat()}"
 
@@ -160,11 +180,18 @@ def build_today(
     today: date,
     attempts: list[PrepAttempt],
     redos: list[PrepRedo],
+    completed: set[str] | None = None,
 ) -> dict[str, Any]:
+    """The plan for one day. `attempts` run up to `today`; `completed` is every
+    task id ever finished (on any date), so a DSA problem done after its day
+    still shows as done on that day. It defaults to what `attempts` hold."""
     week = program_week(start_date, today)
     by_date = completions_by_date(attempts)
     done_before = {tid for d, ids in by_date.items() if d < today for tid in ids}
     done_today = by_date.get(today, set())
+    if completed is None:
+        completed = done_before | done_today
+    planned_dsa = dsa_days(tasks, start_date)
     weekday = weekday_label(today)
     by_id = {task.id: task for task in tasks}
     extras = [t for t in tasks if t.slot == EXTRA_SLOT]
@@ -195,7 +222,7 @@ def build_today(
         "dsa_backlog": 0,
     }
     result["streak"] = streaks(attempts, today)
-    result["week_strip"] = _week_strip(start_date, today, week, by_date)
+    result["week_strip"] = _week_strip(start_date, today, week, by_date, planned_dsa, completed)
     if week == 0:
         result.update(done_count=0, total_count=0, week_progress={"done": 0, "total": 0})
         return result
@@ -223,8 +250,8 @@ def build_today(
         )
     result["redos"] = redo_items
 
-    # Morning: DSA in order, oldest unfinished first; weeks 9-10 switch to NeetCode.
-    leftover_dsa = [t for t in ordered if t.type == "dsa" and t.week <= week and pending(t)]
+    # Morning: the DSA planned for this day (fixed, done on any day counts);
+    # weeks 9-10 switch to one unseen NeetCode medium a day.
     if week >= 9:
         nc_id = neetcode_task_id(today)
         result["morning"].append(
@@ -246,11 +273,10 @@ def build_today(
                 "reason": None,
             }
         )
-    else:
-        for task in leftover_dsa[:MORNING_DSA_PER_DAY]:
-            result["morning"].append(item(task))
+    for task in ordered:
+        if planned_dsa.get(task.id) == today:
+            result["morning"].append(_task_item(task, done=task.id in completed))
             shown.add(task.id)
-        result["dsa_backlog"] = max(len(leftover_dsa) - MORNING_DSA_PER_DAY, 0)
 
     # Evening, by phase of the program.
     if week == 1:
@@ -300,10 +326,13 @@ def build_today(
         if task.id in shown or task.week > week or not pending(task):
             continue
         when = scheduled_date(task, start_date)
-        if task.type == "dsa":
-            # Weeks 1-8 keep unfinished DSA in the morning queue instead.
-            overdue = week >= 9
-        elif task.type == "drill":
+        if task.id in planned_dsa:
+            planned_on = planned_dsa[task.id]
+            if planned_on < today:
+                result["carried"].append(item(task, badge=f"From {_day_label(planned_on)}"))
+                result["dsa_backlog"] += 1
+            continue
+        if task.type == "drill":
             overdue = week > 3
         elif task.type == "project":
             overdue = task.week < week
@@ -415,16 +444,27 @@ def pick_extras(
 
 
 def _week_strip(
-    start_date: date, today: date, week: int, by_date: dict[date, set[str]]
+    start_date: date,
+    today: date,
+    week: int,
+    by_date: dict[date, set[str]],
+    planned_dsa: dict[str, date],
+    completed: set[str],
 ) -> list[dict[str, Any]]:
+    """The week's days. A day is done once enough was finished on it, or once all
+    of its planned DSA is finished, whenever that happened."""
     first = week_start(start_date, max(week, 1))
+    planned_by_day: dict[date, set[str]] = defaultdict(set)
+    for task_id, day in planned_dsa.items():
+        planned_by_day[day].add(task_id)
     strip = []
     for offset in range(7):
         day = first + timedelta(days=offset)
         count = len(by_date.get(day, set()))
-        if count >= STREAK_MIN_TASKS:
+        planned = planned_by_day.get(day, set())
+        if count >= STREAK_MIN_TASKS or (planned and planned <= completed):
             status = "done"
-        elif count:
+        elif count or planned & completed:
             status = "partial"
         elif day < today:
             status = "missed"

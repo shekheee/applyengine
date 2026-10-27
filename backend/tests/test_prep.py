@@ -73,11 +73,34 @@ class PrepScheduleTests(unittest.TestCase):
             _titles(tomorrow["morning"]), ["242. Valid Anagram", "49. Group Anagrams"]
         )
 
-    def test_unfinished_work_rolls_forward(self):
+    def test_dsa_stays_on_its_day_and_missed_problems_carry_over(self):
         tuesday = self.plan(MONDAY + timedelta(days=1))
-        self.assertEqual(_titles(tuesday["morning"]), ["1. Two Sum", "217. Contains Duplicate"])
+        self.assertEqual(_titles(tuesday["morning"]), ["242. Valid Anagram", "49. Group Anagrams"])
         self.assertEqual(_titles(tuesday["evening"]), ["Python: collections + heapq"])
-        self.assertEqual(_titles(tuesday["carried"]), ["Python: Built-in collections"])
+        self.assertEqual(
+            sorted(_titles(tuesday["carried"])),
+            ["1. Two Sum", "217. Contains Duplicate", "Python: Built-in collections"],
+        )
+        self.assertEqual(tuesday["carried"][0]["badge"], "From Mon 26 Oct")
+        self.assertEqual(tuesday["dsa_backlog"], 2)
+
+    def test_dsa_done_on_a_later_day_shows_done_on_its_own_day(self):
+        wednesday = MONDAY + timedelta(days=2)
+        caught_up = [_attempt("lc-1", wednesday), _attempt("lc-217", wednesday)]
+        # Monday, viewed with everything finished since: both green, the day is done.
+        monday = build_today(
+            self.tasks, MONDAY, MONDAY, [], [], completed={"lc-1", "lc-217"}
+        )
+        self.assertEqual([i["done"] for i in monday["morning"]], [True, True])
+        self.assertEqual(monday["week_strip"][0]["status"], "done")
+        # Wednesday: they were carried over and are ticked off there.
+        plan = self.plan(wednesday, caught_up)
+        carried = {i["task_id"]: i["done"] for i in plan["carried"] if i["type"] == "dsa"}
+        # Monday's caught up (ticked); Tuesday's are still waiting.
+        self.assertEqual(carried, {"lc-1": True, "lc-217": True, "lc-242": False, "lc-49": False})
+        # Thursday: nothing left to carry.
+        thursday = self.plan(MONDAY + timedelta(days=3), caught_up)
+        self.assertNotIn("lc-1", [i["task_id"] for i in thursday["carried"]])
 
     def test_week_two_evening_is_next_drill(self):
         plan = self.plan(MONDAY + timedelta(days=7))

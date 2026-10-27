@@ -176,7 +176,11 @@ def get_today(
         ).all()
     )
     redos = list(session.exec(select(PrepRedo).where(PrepRedo.user_id == user.id)).all())
-    plan = build_today(tasks, settings.start_date, day, attempts, redos)
+    # Finished on any date, so a past day shows DSA that was caught up later as done.
+    completed = set(
+        session.exec(select(PrepAttempt.task_id).where(PrepAttempt.user_id == user.id)).all()
+    )
+    plan = build_today(tasks, settings.start_date, day, attempts, redos, completed)
 
     feedback = session.exec(
         select(PrepFeedback)

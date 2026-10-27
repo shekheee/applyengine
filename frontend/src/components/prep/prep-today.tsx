@@ -233,12 +233,20 @@ export function PrepToday() {
     {
       title: "Morning · DSA",
       items: today.morning,
-      empty: "This week's DSA is done. Clear any redos above.",
-      note: today.dsa_backlog > 0 ? `${today.dsa_backlog} more DSA queued behind these.` : undefined,
+      empty: "No new DSA planned for this day. Catch up on anything carried over, or try the extras.",
+      note:
+        today.dsa_backlog > 0
+          ? `${today.dsa_backlog} DSA ${today.dsa_backlog === 1 ? "problem" : "problems"} from earlier days ${today.dsa_backlog === 1 ? "is" : "are"} waiting under Carried over.`
+          : undefined,
     },
     { title: "Evening", items: today.evening, empty: "Nothing scheduled this evening." },
     { title: "Weekend · Project", items: today.weekend, empty: "" },
-    { title: "Carried over", items: today.carried, empty: "" },
+    {
+      title: "Carried over",
+      items: today.carried,
+      empty: "",
+      note: "Each problem keeps its own day. Finish it whenever you can and that day turns green.",
+    },
     {
       title: "This week",
       items: today.weekly,
